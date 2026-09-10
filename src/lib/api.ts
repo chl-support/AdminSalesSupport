@@ -8,7 +8,7 @@
  */
 
 import { NextResponse, type NextRequest } from "next/server";
-import { one } from "./db";
+import { explainDbError, one } from "./db";
 import { WorkflowError } from "./workflow";
 
 export type User = {
@@ -58,9 +58,21 @@ export function handler<T>(fn: (req: NextRequest, ctx: any) => Promise<T>) {
         );
       }
       console.error(err);
+      // Galat basis data diterjemahkan menjadi pesan yang menyebut langkah
+      // perbaikannya — tanpa ini, kegagalan konfigurasi di produksi muncul sebagai
+      // kode pg mentah yang tidak menuntun ke mana pun.
+      const isDbError = typeof err?.code === "string" &&
+        /^[0-9A-Z]{5}$/.test(err.code) || ["ECONNREFUSED", "ENOTFOUND",
+        "ETIMEDOUT"].includes(err?.code);
       return NextResponse.json(
-        { type: "about:blank", title: "Kesalahan internal", status: 500,
-          detail: String(err?.message ?? err) },
+        {
+          type: isDbError ? "https://klaim.sbl.co.id/problems/database"
+                          : "about:blank",
+          title: isDbError ? "Basis data tidak dapat diakses" : "Kesalahan internal",
+          status: 500,
+          detail: isDbError ? explainDbError(err) : String(err?.message ?? err),
+          ...(isDbError ? { pgCode: err.code } : {}),
+        },
         { status: 500, headers: { "content-type": "application/problem+json" } },
       );
     }

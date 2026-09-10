@@ -175,10 +175,18 @@ lama tetap dapat ditafsirkan.
 
 ## Deploy
 
-Aplikasi ini butuh Node runtime dan koneksi PostgreSQL yang tahan lama. Cocok untuk
+Aplikasi ini butuh Node runtime dan PostgreSQL yang dapat dijangkau. Cocok untuk
 Vercel (dengan Neon/Supabase), Railway, Fly.io, atau kontainer di VPS sendiri.
 
-Untuk Postgres terkelola yang mewajibkan TLS, set `PGSSL=require` selain `DATABASE_URL`.
+**Untuk Vercel, ikuti [DEPLOY-VERCEL.md](DEPLOY-VERCEL.md).** Build akan berhasil
+tanpa konfigurasi apa pun, tetapi aplikasinya tidak berfungsi sampai `DATABASE_URL`
+diisi dan migrasi dijalankan sekali — dua hal yang tidak tertangkap saat build.
+
+TLS diaktifkan otomatis untuk host non-lokal; `PGSSL` hanya diperlukan bila Anda
+ingin memaksanya (`require`) atau mematikannya (`disable`).
+
+Periksa hasilnya lewat `/api/health`. Endpoint itu benar-benar menyentuh basis data
+dan menyebutkan langkah perbaikan bila gagal, bukan sekadar membalas "ok".
 
 Sebelum produksi, ganti autentikasi header `X-User` dengan OIDC/JWT dan aktifkan MFA
 untuk peran Finance, Management, dan Admin Sistem.

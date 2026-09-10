@@ -12,27 +12,110 @@ import { Pool, types, type PoolClient } from "pg";
 types.setTypeParser(20, (v) => (v === null ? null : Number(v))); // int8
 // 1700 (numeric) sengaja tidak diubah: tetap string.
 
-const connectionString =
-  process.env.DATABASE_URL ??
-  "postgresql://postgres@127.0.0.1:5432/klaim";
+/**
+ * Konfigurasi koneksi.
+ *
+ * Di lingkungan serverless (Vercel, Lambda) tiap instance fungsi membuat pool
+ * sendiri. Pool besar per-instance akan menghabiskan kuota koneksi Postgres
+ * terkelola begitu ada beberapa instance menyala bersamaan — Neon free tier
+ * hanya mengizinkan puluhan koneksi. Karena itu ukuran pool dikecilkan otomatis
+ * saat terdeteksi serverless, dan pool di-cache pada objek global agar dipakai
+ * ulang lintas invocation pada instance yang sama.
+ */
+
+const isServerless = Boolean(
+  process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME,
+);
+
+const connectionString = process.env.DATABASE_URL;
+
+export const MISSING_DATABASE_URL =
+  "DATABASE_URL belum diisi. Aplikasi ini memerlukan PostgreSQL yang dapat " +
+  "dijangkau dari lingkungan tempatnya berjalan.\n\n" +
+  "Pengembangan lokal: salin .env.example menjadi .env lalu sesuaikan.\n" +
+  "Vercel: Settings > Environment Variables, tambahkan DATABASE_URL untuk " +
+  "Production, Preview, dan Development.\n\n" +
+  "Vercel tidak menyediakan PostgreSQL secara otomatis — gunakan Neon, Supabase, " +
+  "Vercel Postgres, atau instance lain yang dapat diakses publik.";
+
+/**
+ * TLS diaktifkan otomatis untuk host non-lokal.
+ *
+ * Hampir seluruh Postgres terkelola mewajibkan TLS dan menolak koneksi polos.
+ * Menyerahkan ini ke variabel manual berarti kegagalan pertama di produksi berupa
+ * pesan "no pg_hba.conf entry" yang tidak jelas hubungannya dengan TLS.
+ */
+function sslConfig(url: string) {
+  if (process.env.PGSSL === "disable") return {};
+  if (process.env.PGSSL === "require") return { ssl: { rejectUnauthorized: false } };
+  const local = /(^|@|\/\/)(localhost|127\.0\.0\.1|\[::1\])(:|\/)/.test(url);
+  return local ? {} : { ssl: { rejectUnauthorized: false } };
+}
 
 declare global {
   // eslint-disable-next-line no-var
   var __klaimPool: Pool | undefined;
 }
 
-export const pool =
-  global.__klaimPool ??
-  new Pool({
+/**
+ * Pool dibuat saat pertama dipakai, bukan saat modul dimuat.
+ *
+ * Melempar galat pada waktu impor akan mematikan seluruh route termasuk
+ * /api/health — padahal justru itu yang dibutuhkan untuk mendiagnosis deploy yang
+ * variabel lingkungannya belum lengkap.
+ */
+function getPool(): Pool {
+  if (global.__klaimPool) return global.__klaimPool;
+  if (!connectionString) throw new Error(MISSING_DATABASE_URL);
+
+  const p = new Pool({
     connectionString,
-    max: Number(process.env.PGPOOL_MAX ?? 10),
-    idleTimeoutMillis: 30_000,
-    ...(process.env.PGSSL === "require"
-      ? { ssl: { rejectUnauthorized: false } }
-      : {}),
+    max: Number(process.env.PGPOOL_MAX ?? (isServerless ? 2 : 10)),
+    idleTimeoutMillis: isServerless ? 10_000 : 30_000,
+    connectionTimeoutMillis: 10_000,
+    ...sslConfig(connectionString),
   });
 
-if (process.env.NODE_ENV !== "production") global.__klaimPool = pool;
+  p.on("error", (err) => {
+    // Koneksi menganggur yang diputus Postgres terkelola tidak boleh
+    // menjatuhkan proses.
+    console.error("Pool PostgreSQL: galat pada koneksi menganggur:", err.message);
+  });
+
+  global.__klaimPool = p;
+  return p;
+}
+
+/** Akses pool melalui proxy agar pemanggil lama tetap bekerja tanpa perubahan. */
+export const pool = new Proxy({} as Pool, {
+  get(_t, prop) {
+    const target = getPool() as any;
+    const value = target[prop];
+    return typeof value === "function" ? value.bind(target) : value;
+  },
+});
+
+/** Pesan yang lebih jelas ketika skema belum pernah dimigrasikan. */
+export function explainDbError(err: any): string {
+  if (err?.code === "42P01") {
+    return "Tabel belum ada. Jalankan migrasi sekali terhadap basis data ini: " +
+           "DATABASE_URL='<url>' npm run db:migrate";
+  }
+  if (err?.code === "ECONNREFUSED") {
+    return "Koneksi ditolak. Periksa DATABASE_URL dan apakah host mengizinkan " +
+           "akses dari luar.";
+  }
+  if (err?.code === "ENOTFOUND") {
+    return "Host pada DATABASE_URL tidak ditemukan.";
+  }
+  if (String(err?.message).startsWith("DATABASE_URL belum diisi")) {
+    return err.message;
+  }
+  if (String(err?.message).includes("no pg_hba.conf entry")) {
+    return "Server menolak koneksi tanpa TLS. Set PGSSL=require.";
+  }
+  return err?.message ?? String(err);
+}
 
 export async function query<T = any>(
   text: string,
