@@ -27,7 +27,20 @@ const isServerless = Boolean(
   process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME,
 );
 
-const connectionString = process.env.DATABASE_URL;
+/**
+ * Dibaca saat dipakai, bukan pada lingkup modul.
+ *
+ * Membaca process.env di lingkup modul membuat nilainya terkunci pada evaluasi
+ * pertama bundel. Dibaca di dalam fungsi, nilainya selalu berasal dari environment
+ * fungsi yang sedang berjalan — yang penting di serverless, karena variabel baru
+ * hanya terbaca oleh deployment yang dibuat setelah variabel itu ditambahkan.
+ */
+function databaseUrl(): string | undefined {
+  const raw = process.env.DATABASE_URL;
+  // Menempel spasi atau petik saat menyalin dari dashboard adalah kekeliruan yang
+  // sangat umum dan menghasilkan galat yang membingungkan.
+  return raw?.trim().replace(/^["']|["']$/g, "") || undefined;
+}
 
 export const MISSING_DATABASE_URL =
   "DATABASE_URL belum diisi. Aplikasi ini memerlukan PostgreSQL yang dapat " +
@@ -66,6 +79,7 @@ declare global {
  */
 function getPool(): Pool {
   if (global.__klaimPool) return global.__klaimPool;
+  const connectionString = databaseUrl();
   if (!connectionString) throw new Error(MISSING_DATABASE_URL);
 
   const p = new Pool({
@@ -94,6 +108,47 @@ export const pool = new Proxy({} as Pool, {
     return typeof value === "function" ? value.bind(target) : value;
   },
 });
+
+/**
+ * Laporan konfigurasi untuk mendiagnosis deploy.
+ *
+ * Kredensial tidak pernah ikut: hanya bentuk dan asal nilainya. Tanpa ini,
+ * menelusuri "variabel sudah diisi tetapi tidak terbaca" hanya berupa tebakan.
+ */
+export function configReport() {
+  const raw = process.env.DATABASE_URL;
+  const url = databaseUrl();
+  let host: string | null = null;
+  let pooled: boolean | null = null;
+  let sslmode: string | null = null;
+  if (url) {
+    try {
+      const u = new URL(url);
+      host = u.hostname;                       // kredensial tidak disertakan
+      pooled = u.hostname.includes("-pooler") || u.port === "6543";
+      sslmode = u.searchParams.get("sslmode");
+    } catch {
+      host = "(tidak dapat diurai — periksa format connection string)";
+    }
+  }
+  return {
+    database_url: {
+      present: Boolean(url),
+      raw_length: raw?.length ?? 0,
+      trimmed: Boolean(raw && raw !== url),   // ada spasi/petik yang ikut tersalin
+      host,
+      pooled,
+      sslmode,
+    },
+    setup_secret_present: Boolean(process.env.SETUP_SECRET),
+    vercel: {
+      env: process.env.VERCEL_ENV ?? null,          // production | preview | development
+      url: process.env.VERCEL_URL ?? null,
+      branch: process.env.VERCEL_GIT_COMMIT_REF ?? null,
+      commit: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? null,
+    },
+  };
+}
 
 /** Pesan yang lebih jelas ketika skema belum pernah dimigrasikan. */
 export function explainDbError(err: any): string {

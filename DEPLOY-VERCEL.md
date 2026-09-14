@@ -98,6 +98,27 @@ Lalu buka:
 https://<domain-anda>.vercel.app/api/health
 ```
 
+Selain status, respons memuat blok `config` yang melaporkan apa yang **benar-benar
+terbaca oleh fungsi yang sedang berjalan** — tanpa kredensial:
+
+```json
+"config": {
+  "database_url": { "present": true, "host": "ep-xxx-pooler...", "pooled": true,
+                    "sslmode": "require", "trimmed": false },
+  "setup_secret_present": true,
+  "vercel": { "env": "production", "branch": "main", "commit": "5a63cd6" }
+}
+```
+
+Cara membacanya ketika variabel sudah diisi tetapi pesannya tetap muncul:
+
+| Yang terlihat | Artinya |
+|---|---|
+| `present: false` | Fungsi ini tidak melihat variabelnya. Hampir selalu karena deployment dibuat **sebelum** variabel ditambahkan — jalankan Redeploy. |
+| `present: false` dan `vercel.env` berbeda dari yang Anda centang | Variabel hanya dicentang untuk sebagian environment. Buka Settings dan centang ketiganya. |
+| `trimmed: true` | Ada spasi atau tanda petik ikut tersalin. Aplikasi membersihkannya otomatis, tetapi sebaiknya diperbaiki di dashboard. |
+| `pooled: false` pada Neon/Supabase | Anda memakai connection string langsung. Ganti dengan yang pooled. |
+
 | Respons | Arti |
 |---|---|
 | `"status": "ok"` beserta jumlah klaim | Basis data terhubung dan skema sudah ada |
