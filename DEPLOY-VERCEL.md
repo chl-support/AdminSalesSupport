@@ -31,25 +31,61 @@ Preview, Development):
 | Nama | Nilai |
 |---|---|
 | `DATABASE_URL` | connection string dari langkah 1 |
+| `SETUP_SECRET` | opsional, hanya bila memakai Cara A pada langkah 3. Hapus setelah selesai. |
 
 TLS tidak perlu dikonfigurasi manual — aplikasi mengaktifkannya otomatis untuk host
 non-lokal. Bila penyedia Anda justru menolak TLS, set `PGSSL=disable`.
 
 ## 3. Jalankan migrasi sekali
 
-Migrasi **tidak** berjalan otomatis saat deploy. Dari mesin Anda:
+Migrasi **tidak** berjalan otomatis saat deploy. Ada dua cara.
+
+### Cara A — lewat browser, tanpa memasang apa pun
+
+Tambahkan satu variabel lagi di Vercel, lalu **Redeploy**:
+
+| Nama | Nilai |
+|---|---|
+| `SETUP_SECRET` | kalimat acak panjang, mis. `setup-9f2a7c14be03` |
+
+Buka `https://<domain-anda>.vercel.app/api/admin/setup` untuk melihat status. Lalu
+jalankan penyiapannya:
+
+```bash
+curl -X POST "https://<domain-anda>.vercel.app/api/admin/setup?seed=true" \
+  -H "x-setup-secret: setup-9f2a7c14be03"
+```
+
+Respons yang diharapkan:
+
+```json
+{ "ok": true, "steps": ["migrasi selesai — 24 tabel",
+                        "seed selesai — 6 unit, 4 marketing, 7 pengguna"] }
+```
+
+**Setelah berhasil, hapus `SETUP_SECRET` lalu redeploy.** Tanpa variabel itu route
+membalas 404 dan kembali tidak aktif.
+
+Tiga pengaman pada endpoint ini: mati secara bawaan bila `SETUP_SECRET` kosong;
+rahasia dibandingkan secara constant-time; dan seed menolak berjalan bila sudah ada
+klaim tersimpan, kecuali ditambahi `&force=true`.
+
+### Cara B — dari mesin Anda
 
 ```bash
 git clone https://github.com/chl-support/AdminSalesSupport.git
 cd AdminSalesSupport
 npm install
 DATABASE_URL='<connection string yang sama>' npm run db:migrate
-DATABASE_URL='<connection string yang sama>' npm run db:seed     # opsional, data contoh
+DATABASE_URL='<connection string yang sama>' npm run db:seed     # data contoh
 ```
 
 `db:migrate` idempoten — aman dijalankan berulang. `db:seed` **mengosongkan** tabel
-sebelum mengisi, jadi jangan dijalankan terhadap basis data yang sudah berisi data
-sungguhan.
+sebelum mengisi, jadi jangan dijalankan terhadap basis data berisi data sungguhan.
+
+> Seed bukan sekadar data contoh: ia juga membuat tujuh pengguna dan konfigurasi
+> skema insentif serta tarif pajak. Tanpa itu, konsol tidak dapat dipakai sama
+> sekali karena tidak ada pengguna yang dapat dikenali.
 
 ## 4. Deploy ulang lalu periksa
 
