@@ -185,7 +185,13 @@ ul.cetak-ceklis .kotak { border: 1px solid var(--ink); width: 14px; height: 14px
                          line-height: 13px; text-align: center; font-size: 10px;
                          flex: none; margin-top: 2px; }
 .ttd { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 6px; }
-.ttd .kotak-ttd { height: 62px; border: 1px solid var(--line); }
+.ttd .kotak-ttd { height: 62px; border: 1px solid var(--line);
+                  display: flex; align-items: center; justify-content: center;
+                  overflow: hidden; background: #fff; }
+/* Tanda tangan menyesuaikan kotaknya, tidak pernah meluber ke kolom sebelah:
+   satu goresan lebar akan menutupi kolom Admin & Finance kalau dibiarkan. */
+.ttd .kotak-ttd img { max-width: 100%; max-height: 100%;
+                      object-fit: contain; mix-blend-mode: multiply; }
 .ttd span { display: block; text-align: center; font-size: 11px; color: var(--sub);
             margin-top: 4px; }
 @media (max-width: 700px) { .ttd { grid-template-columns: 1fr 1fr; } }
@@ -197,3 +203,33 @@ ul.cetak-ceklis .kotak { border: 1px solid var(--ink); width: 14px; height: 14px
   .cetak { border: none; padding: 0; }
   .panel { border: none; padding: 0; }
 }
+
+/* ── Layar tanda tangan agent (/sign/[token]) ────────────────────────────
+   Dibuka di ponsel, lewat tautan WhatsApp, oleh orang yang tidak pernah
+   melihat konsol. Urutannya dibuat kelihatan supaya jelas ada berapa langkah
+   dan sedang di langkah mana — sebelumnya tiap layar berganti tanpa menyebut
+   yang sebelumnya, dan formulirnya sendiri tidak pernah ditampilkan. */
+.langkah { display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; }
+.langkah .lk { flex: 1 1 0; min-width: 64px; font-size: 10.5px; line-height: 1.3;
+               color: var(--mut); border-top: 3px solid var(--line);
+               padding-top: 6px; }
+.langkah .lk b { display: block; font-size: 10px; letter-spacing: .06em;
+                 text-transform: uppercase; }
+.langkah .lk.kini { color: var(--ink); border-top-color: var(--ink); }
+.langkah .lk.usai { color: var(--ok); border-top-color: var(--ok); }
+
+.lampiran { border: 1px solid var(--line); }
+.lampiran li { display: flex; justify-content: space-between; gap: 10px;
+               align-items: center; padding: 8px 10px; font-size: 12.5px;
+               border-bottom: 1px solid var(--line); }
+.lampiran li:last-child { border-bottom: none; }
+.lampiran li span.meta { color: var(--mut); font-size: 11.5px; }
+.kosong { padding: 12px 10px; font-size: 12.5px; color: var(--mut); }
+
+/* Formulir yang ditampilkan ke agent hanya untuk dibaca. Skalanya dikecilkan
+   sedikit di layar sempit supaya tabel dua kolomnya tidak memaksa gulir
+   mendatar. */
+.form-lihat { max-height: 62vh; overflow: auto; border: 1px solid var(--line);
+              background: #FCFCFB; padding: 10px; }
+.form-lihat .cetak { border: none; }
+@media (max-width: 560px) { .form-lihat .cetak { padding: 14px 12px; } }

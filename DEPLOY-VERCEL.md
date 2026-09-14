@@ -242,9 +242,14 @@ Menyusun workbook 87 kolom bisa melewati batas bawaan 10 detik pada dataset besa
 **Seluruh route API bersifat dinamis** dan menyentuh basis data. Tidak ada yang
 di-cache di edge. Ini disengaja: data klaim dan status persetujuan tidak boleh basi.
 
-**Unggahan berkas belum disimpan.** Nama berkas dicatat, isinya tidak. Untuk produksi
-diperlukan penyimpanan objek terenkripsi — Vercel Blob, S3, atau setara — beserta
-kebijakan retensi yang belum ditetapkan Legal (PRD Q14, Q27).
+**Unggahan berkas tersimpan di basis data, maksimal 3 MB per berkas.** Kwitansi,
+Invoice, dan dokumen pendukung yang diunggah agent dari tautan tanda tangan
+tersimpan utuh sebagai `bytea` pada `claim_documents`, bukan sekadar namanya.
+Batas 3 MB mengikuti batas badan permintaan Vercel (4,5 MB); berkas yang lebih
+besar tidak akan pernah sampai ke server berapa pun longgarnya kolomnya.
+Yang belum: enkripsi at-rest dan kebijakan retensi yang belum ditetapkan Legal
+(PRD Q14, Q27). Bila volume lampiran tumbuh, pindahkan isinya ke penyimpanan
+objek dan sisakan rujukannya di kolom yang sama.
 
 **Autentikasi berupa username dan kata sandi dengan sesi cookie.** Sandi di-hash
 dengan scrypt bergaram, token sesi disimpan sebagai hash, dan cookie-nya HttpOnly.

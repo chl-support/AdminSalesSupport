@@ -166,7 +166,7 @@ export default function Console() {
       })}>Setujui dengan koreksi</button>);
     }
     if (s === "tax_verified")
-      actions.push(<button key="lk" className="pri" onClick={issueLink}>Kirim link tanda tangan</button>);
+      actions.push(<button key="lk" className="pri" onClick={issueLink}>Verifikasi &amp; kirim tautan ke Agent</button>);
     if (s === "signature_review_required")
       actions.push(<button key="sr" className="pri" onClick={() => act("signature-review", {
         decision: "approve_manually",
@@ -233,9 +233,12 @@ export default function Console() {
       </header>
 
       <div className="banner info sp">
-        <b>Demo alur penuh</b>
-        Tombol di bawah menjalankan satu klaim dari pengajuan sampai siap tanda tangan,
-        lalu menampilkan tautan WhatsApp yang biasanya dikirim ke agent.
+        <b>Alur pengajuan</b>
+        Admin mengajukan klaim → Form Pengajuan terbentuk → tim pajak memeriksa
+        nilainya → setelah disetujui, Admin mengirim tautan ke Agent → Agent
+        membaca formulirnya, mengunggah Kwitansi dan Invoice, lalu menandatangani
+        pada kolom Pemohon. Tombol di bawah menjalankan satu klaim sampai langkah
+        tanda tangan untuk keperluan pengujian.
       </div>
 
       <div className="row sp">
@@ -288,6 +291,41 @@ export default function Console() {
                 </tbody>
               </table>
               <div className="row" style={{ marginTop: 12 }}>{actions}</div>
+
+              {/* Lampiran yang diunggah agent lewat tautan tanda tangan.
+                  Ditampilkan di sini, bukan hanya di dalam formulir, karena
+                  inilah yang dibuka Finance sebelum membayar. */}
+              <div className="lbl" style={{ marginTop: 12 }}>
+                Lampiran dari Agent
+              </div>
+              <ul className="lampiran">
+                {(current.documents ?? []).filter((d: any) => d.file_name).length ? (
+                  current.documents.filter((d: any) => d.file_name).map((d: any) => (
+                    <li key={d.id}>
+                      <span>
+                        {d.has_content ? (
+                          <a href={`/api/claims/${current.id}/documents/${d.id}`}>
+                            {d.file_name}
+                          </a>
+                        ) : d.file_name}
+                        <br />
+                        <span className="meta">{d.checklist_item}</span>
+                      </span>
+                      <span className="meta">
+                        {d.has_content
+                          ? `${Math.max(1, Math.round((d.size_bytes ?? 0) / 1024))} KB`
+                          : "isi tidak tersimpan"}
+                        {d.source === "agent" ? " · agent" : " · konsol"}
+                      </span>
+                    </li>
+                  ))
+                ) : (
+                  <li className="kosong">
+                    Belum ada lampiran. Agent mengunggahnya saat membuka tautan
+                    tanda tangan.
+                  </li>
+                )}
+              </ul>
               <div className="row" style={{ marginTop: 10, marginBottom: 0 }}>
                 <button onClick={() => setLihatForm((v) => !v)}>
                   {lihatForm ? "Tutup form pengajuan" : "Lihat form pengajuan"}

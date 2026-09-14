@@ -318,6 +318,26 @@ CREATE TABLE IF NOT EXISTS claim_documents (
   uploaded_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- Isi berkas ikut disimpan, bukan hanya namanya.
+--
+-- Sebelumnya hanya file_name yang dicatat, sehingga Kwitansi dan Invoice yang
+-- diunggah agent tidak pernah benar-benar ada di mana pun: Finance membuka
+-- klaim dan menemukan daftar nama berkas tanpa berkasnya. Ukuran dibatasi di
+-- lapisan aplikasi (3 MB) karena badan permintaan di Vercel sendiri terbatas;
+-- batas itu diulang di sini sebagai CHECK supaya jalur lain tidak melewatinya.
+ALTER TABLE claim_documents ADD COLUMN IF NOT EXISTS content BYTEA;
+ALTER TABLE claim_documents ADD COLUMN IF NOT EXISTS content_type TEXT;
+ALTER TABLE claim_documents ADD COLUMN IF NOT EXISTS size_bytes INT;
+ALTER TABLE claim_documents ADD COLUMN IF NOT EXISTS uploaded_by TEXT;
+ALTER TABLE claim_documents ADD COLUMN IF NOT EXISTS source TEXT
+  NOT NULL DEFAULT 'console';
+ALTER TABLE claim_documents DROP CONSTRAINT IF EXISTS claim_documents_size_ck;
+ALTER TABLE claim_documents ADD CONSTRAINT claim_documents_size_ck
+  CHECK (size_bytes IS NULL OR size_bytes <= 3145728);
+
+CREATE INDEX IF NOT EXISTS idx_claim_documents_claim
+  ON claim_documents(claim_id);
+
 CREATE TABLE IF NOT EXISTS signing_sessions (
   token        TEXT PRIMARY KEY,
   claim_id     UUID NOT NULL REFERENCES claims(id) ON DELETE CASCADE,

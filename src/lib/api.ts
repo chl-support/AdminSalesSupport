@@ -12,7 +12,7 @@
  */
 
 import { NextResponse, type NextRequest } from "next/server";
-import { explainDbError, one } from "./db";
+import { explainDbError, one, query } from "./db";
 import { COOKIE, userFromToken } from "./auth";
 import { WorkflowError } from "./workflow";
 
@@ -137,5 +137,30 @@ export async function claimView(claim: any) {
         `SELECT holder_name, holder_type, account_number, bank_name, branch
            FROM bank_accounts WHERE id = $1`, [claim.bank_account_id])
     : null;
-  return { ...claim, unit, marketing: mkt, bank_account: bank };
+
+  // Tanda tangan yang lolos verifikasi, untuk ditempel pada kolom Pemohon.
+  //
+  // Diambil dari percobaan yang berhasil, bukan dari percobaan terakhir: setelah
+  // satu tanda tangan diterima, percobaan sesudahnya (kalau ada) bukan lagi yang
+  // mengesahkan formulir ini.
+  const ttd = await one(
+    `SELECT image_png, occurred_at FROM signature_attempts
+      WHERE claim_id = $1 AND outcome = 'verified'
+      ORDER BY occurred_at DESC LIMIT 1`, [claim.id]);
+
+  // Lampiran: nama dan ukurannya saja. Isi berkas tidak ikut dibawa ke layar —
+  // satu klaim dengan tiga pindaian akan membuat setiap pemuatan konsol
+  // mengangkut berkasnya sekali lagi. Isinya diambil per berkas saat dibuka.
+  const dokumen = await query(
+    `SELECT id, checklist_item, file_name, content_type, size_bytes, source,
+            uploaded_by, uploaded_at, (content IS NOT NULL) AS has_content
+       FROM claim_documents WHERE claim_id = $1 ORDER BY uploaded_at`,
+    [claim.id]);
+
+  return {
+    ...claim, unit, marketing: mkt, bank_account: bank,
+    documents: dokumen,
+    signature_png: ttd?.image_png ?? null,
+    signed_display_at: ttd?.occurred_at ?? claim.signed_at ?? null,
+  };
 }

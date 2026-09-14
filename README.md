@@ -188,8 +188,9 @@ ingin memaksanya (`require`) atau mematikannya (`disable`).
 Periksa hasilnya lewat `/api/health`. Endpoint itu benar-benar menyentuh basis data
 dan menyebutkan langkah perbaikan bila gagal, bukan sekadar membalas "ok".
 
-Sebelum produksi, ganti autentikasi header `X-User` dengan OIDC/JWT dan aktifkan MFA
-untuk peran Finance, Management, dan Admin Sistem.
+Autentikasi sudah berupa username dan kata sandi dengan sesi cookie; header `X-User`
+sudah dihapus. Sebelum menyentuh pembayaran sungguhan, aktifkan MFA untuk peran
+Finance, Management, dan Admin Sistem, dan ganti seluruh sandi awal.
 
 ---
 
@@ -198,8 +199,8 @@ untuk peran Finance, Management, dan Admin Sistem.
 | Bagian | Status | Alasan |
 |---|---|---|
 | Pengiriman WhatsApp sungguhan | Tautan dan OTP ditampilkan di layar | Perlu akun WhatsApp Business API lewat BSP resmi dan template yang disetujui Meta (PRD Q11) |
-| Autentikasi | Header `X-User` | Prototipe. Ganti dengan OIDC/JWT + MFA sebelum produksi |
-| Unggah berkas | Nama berkas dicatat, isinya tidak disimpan | Perlu penyimpanan objek terenkripsi dan kebijakan retensi yang belum ditetapkan Legal (PRD Q14, Q27) |
+| Autentikasi | **Selesai** — username/sandi, scrypt bergaram, sesi cookie HttpOnly | MFA untuk Finance, Management, dan Admin Sistem belum ada |
+| Unggah berkas | **Selesai** — isi berkas tersimpan (`bytea`, maks. 3 MB), diunggah agent dari tautan tanda tangan | Enkripsi at-rest dan kebijakan retensi masih menunggu Legal (PRD Q14, Q27) |
 | PDF paket cetak & QR | **Selesai** — `GET /api/claims/{id}/print-package/pdf` | Tata letak mengikuti form eksisting; QR dan potongan hash dibubuhkan di setiap halaman |
 | Batch Overriding | Tabel dan tingkat sudah ada; penyusun batch periodik belum | Menunggu persentase dan penerima tiap tingkat (PRD Q35) |
 | Insentif non-tunai | Tersimpan dan tampil di laporan; belum ada alur pengajuan | Menunggu kepastian apakah dicatat manual atau punya form sendiri (PRD Q36, Q37) |

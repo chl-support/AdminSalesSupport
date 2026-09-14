@@ -23,7 +23,9 @@ const JENIS_NAMA: Record<string, string> = {
   cash_reward: "Cash Reward", overriding: "Overriding",
 };
 
-export function FormPengajuan({ klaim }: { klaim: any }) {
+export function FormPengajuan(
+  { klaim, ttdPemohon }: { klaim: any; ttdPemohon?: string | null },
+) {
   const jenis = klaim.claim_type as Jenis;
   const nama = JENIS_NAMA[jenis] ?? jenis;
   const u = klaim.unit ?? {};
@@ -31,6 +33,28 @@ export function FormPengajuan({ klaim }: { klaim: any }) {
   const bank = klaim.bank_account ?? null;
   const s = klaim.snapshot ?? {};
   const dokumen = DOKUMEN[jenis] ?? [];
+  // Hanya berkas yang benar-benar diunggah. Baris checklist tanpa berkas juga
+  // tersimpan di tabel yang sama — itu centang syarat pengajuan, bukan lampiran,
+  // dan mencantumkannya di sini membuat formulir mengaku memuat sembilan
+  // dokumen yang tidak ada satu pun berkasnya.
+  const lampiran: any[] = (klaim.documents ?? []).filter((d: any) => d.file_name);
+
+  // Tanda tangan yang ditempel pada kolom Pemohon.
+  //
+  // `ttdPemohon` adalah goresan yang baru saja dibuat di layar tanda tangan —
+  // dipakai agar agent melihat tanda tangannya sudah menempel di formulir
+  // sebelum mengirim, bukan setelahnya. Yang tersimpan pada klaim dipakai di
+  // semua layar lain, dan itulah yang ikut tercetak.
+  //
+  // Yang tersimpan tidak selalu berupa data URL: goresan dari kanvas datang
+  // lengkap dengan awalan `data:`, sedangkan spesimen yang dibangkitkan di
+  // server hanya base64 telanjang. Keduanya disamakan di sini — kalau tidak,
+  // kolom Pemohon menampilkan ikon gambar rusak untuk sebagian klaim saja.
+  const sumber = ttdPemohon ?? klaim.signature_png ?? null;
+  const ttd = !sumber ? null
+    : sumber.startsWith("data:") ? sumber
+    : `data:image/png;base64,${sumber}`;
+  const ttdTgl = ttdPemohon ? null : klaim.signed_display_at;
 
   return (
     <div className="cetak">
@@ -175,11 +199,50 @@ export function FormPengajuan({ klaim }: { klaim: any }) {
         )}
       </div>
 
+      {lampiran.length > 0 && (
+        <div className="form-blok">
+          <h3>LAMPIRAN</h3>
+          <table><tbody>
+            {lampiran.map((l) => (
+              <tr key={l.id}>
+                <td>{l.checklist_item}</td>
+                <td>
+                  {l.file_name}
+                  {l.size_bytes
+                    ? ` · ${Math.max(1, Math.round(l.size_bytes / 1024))} KB` : ""}
+                </td>
+              </tr>
+            ))}
+          </tbody></table>
+        </div>
+      )}
+
       <div className="form-blok">
         <h3>PENGESAHAN</h3>
         <div className="ttd">
           {["Pemohon", "Admin & Finance", "Developer", "Management"].map((r) => (
-            <div key={r}><div className="kotak-ttd" /><span>{r}</span></div>
+            <div key={r}>
+              {/* Tanda tangan agent menempel pada kolom Pemohon, bukan berdiri
+                  sebagai lampiran terpisah: yang disahkan adalah formulir ini,
+                  dan tanda tangan yang terpisah dari formulirnya tidak
+                  menyatakan persetujuan atas angka mana pun. */}
+              <div className="kotak-ttd">
+                {r === "Pemohon" && ttd && (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img src={ttd} alt="Tanda tangan pemohon" />
+                )}
+              </div>
+              <span>
+                {r}
+                {r === "Pemohon" && ttd && (
+                  <>
+                    <br />
+                    {m.full_name ?? ""}
+                    {ttdTgl ? ` · ${tgl(ttdTgl)}` : ""}
+                  </>
+                )}
+              </span>
+            </div>
           ))}
         </div>
       </div>
