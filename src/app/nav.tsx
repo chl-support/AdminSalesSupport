@@ -20,8 +20,10 @@ import { usePathname } from "next/navigation";
  * jadi mengetikkan alamatnya langsung tidak memberi akses apa pun.
  */
 const MENU: { href: string; label: string; peran: string[] | null }[] = [
-  { href: "/", label: "Konsol klaim", peran: null },
+  // Ajukan klaim lebih dulu: itu yang dikerjakan tiap hari, sedangkan konsol
+  // dibuka untuk menindaklanjuti klaim yang sudah ada.
   { href: "/klaim", label: "Ajukan klaim", peran: null },
+  { href: "/", label: "Konsol klaim", peran: null },
   { href: "/audit", label: "Jejak audit", peran: null },
   // Administrasi terbuka bagi semua peran karena memuat "ganti sandi saya";
   // isinya sendiri yang menyesuaikan dengan peran pembukanya.

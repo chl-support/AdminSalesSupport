@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 
+import { FormPengajuan } from "./klaim/form-pengajuan";
 import { Nav } from "./nav";
 import { BilahPengguna, useSesi } from "./session";
 
@@ -31,6 +32,7 @@ export default function Console() {
   const [note, setNote] = useState<Note>(null);
   const [busy, setBusy] = useState(false);
   const [lastHash, setLastHash] = useState<string | null>(null);
+  const [lihatForm, setLihatForm] = useState(false);
 
   // Identitas ikut sendiri lewat cookie sesi; tidak ada lagi header yang dapat
   // dikarang untuk mengaku sebagai orang lain.
@@ -286,7 +288,12 @@ export default function Console() {
                 </tbody>
               </table>
               <div className="row" style={{ marginTop: 12 }}>{actions}</div>
-              <p style={{ margin: 0, fontSize: 12 }}>
+              <div className="row" style={{ marginTop: 10, marginBottom: 0 }}>
+                <button onClick={() => setLihatForm((v) => !v)}>
+                  {lihatForm ? "Tutup form pengajuan" : "Lihat form pengajuan"}
+                </button>
+              </div>
+              <p style={{ margin: "8px 0 0", fontSize: 12 }}>
                 <a href={`/audit?entity_id=${selected}`}>
                   Lihat jejak audit klaim ini →
                 </a>
@@ -295,6 +302,19 @@ export default function Console() {
           ) : <p style={{ color: "var(--mut)" }}>Belum ada klaim.</p>}
         </div>
       </div>
+
+      {lihatForm && current && (
+        <div className="panel sp">
+          <h2>
+            Form pengajuan
+            <span className="pill">{current.claim_number}</span>
+          </h2>
+          <FormPengajuan klaim={current} />
+          <div className="row" style={{ marginTop: 12, marginBottom: 0 }}>
+            <button onClick={() => window.print()}>Cetak formulir</button>
+          </div>
+        </div>
+      )}
 
       <div className="grid sp">
         <div className="panel">

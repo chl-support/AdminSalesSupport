@@ -32,8 +32,10 @@ export default function LoginPage() {
    * mengantar orang ke situs lain tepat setelah mereka mengetikkan sandinya.
    */
   const tujuan = () => {
-    const n = new URLSearchParams(window.location.search).get("next") ?? "/";
-    return n.startsWith("/") && !n.startsWith("//") ? n : "/";
+    // Bawaannya /klaim, bukan beranda: yang pertama dikerjakan setelah masuk
+    // adalah mengajukan klaim, bukan menindaklanjuti yang sudah ada.
+    const n = new URLSearchParams(window.location.search).get("next") ?? "/klaim";
+    return n.startsWith("/") && !n.startsWith("//") ? n : "/klaim";
   };
 
   const masuk = async (e: React.FormEvent) => {

@@ -26,9 +26,9 @@ import { useParams, useSearchParams } from "next/navigation";
 
 import { Nav } from "../../../nav";
 import { BilahPengguna, useSesi } from "../../../session";
+import { FormPengajuan } from "../../form-pengajuan";
 import {
-  DOKUMEN, JUDUL_HITUNG, LABEL_PERAN, PERAN_PENERIMA, TINGKAT_OVERRIDING,
-  jenisDari,
+  DOKUMEN, LABEL_PERAN, PERAN_PENERIMA, TINGKAT_OVERRIDING, jenisDari,
 } from "../../jenis";
 
 const rp = (n?: number | null) => `Rp ${(n ?? 0).toLocaleString("id-ID")}`;
@@ -227,6 +227,10 @@ export default function FormKlaimPage() {
             </div>
           )}
 
+          {/* Ringkasan pengisian hanya relevan sebelum klaim tersimpan. Setelah
+              itu Form Pengajuan di bawah memuat data yang sama, dan menampilkan
+              keduanya membuat pembacanya menebak mana yang berlaku. */}
+          {!hasil && (
           <div className="grid sp">
             <div className="panel">
               <div className="form-blok">
@@ -278,6 +282,7 @@ export default function FormKlaimPage() {
               </div>
             </div>
           </div>
+          )}
 
           {!hasil && (
             <>
@@ -410,75 +415,23 @@ export default function FormKlaimPage() {
           )}
 
           {hasil && (
-            <div className="panel">
-              <div className="banner ok">
+            <>
+              <div className="banner ok sp">
                 <b>Klaim {hasil.claim_number} tersimpan sebagai draft</b>
-                Nominal di bawah dihitung sistem dan belum dikunci — Finance (Pajak)
-                yang memverifikasinya.
+                Berikut Form Pengajuan yang terisi. Nominalnya dihitung sistem dan
+                belum dikunci — Finance (Pajak) yang memverifikasinya.
               </div>
 
-              <div className="form-blok hitung">
-                <h3>{JUDUL_HITUNG[jenis.slug]}</h3>
-                <table><tbody>
-                  {jenis.slug === "commission" && (
-                    <tr><td>Total Pembayaran / Persen Pembayaran</td>
-                        <td>{rp(hasil.total_payment)} ·{" "}
-                            {(Number(hasil.payment_percent ?? 0) * 100).toFixed(2)}%
-                        </td></tr>
-                  )}
-                  <tr><td>Jumlah {jenis.nama}</td>
-                      <td>{rp(hasil.gross_amount)}</td></tr>
-                  <tr><td>PPN</td><td>{rp(hasil.vat)}</td></tr>
-                  <tr><td>Potongan PPh
-                          {hasil.withholding_tax_type
-                            ? ` (${String(hasil.withholding_tax_type)
-                                .replace("pph", "PPh ").toUpperCase()
-                                .replace("PPH ", "PPh ")})`
-                            : ""}</td>
-                      <td>− {rp(hasil.withholding_tax)}</td></tr>
-                  <tr className="total">
-                      <td>{jenis.nama} yang Dibayarkan</td>
-                      <td>{rp(hasil.net_amount)}</td></tr>
-                  {hasil.amount_in_words && (
-                    <tr><td>Terbilang</td>
-                        <td style={{ fontStyle: "italic" }}>
-                          # {hasil.amount_in_words} #
-                        </td></tr>
-                  )}
-                </tbody></table>
-                {hasil.snapshot?.withholding_basis && (
-                  <p className="hint" style={{ textAlign: "left" }}>
-                    Dasar jenis PPh: {String(hasil.snapshot.withholding_basis)}.
-                  </p>
-                )}
-                {hasil.snapshot?.scheme_memo && (
-                  <p className="hint" style={{ textAlign: "left" }}>
-                    Dasar perhitungan: memo {String(hasil.snapshot.scheme_memo)},{" "}
-                    {/* Skema bernominal tetap tidak punya persentase — menampilkan
-                        "tarif 0,000%" untuk Closing Fee Rp 10 juta hanya
-                        membingungkan pembacanya. */}
-                    {hasil.snapshot.flat_amount
-                      ? `${rp(Number(hasil.snapshot.flat_amount))} per unit` +
-                        (hasil.snapshot.flat_amount_is_net
-                          ? " (nilai bersih, exclude PPh — bruto dinaikkan agar " +
-                            "setelah potongan pajak sisanya persis sebesar itu)"
-                          : "")
-                      : `tarif ${(Number(hasil.snapshot.percentage ?? 0) * 100)
-                          .toFixed(3)}%` +
-                        (hasil.snapshot.tier_unit_count
-                          ? ` (jenjang dari ${hasil.snapshot.tier_unit_count} unit pada bulan kontrak)`
-                          : "")}.
-                  </p>
-                )}
-              </div>
+              <FormPengajuan klaim={hasil} />
 
-              <div className="row" style={{ marginTop: 12, marginBottom: 0 }}>
+              <div className="row" style={{ marginTop: 14, marginBottom: 0 }}>
+                <button onClick={() => window.print()}>Cetak formulir</button>
                 <Link href={`/klaim/${jenis.slug}`}>
                   <button>Ajukan klaim lain</button>
                 </Link>
-                <Link href="/"><button className="pri">Buka konsol</button></Link>
+                <Link href="/"><button className="pri">Buka konsol klaim</button></Link>
               </div>
-            </div>
+            </>
           )}
         </>
       )}

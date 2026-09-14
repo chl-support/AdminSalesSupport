@@ -166,3 +166,34 @@ ul.ceklis { list-style: none; margin: 0; padding: 0; font-size: 12.5px; }
 ul.ceklis li { padding: 4px 0; border-bottom: 1px solid #EEF0F1; }
 ul.ceklis label { display: flex; gap: 8px; align-items: flex-start; cursor: pointer; }
 ul.ceklis input { width: auto; margin-top: 2px; }
+
+/* Pratinjau Form Pengajuan */
+.cetak { background: #fff; border: 1px solid var(--line); padding: 22px 26px; }
+.cetak .kop { text-align: center; border-bottom: 2px solid var(--ink);
+              padding-bottom: 10px; margin-bottom: 16px; }
+.cetak .kop b { display: block; font-size: 15px; letter-spacing: .02em; }
+.cetak .kop span { display: block; font-size: 11.5px; color: var(--sub); }
+.judul-form { margin: 0; text-align: center; font-size: 14.5px; font-weight: 700;
+              letter-spacing: .05em; }
+.nomor-form { margin: 2px 0 16px; text-align: center; font-size: 11.5px;
+              color: var(--mut); }
+.cetak .dasar { margin: 8px 0 0; font-size: 11px; color: var(--mut); line-height: 1.5; }
+.cetak .penjelasan { margin: 0; font-size: 13px; min-height: 34px;
+                     border-bottom: 1px solid #EEF0F1; padding-bottom: 6px; }
+ul.cetak-ceklis li { display: flex; gap: 8px; align-items: flex-start; }
+ul.cetak-ceklis .kotak { border: 1px solid var(--ink); width: 14px; height: 14px;
+                         line-height: 13px; text-align: center; font-size: 10px;
+                         flex: none; margin-top: 2px; }
+.ttd { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 6px; }
+.ttd .kotak-ttd { height: 62px; border: 1px solid var(--line); }
+.ttd span { display: block; text-align: center; font-size: 11px; color: var(--sub);
+            margin-top: 4px; }
+@media (max-width: 700px) { .ttd { grid-template-columns: 1fr 1fr; } }
+
+@media print {
+  .nav, header.top, .filters, button, .banner.info, .banner.warn { display: none !important; }
+  body { background: #fff; }
+  .wrap { max-width: none; padding: 0; }
+  .cetak { border: none; padding: 0; }
+  .panel { border: none; padding: 0; }
+}

@@ -115,10 +115,27 @@ export function clientIp(req: NextRequest): string | null {
 }
 
 /** Tampilan klaim beserta unit dan marketing-nya. */
+/**
+ * Klaim beserta segala yang diperlukan untuk mencetak Form Pengajuan-nya.
+ *
+ * Agensi, email, dan rekening tujuan ikut diambil karena ketiganya ada pada
+ * formulir kertas — nama kantor marketing, alamatnya, dan blok Tujuan Transfer.
+ * Mengambilnya terpisah di setiap layar berarti tiap layar menyusun ulang
+ * gabungannya sendiri, dan cepat atau lambat salah satunya lupa satu bidang.
+ */
 export async function claimView(claim: any) {
   const unit = await one("SELECT * FROM units WHERE id=$1", [claim.unit_id]);
   const mkt = await one(
-    "SELECT id, full_name, marketing_type, phone, npwp FROM marketings WHERE id=$1",
+    `SELECT m.id, m.full_name, m.marketing_type, m.phone, m.email, m.npwp,
+            m.npwp_type, m.recipient_type, m.status,
+            a.name AS agency_name, a.address AS agency_address, a.npwp AS agency_npwp
+       FROM marketings m LEFT JOIN agencies a ON a.id = m.agency_id
+      WHERE m.id = $1`,
     [claim.marketing_id]);
-  return { ...claim, unit, marketing: mkt };
+  const bank = claim.bank_account_id
+    ? await one(
+        `SELECT holder_name, holder_type, account_number, bank_name, branch
+           FROM bank_accounts WHERE id = $1`, [claim.bank_account_id])
+    : null;
+  return { ...claim, unit, marketing: mkt, bank_account: bank };
 }
