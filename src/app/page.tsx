@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 
+import { Nav } from "./nav";
+
 const rp = (n?: number | null) => `Rp ${(n ?? 0).toLocaleString("id-ID")}`;
 
 const STATUS_PILL: Record<string, string> = {
@@ -31,7 +33,6 @@ export default function Console() {
   const [selected, setSelected] = useState<string>("");
   const [circulating, setCirculating] = useState<any[]>([]);
   const [recon, setRecon] = useState<any[]>([]);
-  const [log, setLog] = useState<any[]>([]);
   const [note, setNote] = useState<Note>(null);
   const [busy, setBusy] = useState(false);
   const [lastHash, setLastHash] = useState<string | null>(null);
@@ -51,16 +52,17 @@ export default function Console() {
   );
 
   const refresh = useCallback(async () => {
-    const [c, circ, rec, audit] = await Promise.all([
+    // Jejak audit tidak lagi ikut diambil di sini: ia punya menunya sendiri, dan
+    // 40 baris terakhir tanpa penyaringan bukan jawaban atas pertanyaan apa pun
+    // yang membuat orang membukanya.
+    const [c, circ, rec] = await Promise.all([
       api("/claims"),
       api("/claims/circulating"),
       api("/reports/bank-reconciliation?min_age_days=0"),
-      api("/audit?limit=40"),
     ]);
     setClaims(c);
     setCirculating(circ);
     setRecon(rec);
-    setLog(audit);
     setSelected((prev) => (c.some((x: Claim) => x.id === prev) ? prev : c[0]?.id ?? ""));
   }, [api]);
 
@@ -203,21 +205,22 @@ export default function Console() {
 
   return (
     <div className="wrap">
-      <header style={{ padding: "34px 0 20px", borderBottom: "2px solid var(--ink)",
-                       marginBottom: 22, display: "flex", justifyContent: "space-between",
-                       alignItems: "flex-end", gap: 20, flexWrap: "wrap" }}>
+      <header className="top">
         <div>
           <h1>Konsol Klaim Insentif</h1>
-          <p style={{ margin: "4px 0 0", color: "var(--sub)", fontSize: 13.5, maxWidth: "60ch" }}>
+          <p>
             Next.js + PostgreSQL. Empat gate ditegakkan di server, bukan di layar ini —
             menyembunyikan tombol tidak menghentikan siapa pun yang memanggil API langsung.
           </p>
         </div>
-        <div>
-          <div className="lbl">Masuk sebagai</div>
-          <select value={user} onChange={(e) => setUser(e.target.value)}>
-            {USERS.map(([u, label]) => <option key={u} value={u}>{u} — {label}</option>)}
-          </select>
+        <div className="row" style={{ marginBottom: 0, alignItems: "flex-end" }}>
+          <Nav />
+          <div>
+            <div className="lbl">Masuk sebagai</div>
+            <select value={user} onChange={(e) => setUser(e.target.value)}>
+              {USERS.map(([u, label]) => <option key={u} value={u}>{u} — {label}</option>)}
+            </select>
+          </div>
         </div>
       </header>
 
@@ -277,6 +280,11 @@ export default function Console() {
                 </tbody>
               </table>
               <div className="row" style={{ marginTop: 12 }}>{actions}</div>
+              <p style={{ margin: 0, fontSize: 12 }}>
+                <a href={`/audit?entity_id=${selected}`}>
+                  Lihat jejak audit klaim ini →
+                </a>
+              </p>
             </>
           ) : <p style={{ color: "var(--mut)" }}>Belum ada klaim.</p>}
         </div>
@@ -316,18 +324,6 @@ export default function Console() {
               </>
             ) : <tr><td style={{ color: "var(--ok)" }}>Semua instruksi sudah dikonfirmasi tanggalnya.</td></tr>}
           </tbody></table>
-        </div>
-      </div>
-
-      <div className="panel">
-        <h2>Jejak audit <span className="pill">append-only</span></h2>
-        <div className="log">
-          {log.length
-            ? log.map((a) =>
-                `${String(a.occurred_at).slice(0, 19).replace("T", " ")}  ` +
-                `${(a.actor ?? "system").padEnd(10)} ${a.action}` +
-                `${a.reason ? `  // ${a.reason}` : ""}`).join("\n")
-            : "belum ada entri"}
         </div>
       </div>
     </div>
