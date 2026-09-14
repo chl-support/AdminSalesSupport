@@ -117,10 +117,15 @@ function nasihat(h: Health | null): string {
 function Diagnosis({ health }: { health: Health | null }) {
   const c = health?.config;
   const d = c?.database_url;
+  // Dibedakan dari kegagalan koneksi: yang satu salah konfigurasi, yang lain
+  // hanya satu langkah yang belum dijalankan.
+  const belumDisiapkan = health?.pgCode === "42P01";
   return (
     <div className="card">
-      <div className="banner stop">
-        <b>Basis data tidak dapat dijangkau</b>
+      <div className={`banner ${belumDisiapkan ? "warn" : "stop"}`}>
+        <b>{belumDisiapkan
+              ? "Basis data terhubung, skemanya belum dibuat"
+              : "Basis data tidak dapat dijangkau"}</b>
         {nasihat(health)}
       </div>
 
@@ -279,8 +284,7 @@ export default function SetupPage() {
         ) : (
           <div className="banner warn">
             <b>Status belum terbaca</b>
-            Skema tidak dapat diperiksa karena basis datanya belum terhubung.
-            Keterangannya ada di bawah.
+            Skema tidak dapat diperiksa. Keterangannya ada di bawah.
           </div>
         )}
       </div>

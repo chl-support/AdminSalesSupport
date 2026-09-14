@@ -26,6 +26,25 @@ export const GET = handler(async () => {
                "sebelum dipakai produksi.",
     };
   } catch (err: any) {
+    // Skema yang belum dimigrasikan bukan kegagalan koneksi: query sampai ke
+    // Postgres dan Postgres-lah yang menjawab. Melaporkannya sebagai
+    // "unreachable" mengirim orang memeriksa DATABASE_URL yang sebenarnya sudah
+    // benar — persis kesalahan yang endpoint ini seharusnya cegah.
+    if (err?.code === "42P01") {
+      return Response.json(
+        {
+          status: "setup_required",
+          database: "connected",
+          detail: "Koneksi ke basis data berhasil, tetapi skemanya belum dibuat. " +
+                  "Jalankan penyiapan sekali lewat /setup, atau dari mesin lokal " +
+                  "dengan: DATABASE_URL='<url>' npm run db:migrate",
+          pgCode: err.code,
+          config,
+        },
+        { status: 503 },
+      );
+    }
+
     const hint = !config.database_url.present
       ? "Fungsi ini tidak melihat DATABASE_URL. Bila variabelnya sudah ada di " +
         "Settings, kemungkinan besar deployment ini dibuat sebelum variabel " +
