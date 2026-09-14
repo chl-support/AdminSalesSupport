@@ -1,5 +1,5 @@
 import { audit, one, query } from "@/lib/db";
-import { body, clientIp, currentUser, handler, requireRole } from "@/lib/api";
+import { body, clientIp, handler, requireRole } from "@/lib/api";
 import { WorkflowError } from "@/lib/workflow";
 
 /**
