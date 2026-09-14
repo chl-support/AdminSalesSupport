@@ -14,8 +14,9 @@
  * kebetulan sudah terunduh.
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Nav } from "../nav";
+import { USERS, bacaPengguna, simpanPengguna } from "../user";
 
 const HALAMAN = 50;
 
@@ -33,6 +34,8 @@ type Entry = {
 };
 
 type Facets = { actors: string[]; actions: string[]; entity_types: string[] };
+
+type Viewer = { username: string; role: string; can_annotate: boolean };
 
 type Filter = {
   q: string; actor: string; action: string; entity_type: string;
@@ -63,7 +66,13 @@ function perubahan(before: Record<string, any> | null, after: Record<string, any
 }
 
 export default function AuditPage() {
+  // null berarti pilihan pengguna belum dibaca dari penyimpanan peramban.
+  const [user, setUser] = useState<string | null>(null);
+  const [viewer, setViewer] = useState<Viewer | null>(null);
   const [filter, setFilter] = useState<Filter>(KOSONG);
+  // Filter disimpan juga di ref agar pemuatan ulang saat pengguna berganti
+  // memakai filter yang sedang berlaku, bukan salinan basi dari closure.
+  const filterRef = useRef<Filter>(KOSONG);
   const [rows, setRows] = useState<Entry[]>([]);
   const [facets, setFacets] = useState<Facets>(
     { actors: [], actions: [], entity_types: [] });
@@ -74,15 +83,13 @@ export default function AuditPage() {
   const [buka, setBuka] = useState<string | null>(null);
 
   const muat = useCallback(async (f: Filter, offset: number) => {
+    if (!user) return;
     setBusy(true);
     setGalat(null);
     try {
       const qs = new URLSearchParams({ limit: String(HALAMAN), offset: String(offset) });
       for (const [k, v] of Object.entries(f)) if (v) qs.set(k, v);
-      // Tanpa header X-User: /api/audit memang belum memeriksa peran, dan mengaku
-      // sebagai sysadmin hanya untuk melewati pemeriksaan yang tidak ada akan
-      // menyesatkan pembaca kode berikutnya tentang siapa yang boleh membacanya.
-      const res = await fetch(`/api/audit?${qs}`);
+      const res = await fetch(`/api/audit?${qs}`, { headers: { "X-User": user } });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body.detail ?? body.title ?? `HTTP ${res.status}`);
       // Offset 0 berarti kueri baru; selain itu baris ditambahkan ke bawah.
@@ -90,26 +97,67 @@ export default function AuditPage() {
       setFacets(body.facets);
       setTotal(body.total);
       setHasMore(body.has_more);
+      setViewer(body.viewer ?? null);
     } catch (e: any) {
       setGalat(String(e?.message ?? e));
+      if (offset === 0) { setRows([]); setTotal(0); setHasMore(false); }
+      setViewer(null);
     } finally {
       setBusy(false);
     }
-  }, []);
+  }, [user]);
 
   // Tautan masuk dari konsol membawa entity_id, supaya "lihat jejak klaim ini"
   // mendarat pada hasil yang sudah tersaring, bukan pada daftar penuh.
   useEffect(() => {
     const awal = new URLSearchParams(window.location.search).get("entity_id") ?? "";
     const f = awal ? { ...KOSONG, entity_id: awal } : KOSONG;
+    filterRef.current = f;
     setFilter(f);
-    void muat(f, 0);
-  }, [muat]);
+    setUser(bacaPengguna());
+  }, []);
+
+  // Dimuat ulang setiap pengguna berganti: kewenangan ikut berganti, jadi
+  // menahan hasil milik peran sebelumnya akan menyesatkan.
+  useEffect(() => { void muat(filterRef.current, 0); }, [muat]);
 
   const ubah = (k: keyof Filter, v: string) => {
     const f = { ...filter, [k]: v };
+    filterRef.current = f;
     setFilter(f);
     void muat(f, 0);
+  };
+
+  const gantiPengguna = (u: string) => { simpanPengguna(u); setUser(u); };
+
+  /**
+   * Koreksi tidak menyunting apa pun: ia menambahkan entri baru yang menunjuk
+   * entri lama. Kata-kata pada konfirmasi sengaja menyebutkan itu, supaya tidak
+   * ada yang mengira entri keliru akan hilang setelahnya.
+   */
+  const koreksi = async (entryId: string) => {
+    const alasan = window.prompt(
+      "Alasan koreksi atas entri ini.\n\n" +
+      "Entri asli tidak akan berubah maupun hilang — koreksi tercatat sebagai " +
+      "entri baru yang menunjuk entri lama.");
+    if (alasan === null) return;
+    if (!alasan.trim()) { setGalat("Alasan koreksi tidak boleh kosong."); return; }
+    setBusy(true);
+    try {
+      const res = await fetch("/api/audit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-User": user ?? "" },
+        body: JSON.stringify({ entry_id: entryId, reason: alasan }),
+      });
+      const b = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(b.detail ?? b.title ?? `HTTP ${res.status}`);
+      setGalat(null);
+      await muat(filterRef.current, 0);
+    } catch (e: any) {
+      setGalat(String(e?.message ?? e));
+    } finally {
+      setBusy(false);
+    }
   };
 
   const bersih = Object.values(filter).every((v) => !v);
@@ -125,8 +173,33 @@ export default function AuditPage() {
             entri baru, tidak pernah dengan menyuntingnya.
           </p>
         </div>
-        <Nav />
+        <div className="row" style={{ marginBottom: 0, alignItems: "flex-end" }}>
+          <Nav />
+          <div>
+            <div className="lbl">Masuk sebagai</div>
+            <select value={user ?? ""} onChange={(e) => gantiPengguna(e.target.value)}>
+              {USERS.map(([u, label]) => <option key={u} value={u}>{u} — {label}</option>)}
+            </select>
+          </div>
+        </div>
       </header>
+
+      {viewer && (
+        <div className={`banner ${viewer.can_annotate ? "info" : "warn"} sp`}>
+          <b>
+            {viewer.can_annotate
+              ? `Peran ${viewer.role}: dapat membaca dan membubuhkan koreksi`
+              : `Peran ${viewer.role}: hanya dapat membaca`}
+          </b>
+          {viewer.can_annotate
+            ? "Koreksi tidak menyunting entri lama. Ia ditambahkan sebagai entri " +
+              "baru yang menunjuk entri yang dikoreksi, sehingga riwayat koreksinya " +
+              "pun ikut terekam."
+            : "Jejak audit tidak dapat diubah dari peran ini. Pembubuhan koreksi " +
+              "hanya dapat dilakukan Finance (Pajak), Finance Manager, dan Head " +
+              "Finance."}
+        </div>
+      )}
 
       <div className="panel sp">
         <h2>
@@ -230,7 +303,15 @@ export default function AuditPage() {
                 <tr key={e.id} className={terbuka ? "terbuka" : undefined}>
                   <td style={{ whiteSpace: "nowrap" }}>{waktu(e.occurred_at)}</td>
                   <td>{e.actor ?? <span style={{ color: "var(--mut)" }}>system</span>}</td>
-                  <td><code>{e.action}</code></td>
+                  <td>
+                    <code>{e.action}</code>
+                    {e.action === "audit_correction" && (
+                      <>
+                        {" "}
+                        <span className="pill warn">koreksi</span>
+                      </>
+                    )}
+                  </td>
                   <td>
                     {e.entity_type}
                     {e.entity_id && (
@@ -273,11 +354,18 @@ export default function AuditPage() {
                       </div>
                     )}
                   </td>
-                  <td>
+                  <td style={{ whiteSpace: "nowrap" }}>
                     {adaRincian && (
                       <button style={{ padding: "2px 7px", fontSize: 11 }}
                               onClick={() => setBuka(terbuka ? null : e.id)}>
                         {terbuka ? "Tutup" : "Rincian"}
+                      </button>
+                    )}
+                    {/* Tombol ini hanya kenyamanan; penolakannya tetap di server. */}
+                    {viewer?.can_annotate && e.action !== "audit_correction" && (
+                      <button style={{ padding: "2px 7px", fontSize: 11, marginLeft: 4 }}
+                              disabled={busy} onClick={() => void koreksi(e.id)}>
+                        Koreksi
                       </button>
                     )}
                   </td>

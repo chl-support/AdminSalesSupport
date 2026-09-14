@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { Nav } from "./nav";
+import { USERS, bacaPengguna, simpanPengguna } from "./user";
 
 const rp = (n?: number | null) => `Rp ${(n ?? 0).toLocaleString("id-ID")}`;
 
@@ -11,12 +12,6 @@ const STATUS_PILL: Record<string, string> = {
   pending_tax_verification: "warn", signature_review_required: "warn",
   awaiting_signature: "warn", awaiting_settlement_date: "warn",
 };
-
-const USERS = [
-  ["admin", "Admin Sales"], ["ratna", "Finance (Pajak)"],
-  ["ratih", "Finance (Pembayaran)"], ["fmanager", "Finance Manager"],
-  ["mgmt", "Management"], ["sysadmin", "Admin Sistem"],
-];
 
 const NEXT_HANDOFF: Record<string, string> = {
   printed: "handed_to_head_finance",
@@ -65,6 +60,10 @@ export default function Console() {
     setRecon(rec);
     setSelected((prev) => (c.some((x: Claim) => x.id === prev) ? prev : c[0]?.id ?? ""));
   }, [api]);
+
+  // Dibaca setelah terpasang, bukan saat render: localStorage tidak ada di server
+  // dan membacanya saat render akan merusak hidrasi.
+  useEffect(() => { setUser(bacaPengguna()); }, []);
 
   useEffect(() => { refresh().catch(console.error); }, [refresh]);
 
@@ -217,7 +216,8 @@ export default function Console() {
           <Nav />
           <div>
             <div className="lbl">Masuk sebagai</div>
-            <select value={user} onChange={(e) => setUser(e.target.value)}>
+            <select value={user}
+                    onChange={(e) => { setUser(e.target.value); simpanPengguna(e.target.value); }}>
               {USERS.map(([u, label]) => <option key={u} value={u}>{u} — {label}</option>)}
             </select>
           </div>

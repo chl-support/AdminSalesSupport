@@ -1,5 +1,26 @@
-import { handler } from "@/lib/api";
-import { one, query } from "@/lib/db";
+import { audit, one, query } from "@/lib/db";
+import { body, clientIp, currentUser, handler, requireRole } from "@/lib/api";
+import { WorkflowError } from "@/lib/workflow";
+
+/**
+ * Siapa boleh apa atas jejak audit.
+ *
+ * Membaca terbuka bagi seluruh peran konsol, termasuk Admin Sales: jejak audit
+ * yang hanya dapat dilihat pihak yang diawasinya sendiri tidak mengawasi apa pun.
+ *
+ * Yang dibatasi adalah menulis. Itu pun bukan menyunting: tabel ini append-only
+ * di sisi basis data (RULE yang berlaku bahkan bagi pemilik tabel), jadi satu-
+ * satunya bentuk koreksi yang mungkin adalah membubuhkan entri baru yang menunjuk
+ * entri lama. Sifat itu disengaja, bukan keterbatasan — jejak audit yang dapat
+ * disunting satu peran berhenti membuktikan apa pun tentang peran itu.
+ */
+const PEMBACA = [
+  "admin_sales", "finance_tax", "finance_payment", "finance_manager",
+  "head_finance", "management", "admin_system",
+];
+
+/** Finance/Pajak beserta atasannya di jalur yang sama. */
+const PENGOREKSI = ["finance_tax", "finance_manager", "head_finance"];
 
 /**
  * Jejak audit sebagai sumber yang dapat ditelusuri, bukan sekadar cuplikan.
@@ -31,6 +52,7 @@ async function facets() {
 }
 
 export const GET = handler(async (req) => {
+  const user = await requireRole(req, ...PEMBACA);
   const url = new URL(req.url);
   const get = (k: string) => url.searchParams.get(k)?.trim() || null;
 
@@ -96,5 +118,62 @@ export const GET = handler(async (req) => {
     offset,
     has_more: offset + rows.length < total,
     facets: await facets(),
+    // Dilaporkan supaya layar tidak menawarkan kendali yang akan ditolak server.
+    // Penegakannya tetap di server: menyembunyikan tombol tidak menghentikan
+    // siapa pun yang memanggil API langsung.
+    viewer: {
+      username: user.username,
+      role: user.role,
+      can_annotate: PENGOREKSI.includes(user.role),
+    },
+  };
+});
+
+/**
+ * Membubuhkan koreksi pada satu entri.
+ *
+ * Bukan penyuntingan: entri lama tetap utuh dan tetap terbaca. Yang terjadi
+ * adalah entri baru yang menunjuk entri lama, sehingga riwayat koreksinya pun
+ * ikut terekam. Inilah satu-satunya "kendali" yang dapat diberikan atas tabel
+ * append-only tanpa merusak alasan keberadaannya.
+ */
+export const POST = handler(async (req) => {
+  const user = await requireRole(req, ...PENGOREKSI);
+  const p = await body<{ entry_id?: string; reason?: string }>(req);
+
+  const entryId = p.entry_id?.trim();
+  const reason = p.reason?.trim();
+  if (!entryId) {
+    throw new WorkflowError("entry_id wajib diisi.", "validation", 422);
+  }
+  if (!reason) {
+    // Koreksi tanpa alasan tidak menjelaskan apa pun kepada pembaca berikutnya,
+    // dan entri ini tidak dapat diperbaiki setelah tertulis.
+    throw new WorkflowError(
+      "Alasan koreksi wajib diisi — entri ini tidak dapat disunting setelah tersimpan.",
+      "validation", 422);
+  }
+
+  const asli = await one<{ id: string; entity_type: string; entity_id: string | null }>(
+    "SELECT id, entity_type, entity_id FROM audit_log WHERE id=$1", [entryId]);
+  if (!asli) {
+    throw new WorkflowError("Entri audit tidak ditemukan.", "not_found", 404);
+  }
+
+  const id = await audit({
+    entityType: asli.entity_type,
+    entityId: asli.entity_id,
+    action: "audit_correction",
+    actor: user.username,
+    after: { corrects_entry: asli.id },
+    reason,
+    ip: clientIp(req),
+  });
+
+  return {
+    ok: true,
+    id,
+    corrects_entry: asli.id,
+    note: "Entri asli tidak diubah. Koreksi tercatat sebagai entri baru.",
   };
 });
