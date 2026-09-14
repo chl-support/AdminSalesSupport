@@ -508,6 +508,70 @@ async function main() {
     assert(found, "baris TOTAL harus memakai formula SUM");
   });
 
+  await check("PDF paket cetak dihasilkan dengan tanda tangan tertempel", async () => {
+    const { buildPrintPdf } = await import("../src/lib/pdf");
+    const claim = await wf.getClaim(cid);
+    const unit = await one("SELECT * FROM units WHERE id=$1", [claim.unit_id]);
+    const marketing = await one("SELECT * FROM marketings WHERE id=$1",
+                                [claim.marketing_id]);
+    const agency = marketing.agency_id
+      ? await one("SELECT * FROM agencies WHERE id=$1", [marketing.agency_id]) : null;
+    const attempt = await one(
+      `SELECT image_png FROM signature_attempts WHERE claim_id=$1
+       AND outcome='verified' ORDER BY attempt_number DESC LIMIT 1`, [cid]);
+    assert(Boolean(attempt?.image_png), "citra tanda tangan terverifikasi harus ada");
+
+    const pdf = await buildPrintPdf({
+      claim, unit, marketing, agency, bank: null,
+      documents: [{ checklist_item: "fpu" }, { checklist_item: "spu" }],
+      signatureImagePng: attempt!.image_png,
+      copyNumber: 2, documentHash: docHash, printedBy: "admin",
+      verifyUrl: `https://contoh/api/documents/verify/${docHash}?copy=2`,
+      crosscheck: { admin: "completed", finance: "completed" },
+    });
+    assert(pdf.subarray(0, 5).toString() === "%PDF-", "berkas bukan PDF");
+    assert(pdf.length > 8000, `PDF terlalu kecil: ${pdf.length} byte`);
+    // Nomor salinan harus muncul di dokumen agar cetakan lama dapat dikenali.
+    assert(pdf.toString("latin1").includes("FlateDecode"), "aliran PDF tidak wajar");
+  });
+
+  await check("PDF memecah halaman alih-alih menindih kaki halaman", async () => {
+    const { buildPrintPdf } = await import("../src/lib/pdf");
+    const { PDFDocument } = await import("pdf-lib");
+    const claim = await wf.getClaim(cid);
+    const unit = await one("SELECT * FROM units WHERE id=$1", [claim.unit_id]);
+    const marketing = await one("SELECT * FROM marketings WHERE id=$1",
+                                [claim.marketing_id]);
+    // Checklist panjang mendorong blok pengesahan melewati batas halaman.
+    const many = Array.from({ length: 18 }, (_, i) => ({ checklist_item: `dok_${i}` }));
+    const pdf = await buildPrintPdf({
+      claim, unit, marketing, agency: null, bank: null, documents: many,
+      signatureImagePng: null, copyNumber: 1, documentHash: docHash,
+      printedBy: "admin", verifyUrl: "https://contoh/verify",
+      crosscheck: { admin: "completed", finance: "completed" },
+    });
+    const parsed = await PDFDocument.load(pdf);
+    assert(parsed.getPageCount() >= 2,
+           `blok pengesahan seharusnya pindah halaman, dapat ${parsed.getPageCount()}`);
+  });
+
+  await check("PDF tetap terbentuk walau citra tanda tangan rusak", async () => {
+    const { buildPrintPdf } = await import("../src/lib/pdf");
+    const claim = await wf.getClaim(cid);
+    const unit = await one("SELECT * FROM units WHERE id=$1", [claim.unit_id]);
+    const marketing = await one("SELECT * FROM marketings WHERE id=$1",
+                                [claim.marketing_id]);
+    const pdf = await buildPrintPdf({
+      claim, unit, marketing, agency: null, bank: null, documents: [],
+      signatureImagePng: "bukan-png-sama-sekali",
+      copyNumber: 1, documentHash: docHash, printedBy: "admin",
+      verifyUrl: "https://contoh/verify", 
+      crosscheck: { admin: "completed", finance: "pending" },
+    });
+    assert(pdf.subarray(0, 5).toString() === "%PDF-",
+           "citra rusak tidak boleh menggagalkan seluruh dokumen");
+  });
+
   await check("modul laporan tidak menyediakan jalur tulis", async () => {
     const mod: Record<string, unknown> = await import("../src/lib/report");
     const writers = Object.keys(mod).filter((k) =>

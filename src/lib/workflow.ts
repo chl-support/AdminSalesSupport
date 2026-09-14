@@ -657,6 +657,7 @@ export async function printPackage(claimId: string, actor: string, reason?: stri
                new Date().toLocaleString("id-ID", { dateStyle: "medium",
                                                     timeStyle: "short" }),
     verify_url: `/api/documents/verify/${claim.document_hash}?copy=${copyNo}`,
+    pdf_url: `/api/claims/${claimId}/print-package/pdf?copy=${copyNo}`,
   };
 }
 
