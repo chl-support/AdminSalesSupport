@@ -124,7 +124,7 @@ CREATE TABLE IF NOT EXISTS bank_accounts (
 
 CREATE TABLE IF NOT EXISTS units (
   id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  code                    TEXT UNIQUE NOT NULL,
+  code                    TEXT NOT NULL,
   project_name            TEXT NOT NULL,
   cluster_code            TEXT NOT NULL,
   buyer_name              TEXT,
@@ -145,8 +145,47 @@ CREATE TABLE IF NOT EXISTS units (
   dp_received             BOOLEAN NOT NULL DEFAULT FALSE,
   status                  unit_status NOT NULL DEFAULT 'booked',
   cancelled_at            DATE,
-  remarks                 TEXT
+  remarks                 TEXT,
+
+  -- Rantai marketing yang berhak atas unit ini, mengikuti Laporan Penjualan:
+  -- Sales, Sub Koordinator, Koordinator.
+  --
+  -- Klaim mengambil penerimanya dari sini, bukan dari pilihan bebas saat
+  -- pengajuan: yang berhak atas fee sebuah unit ditentukan saat penjualan
+  -- terjadi, bukan saat klaimnya diketik. Ketiganya dipisah karena Overriding
+  -- justru membayar tingkat di atas Sales — satu kolom saja membuat klaim
+  -- Overriding tidak punya penerima.
+  --
+  -- Semuanya boleh kosong: Koordinator belum terisi pada laporan yang ada, dan
+  -- data yang terlanjur masuk sebelum kolom ini ada tidak punya nilainya.
+  -- ON DELETE SET NULL, bukan CASCADE: menghapus marketing tidak boleh ikut
+  -- menghapus riwayat penjualannya.
+  marketing_id            UUID REFERENCES marketings(id) ON DELETE SET NULL,
+  sub_coordinator_id      UUID REFERENCES marketings(id) ON DELETE SET NULL,
+  coordinator_id          UUID REFERENCES marketings(id) ON DELETE SET NULL
 );
+
+-- Untuk basis data yang sudah dibuat sebelum kolom di atas ada. CREATE TABLE
+-- IF NOT EXISTS tidak menyentuh tabel yang sudah ada, jadi tanpa baris ini
+-- migrasi ulang akan tampak berhasil sementara kolomnya tidak pernah muncul.
+ALTER TABLE units ADD COLUMN IF NOT EXISTS marketing_id UUID
+  REFERENCES marketings(id) ON DELETE SET NULL;
+ALTER TABLE units ADD COLUMN IF NOT EXISTS sub_coordinator_id UUID
+  REFERENCES marketings(id) ON DELETE SET NULL;
+ALTER TABLE units ADD COLUMN IF NOT EXISTS coordinator_id UUID
+  REFERENCES marketings(id) ON DELETE SET NULL;
+
+CREATE INDEX IF NOT EXISTS idx_units_marketing ON units(marketing_id);
+
+-- Satu baris = satu penjualan, bukan satu unit fisik.
+--
+-- Kode unit tidak lagi unik: unit yang pembelinya batal dijual lagi kepada orang
+-- lain, dan keduanya adalah penjualan tersendiri dengan klaim tersendiri.
+-- Nomor kontrak yang membedakannya, jadi di situlah keunikan ditegakkan.
+ALTER TABLE units DROP CONSTRAINT IF EXISTS units_code_key;
+CREATE UNIQUE INDEX IF NOT EXISTS uniq_units_contract
+  ON units (contract_number) WHERE contract_number IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_units_code ON units(code);
 
 CREATE TABLE IF NOT EXISTS incentive_schemes (
   id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),

@@ -14,6 +14,7 @@ import { usePathname } from "next/navigation";
 
 const MENU: [string, string][] = [
   ["/", "Konsol klaim"],
+  ["/klaim", "Ajukan klaim"],
   ["/audit", "Jejak audit"],
 ];
 

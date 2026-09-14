@@ -12,7 +12,8 @@
     "db:migrate": "tsx scripts/migrate.ts",
     "db:seed": "tsx scripts/seed.ts",
     "test": "tsx scripts/test-flow.ts",
-    "db:password": "tsx scripts/set-password.ts"
+    "db:password": "tsx scripts/set-password.ts",
+    "db:import": "tsx scripts/import-penjualan.ts"
   },
   "dependencies": {
     "exceljs": "^4.4.0",

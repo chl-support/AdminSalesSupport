@@ -133,6 +133,31 @@ menghapus data klaim.
 Lima kali salah sandi mengunci akun selama 15 menit. Penguncian berlaku per akun,
 bukan per alamat IP.
 
+## 3c. Impor data penjualan
+
+Laporan Penjualan (ekspor `.xls` yang isinya TSV) dimasukkan lewat:
+
+```bash
+DATABASE_URL='<url>' npm run db:import -- 'Report_Penjualan_20260914.xls' --dry-run
+DATABASE_URL='<url>' npm run db:import -- 'Report_Penjualan_20260914.xls'
+```
+
+`--dry-run` memperlihatkan yang akan ditulis tanpa menulis apa pun. Impor
+idempoten: dijalankan ulang atas laporan yang sama tidak menggandakan baris.
+
+Satu baris = satu **penjualan**, bukan satu unit fisik. Unit yang pembelinya
+batal lalu dijual lagi menjadi dua baris dengan nomor kontrak berbeda, karena
+klaim melekat pada penjualannya.
+
+Dua hal yang **tidak** diambil dari laporan, dan memang tidak bisa:
+
+- **Prasyarat pencairan** (SPU, PPJB, DP, Sign P3U) tidak ada di laporan. Nilainya
+  tidak disentuh impor — Admin Sales yang mencatatnya.
+- **Marketing hasil impor berstatus `draft`**, belum `active`. Status aktif berarti
+  pendaftaran dan perekaman spesimen tanda tangan sudah selesai; itu tidak dapat
+  disimpulkan dari laporan penjualan. Selama masih draft, mereka belum dapat
+  menerima pembayaran dan unitnya belum dapat diklaim.
+
 ## 4. Deploy ulang lalu periksa
 
 Setelah variabel lingkungan diisi, jalankan **Redeploy** dari dashboard — variabel

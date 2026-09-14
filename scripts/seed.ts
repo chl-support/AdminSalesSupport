@@ -44,18 +44,19 @@ const MARKETINGS: [string, string, string, string, boolean][] = [
 const UNITS = [
   ["BIOBA2-017", "BA2", "Dwi Prasetyo", 72, 60, "KPR", "2026-06-14",
    185_000_000, 163_212_500, true, true, true, true, "booked", null,
-   "Akad KPR BTN 26 Jun 2026"],
+   "Akad KPR BTN 26 Jun 2026", "Fransisca Yolanda"],
   ["BIOBA5-004", "BA5", "Maria Sari", 90, 75, "Cash Bertahap", "2026-06-28",
-   210_000_000, 210_000_000, true, true, true, true, "booked", null, null],
+   210_000_000, 210_000_000, true, true, true, true, "booked", null, null,
+   "Budi Santoso"],
   ["BIOBA7-021", "BA7", "Rudi Wibowo", 84, 70, "KPR", "2026-07-19",
    198_000_000, 63_360_000, false, true, false, true, "booked", null,
-   "Belum Sign P3U"],
+   "Belum Sign P3U", "Hendra Kusuma"],
   ["BIOA3-11", "BA3", "Frangky Septian", 72, 92, "KPR Extra Express", "2024-07-26",
    2_906_000_000, 25_000_000, true, true, true, true, "cancelled", "2024-11-20",
-   "Pengajuan KPR ditolak bank"],
+   "Pengajuan KPR ditolak bank", "Michael Junior"],
   ["BIOBA1-04", "BA1", "Andri Kurniawan", 72, 60, "Cash Bertahap", "2025-02-11",
    1_850_000_000, 1_632_125_000, true, true, true, true, "moved_to_other_unit",
-   null, "Pindah ke unit BIOBA2-017"],
+   null, "Pindah ke unit BIOBA2-017", "Fransisca Yolanda"],
   ["BIOBB-07", "BB", "PT. Sinar Abadi", 120, 140, "Cash", "2025-05-03",
    4_200_000_000, 4_200_000_000, true, true, true, true, "management", null,
    "Unit management"],
@@ -166,17 +167,27 @@ export async function seed(reset = true) {
   const units: Record<string, string> = {};
   for (const u of UNITS) {
     const [code, cluster, buyer, lt, lb, scheme, cdate, value, received,
-           p3u, spu, ppjb, dp, status, cancelled, remarks] = u as any;
+           p3u, spu, ppjb, dp, status, cancelled, remarks, marketingName] =
+      u as any;
+    // Unit management tidak menghasilkan insentif, jadi tidak punya marketing.
+    const marketingId =
+      marketings.find((m) => m.name === marketingName)?.id ?? null;
+    // Sub koordinator: penerima Overriding. Pada data contoh, Michael Junior
+    // menaungi para agent — cukup untuk membuat klaim Overriding punya penerima.
+    const subKoordinatorId = marketingId
+      ? marketings.find((m) => m.name === "Michael Junior")?.id ?? null
+      : null;
     const rows = await query(
       `INSERT INTO units (code, project_name, cluster_code, buyer_name, unit_type,
          land_area, building_area, orientation, payment_scheme, contract_number,
          contract_date, contract_value_incl_vat, received_amount, sign_p3u,
-         spu_signed, ppjb_signed, dp_received, status, cancelled_at, remarks)
+         spu_signed, ppjb_signed, dp_received, status, cancelled_at, remarks,
+         marketing_id, sub_coordinator_id)
        VALUES ($1,'BIO District',$2,$3,$4,$5,$6,'Utara',$7,$8,$9,$10,$11,$12,$13,
-               $14,$15,$16,$17,$18) RETURNING id`,
+               $14,$15,$16,$17,$18,$19,$20) RETURNING id`,
       [code, cluster, buyer, `${lt}/${lb}`, lt, lb, scheme,
        `K-${code.slice(-4)}`, cdate, value, received, p3u, spu, ppjb, dp,
-       status, cancelled, remarks]);
+       status, cancelled, remarks, marketingId, subKoordinatorId]);
     units[code] = rows[0].id;
   }
 
