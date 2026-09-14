@@ -12,17 +12,28 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-const MENU: [string, string][] = [
-  ["/", "Konsol klaim"],
-  ["/klaim", "Ajukan klaim"],
-  ["/audit", "Jejak audit"],
+/**
+ * Menu, beserta peran yang boleh melihatnya.
+ *
+ * `peran: null` berarti terbuka untuk semua. Menyembunyikan menu hanya
+ * kerapian — setiap endpoint di belakangnya tetap memeriksa perannya sendiri,
+ * jadi mengetikkan alamatnya langsung tidak memberi akses apa pun.
+ */
+const MENU: { href: string; label: string; peran: string[] | null }[] = [
+  { href: "/", label: "Konsol klaim", peran: null },
+  { href: "/klaim", label: "Ajukan klaim", peran: null },
+  { href: "/audit", label: "Jejak audit", peran: null },
+  // Administrasi terbuka bagi semua peran karena memuat "ganti sandi saya";
+  // isinya sendiri yang menyesuaikan dengan peran pembukanya.
+  { href: "/admin", label: "Administrasi", peran: null },
 ];
 
-export function Nav() {
+export function Nav({ peran }: { peran?: string }) {
   const path = usePathname();
   return (
     <nav className="nav">
-      {MENU.map(([href, label]) => {
+      {MENU.filter((m) => !m.peran || (peran && m.peran.includes(peran)))
+           .map(({ href, label }) => {
         // "/" cocok persis saja, kalau tidak ia akan selalu terpilih.
         const active = href === "/" ? path === "/" : path.startsWith(href);
         return (

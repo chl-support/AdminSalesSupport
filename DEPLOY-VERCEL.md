@@ -114,14 +114,19 @@ mencetaknya saat dijalankan; nilainya juga tertulis di `scripts/seed.ts`.
 | `sysadmin` | Admin Sistem |
 
 > Sandi bawaan itu dapat ditebak dan tertulis di repositori publik. **Ganti
-> seluruhnya sebelum dipakai sungguhan**, satu per satu, tanpa menyentuh data:
+> seluruhnya sebelum dipakai sungguhan.**
+>
+> Lewat konsol: menu **Administrasi**. Setiap pengguna dapat mengganti sandinya
+> sendiri di sana (perlu sandi lama); Admin Sistem dapat mengganti sandi siapa
+> pun. Mengganti sandi selalu memutus sesi yang sedang berjalan — kecuali saat
+> seseorang mengganti sandinya sendiri, di mana layar yang sedang dipakai tetap
+> terbuka dan hanya perangkat lain yang terputus.
+>
+> Tersedia juga dari baris perintah:
 >
 > ```bash
 > DATABASE_URL='<url>' npm run db:password -- <username> '<sandi baru>'
 > ```
->
-> Tanpa argumen sandi, skrip membangkitkan sandi acak dan mencetaknya sekali.
-> Mengganti sandi selalu memutus seluruh sesi pengguna itu yang sedang berjalan.
 
 **Basis data yang sudah berjalan sebelum perubahan ini** perlu migrasi sekali lagi
 (langkah 3; `db:migrate` idempoten) untuk menambahkan tabel `sessions` dan
@@ -135,15 +140,19 @@ bukan per alamat IP.
 
 ## 3c. Impor data penjualan
 
-Laporan Penjualan (ekspor `.xls` yang isinya TSV) dimasukkan lewat:
+Lewat konsol: masuk sebagai Admin Sistem, buka menu **Administrasi** → **Unggah
+Laporan Penjualan**. Pilih berkas, tekan **Lihat pratinjau** untuk melihat apa
+yang akan terjadi, lalu **Tulis ke basis data**. Tidak ada yang ditulis sebelum
+tombol kedua ditekan.
+
+Tersedia juga dari baris perintah, memakai kode yang sama:
 
 ```bash
 DATABASE_URL='<url>' npm run db:import -- 'Report_Penjualan_20260914.xls' --dry-run
 DATABASE_URL='<url>' npm run db:import -- 'Report_Penjualan_20260914.xls'
 ```
 
-`--dry-run` memperlihatkan yang akan ditulis tanpa menulis apa pun. Impor
-idempoten: dijalankan ulang atas laporan yang sama tidak menggandakan baris.
+Impor idempoten: dijalankan ulang atas laporan yang sama tidak menggandakan baris.
 
 Satu baris = satu **penjualan**, bukan satu unit fisik. Unit yang pembelinya
 batal lalu dijual lagi menjadi dua baris dengan nomor kontrak berbeda, karena

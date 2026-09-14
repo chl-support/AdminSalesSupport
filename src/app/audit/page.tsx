@@ -181,7 +181,7 @@ export default function AuditPage() {
           </p>
         </div>
         <div className="row" style={{ marginBottom: 0, alignItems: "flex-end" }}>
-          <Nav />
+          <Nav peran={sesi.role} />
           <BilahPengguna sesi={sesi} />
         </div>
       </header>
