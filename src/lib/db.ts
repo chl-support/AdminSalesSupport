@@ -115,6 +115,13 @@ export const pool = new Proxy({} as Pool, {
  * Kredensial tidak pernah ikut: hanya bentuk dan asal nilainya. Tanpa ini,
  * menelusuri "variabel sudah diisi tetapi tidak terbaca" hanya berupa tebakan.
  */
+/** Hostname pada DATABASE_URL saat ini, atau null bila tidak dapat diurai. */
+function hostOf(): string | null {
+  const url = databaseUrl();
+  if (!url) return null;
+  try { return new URL(url).hostname; } catch { return null; }
+}
+
 /**
  * Bentuk SETUP_SECRET tanpa membocorkan nilainya.
  *
@@ -185,7 +192,17 @@ export function explainDbError(err: any): string {
            "akses dari luar.";
   }
   if (err?.code === "ENOTFOUND") {
-    return "Host pada DATABASE_URL tidak ditemukan.";
+    // Sertakan host yang gagal: tanpa itu, pesan ini tidak membedakan salah ketik
+    // dari proyek basis data yang sudah dihapus.
+    const host = err?.hostname ?? hostOf() ?? "(tidak terbaca)";
+    return `Host '${host}' tidak ditemukan di DNS. Bandingkan dengan connection ` +
+           `string di dashboard penyedia basis data Anda. Penyebab yang lazim: ` +
+           `nilainya terpotong saat disalin, proyek basis data sudah dihapus, atau ` +
+           `endpoint-nya diganti sehingga hostname-nya berubah.`;
+  }
+  if (err?.code === "ETIMEDOUT") {
+    return `Koneksi ke '${hostOf() ?? "host"}' kehabisan waktu. Host ada, tetapi ` +
+           `tidak merespons — periksa apakah aksesnya dibatasi daftar IP.`;
   }
   if (String(err?.message).startsWith("DATABASE_URL belum diisi")) {
     return err.message;
