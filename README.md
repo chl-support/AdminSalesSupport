@@ -200,7 +200,7 @@ untuk peran Finance, Management, dan Admin Sistem.
 | Pengiriman WhatsApp sungguhan | Tautan dan OTP ditampilkan di layar | Perlu akun WhatsApp Business API lewat BSP resmi dan template yang disetujui Meta (PRD Q11) |
 | Autentikasi | Header `X-User` | Prototipe. Ganti dengan OIDC/JWT + MFA sebelum produksi |
 | Unggah berkas | Nama berkas dicatat, isinya tidak disimpan | Perlu penyimpanan objek terenkripsi dan kebijakan retensi yang belum ditetapkan Legal (PRD Q14, Q27) |
-| PDF paket cetak & QR | Hash, nomor salinan, dan watermark dihasilkan; PDF-nya belum | Tata letak cetak perlu disepakati dulu |
+| PDF paket cetak & QR | **Selesai** — `GET /api/claims/{id}/print-package/pdf` | Tata letak mengikuti form eksisting; QR dan potongan hash dibubuhkan di setiap halaman |
 | Batch Overriding | Tabel dan tingkat sudah ada; penyusun batch periodik belum | Menunggu persentase dan penerima tiap tingkat (PRD Q35) |
 | Insentif non-tunai | Tersimpan dan tampil di laporan; belum ada alur pengajuan | Menunggu kepastian apakah dicatat manual atau punya form sendiri (PRD Q36, Q37) |
 | Enkripsi at-rest, PSrE, Dukcapil, host-to-host bank | Belum | Fase 4 pada roadmap PRD |
