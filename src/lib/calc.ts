@@ -195,20 +195,36 @@ export async function calculate(
   const excl = stripVat(incl, vatRate);
   const basisValue = scheme.basis === "contract_value_incl_vat" ? incl : excl;
 
-  const gross = scheme.flat_amount !== null
-    ? Number(scheme.flat_amount)
-    : applyRate(basisValue, persen.rate);
-
-  // PPN hanya bagi penerima PKP.
-  const vat = ctx.pkp_status === "pkp" ? applyRate(gross, vatRate) : 0;
-
+  // PPh dihitung lebih dulu karena nominal "Exclude PPh" perlu di-gross-up.
+  // PPh final hanya dipakai bila tarifnya benar-benar dikonfigurasi. Seed tidak
+  // lagi memuatnya: tidak satu pun Form Pengajuan yang ada memotong PPh final,
+  // dan tarif 0,5% yang sempat ada di sini memenangi PPh 21 sehingga setiap
+  // penerima ber-NPWP pribadi dipotong seperlima dari yang seharusnya.
   let whtType: string;
   if (ctx.recipient_type === "company") whtType = "pph23";
   else if (ctx.npwp_type === "personal" &&
            await findTaxRate("pph_final", ctx, onDate, client)) whtType = "pph_final";
   else whtType = "pph21";
-
   const whtRow = await findTaxRate(whtType, ctx, onDate, client);
+  const whtRate = Number(whtRow?.rate ?? 0);
+
+  /**
+   * Nominal tetap yang ditulis "Exclude PPh" adalah nilai bersih.
+   *
+   * Brutonya dinaikkan sampai setelah dipotong PPh sisanya persis sebesar
+   * nominal itu: bruto = bersih / (1 - tarif). Memperlakukannya sebagai bruto
+   * membuat penerimanya kekurangan sebesar PPh pada setiap klaim — pada Closing
+   * Fee Rp 10 juta, selisihnya Rp 256.410 per unit.
+   */
+  const gross = scheme.flat_amount !== null
+    ? (scheme.flat_amount_is_net && whtRate < 1
+        ? Math.round(Number(scheme.flat_amount) / (1 - whtRate))
+        : Number(scheme.flat_amount))
+    : applyRate(basisValue, persen.rate);
+
+  // PPN hanya bagi penerima PKP.
+  const vat = ctx.pkp_status === "pkp" ? applyRate(gross, vatRate) : 0;
+
   const wht = whtRow ? applyRate(gross, whtRow.rate) : 0;
   const net = gross + vat - wht;
 
@@ -233,6 +249,7 @@ export async function calculate(
       percentage_base: scheme.percentage,
       tier_unit_count: persen.jumlah_unit,
       flat_amount: scheme.flat_amount,
+      flat_amount_is_net: scheme.flat_amount_is_net ?? false,
       vat_rate: vatRate,
       withholding_type: whtType,
       withholding_rate: whtRow?.rate ?? "0",

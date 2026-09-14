@@ -200,10 +200,25 @@ CREATE TABLE IF NOT EXISTS incentive_schemes (
   percentage       NUMERIC(12,8),
   flat_amount      BIGINT,
   tiers            JSONB,
+
+  -- Nominal tetap yang tertulis "Exclude PPh" adalah nilai BERSIH yang diterima,
+  -- bukan bruto. Closing Fee Rp 10.000.000 exclude PPh berarti penerimanya
+  -- membawa pulang sepuluh juta, dan brutonya di-gross-up sampai potongan PPh-nya
+  -- menutup selisih. Formulir Pengajuan yang ada membuktikannya: bruto
+  -- 10.256.410, PPh 256.410, bersih 9.999.999,75.
+  --
+  -- Tanpa penanda ini, nominal tetap diperlakukan sebagai bruto dan penerimanya
+  -- kekurangan sebesar PPh-nya pada setiap klaim.
+  flat_amount_is_net BOOLEAN NOT NULL DEFAULT FALSE,
+
   effective_from   DATE NOT NULL,
   effective_to     DATE,
   CHECK (percentage IS NOT NULL OR flat_amount IS NOT NULL)
 );
+
+-- Untuk basis data yang dibuat sebelum kolom ini ada.
+ALTER TABLE incentive_schemes ADD COLUMN IF NOT EXISTS flat_amount_is_net
+  BOOLEAN NOT NULL DEFAULT FALSE;
 
 -- Matriks tarif pajak (PRD 7.B.4): PKP x jenis penerima x SKB x NPWP x tingkat.
 CREATE TABLE IF NOT EXISTS tax_rates (

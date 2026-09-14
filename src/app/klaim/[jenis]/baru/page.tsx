@@ -403,11 +403,21 @@ export default function FormKlaimPage() {
                 </tbody></table>
                 {hasil.snapshot?.scheme_memo && (
                   <p className="hint" style={{ textAlign: "left" }}>
-                    Dasar perhitungan: memo {String(hasil.snapshot.scheme_memo)},
-                    tarif {(Number(hasil.snapshot.percentage ?? 0) * 100).toFixed(3)}%
-                    {hasil.snapshot.tier_unit_count
-                      ? ` (jenjang dari ${hasil.snapshot.tier_unit_count} unit pada bulan kontrak)`
-                      : ""}.
+                    Dasar perhitungan: memo {String(hasil.snapshot.scheme_memo)},{" "}
+                    {/* Skema bernominal tetap tidak punya persentase — menampilkan
+                        "tarif 0,000%" untuk Closing Fee Rp 10 juta hanya
+                        membingungkan pembacanya. */}
+                    {hasil.snapshot.flat_amount
+                      ? `${rp(Number(hasil.snapshot.flat_amount))} per unit` +
+                        (hasil.snapshot.flat_amount_is_net
+                          ? " (nilai bersih, exclude PPh — bruto dinaikkan agar " +
+                            "setelah potongan pajak sisanya persis sebesar itu)"
+                          : "")
+                      : `tarif ${(Number(hasil.snapshot.percentage ?? 0) * 100)
+                          .toFixed(3)}%` +
+                        (hasil.snapshot.tier_unit_count
+                          ? ` (jenjang dari ${hasil.snapshot.tier_unit_count} unit pada bulan kontrak)`
+                          : "")}.
                   </p>
                 )}
               </div>

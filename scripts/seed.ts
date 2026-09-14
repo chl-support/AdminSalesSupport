@@ -81,7 +81,8 @@ const UNITS = [
  * tidak pernah disetujui siapa pun.
  */
 type Skema = [string, string, string | null, string | null,
-              string | null, number | null, unknown | null, string, string | null];
+              string | null, number | null, unknown | null, string, string | null,
+              boolean?];
 
 const SCHEMES: Skema[] = [
   // ── 001/SBL-BD/SM/IX/2025 — berlaku Sep 2025 s.d. Okt 2025 ──
@@ -129,6 +130,39 @@ const SCHEMES: Skema[] = [
   // Memo 002 menyatukan tarifnya: 0,25% untuk setiap penjualan sales in-house.
   ["002/SBL-BD/SM/XI/2025", "overriding", null, "sales_manager_inhouse",
    "0.0025", null, null, "2025-11-01", null],
+
+  // ── Closing Fee: IOM 008/SBL-BD/PM/MS/I/2026, berlaku 1 Jan s.d. 31 Mar 2026 ──
+  //
+  // Nominal tetap per unit dan "Exclude PPh" — nilainya bersih, brutonya
+  // di-gross-up (argumen terakhir true). Diberikan H+7 setelah Booking Fee
+  // diterima dan Surat Pesanan ditandatangani.
+  ["008/SBL-BD/PM/MS/I/2026", "closing_fee", "sales_inhouse", null,
+   null, 10_000_000, null, "2026-01-01", "2026-03-31", true],
+  ["008/SBL-BD/PM/MS/I/2026", "closing_fee", "agent", null,
+   null, 10_000_000, null, "2026-01-01", "2026-03-31", true],
+  ["008/SBL-BD/PM/MS/I/2026", "closing_fee", "markom", null,
+   null, 2_000_000, null, "2026-01-01", "2026-03-31", true],
+  ["008/SBL-BD/PM/MS/I/2026", "closing_fee", "sales_markom", null,
+   null, 2_000_000, null, "2026-01-01", "2026-03-31", true],
+
+  // ── Cash Reward: memo 002/SBL-BD/MS/III/2026, berlaku 1 Apr s.d. 30 Jun 2026 ──
+  //
+  // Booking Fee turun dari Rp 25 juta menjadi Rp 5 juta, dan karena itu gimmick
+  // Closing Fee untuk Sales Inhouse, Tim Marcomm, dan Agent BERUBAH MENJADI Cash
+  // Reward dengan nominal yang sama. Closing Fee sengaja tidak diperpanjang ke
+  // periode ini: keduanya berlaku bersamaan berarti satu unit dapat diklaim dua
+  // kali untuk hadiah yang sama.
+  //
+  // Dibayarkan setelah pembayaran mencapai 20% atau akad kredit — sejalan dengan
+  // prasyarat cash_reward pada eligibility().
+  ["002/SBL-BD/MS/III/2026", "cash_reward", "sales_inhouse", null,
+   null, 10_000_000, null, "2026-04-01", "2026-06-30", true],
+  ["002/SBL-BD/MS/III/2026", "cash_reward", "agent", null,
+   null, 10_000_000, null, "2026-04-01", "2026-06-30", true],
+  ["002/SBL-BD/MS/III/2026", "cash_reward", "markom", null,
+   null, 2_000_000, null, "2026-04-01", "2026-06-30", true],
+  ["002/SBL-BD/MS/III/2026", "cash_reward", "sales_markom", null,
+   null, 2_000_000, null, "2026-04-01", "2026-06-30", true],
 ];
 
 // tax_type, rate, pkp, recipient, has_skb, npwp, level, from, to, note
@@ -138,14 +172,24 @@ const RATES: [string, string, string, string, boolean | null, string,
    "PPN 10% sesuai catatan laporan master"],
   ["vat", "0.11", "any", "any", null, "any", null, "2022-04-01", null,
    "PPN 11% — perlu konfirmasi Finance (PRD Q38)"],
+  // Tarif PPh diambil dari perhitungan pada Form Pengajuan dan lampiran Detail
+  // Perhitungan yang berjalan, bukan dari tarif umum. Empat contoh terpisah
+  // memotong 2,5% atas Amount Unit:
+  //
+  //   Form Cash Reward   256.410,25 / 10.256.410      = 2,5%  (PPh 21)
+  //   Form Komisi        470.158    / 18.806.306      = 2,5%  (PPh 21)
+  //   Lampiran Overiding  95.765,77 /  3.830.630,63   = 2,5%  (PPh 23)
+  //   Lampiran Overiding 132.601,35 /  5.304.054,05   = 2,5%  (PPh 23)
+  //
+  // PPh 23 atas jasa umumnya 2%, jadi 2,5% di sini perlu dikonfirmasi Finance
+  // sebelum dipakai membayar. Yang jelas: angka inilah yang selama ini dipakai,
+  // dan memakai 2% akan membuat sistem tidak cocok dengan berkas yang sudah ada.
   ["pph21", "0.025", "any", "individual", null, "any", null, "2020-01-01", null,
-   "Non-PKP perorangan 2,5%"],
-  ["pph_final", "0.005", "any", "individual", null, "personal", null,
-   "2020-01-01", null, "NPWP pribadi — PPh final 0,5%"],
-  ["pph23", "0.02", "any", "company", null, "any", null, "2020-01-01", null,
-   "Non-PKP badan usaha 2%"],
-  ["pph23", "0.02", "any", "company", true, "any", null, "2020-01-01", null,
-   "Pakai SKB: (Komisi + PPN) - PPh 2%"],
+   "2,5% sesuai Form Pengajuan Komisi dan Cash Reward"],
+  ["pph23", "0.025", "any", "company", null, "any", null, "2020-01-01", null,
+   "2,5% sesuai lampiran Detail Perhitungan Overiding"],
+  ["pph23", "0.025", "any", "company", true, "any", null, "2020-01-01", null,
+   "Pakai SKB: (Komisi + PPN) - PPh 2,5%"],
   ["pph21", "0.025", "any", "individual", null, "any", "sales_manager_inhouse",
    "2020-01-01", null, "Overriding Sales Manager dipotong PPh 21"],
 ];
@@ -246,14 +290,16 @@ export async function seed(reset = true) {
     units[code] = rows[0].id;
   }
 
-  for (const [memo, claimType, role, level, pct, flat, tiers, from, to] of SCHEMES) {
+  for (const [memo, claimType, role, level, pct, flat, tiers, from, to, netto]
+       of SCHEMES) {
     await query(
       `INSERT INTO incentive_schemes (memo_reference, claim_type, recipient_role,
          overriding_level, scheme_type, basis, percentage, flat_amount, tiers,
-         effective_from, effective_to)
-       VALUES ($1,$2,$3,$4,$5,'contract_value_incl_vat',$6,$7,$8,$9,$10)`,
+         effective_from, effective_to, flat_amount_is_net)
+       VALUES ($1,$2,$3,$4,$5,'contract_value_incl_vat',$6,$7,$8,$9,$10,$11)`,
       [memo, claimType, role, level, tiers ? "progressive" : "regular",
-       pct, flat, tiers ? JSON.stringify(tiers) : null, from, to]);
+       pct, flat, tiers ? JSON.stringify(tiers) : null, from, to,
+       Boolean(netto)]);
   }
 
   for (const [tt, rate, pkp, recipient, skb, npwp, level, from, to, note] of RATES) {
