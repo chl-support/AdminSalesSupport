@@ -204,8 +204,35 @@ export function explainDbError(err: any): string {
     return `Koneksi ke '${hostOf() ?? "host"}' kehabisan waktu. Host ada, tetapi ` +
            `tidak merespons — periksa apakah aksesnya dibatasi daftar IP.`;
   }
+  if (err?.code === "28P01" || err?.code === "28000") {
+    // Pesan mentah pg hanya menyebut penggunanya, sehingga terbaca seperti salah
+    // ketik nama pengguna. Yang jauh lebih sering: kata sandi terpotong saat
+    // disalin, karena karakter khusus di dalamnya memutus pilihan teks.
+    return `Pengguna atau kata sandi ditolak oleh '${hostOf() ?? "host"}'. ` +
+           `Salin ulang connection string utuh dari dashboard penyedia basis ` +
+           `data — jangan menyusunnya sendiri dari potongan.`;
+  }
+  if (err?.code === "3D000") {
+    return `Host dan kredensial diterima, tetapi basis data yang diminta tidak ` +
+           `ada di '${hostOf() ?? "host"}'. Periksa bagian setelah tanda / ` +
+           `terakhir pada connection string.`;
+  }
+  if (err?.code === "53300") {
+    // Gejala khas serverless dengan connection string langsung: tiap instance
+    // fungsi membuka pool sendiri sampai kuota penyedia habis.
+    return `Kuota koneksi '${hostOf() ?? "host"}' sudah penuh. Di lingkungan ` +
+           `serverless ini hampir selalu berarti DATABASE_URL memakai koneksi ` +
+           `langsung: ganti dengan connection string yang pooled (Neon: yang ` +
+           `mengandung -pooler; Supabase: Transaction pooler, port 6543).`;
+  }
   if (String(err?.message).startsWith("DATABASE_URL belum diisi")) {
     return err.message;
+  }
+  if (/endpoint (has been )?disabled|compute .*(disabled|suspended)/i
+        .test(String(err?.message))) {
+    return `Basis data di '${hostOf() ?? "host"}' sedang dinonaktifkan oleh ` +
+           `penyedianya — umumnya karena kuota paket gratis terlampaui atau ` +
+           `proyeknya dijeda. Aktifkan kembali dari dashboard penyedia.`;
   }
   if (String(err?.message).includes("no pg_hba.conf entry")) {
     return "Server menolak koneksi tanpa TLS. Set PGSSL=require.";

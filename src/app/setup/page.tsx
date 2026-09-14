@@ -24,8 +24,151 @@ type SecretShape = {
   looks_like_pasted_command?: boolean; hint?: string;
 };
 
+type Health = {
+  status?: string;
+  detail?: string;
+  pgCode?: string | null;
+  config?: {
+    database_url: {
+      present: boolean; raw_length: number; trimmed: boolean;
+      host: string | null; pooled: boolean | null; sslmode: string | null;
+    };
+    setup_secret: SecretShape;
+    vercel: {
+      env: string | null; url: string | null;
+      branch: string | null; commit: string | null;
+    };
+  };
+};
+
+/**
+ * Satu kalimat tindakan dari blok `config` health check.
+ *
+ * Urutannya mengikuti seberapa sering penyebabnya terjadi, dan tiap cabang
+ * menyebut apa yang harus diubah — bukan hanya apa yang salah. "Periksa
+ * DATABASE_URL" tidak menuntun ke mana pun bagi orang yang sedang menatap
+ * dashboard Vercel dan yakin variabelnya sudah diisi.
+ */
+function nasihat(h: Health | null): string {
+  const c = h?.config;
+  if (!c) {
+    return "Respons /api/health tidak terbaca. Fungsi mungkin gagal dijalankan " +
+           "sama sekali — periksa Runtime Logs pada dashboard.";
+  }
+  const d = c.database_url;
+  const env = c.vercel.env ?? "lokal";
+
+  if (!d.present) {
+    return `Fungsi yang sedang berjalan tidak melihat DATABASE_URL sama sekali ` +
+           `(environment: ${env}). Variabel baru tidak berlaku surut pada ` +
+           `deployment yang sudah ada: jalankan Redeploy. Bila setelah Redeploy ` +
+           `masih kosong, variabelnya belum dicentang untuk environment ` +
+           `"${env}" — buka Settings > Environment Variables dan centang ` +
+           `Production, Preview, dan Development.`;
+  }
+  if (!d.host) {
+    return "DATABASE_URL terbaca tetapi bukan connection string yang sah. " +
+           "Bentuknya harus postgres://pengguna:sandi@host:5432/basisdata — " +
+           "salin ulang utuh dari dashboard penyedia basis data.";
+  }
+  if (h?.pgCode === "42P01") {
+    return "Basis data terhubung, hanya skemanya yang belum dibuat. Isi " +
+           "SETUP_SECRET di bawah lalu jalankan penyiapan.";
+  }
+  if (h?.pgCode === "ENOTFOUND") {
+    return `Host "${d.host}" tidak ada di DNS. Yang lazim: nilainya terpotong ` +
+           `saat disalin, atau proyek basis datanya sudah dihapus. Bandingkan ` +
+           `dengan connection string di dashboard penyedia.`;
+  }
+  if (h?.pgCode === "ECONNREFUSED" || h?.pgCode === "ETIMEDOUT") {
+    return `Host "${d.host}" tidak menerima koneksi dari luar. Pada Neon dan ` +
+           `Supabase ini biasanya berarti Anda memakai connection string ` +
+           `langsung, bukan yang pooled.`;
+  }
+  if (h?.pgCode === "28P01" || h?.pgCode === "28000") {
+    return "Host benar, tetapi pengguna atau kata sandinya ditolak. Ambil ulang " +
+           "connection string — kata sandi sering ikut terpotong pada karakter " +
+           "khusus saat disalin manual.";
+  }
+  if (h?.pgCode === "3D000") {
+    return "Host dan kredensial benar, tetapi nama basis datanya tidak ada. " +
+           "Periksa bagian setelah tanda / terakhir pada connection string.";
+  }
+  if (d.trimmed) {
+    return "Ada spasi atau tanda petik yang ikut tersalin ke DATABASE_URL. " +
+           "Aplikasi membersihkannya, tetapi sebaiknya diperbaiki di dashboard.";
+  }
+  if (d.pooled === false) {
+    return `Koneksi ke "${d.host}" gagal dan string ini bukan yang pooled. Pada ` +
+           `Neon pakai yang mengandung -pooler; pada Supabase pakai Transaction ` +
+           `pooler (port 6543).`;
+  }
+  return "DATABASE_URL terbaca dan bentuknya wajar, tetapi koneksinya tetap " +
+         "gagal. Pesan lengkap dari PostgreSQL ada di bawah.";
+}
+
+/**
+ * Apa yang benar-benar terbaca oleh fungsi yang sedang berjalan.
+ *
+ * Kredensial tidak pernah ikut — hanya bentuk dan asal nilainya. Commit dan
+ * environment ikut ditampilkan karena keduanya yang membedakan "variabel belum
+ * diisi" dari "variabel sudah diisi tetapi deployment ini lebih tua".
+ */
+function Diagnosis({ health }: { health: Health | null }) {
+  const c = health?.config;
+  const d = c?.database_url;
+  return (
+    <div className="card">
+      <div className="banner stop">
+        <b>Basis data tidak dapat dijangkau</b>
+        {nasihat(health)}
+      </div>
+
+      {health?.detail && (
+        <p className="hint" style={{ textAlign: "left", marginTop: 10 }}>
+          Pesan dari server: {health.detail}
+          {health.pgCode ? ` (kode ${health.pgCode})` : ""}
+        </p>
+      )}
+
+      {c && (
+        <>
+          <h2 style={{ margin: "14px 0 8px", fontSize: 14 }}>
+            Yang terbaca oleh fungsi ini
+          </h2>
+          <table><tbody>
+            <tr><td>DATABASE_URL</td>
+                <td>{d?.present ? "terbaca" : "TIDAK terbaca"}</td></tr>
+            {d?.present && (
+              <>
+                <tr><td>Host</td><td>{d.host ?? "(tidak dapat diurai)"}</td></tr>
+                <tr><td>Pooled</td>
+                    <td>{d.pooled === null ? "—" : d.pooled ? "ya" : "tidak"}</td></tr>
+                <tr><td>sslmode</td><td>{d.sslmode ?? "—"}</td></tr>
+                <tr><td>Spasi/petik ikut tersalin</td>
+                    <td>{d.trimmed ? "ya" : "tidak"}</td></tr>
+              </>
+            )}
+            <tr><td>SETUP_SECRET</td>
+                <td>{c.setup_secret?.present ? "terpasang" : "belum dipasang"}</td></tr>
+            <tr><td>Environment</td><td>{c.vercel.env ?? "lokal"}</td></tr>
+            <tr><td>Branch</td><td>{c.vercel.branch ?? "—"}</td></tr>
+            <tr><td>Commit</td><td>{c.vercel.commit ?? "—"}</td></tr>
+          </tbody></table>
+          <p className="hint" style={{ textAlign: "left", marginTop: 8 }}>
+            Angka-angka ini berasal dari deployment yang sedang Anda buka, bukan
+            dari dashboard. Bila berbeda dari yang Anda isi di Settings,
+            deployment ini dibuat sebelum perubahan itu — jalankan Redeploy.
+          </p>
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function SetupPage() {
   const [status, setStatus] = useState<Status | null>(null);
+  const [health, setHealth] = useState<Health | null>(null);
   const [shape, setShape] = useState<SecretShape | null>(null);
   const [disabled, setDisabled] = useState(false);
   const [secret, setSecret] = useState("");
@@ -37,13 +180,19 @@ export default function SetupPage() {
   >(null);
 
   const loadStatus = useCallback(async () => {
-    const res = await fetch("/api/admin/setup");
-    if (res.status === 404) { setDisabled(true); return; }
-    if (res.ok) setStatus(await res.json());
-    else setStatus(null);
-    // Bentuk SETUP_SECRET yang tersimpan di server, untuk menangkap salah tempel.
-    const h = await fetch("/api/health").then((r) => r.json()).catch(() => null);
+    // Health dibaca lebih dulu dan tanpa syarat: ia satu-satunya sumber diagnosis
+    // ketika basis data tidak terjangkau, dan tetap menjawab walau endpoint
+    // penyiapan dimatikan. Membacanya belakangan berarti kegagalan yang paling
+    // perlu dijelaskan justru yang paling sedikit keterangannya.
+    const h: Health | null = await fetch("/api/health")
+      .then((r) => r.json()).catch(() => null);
+    setHealth(h);
     setShape(h?.config?.setup_secret ?? null);
+
+    const res = await fetch("/api/admin/setup");
+    if (res.status === 404) { setDisabled(true); setStatus(null); return; }
+    setDisabled(false);
+    setStatus(res.ok ? await res.json() : null);
   }, []);
 
   useEffect(() => { void loadStatus(); }, [loadStatus]);
@@ -86,6 +235,9 @@ export default function SetupPage() {
     }
   };
 
+  // Basis data tidak terjangkau: health menjawab selain "ok", atau tidak menjawab.
+  const dbMati = health !== null && health.status !== "ok";
+
   if (disabled) {
     return (
       <div className="wrap narrow">
@@ -98,6 +250,10 @@ export default function SetupPage() {
             Variables lalu jalankan Redeploy.
           </div>
         </div>
+        {/* Penyiapan dimatikan bukan berarti basis datanya sehat. Tanpa blok ini,
+            deployment yang SETUP_SECRET-nya sudah dihapus tidak punya satu pun
+            layar yang menjelaskan mengapa konsolnya kosong. */}
+        {dbMati && <Diagnosis health={health} />}
       </div>
     );
   }
@@ -123,10 +279,13 @@ export default function SetupPage() {
         ) : (
           <div className="banner warn">
             <b>Status belum terbaca</b>
-            Basis data mungkin belum dapat dijangkau. Periksa <code>/api/health</code>.
+            Skema tidak dapat diperiksa karena basis datanya belum terhubung.
+            Keterangannya ada di bawah.
           </div>
         )}
       </div>
+
+      {dbMati && <Diagnosis health={health} />}
 
       {shape?.looks_like_pasted_command && (
         <div className="card">
