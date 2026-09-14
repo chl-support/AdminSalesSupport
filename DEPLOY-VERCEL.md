@@ -46,7 +46,14 @@ Tambahkan satu variabel lagi di Vercel, lalu **Redeploy**:
 
 | Nama | Nilai |
 |---|---|
-| `SETUP_SECRET` | kalimat acak panjang, mis. `setup-9f2a7c14be03` |
+| `SETUP_SECRET` | kata sandi **yang Anda tentukan sendiri**, satu kata tanpa spasi, mis. `bio-district-2026` |
+
+> `SETUP_SECRET` adalah kata sandi yang Anda karang sendiri, bukan nilai yang
+> diberikan sistem. Isi dengan satu kata tanpa spasi. Nilai yang sama itulah yang
+> nanti Anda ketikkan di halaman `/setup`.
+>
+> Pada contoh baris perintah di bawah, tulisan `<SETUP_SECRET>` adalah penanda
+> tempat — ganti dengan kata sandi Anda, jangan disalin apa adanya.
 
 Buka `https://<domain-anda>.vercel.app/api/admin/setup` untuk melihat status. Lalu
 jalankan penyiapannya:

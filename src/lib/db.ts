@@ -115,6 +115,30 @@ export const pool = new Proxy({} as Pool, {
  * Kredensial tidak pernah ikut: hanya bentuk dan asal nilainya. Tanpa ini,
  * menelusuri "variabel sudah diisi tetapi tidak terbaca" hanya berupa tebakan.
  */
+/**
+ * Bentuk SETUP_SECRET tanpa membocorkan nilainya.
+ *
+ * Panjang dan ada-tidaknya spasi sudah cukup untuk menangkap kekeliruan yang paling
+ * sering terjadi: menempelkan seluruh perintah contoh, bukan nilai rahasianya saja.
+ */
+function setupSecretShape() {
+  const raw = process.env.SETUP_SECRET;
+  if (!raw) return { present: false };
+  const looksPasted = raw.length > 60 || /\s/.test(raw) ||
+                      raw.includes("curl") || raw.includes("<");
+  return {
+    present: true,
+    length: raw.length,
+    has_whitespace: /\s/.test(raw),
+    looks_like_pasted_command: looksPasted,
+    ...(looksPasted
+      ? { hint: "Nilainya terlihat seperti perintah atau teks contoh yang ikut " +
+                "tersalin, bukan kata sandi. Isi dengan satu kata tanpa spasi, " +
+                "misalnya bio-district-2026." }
+      : {}),
+  };
+}
+
 export function configReport() {
   const raw = process.env.DATABASE_URL;
   const url = databaseUrl();
@@ -140,7 +164,7 @@ export function configReport() {
       pooled,
       sslmode,
     },
-    setup_secret_present: Boolean(process.env.SETUP_SECRET),
+    setup_secret: setupSecretShape(),
     vercel: {
       env: process.env.VERCEL_ENV ?? null,          // production | preview | development
       url: process.env.VERCEL_URL ?? null,

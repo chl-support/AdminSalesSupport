@@ -19,8 +19,14 @@ type Status = {
   next_step: string;
 };
 
+type SecretShape = {
+  present: boolean; length?: number; has_whitespace?: boolean;
+  looks_like_pasted_command?: boolean; hint?: string;
+};
+
 export default function SetupPage() {
   const [status, setStatus] = useState<Status | null>(null);
+  const [shape, setShape] = useState<SecretShape | null>(null);
   const [disabled, setDisabled] = useState(false);
   const [secret, setSecret] = useState("");
   const [seed, setSeed] = useState(true);
@@ -35,6 +41,9 @@ export default function SetupPage() {
     if (res.status === 404) { setDisabled(true); return; }
     if (res.ok) setStatus(await res.json());
     else setStatus(null);
+    // Bentuk SETUP_SECRET yang tersimpan di server, untuk menangkap salah tempel.
+    const h = await fetch("/api/health").then((r) => r.json()).catch(() => null);
+    setShape(h?.config?.setup_secret ?? null);
   }, []);
 
   useEffect(() => { void loadStatus(); }, [loadStatus]);
@@ -118,6 +127,18 @@ export default function SetupPage() {
           </div>
         )}
       </div>
+
+      {shape?.looks_like_pasted_command && (
+        <div className="card">
+          <div className="banner stop">
+            <b>Nilai SETUP_SECRET di server tampaknya keliru</b>
+            Panjangnya {shape.length} karakter
+            {shape.has_whitespace ? " dan mengandung spasi" : ""}. {shape.hint}
+            <br /><br />
+            Perbaiki di Settings &gt; Environment Variables, lalu Redeploy.
+          </div>
+        </div>
+      )}
 
       <div className="card">
         <div className="lbl">SETUP_SECRET</div>
