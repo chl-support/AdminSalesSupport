@@ -62,18 +62,73 @@ const UNITS = [
    "Unit management"],
 ] as const;
 
-const SCHEMES: [string, string | null, string | null, string][] = [
-  ["closing_fee", "sales_inhouse", null, "0.027"],
-  ["closing_fee", "sales_manager_inhouse", null, "0.0135"],
-  ["closing_fee", "sales_markom", null, "0.0216"],
-  ["commission", "agent", null, "0.025"],
-  ["cash_reward", "sales_inhouse", null, "0.0162"],
-  ["cash_reward", "markom", null, "0.0108"],
-  ["overriding", null, "sales_manager_inhouse", "0.0025"],
-  ["overriding", null, "kantor_agent", "0.005"],
-  ["overriding", null, "lead_agent", "0.004"],
-  ["overriding", null, "coordinator_agent_1", "0.0025"],
-  ["overriding", null, "coordinator_agent_2", "0.002"],
+/**
+ * Skema insentif menurut memo resminya, bukan angka karangan.
+ *
+ * Dua memo berlaku berurutan, dan keduanya dimasukkan lengkap dengan masa
+ * berlakunya karena klaim dihitung memakai skema yang berlaku pada TANGGAL
+ * KONTRAK — kontrak Oktober 2025 tetap memakai memo lama meski diklaim hari ini:
+ *
+ *   001/SBL-BD/SM/IX/2025  berlaku September 2025, menggantikan 118/SBL-BD/V/2025
+ *   002/SBL-BD/SM/XI/2025  berlaku November 2025, menggantikan 001
+ *
+ * Bentuk baris: [memo, claim_type, recipient_role, overriding_level,
+ *                percentage|null, flat_amount|null, tiers|null, from, to]
+ *
+ * Yang TIDAK ada di kedua memo, jadi tidak dimasukkan: Closing Fee untuk agent
+ * dan sales in-house (keduanya menyebut "Mengikuti IOM kebijakan terpisah"), dan
+ * Cash Reward sama sekali. Mengarang tarifnya berarti sistem membayar angka yang
+ * tidak pernah disetujui siapa pun.
+ */
+type Skema = [string, string, string | null, string | null,
+              string | null, number | null, unknown | null, string, string | null];
+
+const SCHEMES: Skema[] = [
+  // ── 001/SBL-BD/SM/IX/2025 — berlaku Sep 2025 s.d. Okt 2025 ──
+  ["001/SBL-BD/SM/IX/2025", "commission", "agent", null,
+   "0.04", null, null, "2025-09-01", "2025-10-31"],
+  // Komisi in-house berjenjang per bulan: 1 unit 1,25%, mulai unit ke-2 1,5%.
+  ["001/SBL-BD/SM/IX/2025", "commission", "sales_inhouse", null,
+   "0.0125", null, [{ min_units: 1, percentage: "0.0125" },
+                    { min_units: 2, percentage: "0.015" }],
+   "2025-09-01", "2025-10-31"],
+  ["001/SBL-BD/SM/IX/2025", "overriding", null, "lead_agent",
+   "0.01", null, [{ min_units: 1, percentage: "0.01" },
+                  { min_units: 6, percentage: "0.0125" },
+                  { min_units: 11, percentage: "0.015" },
+                  { min_units: 16, percentage: "0.02" }],
+   "2025-09-01", "2025-10-31"],
+  // Overriding Sales Manager pada memo 001 dibedakan per asal penjualannya.
+  ["001/SBL-BD/SM/IX/2025", "overriding", null, "sales_manager_inhouse",
+   "0.002", null, null, "2025-09-01", "2025-10-31"],
+  ["001/SBL-BD/SM/IX/2025", "overriding", null, "kantor_agent",
+   "0.001", null, null, "2025-09-01", "2025-10-31"],
+  // Closing Fee Sales Manager dan Marcom: nominal tetap per unit, bukan persen.
+  ["001/SBL-BD/SM/IX/2025", "closing_fee", "sales_manager_inhouse", null,
+   null, 800_000, null, "2025-09-01", "2025-10-31"],
+  ["001/SBL-BD/SM/IX/2025", "closing_fee", "sales_markom", null,
+   null, 500_000, null, "2025-09-01", "2025-10-31"],
+
+  // ── 002/SBL-BD/SM/XI/2025 — berlaku sejak Nov 2025 ──
+  ["002/SBL-BD/SM/XI/2025", "commission", "agent", null,
+   "0.03", null, null, "2025-11-01", null],
+  ["002/SBL-BD/SM/XI/2025", "commission", "sales_inhouse", null,
+   "0.0125", null, [{ min_units: 1, percentage: "0.0125" },
+                    { min_units: 2, percentage: "0.015" }],
+   "2025-11-01", null],
+  ["002/SBL-BD/SM/XI/2025", "commission", "sales_manager_inhouse", null,
+   "0.0125", null, [{ min_units: 1, percentage: "0.0125" },
+                    { min_units: 2, percentage: "0.015" }],
+   "2025-11-01", null],
+  ["002/SBL-BD/SM/XI/2025", "overriding", null, "lead_agent",
+   "0.01", null, [{ min_units: 1, percentage: "0.01" },
+                  { min_units: 6, percentage: "0.0125" },
+                  { min_units: 11, percentage: "0.015" },
+                  { min_units: 16, percentage: "0.02" }],
+   "2025-11-01", null],
+  // Memo 002 menyatukan tarifnya: 0,25% untuk setiap penjualan sales in-house.
+  ["002/SBL-BD/SM/XI/2025", "overriding", null, "sales_manager_inhouse",
+   "0.0025", null, null, "2025-11-01", null],
 ];
 
 // tax_type, rate, pkp, recipient, has_skb, npwp, level, from, to, note
@@ -191,12 +246,14 @@ export async function seed(reset = true) {
     units[code] = rows[0].id;
   }
 
-  for (const [claimType, role, level, pct] of SCHEMES) {
+  for (const [memo, claimType, role, level, pct, flat, tiers, from, to] of SCHEMES) {
     await query(
       `INSERT INTO incentive_schemes (memo_reference, claim_type, recipient_role,
-         overriding_level, basis, percentage, effective_from)
-       VALUES ('002/BMM-MS/XI/2025',$1,$2,$3,'contract_value_incl_vat',$4,'2020-01-01')`,
-      [claimType, role, level, pct]);
+         overriding_level, scheme_type, basis, percentage, flat_amount, tiers,
+         effective_from, effective_to)
+       VALUES ($1,$2,$3,$4,$5,'contract_value_incl_vat',$6,$7,$8,$9,$10)`,
+      [memo, claimType, role, level, tiers ? "progressive" : "regular",
+       pct, flat, tiers ? JSON.stringify(tiers) : null, from, to]);
   }
 
   for (const [tt, rate, pkp, recipient, skb, npwp, level, from, to, note] of RATES) {

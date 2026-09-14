@@ -149,3 +149,20 @@ a.tombol-klaim:hover { background: #000; }
 ul.kurang {
   margin: 5px 0 0 15px; padding: 0; font-size: 11px; color: var(--mut);
 }
+
+/* Formulir pengajuan, mengikuti tata letak formulir kertasnya */
+.form-blok { margin-bottom: 18px; }
+.form-blok > h3 {
+  margin: 0 0 8px; font-size: 12px; font-weight: 700; letter-spacing: .04em;
+  background: var(--ink); color: #fff; padding: 5px 10px;
+}
+.form-blok table td { border: none; border-bottom: 1px solid #EEF0F1; padding: 5px 0; }
+.form-blok table td:first-child { width: 46%; color: var(--sub); }
+.form-blok table td:last-child { text-align: right; color: var(--ink); }
+.form-blok table tr:last-child td { border-bottom: none; }
+.hitung td:last-child { font-variant-numeric: tabular-nums; }
+.hitung tr.total td { font-weight: 700; border-top: 1.5px solid var(--ink); }
+ul.ceklis { list-style: none; margin: 0; padding: 0; font-size: 12.5px; }
+ul.ceklis li { padding: 4px 0; border-bottom: 1px solid #EEF0F1; }
+ul.ceklis label { display: flex; gap: 8px; align-items: flex-start; cursor: pointer; }
+ul.ceklis input { width: auto; margin-top: 2px; }

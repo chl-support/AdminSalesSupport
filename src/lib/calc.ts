@@ -115,6 +115,55 @@ export type CalculationResult = {
   snapshot: Record<string, unknown>;
 };
 
+/**
+ * Tarif untuk skema berjenjang, ditentukan oleh jumlah unit terjual.
+ *
+ * Memo 002/SBL-BD/SM/XI/2025 menetapkan dua bentuk berjenjang: komisi Sales
+ * In-house (1 unit 1,25%, mulai unit ke-2 1,5%) dan Overriding Lead Agent
+ * (1% untuk penjualan 1-5, lalu 1,25%, 1,5%, dan 2%). Keduanya dihitung per
+ * bulan — "cut off / bulan" pada catatan memo — dan catatan yang sama menegaskan
+ * penjualan yang dihitung adalah "penjualan diluar pembatalan".
+ *
+ * Yang dihitung adalah penjualan milik penerima pada bulan kontrak unit ini,
+ * bukan sepanjang masa: tanpa batas bulan, tarif sebuah klaim akan berubah
+ * sendiri setiap ada penjualan baru bertahun-tahun kemudian.
+ *
+ * Tanpa `tiers` yang terisi, fungsi ini melempar alih-alih diam-diam memakai
+ * `percentage`. Skema yang ditandai berjenjang tetapi tidak punya jenjang adalah
+ * konfigurasi yang belum selesai, dan membayar dengan tarif dasar diam-diam
+ * adalah kekeliruan yang tidak terlihat siapa pun sampai ada yang mengaudit.
+ */
+async function tarifBerjenjang(
+  scheme: any, unit: any, marketing: any,
+  level: OverridingLevel | null, onDate: string, client?: PoolClient,
+): Promise<{ rate: string; jumlah_unit: number }> {
+  const tiers = scheme.tiers as { min_units: number; percentage: string }[] | null;
+  if (!Array.isArray(tiers) || !tiers.length) {
+    throw new Error(
+      `Skema ${scheme.claim_type} ditandai berjenjang tetapi belum punya daftar ` +
+      `jenjang (kolom tiers). Lengkapi konfigurasinya — memakai tarif dasar ` +
+      `diam-diam akan membayar dengan nilai yang salah.`);
+  }
+
+  // Kolom yang menautkan unit ke penerima berbeda menurut jenis klaimnya:
+  // Overriding dibayarkan kepada tingkat di atas Sales.
+  const kolom = level ? "sub_coordinator_id" : "marketing_id";
+  const row = await one<{ n: number }>(
+    `SELECT COUNT(*)::int AS n FROM units
+      WHERE ${kolom} = $1
+        AND status NOT IN ('cancelled','moved_to_other_unit')
+        AND date_trunc('month', contract_date) = date_trunc('month', $2::date)`,
+    [marketing.id, onDate], client);
+  const jumlah = row?.n ?? 1;
+
+  // Jenjang tertinggi yang ambang minimumnya sudah tercapai.
+  const urut = [...tiers].sort((a, b) => a.min_units - b.min_units);
+  let dipakai = urut[0];
+  for (const t of urut) if (jumlah >= t.min_units) dipakai = t;
+
+  return { rate: String(dipakai.percentage), jumlah_unit: jumlah };
+}
+
 export async function calculate(
   unit: any, marketing: any, agency: any | null,
   claimType: ClaimType, role: RecipientRole,
@@ -133,6 +182,13 @@ export async function calculate(
     );
   }
 
+  // Skema berjenjang: tarifnya bergantung pada berapa unit yang terjual, bukan
+  // hanya pada nilai kontraknya. Diselesaikan di sini agar pemanggil tidak perlu
+  // tahu bedanya.
+  const persen = scheme.scheme_type === "progressive"
+    ? await tarifBerjenjang(scheme, unit, marketing, level, onDate, client)
+    : { rate: scheme.percentage, jumlah_unit: null as number | null };
+
   const incl = Number(unit.contract_value_incl_vat ?? 0);
   const vatRow = await findTaxRate("vat", ctx, onDate, client);
   const vatRate = vatRow?.rate ?? "0";
@@ -141,7 +197,7 @@ export async function calculate(
 
   const gross = scheme.flat_amount !== null
     ? Number(scheme.flat_amount)
-    : applyRate(basisValue, scheme.percentage);
+    : applyRate(basisValue, persen.rate);
 
   // PPN hanya bagi penerima PKP.
   const vat = ctx.pkp_status === "pkp" ? applyRate(gross, vatRate) : 0;
@@ -173,7 +229,9 @@ export async function calculate(
       scheme_type: scheme.scheme_type,
       basis: scheme.basis,
       basis_value: basisValue,
-      percentage: scheme.percentage,
+      percentage: persen.rate,
+      percentage_base: scheme.percentage,
+      tier_unit_count: persen.jumlah_unit,
       flat_amount: scheme.flat_amount,
       vat_rate: vatRate,
       withholding_type: whtType,
@@ -213,11 +271,23 @@ export function eligibility(unit: any, claimType: ClaimType): {
   return { ok: missing.length === 0, missing };
 }
 
+/**
+ * Dokumen wajib per jenis klaim, menurut checklist pada formulir pengajuannya.
+ *
+ * Cash Reward sebelumnya menuntut PPJB, kwitansi, dan rekening bank. Formulir
+ * Pengajuan Cash Reward yang sebenarnya tidak meminta ketiganya — checklist-nya
+ * sama persis dengan Closing Fee: FPU, SPU, dan kelengkapan data (KTP, NPWP,
+ * bukti bayar booking fee). Menuntut dokumen yang tidak diminta formulirnya
+ * menahan klaim yang sebenarnya sudah lengkap.
+ *
+ * Overriding tidak punya formulir pengajuan per klaim — ia disusun sebagai
+ * lampiran perhitungan per periode, jadi tidak ada checklist dokumennya.
+ */
 export const REQUIRED_DOCS: Record<ClaimType, string[]> = {
   closing_fee: ["fpu", "spu", "ktp", "npwp", "booking_fee_proof"],
   commission: ["fpu", "spu", "ppjb", "kwitansi", "invoice", "ktp", "npwp",
                "bank_account"],
-  cash_reward: ["fpu", "spu", "ppjb", "kwitansi", "ktp", "npwp", "bank_account"],
+  cash_reward: ["fpu", "spu", "ktp", "npwp", "booking_fee_proof"],
   overriding: [],
 };
 

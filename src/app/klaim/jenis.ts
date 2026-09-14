@@ -65,3 +65,38 @@ export const TINGKAT_OVERRIDING: [string, string][] = [
   ["coordinator_agent_1", "Koordinator Agent 1"],
   ["coordinator_agent_2", "Koordinator Agent 2"],
 ];
+
+/**
+ * Checklist dokumen persis seperti pada formulir pengajuan masing-masing.
+ *
+ * Overriding tidak punya checklist: ia diajukan sebagai lampiran perhitungan
+ * per periode, bukan formulir per klaim.
+ */
+export const DOKUMEN: Record<Jenis, string[]> = {
+  closing_fee: [
+    "Formulir Pemesanan Unit (FPU)",
+    "Surat Pemesanan Unit (SPU)",
+    "Kelengkapan Data (KTP, NPWP & Bukti Bayar BF)",
+  ],
+  cash_reward: [
+    "Formulir Pemesanan Unit (FPU)",
+    "Surat Pemesanan Unit (SPU)",
+    "Kelengkapan Data (KTP, NPWP & Bukti Bayar BF)",
+  ],
+  commission: [
+    "Formulir Pemesanan Unit (FPU)",
+    "Surat Pemesanan Unit (SPU)",
+    "Perjanjian Pengikatan Jual Beli (PPJB)",
+    "Kelengkapan Data (Kwitansi, Invoice, Surat Pernyataan PKP/Faktur Pajak " +
+      "PPN, KTP, NPWP & Rekening Bank)",
+  ],
+  overriding: [],
+};
+
+/** Judul blok perhitungan, mengikuti judul pada formulirnya. */
+export const JUDUL_HITUNG: Record<Jenis, string> = {
+  closing_fee: "PERHITUNGAN CLOSING FEE",
+  commission: "PERHITUNGAN KOMISI",
+  cash_reward: "PERHITUNGAN CASH REWARD",
+  overriding: "PERHITUNGAN OVERRIDING",
+};

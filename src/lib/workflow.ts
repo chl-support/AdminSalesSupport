@@ -112,6 +112,9 @@ export function assertNotSealed(claim: any) {
 export async function createClaim(params: {
   unitId: string; marketingId: string; claimType: ClaimType;
   recipientRole: RecipientRole; overridingLevel?: OverridingLevel | null;
+  // "Penjelasan Pengajuan" pada formulir — mis. "Full Payment, pembayaran sudah
+  // mencapai 20%". Ikut tercetak pada paket dokumen, jadi bukan catatan internal.
+  notes?: string | null;
   actor?: string;
 }) {
   return tx(async (c) => {
@@ -157,14 +160,14 @@ export async function createClaim(params: {
         `INSERT INTO claims (claim_number, claim_type, recipient_role, unit_id,
            marketing_id, bank_account_id, status, gross_amount, vat,
            withholding_tax, withholding_tax_type, net_amount, amount_in_words,
-           total_payment, payment_percent, snapshot)
-         VALUES ($1,$2,$3,$4,$5,$6,'draft',$7,$8,$9,$10,$11,$12,$13,$14,$15)
+           total_payment, payment_percent, snapshot, notes)
+         VALUES ($1,$2,$3,$4,$5,$6,'draft',$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
          RETURNING *`,
         [number, params.claimType, params.recipientRole, params.unitId,
          params.marketingId, bank?.id ?? null, r.gross_amount, r.vat,
          r.withholding_tax, r.withholding_tax_type, r.net_amount,
          r.amount_in_words, r.total_payment, r.payment_percent,
-         JSON.stringify(r.snapshot)], c);
+         JSON.stringify(r.snapshot), params.notes?.trim() || null], c);
 
       await audit({
         entityType: "claim", entityId: claim!.id, action: "create",

@@ -27,12 +27,19 @@ export const GET = handler(async (req) => {
     SELECT u.*,
            m.full_name AS marketing_name, m.marketing_type,
            m.status AS marketing_status, a.name AS agency_name,
+           m.npwp AS marketing_npwp, m.phone AS marketing_phone,
+           m.email AS marketing_email,
+           a.address AS agency_address,
            sk.full_name AS sub_coordinator_name, sk.status AS sub_coordinator_status,
+           sk.npwp AS sub_coordinator_npwp, sk.phone AS sub_coordinator_phone,
+           sk.email AS sub_coordinator_email, sk.marketing_type AS sub_coordinator_type,
+           ska.name AS sub_coordinator_agency, ska.address AS sub_coordinator_agency_address,
            ko.full_name AS coordinator_name, ko.status AS coordinator_status
       FROM units u
       LEFT JOIN marketings m  ON m.id  = u.marketing_id
       LEFT JOIN agencies   a  ON a.id  = m.agency_id
       LEFT JOIN marketings sk ON sk.id = u.sub_coordinator_id
+      LEFT JOIN agencies   ska ON ska.id = sk.agency_id
       LEFT JOIN marketings ko ON ko.id = u.coordinator_id`;
 
   const rows = await query(
@@ -65,9 +72,18 @@ export const GET = handler(async (req) => {
       ? { id: u.sub_coordinator_id ?? u.coordinator_id,
           nama: u.sub_coordinator_name ?? u.coordinator_name,
           status: u.sub_coordinator_status ?? u.coordinator_status,
-          peran: u.sub_coordinator_id ? "Sub Koordinator" : "Koordinator" }
+          peran: u.sub_coordinator_id ? "Sub Koordinator" : "Koordinator",
+          jenis: u.sub_coordinator_type,
+          npwp: u.sub_coordinator_npwp, telepon: u.sub_coordinator_phone,
+          email: u.sub_coordinator_email,
+          kantor: u.sub_coordinator_agency,
+          alamat_kantor: u.sub_coordinator_agency_address }
       : { id: u.marketing_id, nama: u.marketing_name,
-          status: u.marketing_status, peran: "Sales" };
+          status: u.marketing_status, peran: "Sales",
+          jenis: u.marketing_type,
+          npwp: u.marketing_npwp, telepon: u.marketing_phone,
+          email: u.marketing_email,
+          kantor: u.agency_name, alamat_kantor: u.agency_address };
 
   return rows.map((u) => {
     const { ok, missing } = eligibility(u, eligibleFor);
@@ -79,7 +95,12 @@ export const GET = handler(async (req) => {
       missing_requirements: missing,
       // Penerima yang berlaku untuk jenis klaim yang diminta, sudah dipilih di
       // sini supaya layar dan formulir tidak menyusun ulang aturannya sendiri.
-      recipient: { id: p.id, name: p.nama, status: p.status, source: p.peran },
+      recipient: {
+        id: p.id, name: p.nama, status: p.status, source: p.peran,
+        type: p.jenis ?? null, npwp: p.npwp ?? null, phone: p.telepon ?? null,
+        email: p.email ?? null, office: p.kantor ?? null,
+        office_address: p.alamat_kantor ?? null,
+      },
       // Alasan terpisah, supaya layar dapat menjelaskan bedanya "belum memenuhi
       // syarat pencairan" dari "penjualannya belum menyebut marketing".
       marketing_missing: !p.id,
