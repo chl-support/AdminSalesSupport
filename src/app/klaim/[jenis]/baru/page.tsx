@@ -34,10 +34,16 @@ import {
 const rp = (n?: number | null) => `Rp ${(n ?? 0).toLocaleString("id-ID")}`;
 const tgl = (v?: string | null) => (v ? String(v).slice(0, 10) : "—");
 
+type Rekening = {
+  holder_name: string; holder_type: "individual" | "company";
+  account_number: string; bank_name: string; branch: string | null;
+};
+
 type Penerima = {
   id: string | null; name: string | null; status: string | null; source: string;
   type: string | null; npwp: string | null; phone: string | null;
   email: string | null; office: string | null; office_address: string | null;
+  bank: Rekening | null;
 };
 
 type Unit = {
@@ -307,6 +313,43 @@ export default function FormKlaimPage() {
                 </div>
 
                 <div className="form-blok">
+                  <h3>TUJUAN TRANSFER</h3>
+                  {unit.recipient.bank ? (
+                    <>
+                      <table><tbody>
+                        <tr><td>Nama Penerima</td>
+                            <td>{unit.recipient.bank.holder_name}</td></tr>
+                        <tr><td>BANK</td>
+                            <td>{unit.recipient.bank.bank_name}</td></tr>
+                        <tr><td>No. Rekening</td>
+                            <td>{unit.recipient.bank.account_number}</td></tr>
+                        <tr><td>Kantor Cabang</td>
+                            <td>{unit.recipient.bank.branch ?? "—"}</td></tr>
+                        <tr><td>Atas nama</td>
+                            <td>{unit.recipient.bank.holder_type === "company"
+                                  ? "Badan usaha (PT)" : "Perorangan"}</td></tr>
+                      </tbody></table>
+                      <p className="hint" style={{ textAlign: "left", marginTop: 6 }}>
+                        Rekening tujuan inilah yang menentukan jenis PPh:
+                        ditransfer ke PT dipotong <b>PPh 23</b>, ke perorangan
+                        dipotong <b>PPh 21</b>. Rekening ini atas nama{" "}
+                        {unit.recipient.bank.holder_type === "company"
+                          ? "badan usaha, jadi dipotong PPh 23"
+                          : "perorangan, jadi dipotong PPh 21"}.
+                      </p>
+                    </>
+                  ) : (
+                    <div className="banner warn" style={{ marginBottom: 0 }}>
+                      <b>Belum ada rekening tujuan yang terverifikasi</b>
+                      Jenis PPh ditentukan oleh rekening tujuan transfer, jadi
+                      tanpa rekening itu potongan pajaknya hanya diperkirakan dari
+                      status marketing. Klaim tetap dapat diajukan, tetapi tidak
+                      dapat dibayarkan sebelum rekeningnya diverifikasi.
+                    </div>
+                  )}
+                </div>
+
+                <div className="form-blok">
                   <h3>PENJELASAN PENGAJUAN {jenis.nama.toUpperCase()}</h3>
                   <textarea className="reason" value={penjelasan}
                             placeholder="mis. Full Payment. Pembayaran sudah mencapai 20%."
@@ -388,7 +431,9 @@ export default function FormKlaimPage() {
                   <tr><td>PPN</td><td>{rp(hasil.vat)}</td></tr>
                   <tr><td>Potongan PPh
                           {hasil.withholding_tax_type
-                            ? ` (${String(hasil.withholding_tax_type).toUpperCase()})`
+                            ? ` (${String(hasil.withholding_tax_type)
+                                .replace("pph", "PPh ").toUpperCase()
+                                .replace("PPH ", "PPh ")})`
                             : ""}</td>
                       <td>− {rp(hasil.withholding_tax)}</td></tr>
                   <tr className="total">
@@ -401,6 +446,11 @@ export default function FormKlaimPage() {
                         </td></tr>
                   )}
                 </tbody></table>
+                {hasil.snapshot?.withholding_basis && (
+                  <p className="hint" style={{ textAlign: "left" }}>
+                    Dasar jenis PPh: {String(hasil.snapshot.withholding_basis)}.
+                  </p>
+                )}
                 {hasil.snapshot?.scheme_memo && (
                   <p className="hint" style={{ textAlign: "left" }}>
                     Dasar perhitungan: memo {String(hasil.snapshot.scheme_memo)},{" "}

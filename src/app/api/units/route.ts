@@ -42,6 +42,15 @@ export const GET = handler(async (req) => {
       LEFT JOIN agencies   ska ON ska.id = sk.agency_id
       LEFT JOIN marketings ko ON ko.id = u.coordinator_id`;
 
+  // Rekening tujuan penerima, untuk blok Tujuan Transfer pada formulir — dan
+  // karena ia yang menentukan PPh 23 atau PPh 21, layar perlu menampilkannya
+  // sebelum klaim diajukan, bukan sesudah.
+  const rekening = await query<any>(
+    `SELECT DISTINCT ON (marketing_id) marketing_id, holder_name, holder_type,
+            account_number, bank_name, branch
+       FROM bank_accounts WHERE verified ORDER BY marketing_id, id`);
+  const perRekening = new Map(rekening.map((b) => [b.marketing_id, b]));
+
   const rows = await query(
     cluster ? `${SELECT} WHERE u.cluster_code=$1 ORDER BY u.code`
             : `${SELECT} ORDER BY u.code`,
@@ -100,6 +109,7 @@ export const GET = handler(async (req) => {
         type: p.jenis ?? null, npwp: p.npwp ?? null, phone: p.telepon ?? null,
         email: p.email ?? null, office: p.kantor ?? null,
         office_address: p.alamat_kantor ?? null,
+        bank: (p.id && perRekening.get(p.id)) || null,
       },
       // Alasan terpisah, supaya layar dapat menjelaskan bedanya "belum memenuhi
       // syarat pencairan" dari "penjualannya belum menyebut marketing".

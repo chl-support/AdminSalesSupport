@@ -139,9 +139,16 @@ export async function createClaim(params: {
     const agency = mkt.agency_id
       ? await one("SELECT * FROM agencies WHERE id=$1", [mkt.agency_id], c)
       : null;
+    // Rekening tujuan dicari SEBELUM menghitung: ia yang menentukan PPh 23 atau
+    // PPh 21, jadi menghitung lebih dulu berarti memotong pajak sebelum tahu
+    // ke mana uangnya akan ditransfer.
+    const bank = await one(
+      "SELECT * FROM bank_accounts WHERE marketing_id=$1 AND verified LIMIT 1",
+      [params.marketingId], c);
+
     const r = await calc.calculate(unit, mkt, agency, params.claimType,
                                    params.recipientRole,
-                                   params.overridingLevel ?? null, c);
+                                   params.overridingLevel ?? null, c, bank);
 
     const prefix = { closing_fee: "CF", commission: "KMS",
                      cash_reward: "CR", overriding: "OR" }[params.claimType];
@@ -150,10 +157,6 @@ export async function createClaim(params: {
       [params.claimType], c))!;
     const number = `${prefix}-${new Date().getFullYear()}-${
       String(count + 1).padStart(4, "0")}`;
-
-    const bank = await one(
-      "SELECT id FROM bank_accounts WHERE marketing_id=$1 AND verified LIMIT 1",
-      [params.marketingId], c);
 
     try {
       const claim = await one(

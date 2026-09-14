@@ -119,8 +119,20 @@ CREATE TABLE IF NOT EXISTS bank_accounts (
   account_number TEXT NOT NULL,
   bank_name      TEXT NOT NULL,
   branch         TEXT,
-  verified       BOOLEAN NOT NULL DEFAULT FALSE
+  verified       BOOLEAN NOT NULL DEFAULT FALSE,
+
+  -- Atas nama siapa rekening ini: badan usaha atau perorangan.
+  --
+  -- Inilah yang menentukan jenis PPh. Ditransfer ke PT dipotong PPh 23,
+  -- ditransfer ke perorangan dipotong PPh 21 — yang menentukan adalah tujuan
+  -- transfernya, bukan status marketing-nya. Seorang agent yang bernaung di
+  -- bawah agensi tetapi dibayar ke rekening pribadinya dipotong PPh 21.
+  holder_type    TEXT NOT NULL DEFAULT 'individual'
+                 CHECK (holder_type IN ('individual','company'))
 );
+
+ALTER TABLE bank_accounts ADD COLUMN IF NOT EXISTS holder_type TEXT
+  NOT NULL DEFAULT 'individual';
 
 CREATE TABLE IF NOT EXISTS units (
   id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),

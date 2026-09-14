@@ -25,12 +25,27 @@ export type TaxContext = {
   overriding_level: OverridingLevel | null;
 };
 
+/**
+ * Konteks pajak penerima.
+ *
+ * `recipient_type` — yang menentukan PPh 23 atau PPh 21 — diambil dari REKENING
+ * TUJUAN TRANSFER, bukan dari status marketing-nya. Ditransfer ke PT dipotong
+ * PPh 23; ditransfer ke perorangan dipotong PPh 21. Seorang agent yang bernaung
+ * di bawah agensi tetapi dibayar ke rekening pribadinya tetap dipotong PPh 21,
+ * dan memakai status marketing akan salah memotongnya.
+ *
+ * Bila rekening tujuannya belum ada, status marketing dipakai sebagai perkiraan
+ * — tetapi klaim tanpa rekening terverifikasi memang belum dapat dibayarkan,
+ * jadi perkiraan itu tidak pernah menjadi pemotongan yang sesungguhnya.
+ */
 export function recipientContext(
   marketing: any, agency: any | null, level: OverridingLevel | null = null,
+  bankAccount: any | null = null,
 ): TaxContext {
   return {
     pkp_status: agency?.pkp_status ?? "non_pkp",
-    recipient_type: marketing.recipient_type ?? "individual",
+    recipient_type: bankAccount?.holder_type
+      ?? marketing.recipient_type ?? "individual",
     npwp_type: marketing.npwp_type ?? "none",
     has_skb: Boolean(agency?.has_skb),
     overriding_level: level,
@@ -168,11 +183,12 @@ export async function calculate(
   unit: any, marketing: any, agency: any | null,
   claimType: ClaimType, role: RecipientRole,
   level: OverridingLevel | null = null, client?: PoolClient,
+  bankAccount: any | null = null,
 ): Promise<CalculationResult> {
   const onDate = (unit.contract_date instanceof Date
     ? unit.contract_date.toISOString().slice(0, 10)
     : String(unit.contract_date ?? "1970-01-01").slice(0, 10));
-  const ctx = recipientContext(marketing, agency, level);
+  const ctx = recipientContext(marketing, agency, level, bankAccount);
 
   const scheme = await findScheme(claimType, role, level, onDate, client);
   if (!scheme) {
@@ -255,6 +271,12 @@ export async function calculate(
       withholding_rate: whtRow?.rate ?? "0",
       withholding_note: whtRow?.note ?? null,
       recipient_context: ctx,
+      // Dicatat supaya pemeriksa dapat melihat dari mana jenis PPh-nya berasal,
+      // bukan hanya hasilnya.
+      withholding_basis: bankAccount
+        ? `rekening tujuan atas nama ${bankAccount.holder_type === "company"
+            ? "badan usaha" : "perorangan"} (${bankAccount.holder_name})`
+        : "status marketing — rekening tujuan belum ditetapkan",
       rounding: "round_half_up_rupiah",
       calculated_on_contract_date: onDate,
     },

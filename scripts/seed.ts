@@ -255,11 +255,15 @@ export async function seed(reset = true) {
     }
     await query("UPDATE marketings SET baseline_specimen_set_id=$1 WHERE id=$2",
                 [setId, id]);
+    // Agent dibayar ke rekening agensinya (badan usaha) — PPh 23; in-house ke
+    // rekening pribadinya — PPh 21.
     await query(
       `INSERT INTO bank_accounts (marketing_id, holder_name, account_number,
-         bank_name, branch, verified) VALUES ($1,$2,$3,'BCA','Gading Serpong',TRUE)`,
+         bank_name, branch, verified, holder_type)
+       VALUES ($1,$2,$3,'BCA','Gading Serpong',TRUE,$4)`,
       [id, hasAgency ? "PT. Sunly Realty Indonesia" : name,
-       `12345${String(i).padStart(5, "0")}`]);
+       `12345${String(i).padStart(5, "0")}`,
+       hasAgency ? "company" : "individual"]);
     marketings.push({ id, name });
   }
 
