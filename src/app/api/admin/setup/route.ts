@@ -82,6 +82,7 @@ export const POST = handler(async (req) => {
     const sql = await readFile(join(process.cwd(), "db", "schema.sql"), "utf8");
     await pool.query(sql);
     await ensureDefaultSettings();
+
     const tables = await one<{ n: number }>(
       `SELECT COUNT(*)::int AS n FROM information_schema.tables
        WHERE table_schema='public'`);
