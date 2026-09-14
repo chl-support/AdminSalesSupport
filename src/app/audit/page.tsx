@@ -16,7 +16,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Nav } from "../nav";
-import { USERS, bacaPengguna, simpanPengguna } from "../user";
+import { BilahPengguna, useSesi } from "../session";
 
 const HALAMAN = 50;
 
@@ -66,8 +66,7 @@ function perubahan(before: Record<string, any> | null, after: Record<string, any
 }
 
 export default function AuditPage() {
-  // null berarti pilihan pengguna belum dibaca dari penyimpanan peramban.
-  const [user, setUser] = useState<string | null>(null);
+  const { sesi, memuat } = useSesi();
   const [viewer, setViewer] = useState<Viewer | null>(null);
   const [filter, setFilter] = useState<Filter>(KOSONG);
   // Filter disimpan juga di ref agar pemuatan ulang saat pengguna berganti
@@ -83,14 +82,15 @@ export default function AuditPage() {
   const [buka, setBuka] = useState<string | null>(null);
 
   const muat = useCallback(async (f: Filter, offset: number) => {
-    if (!user) return;
     setBusy(true);
     setGalat(null);
     try {
       const qs = new URLSearchParams({ limit: String(HALAMAN), offset: String(offset) });
       for (const [k, v] of Object.entries(f)) if (v) qs.set(k, v);
-      const res = await fetch(`/api/audit?${qs}`, { headers: { "X-User": user } });
+      // Cookie sesi terkirim sendiri; tidak ada header identitas yang dikarang.
+      const res = await fetch(`/api/audit?${qs}`);
       const body = await res.json().catch(() => ({}));
+      if (res.status === 401) { location.href = "/login"; return; }
       if (!res.ok) throw new Error(body.detail ?? body.title ?? `HTTP ${res.status}`);
       // Offset 0 berarti kueri baru; selain itu baris ditambahkan ke bawah.
       setRows((prev) => (offset === 0 ? body.rows : [...prev, ...body.rows]));
@@ -105,7 +105,7 @@ export default function AuditPage() {
     } finally {
       setBusy(false);
     }
-  }, [user]);
+  }, []);
 
   // Tautan masuk dari konsol membawa entity_id, supaya "lihat jejak klaim ini"
   // mendarat pada hasil yang sudah tersaring, bukan pada daftar penuh.
@@ -114,12 +114,13 @@ export default function AuditPage() {
     const f = awal ? { ...KOSONG, entity_id: awal } : KOSONG;
     filterRef.current = f;
     setFilter(f);
-    setUser(bacaPengguna());
   }, []);
 
-  // Dimuat ulang setiap pengguna berganti: kewenangan ikut berganti, jadi
-  // menahan hasil milik peran sebelumnya akan menyesatkan.
-  useEffect(() => { void muat(filterRef.current, 0); }, [muat]);
+  // Menunggu sesi: memanggil API sebelum identitasnya pasti hanya menghasilkan
+  // 401 dan pengalihan yang tidak perlu.
+  useEffect(() => {
+    if (sesi) void muat(filterRef.current, 0);
+  }, [sesi, muat]);
 
   const ubah = (k: keyof Filter, v: string) => {
     const f = { ...filter, [k]: v };
@@ -127,8 +128,6 @@ export default function AuditPage() {
     setFilter(f);
     void muat(f, 0);
   };
-
-  const gantiPengguna = (u: string) => { simpanPengguna(u); setUser(u); };
 
   /**
    * Koreksi tidak menyunting apa pun: ia menambahkan entri baru yang menunjuk
@@ -146,7 +145,7 @@ export default function AuditPage() {
     try {
       const res = await fetch("/api/audit", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "X-User": user ?? "" },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ entry_id: entryId, reason: alasan }),
       });
       const b = await res.json().catch(() => ({}));
@@ -162,6 +161,14 @@ export default function AuditPage() {
 
   const bersih = Object.values(filter).every((v) => !v);
 
+  if (memuat || !sesi) {
+    return (
+      <div className="wrap narrow">
+        <p className="hint" style={{ marginTop: 40 }}>Memeriksa sesi…</p>
+      </div>
+    );
+  }
+
   return (
     <div className="wrap">
       <header className="top">
@@ -175,12 +182,7 @@ export default function AuditPage() {
         </div>
         <div className="row" style={{ marginBottom: 0, alignItems: "flex-end" }}>
           <Nav />
-          <div>
-            <div className="lbl">Masuk sebagai</div>
-            <select value={user ?? ""} onChange={(e) => gantiPengguna(e.target.value)}>
-              {USERS.map(([u, label]) => <option key={u} value={u}>{u} — {label}</option>)}
-            </select>
-          </div>
+          <BilahPengguna sesi={sesi} />
         </div>
       </header>
 

@@ -20,4 +20,4 @@ export const GET = handler(async (_req, { params }) => {
     expires_at: s.expires_at,
     otp_verified: s.otp_verified,
   };
-});
+}, { publik: true });

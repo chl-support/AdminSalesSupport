@@ -6,7 +6,6 @@
  * pengujian pencocokan tanda tangan menghasilkan skor yang stabil.
  */
 import { deflateSync } from "node:zlib";
-import { createHash } from "node:crypto";
 
 const W = 300, H = 100;
 
@@ -85,4 +84,3 @@ export function signaturePng(seed: number, wobble = 0): string {
 }
 
 export const strokes = (seed: number, wobble = 0) => [{ points: path(seed, wobble) }];
-export const pwHash = (p: string) => createHash("sha256").update(p).digest("hex");

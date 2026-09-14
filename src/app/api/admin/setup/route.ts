@@ -62,7 +62,7 @@ export const GET = handler(async () => {
     return NextResponse.json(
       { detail: explainDbError(err), pgCode: err?.code ?? null }, { status: 503 });
   }
-});
+}, { publik: true });
 
 export const POST = handler(async (req) => {
   if (!process.env.SETUP_SECRET) {
@@ -117,4 +117,4 @@ export const POST = handler(async (req) => {
       { steps, detail: explainDbError(err), pgCode: err?.code ?? null },
       { status: 500 });
   }
-});
+}, { publik: true });

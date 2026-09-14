@@ -8,16 +8,29 @@
  */
 
 import { ensureDefaultSettings, pool, query } from "../src/lib/db";
-import { pwHash, signaturePng, strokes } from "./synthetic-signature";
+import { hashPassword } from "../src/lib/auth";
+import { signaturePng, strokes } from "./synthetic-signature";
 
-const USERS: [string, string, string][] = [
-  ["admin", "Dimas Prasetya", "admin_sales"],
-  ["ratna", "Ratna Wulandari", "finance_tax"],
-  ["ratih", "Ratih Anggraini", "finance_payment"],
-  ["fmanager", "Bagas Nugroho", "finance_manager"],
-  ["headfin", "Sri Handayani", "head_finance"],
-  ["mgmt", "Andreas Lim", "management"],
-  ["sysadmin", "IT Support", "admin_system"],
+/**
+ * Akun awal: username, nama, peran, dan kata sandi awal.
+ *
+ * Sandinya berbeda per akun. Satu sandi yang sama untuk semua orang membuat
+ * jejak audit berhenti membuktikan siapa yang bertindak — setiap orang yang
+ * tahu sandi itu dapat masuk sebagai siapa pun, dan catatannya tetap terlihat
+ * sah.
+ *
+ * Nilai-nilai ini tetap sandi awal untuk demo: dapat ditebak, dan tertulis di
+ * repositori publik. Sebelum dipakai sungguhan, ganti seluruhnya (dan lihat
+ * catatan MFA pada src/lib/auth.ts).
+ */
+const USERS: [string, string, string, string][] = [
+  ["admin", "Dimas Prasetya", "admin_sales", "sales-2026"],
+  ["ratna", "Ratna Wulandari", "finance_tax", "pajak-2026"],
+  ["ratih", "Ratih Anggraini", "finance_payment", "bayar-2026"],
+  ["fmanager", "Bagas Nugroho", "finance_manager", "fmanager-2026"],
+  ["headfin", "Sri Handayani", "head_finance", "headfin-2026"],
+  ["mgmt", "Andreas Lim", "management", "mgmt-2026"],
+  ["sysadmin", "IT Support", "admin_system", "sysadmin-2026"],
 ];
 
 const MARKETINGS: [string, string, string, string, boolean][] = [
@@ -94,11 +107,20 @@ export async function seed(reset = true) {
   }
   await ensureDefaultSettings();
 
-  for (const [username, name, role] of USERS) {
+  for (const [username, name, role, password] of USERS) {
+    // ON CONFLICT DO UPDATE, bukan DO NOTHING: seed yang dijalankan ulang atas
+    // basis data lama harus benar-benar memasang sandi baru ini. DO NOTHING akan
+    // meninggalkan hash lama diam-diam, dan sandi yang dicetak di bawah menjadi
+    // keterangan yang salah.
     await query(
       `INSERT INTO users (username, full_name, role, password_hash)
-       VALUES ($1,$2,$3,$4) ON CONFLICT (username) DO NOTHING`,
-      [username, name, role, pwHash("demo")]);
+       VALUES ($1,$2,$3,$4)
+       ON CONFLICT (username) DO UPDATE
+         SET full_name = EXCLUDED.full_name,
+             role = EXCLUDED.role,
+             password_hash = EXCLUDED.password_hash,
+             active = TRUE`,
+      [username, name, role, await hashPassword(password)]);
   }
 
   const agency = await query(
@@ -194,7 +216,12 @@ if (process.argv[1]?.endsWith("seed.ts")) {
       console.log("Seed selesai.");
       console.log(`  ${Object.keys(info.units).length} unit, ` +
                   `${info.marketings.length} marketing`);
-      console.log(`  Pengguna: ${USERS.map((u) => u[0]).join(", ")} (sandi: demo)`);
+      console.log("  Akun dan sandi awal:");
+      for (const [username, name, role, password] of USERS) {
+        console.log(`    ${username.padEnd(9)} ${password.padEnd(15)} ` +
+                    `${role.padEnd(16)} ${name}`);
+      }
+      console.log("  Ganti seluruh sandi ini sebelum dipakai sungguhan.");
       return pool.end();
     })
     .catch((e) => { console.error(e); process.exit(1); });

@@ -436,4 +436,40 @@ CREATE TABLE IF NOT EXISTS settings (
   value TEXT NOT NULL
 );
 
+-- Sesi login.
+--
+-- Yang disimpan adalah hash token, bukan tokennya. Basis data yang bocor dengan
+-- demikian tidak menyerahkan sesi yang masih hidup kepada pembacanya — token asli
+-- hanya pernah ada di cookie peramban pemiliknya.
+--
+-- ON DELETE CASCADE: menonaktifkan pengguna dengan menghapusnya ikut memutus
+-- seluruh sesinya, bukan meninggalkan sesi yatim yang masih dapat dipakai.
+CREATE TABLE IF NOT EXISTS sessions (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  token_hash  TEXT UNIQUE NOT NULL,
+  user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  issued_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  expires_at  TIMESTAMPTZ NOT NULL,
+  ip_address  TEXT,
+  user_agent  TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_expiry ON sessions(expires_at);
+
+-- Percobaan masuk, dipakai untuk menahan tebakan sandi beruntun.
+--
+-- Percobaan yang berhasil pun dicatat: tanpa itu, "kapan akun ini terakhir
+-- dipakai" tidak terjawab, dan itu pertanyaan pertama saat ada sengketa.
+CREATE TABLE IF NOT EXISTS login_attempts (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  username    TEXT NOT NULL,
+  ip_address  TEXT,
+  succeeded   BOOLEAN NOT NULL,
+  attempted_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_login_attempts_lookup
+  ON login_attempts(username, attempted_at DESC);
+
 COMMIT;

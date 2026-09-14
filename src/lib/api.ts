@@ -1,14 +1,19 @@
 /**
  * Helper bersama untuk route handler.
  *
- * Autentikasi disederhanakan untuk prototipe: header `X-User` berisi username.
- * Sebelum produksi, ganti dengan OIDC/JWT dan MFA sesuai PRD. Pemeriksaan peran
- * tetap dijalankan di server supaya penggantian lapisan auth tidak mengubah
- * kebijakan wewenangnya.
+ * Identitas berasal dari cookie sesi yang diterbitkan /api/auth/login. Header
+ * `X-User` yang dipakai sebelumnya sudah dihapus: ia membiarkan siapa pun mengaku
+ * sebagai siapa pun hanya dengan mengganti satu baris pada permintaan, sehingga
+ * selama masih diterima, halaman masuk tidak menambah keamanan apa pun.
+ *
+ * Pemeriksaan peran tetap dijalankan di server, terpisah dari cara identitasnya
+ * dibuktikan, supaya penggantian lapisan auth berikutnya (OIDC/JWT, PRD 14) tidak
+ * mengubah kebijakan wewenangnya.
  */
 
 import { NextResponse, type NextRequest } from "next/server";
 import { explainDbError, one } from "./db";
+import { COOKIE, userFromToken } from "./auth";
 import { WorkflowError } from "./workflow";
 
 export type User = {
@@ -16,13 +21,12 @@ export type User = {
 };
 
 export async function currentUser(req: NextRequest): Promise<User> {
-  const username = req.headers.get("x-user") ?? "admin";
-  const user = await one<User>(
-    "SELECT id, username, full_name, role FROM users WHERE username=$1 AND active",
-    [username]);
+  const token = req.cookies.get(COOKIE)?.value ?? "";
+  const user = await userFromToken(token);
   if (!user) {
-    throw new WorkflowError(`Pengguna '${username}' tidak dikenal.`,
-                            "unauthenticated", 401);
+    throw new WorkflowError(
+      "Sesi tidak ditemukan atau sudah berakhir. Silakan masuk kembali.",
+      "unauthenticated", 401);
   }
   return user;
 }
@@ -39,10 +43,27 @@ export async function requireRole(
   return user;
 }
 
-/** Bungkus handler: ubah WorkflowError menjadi respons problem+json (RFC 9457). */
-export function handler<T>(fn: (req: NextRequest, ctx: any) => Promise<T>) {
+/**
+ * Bungkus handler: menuntut sesi, lalu mengubah WorkflowError menjadi respons
+ * problem+json (RFC 9457).
+ *
+ * Sesi dituntut secara bawaan, bukan diserahkan pada masing-masing route.
+ * Sebelumnya autentikasi hanya terjadi pada route yang kebetulan memanggil
+ * currentUser, dan sembilan route lain — di antaranya unduhan Laporan Master
+ * yang memuat seluruh nilai klaim — terbuka bagi siapa pun yang tahu URL-nya.
+ * Route yang lupa diberi pemeriksaan seharusnya gagal tertutup, bukan terbuka.
+ *
+ * Yang benar-benar publik menyatakannya sendiri lewat `{ publik: true }`, dan
+ * masing-masing punya pengaman tersendiri: token tanda tangan, hash dokumen,
+ * atau SETUP_SECRET.
+ */
+export function handler<T>(
+  fn: (req: NextRequest, ctx: any) => Promise<T>,
+  opsi: { publik?: boolean } = {},
+) {
   return async (req: NextRequest, ctx: any) => {
     try {
+      if (!opsi.publik) await currentUser(req);
       const result = await fn(req, ctx);
       if (result instanceof NextResponse || result instanceof Response) return result;
       return NextResponse.json(result as any);

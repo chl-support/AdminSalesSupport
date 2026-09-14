@@ -5,4 +5,4 @@ export const POST = handler(async (req, { params }) => {
   const { token } = await params;
   const p = await body(req);
   return claimView(await dispute(token, p.reason, p.expected_amount));
-});
+}, { publik: true });

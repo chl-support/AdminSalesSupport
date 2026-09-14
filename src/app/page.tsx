@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { Nav } from "./nav";
-import { USERS, bacaPengguna, simpanPengguna } from "./user";
+import { BilahPengguna, useSesi } from "./session";
 
 const rp = (n?: number | null) => `Rp ${(n ?? 0).toLocaleString("id-ID")}`;
 
@@ -23,7 +23,7 @@ type Claim = any;
 type Note = { html: string; kind: "info" | "ok" | "warn" | "stop" } | null;
 
 export default function Console() {
-  const [user, setUser] = useState("admin");
+  const { sesi, memuat } = useSesi();
   const [claims, setClaims] = useState<Claim[]>([]);
   const [selected, setSelected] = useState<string>("");
   const [circulating, setCirculating] = useState<any[]>([]);
@@ -32,18 +32,20 @@ export default function Console() {
   const [busy, setBusy] = useState(false);
   const [lastHash, setLastHash] = useState<string | null>(null);
 
+  // Identitas ikut sendiri lewat cookie sesi; tidak ada lagi header yang dapat
+  // dikarang untuk mengaku sebagai orang lain.
   const api = useCallback(
     async (path: string, init: RequestInit = {}) => {
       const res = await fetch(`/api${path}`, {
         ...init,
-        headers: { "Content-Type": "application/json", "X-User": user,
-                   ...(init.headers ?? {}) },
+        headers: { "Content-Type": "application/json", ...(init.headers ?? {}) },
       });
       const body = await res.json().catch(() => ({}));
+      if (res.status === 401) { location.href = "/login"; }
       if (!res.ok) throw Object.assign(new Error(body.title ?? "Gagal"), { body, status: res.status });
       return body;
     },
-    [user],
+    [],
   );
 
   const refresh = useCallback(async () => {
@@ -61,11 +63,11 @@ export default function Console() {
     setSelected((prev) => (c.some((x: Claim) => x.id === prev) ? prev : c[0]?.id ?? ""));
   }, [api]);
 
-  // Dibaca setelah terpasang, bukan saat render: localStorage tidak ada di server
-  // dan membacanya saat render akan merusak hidrasi.
-  useEffect(() => { setUser(bacaPengguna()); }, []);
-
-  useEffect(() => { refresh().catch(console.error); }, [refresh]);
+  // Menunggu sesi: memanggil API sebelum identitasnya pasti hanya menghasilkan
+  // 401 dan pengalihan yang tidak perlu.
+  useEffect(() => {
+    if (sesi) refresh().catch(console.error);
+  }, [sesi, refresh]);
 
   const current = claims.find((c) => c.id === selected);
 
@@ -202,6 +204,16 @@ export default function Console() {
     }
   }
 
+  // Tanpa sesi, useSesi sudah mengalihkan ke /login; jangan sempat menampilkan
+  // kerangka halaman yang kosong sementara itu berlangsung.
+  if (memuat || !sesi) {
+    return (
+      <div className="wrap narrow">
+        <p className="hint" style={{ marginTop: 40 }}>Memeriksa sesi…</p>
+      </div>
+    );
+  }
+
   return (
     <div className="wrap">
       <header className="top">
@@ -214,13 +226,7 @@ export default function Console() {
         </div>
         <div className="row" style={{ marginBottom: 0, alignItems: "flex-end" }}>
           <Nav />
-          <div>
-            <div className="lbl">Masuk sebagai</div>
-            <select value={user}
-                    onChange={(e) => { setUser(e.target.value); simpanPengguna(e.target.value); }}>
-              {USERS.map(([u, label]) => <option key={u} value={u}>{u} — {label}</option>)}
-            </select>
-          </div>
+          <BilahPengguna sesi={sesi} />
         </div>
       </header>
 

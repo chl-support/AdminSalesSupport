@@ -9,4 +9,4 @@ export const POST = handler(async (req, { params }) => {
     inputMethod: p.input_method ?? "finger",
     ip: clientIp(req), userAgent: req.headers.get("user-agent"),
   });
-});
+}, { publik: true });

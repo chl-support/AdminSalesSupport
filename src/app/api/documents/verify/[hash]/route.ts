@@ -27,4 +27,4 @@ export const GET = handler(async (req, { params }) => {
     warning: current?.status === "superseded"
       ? "Salinan ini sudah digantikan oleh cetakan yang lebih baru." : null,
   };
-});
+}, { publik: true });

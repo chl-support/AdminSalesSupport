@@ -94,6 +94,45 @@ sebelum mengisi, jadi jangan dijalankan terhadap basis data berisi data sungguha
 > skema insentif serta tarif pajak. Tanpa itu, konsol tidak dapat dipakai sama
 > sekali karena tidak ada pengguna yang dapat dikenali.
 
+## 3b. Masuk ke konsol
+
+Konsol kini menuntut login. Tidak ada lagi pemilih "Masuk sebagai" — identitas
+berasal dari cookie sesi, dan seluruh endpoint menolak permintaan tanpa sesi yang
+sah.
+
+`db:seed` membuat tujuh akun, masing-masing dengan kata sandi sendiri. Seed
+mencetaknya saat dijalankan; nilainya juga tertulis di `scripts/seed.ts`.
+
+| Username | Peran |
+|---|---|
+| `admin` | Admin Sales |
+| `ratna` | Finance (Pajak) |
+| `ratih` | Finance (Pembayaran) |
+| `fmanager` | Finance Manager |
+| `headfin` | Head Finance |
+| `mgmt` | Management |
+| `sysadmin` | Admin Sistem |
+
+> Sandi bawaan itu dapat ditebak dan tertulis di repositori publik. **Ganti
+> seluruhnya sebelum dipakai sungguhan**, satu per satu, tanpa menyentuh data:
+>
+> ```bash
+> DATABASE_URL='<url>' npm run db:password -- <username> '<sandi baru>'
+> ```
+>
+> Tanpa argumen sandi, skrip membangkitkan sandi acak dan mencetaknya sekali.
+> Mengganti sandi selalu memutus seluruh sesi pengguna itu yang sedang berjalan.
+
+**Basis data yang sudah berjalan sebelum perubahan ini** perlu migrasi sekali lagi
+(langkah 3; `db:migrate` idempoten) untuk menambahkan tabel `sessions` dan
+`login_attempts`. Tanpa seed ulang, ketujuh akun masih memakai sandi lama `demo` —
+hash lamanya tetap diterima sekali lalu ditulis ulang ke bentuk yang lebih kuat
+saat pemiliknya masuk. Gantilah dengan perintah di atas; seed ulang akan
+menghapus data klaim.
+
+Lima kali salah sandi mengunci akun selama 15 menit. Penguncian berlaku per akun,
+bukan per alamat IP.
+
 ## 4. Deploy ulang lalu periksa
 
 Setelah variabel lingkungan diisi, jalankan **Redeploy** dari dashboard — variabel
@@ -173,9 +212,11 @@ di-cache di edge. Ini disengaja: data klaim dan status persetujuan tidak boleh b
 diperlukan penyimpanan objek terenkripsi — Vercel Blob, S3, atau setara — beserta
 kebijakan retensi yang belum ditetapkan Legal (PRD Q14, Q27).
 
-**Autentikasi masih header `X-User`.** Cukup untuk demo, tidak untuk produksi. Ganti
-dengan OIDC/JWT dan aktifkan MFA untuk peran Finance, Management, dan Admin Sistem
-sebelum sistem ini menyentuh pembayaran sungguhan.
+**Autentikasi berupa username dan kata sandi dengan sesi cookie.** Sandi di-hash
+dengan scrypt bergaram, token sesi disimpan sebagai hash, dan cookie-nya HttpOnly.
+Yang masih kurang sebelum menyentuh pembayaran sungguhan: MFA untuk peran Finance,
+Management, dan Admin Sistem; kebijakan usia dan kerumitan sandi; serta alur ganti
+sandi mandiri. Header `X-User` yang lama sudah dihapus.
 
 **Deployment ini publik.** Bila belum siap dilihat umum, aktifkan Vercel Authentication
 di Settings → Deployment Protection.

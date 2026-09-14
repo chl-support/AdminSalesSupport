@@ -11,7 +11,8 @@
     "typecheck": "tsc --noEmit",
     "db:migrate": "tsx scripts/migrate.ts",
     "db:seed": "tsx scripts/seed.ts",
-    "test": "tsx scripts/test-flow.ts"
+    "test": "tsx scripts/test-flow.ts",
+    "db:password": "tsx scripts/set-password.ts"
   },
   "dependencies": {
     "exceljs": "^4.4.0",

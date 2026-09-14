@@ -62,4 +62,4 @@ export const GET = handler(async () => {
       { status: 503 },
     );
   }
-});
+}, { publik: true });
