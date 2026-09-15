@@ -61,10 +61,6 @@ export default function AdminPage() {
   const [galatKal, setGalatKal] = useState<string | null>(null);
   const [ambangPilih, setAmbangPilih] = useState("");
 
-  const [sandiLama, setSandiLama] = useState("");
-  const [sandiSaya, setSandiSaya] = useState("");
-  const [hasilSaya, setHasilSaya] = useState<string | null>(null);
-  const [galatSaya, setGalatSaya] = useState<string | null>(null);
 
   const muatPengguna = useCallback(async () => {
     if (!bolehKelola) return;
@@ -156,24 +152,6 @@ export default function AdminPage() {
     void muatPengguna();
   };
 
-  const gantiSandiSaya = async () => {
-    setGalatSaya(null);
-    setHasilSaya(null);
-    const res = await fetch("/api/auth/password", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        current_password: sandiLama, new_password: sandiSaya,
-      }),
-    });
-    const b = await res.json().catch(() => ({}));
-    if (!res.ok) { setGalatSaya(b.detail ?? b.title ?? `HTTP ${res.status}`); return; }
-    setHasilSaya(
-      `Sandi Anda diganti. ${b.sesi_lain_diputus} sesi di perangkat lain diputus; ` +
-      `layar ini tetap terbuka.`);
-    setSandiLama(""); setSandiSaya("");
-  };
-
   if (memuat || !sesi) {
     return <MemeriksaSesi />;
   }
@@ -193,47 +171,12 @@ export default function AdminPage() {
       </div>
     }>
 
-      {/* ── Ganti sandi sendiri: terbuka bagi semua peran ── */}
-      <div className="panel sp">
-        <div className="form-blok">
-          <h3>GANTI KATA SANDI SAYA</h3>
-          <div className="filters">
-            <div>
-              <div className="lbl">Kata sandi sekarang</div>
-              <input type="password" value={sandiLama} autoComplete="current-password"
-                     onChange={(e) => setSandiLama(e.target.value)} />
-            </div>
-            <div>
-              <div className="lbl">Kata sandi baru (minimal 8 karakter)</div>
-              <input type="password" value={sandiSaya} autoComplete="new-password"
-                     onChange={(e) => setSandiSaya(e.target.value)} />
-            </div>
-          </div>
-          <div className="row" style={{ marginTop: 12, marginBottom: 0 }}>
-            <button className="pri"
-                    disabled={!sandiLama || sandiSaya.length < 8}
-                    onClick={() => void gantiSandiSaya()}>
-              Ganti sandi saya
-            </button>
-          </div>
-          {hasilSaya && (
-            <div className="banner ok" style={{ marginTop: 12, marginBottom: 0 }}>
-              <b>Berhasil</b>{hasilSaya}
-            </div>
-          )}
-          {galatSaya && (
-            <div className="banner stop" style={{ marginTop: 12, marginBottom: 0 }}>
-              <b>Tidak dapat mengganti sandi</b>{galatSaya}
-            </div>
-          )}
-        </div>
-      </div>
-
       {!bolehKelola && (
         <div className="banner warn">
-          <b>Peran {labelPeran(sesi.role)}: hanya dapat mengganti sandi sendiri</b>
-          Unggah Laporan Penjualan dan penggantian sandi pengguna lain hanya dapat
-          dilakukan Admin Sistem.
+          <b>Peran {labelPeran(sesi.role)} tidak berwenang atas menu ini</b>
+          Unggah Laporan Penjualan, kalibrasi ambang tanda tangan, dan
+          penggantian kata sandi seluruhnya dikerjakan Admin Sistem. Hubungi
+          Admin Sistem bila kata sandi Anda perlu diganti.
         </div>
       )}
 

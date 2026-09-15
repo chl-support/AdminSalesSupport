@@ -27,11 +27,16 @@ export function Kerangka(
           <span>BIO District</span>
         </div>
         <Nav peran={sesi.role} />
-        <BilahPengguna sesi={sesi} />
       </aside>
 
       <main className="isi">
-        <header className="top">{judul}</header>
+        {/* Identitas di kanan atas, bukan di kaki kolom menu: di sanalah orang
+            mencarinya, dan di kolom kiri ia justru tenggelam di bawah menu
+            terakhir — makin panjang menunya, makin jauh terdorong ke bawah. */}
+        <header className="top">
+          {judul}
+          <BilahPengguna sesi={sesi} />
+        </header>
         {children}
       </main>
     </div>

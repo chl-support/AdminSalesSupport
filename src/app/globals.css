@@ -275,13 +275,20 @@ ul.cetak-ceklis .kotak { border: 1px solid var(--ink); width: 14px; height: 14px
 .nav .anak { margin-top: 2px; }
 .nav .anak a { padding-left: 20px; font-weight: 500; font-size: 12px; }
 
-.sisi .lbl { margin-top: 0; }
-.sisi .row { flex-wrap: wrap; }
+/* Bilah pengguna di kanan atas, rata kanan bersama kepala halaman. */
+.bilah { text-align: right; flex: none; }
+.bilah .lbl { margin-top: 0; }
+.bilah .row { justify-content: flex-end; flex-wrap: wrap; }
 
 /* Di layar sempit menu kembali mendatar di atas isi: kolom 194px pada layar
    390px tidak menyisakan tempat untuk apa pun. */
 @media (max-width: 900px) {
   .konsol { flex-direction: column; gap: 0; padding: 0 16px 40px; }
+  /* Di layar sempit kepala halaman menumpuk; identitas kembali rata kiri
+     supaya tidak menggantung sendirian di seberang judul. */
+  header.top { display: block; }
+  .bilah { text-align: left; margin-top: 12px; }
+  .bilah .row { justify-content: flex-start; }
   .sisi { width: 100%; position: static; }
   .nav { display: flex; flex-wrap: wrap; gap: 4px; }
   .nav .grup { display: contents; }

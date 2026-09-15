@@ -70,16 +70,13 @@ export async function keluar(): Promise<void> {
 /** Nama, peran, dan tombol keluar. */
 export function BilahPengguna({ sesi }: { sesi: Sesi }) {
   return (
-    <div>
+    <div className="bilah">
       <div className="lbl">Masuk sebagai</div>
       <div className="row" style={{ marginBottom: 0, alignItems: "center" }}>
         <span style={{ fontSize: 13 }}>
           <b>{sesi.full_name}</b>{" "}
           <span className="pill">{labelPeran(sesi.role)}</span>
         </span>
-        {/* Satu-satunya jalan peran non-sysadmin mengganti sandinya sendiri,
-            sejak menu Administrasi disembunyikan dari mereka. */}
-        <a href="/admin" style={{ fontSize: 12 }}>Ganti sandi</a>
         <button style={{ padding: "4px 9px", fontSize: 12 }}
                 onClick={() => void keluar()}>
           Keluar
