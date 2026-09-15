@@ -275,16 +275,26 @@ ul.cetak-ceklis .kotak { border: 1px solid var(--ink); width: 14px; height: 14px
 .nav .anak { margin-top: 2px; }
 .nav .anak a { padding-left: 20px; font-weight: 500; font-size: 12px; }
 
-/* Bilah pengguna di kanan atas, rata kanan bersama kepala halaman. */
-.bilah { text-align: right; flex: none; }
-.bilah .lbl { margin-top: 0; }
-.siapa { display: flex; align-items: center; justify-content: flex-end;
-         gap: 28px; }
-.siapa > div { display: flex; flex-direction: column; align-items: flex-end;
-               gap: 3px; }
-.siapa b { font-size: 13.5px; line-height: 1.2; }
-.siapa .pill { margin: 0; }
-.siapa button { padding: 5px 11px; font-size: 12px; }
+/* Lencana profil di kanan atas, dan panel yang muncul saat diklik. */
+.bilah { position: relative; flex: none; }
+.lencana {
+  width: 36px; height: 36px; border-radius: 50%; padding: 0;
+  background: var(--ink); color: #fff; border: 1px solid var(--ink);
+  font-size: 12.5px; font-weight: 700; letter-spacing: .02em; cursor: pointer;
+}
+.lencana:hover { opacity: .88; }
+
+/* Panel menggantung di atas isi halaman, rata kanan dengan lencananya. */
+.profil {
+  position: absolute; right: 0; top: 44px; z-index: 30; min-width: 208px;
+  background: #fff; border: 1px solid var(--ink); padding: 12px 13px;
+  box-shadow: 0 6px 18px rgba(21, 23, 26, .12); text-align: left;
+}
+.profil .siapa { display: flex; flex-direction: column; align-items: flex-start;
+                 gap: 5px; padding-bottom: 11px; margin-bottom: 11px;
+                 border-bottom: 1px solid var(--line); }
+.profil .siapa b { font-size: 13.5px; line-height: 1.25; }
+.profil > button { width: 100%; padding: 7px 10px; font-size: 12.5px; }
 
 /* Di layar sempit menu kembali mendatar di atas isi: kolom 194px pada layar
    390px tidak menyisakan tempat untuk apa pun. */
@@ -293,9 +303,10 @@ ul.cetak-ceklis .kotak { border: 1px solid var(--ink); width: 14px; height: 14px
   /* Di layar sempit kepala halaman menumpuk; identitas kembali rata kiri
      supaya tidak menggantung sendirian di seberang judul. */
   header.top { display: block; }
-  .bilah { text-align: left; margin-top: 12px; }
-  .siapa { justify-content: flex-start; }
-  .siapa > div { align-items: flex-start; }
+  /* Kepala halaman menumpuk di layar sempit; lencana naik ke pojok kanan
+     kepala itu, bukan turun ke bawah judul. */
+  header.top { display: flex; align-items: flex-start; }
+  .bilah { margin-left: auto; }
   .sisi { width: 100%; position: static; }
   .nav { display: flex; flex-wrap: wrap; gap: 4px; }
   .nav .grup { display: contents; }

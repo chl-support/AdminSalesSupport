@@ -12,7 +12,7 @@
  * apa pun, karena tidak ada satu pun data yang diambil tanpa cookie yang sah.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export type Sesi = { username: string; full_name: string; role: string };
 
@@ -68,21 +68,59 @@ export async function keluar(): Promise<void> {
 }
 
 /** Nama, peran, dan tombol keluar. */
+/** Inisial dari nama, untuk lencana profil. */
+function inisial(nama: string) {
+  const kata = nama.trim().split(/\s+/).filter(Boolean);
+  if (!kata.length) return "?";
+  return (kata[0][0] + (kata.length > 1 ? kata[kata.length - 1][0] : "")).toUpperCase();
+}
+
+/**
+ * Lencana profil di kanan atas: inisial yang bila diklik memperlihatkan nama,
+ * peran, dan tombol keluar.
+ *
+ * Nama dan peran terbaca hanya saat dibutuhkan, sementara tombol keluar tidak
+ * lagi berdiri sepanjang hari di sebelah nama — tombol yang hanya dipakai
+ * sekali sehari tidak perlu selalu terlihat, dan yang selalu terlihat cepat
+ * atau lambat tertekan tanpa sengaja.
+ */
 export function BilahPengguna({ sesi }: { sesi: Sesi }) {
+  const [buka, setBuka] = useState(false);
+  const kotak = useRef<HTMLDivElement | null>(null);
+
+  // Tutup saat menekan di luar atau menekan Esc. Panel yang hanya dapat ditutup
+  // lewat lencananya sendiri akan menghalangi isi halaman di belakangnya.
+  useEffect(() => {
+    if (!buka) return;
+    const diLuar = (e: MouseEvent) => {
+      if (kotak.current && !kotak.current.contains(e.target as Node)) setBuka(false);
+    };
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setBuka(false); };
+    document.addEventListener("mousedown", diLuar);
+    document.addEventListener("keydown", esc);
+    return () => {
+      document.removeEventListener("mousedown", diLuar);
+      document.removeEventListener("keydown", esc);
+    };
+  }, [buka]);
+
   return (
-    <div className="bilah">
-      <div className="lbl">Masuk sebagai</div>
-      {/* Nama di atas, peran di bawahnya: nama yang dicari orang untuk
-          memastikan ia masuk sebagai siapa, peran hanya keterangannya.
-          Tombol keluar diberi jarak dari nama supaya tidak terpencet saat
-          yang dimaksud hanya melihat identitas. */}
-      <div className="siapa">
-        <div>
-          <b>{sesi.full_name}</b>
-          <span className="pill">{labelPeran(sesi.role)}</span>
+    <div className="bilah" ref={kotak}>
+      <button className="lencana" onClick={() => setBuka((v) => !v)}
+              aria-haspopup="menu" aria-expanded={buka}
+              aria-label={`Profil ${sesi.full_name}`}>
+        {inisial(sesi.full_name)}
+      </button>
+
+      {buka && (
+        <div className="profil" role="menu">
+          <div className="siapa">
+            <b>{sesi.full_name}</b>
+            <span className="pill">{labelPeran(sesi.role)}</span>
+          </div>
+          <button onClick={() => void keluar()}>Keluar</button>
         </div>
-        <button onClick={() => void keluar()}>Keluar</button>
-      </div>
+      )}
     </div>
   );
 }
