@@ -333,8 +333,10 @@ ul.cetak-ceklis .kotak { border: 1px solid var(--ink); width: 14px; height: 14px
     radial-gradient(700px 380px at 110% 110%, rgba(255,255,255,.05), transparent 60%);
 }
 .masuk-merek img { margin-bottom: 18px; }
-.wordmark { font-size: 30px; font-weight: 680; letter-spacing: -.028em;
-            line-height: 1.05; }
+/* Nama sistem jelas paling besar di bidang ini — selebihnya keterangan, dan
+   keterangan yang seukuran namanya membuat mata tidak tahu mulai dari mana. */
+.wordmark { font-size: 42px; font-weight: 690; letter-spacing: -.03em;
+            line-height: 1.02; margin-top: 4px; }
 /* Baris pertama tagline adalah nama kegiatannya, huruf kapital dan berjarak;
    daftar jenis feenya turun ke baris sendiri supaya keduanya tidak terbaca
    sebagai satu kalimat panjang. */
@@ -388,7 +390,7 @@ button.tautan:hover { color: var(--note); }
   /* Kaki halaman disembunyikan di ponsel: yang dibutuhkan di layar sekecil
      itu hanya nama sistemnya dan kolom isiannya. */
   .masuk-merek .kaki { display: none; }
-  .wordmark { font-size: 24px; }
+  .wordmark { font-size: 30px; }
   .tagline { font-size: 13px; }
   .masuk-isi { padding: 26px 18px 40px; }
 }

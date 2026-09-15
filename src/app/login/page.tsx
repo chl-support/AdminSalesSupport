@@ -92,7 +92,7 @@ export default function LoginPage() {
           </p>
         </div>
 
-        <div className="kaki">PT. Serpong Bangun Lestari</div>
+        <div className="kaki">PT. Cipta Harmoni Lestari</div>
       </aside>
 
       <main className="masuk-isi">
