@@ -313,9 +313,11 @@ export async function audit(
 const DEFAULT_SETTINGS: Record<string, string> = {
   signature_threshold_claim: "75",
   signature_threshold_onboarding: "55",
-  // Sepuluh tanda tangan per orang, mengikuti protokol PRD 12.2. Lebih sedikit
-  // membuat sebaran "asli" tidak cukup lebar untuk mengukur apa pun.
-  onboarding_specimen_count: "10",
+  // Lima tanda tangan per orang. Protokol PRD 12.2 meminta sepuluh untuk
+  // keperluan kalibrasi; lima adalah keputusan bisnis yang menukar ketajaman
+  // ukuran dengan waktu agent, dan layar kalibrasi menyebutkan kekurangannya
+  // apa adanya alih-alih menyembunyikannya.
+  onboarding_specimen_count: "5",
   signature_max_attempts: "3",
   signing_link_ttl_minutes: "30",
   onboarding_link_ttl_hours: "24",

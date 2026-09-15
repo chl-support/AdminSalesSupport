@@ -289,7 +289,7 @@ export default function DaftarTtdPage() {
                         fontSize: 12.5, lineHeight: 1.6 }}>
             <p style={{ marginTop: 0 }}>
               Dengan melanjutkan, Anda menyetujui PT. Serpong Bangun Lestari
-              merekam <b>{ctx?.target ?? 10} contoh tanda tangan</b> Anda dan
+              merekam <b>{ctx?.target ?? 5} contoh tanda tangan</b> Anda dan
               menerima <b>foto KTP</b> Anda sebagai bukti identitas.
             </p>
             <p>Yang perlu Anda ketahui:</p>

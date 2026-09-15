@@ -178,15 +178,15 @@ Dua hal yang membuat hasilnya belum dapat disebut kalibrasi produksi:
 1. **Spesimennya masih harus dikumpulkan.** Jalurnya sudah ada — menu **Data
    marketing** menerbitkan tautan pendaftaran per orang, dan agent menempuh empat
    langkah lewat `/daftar-ttd/<token>`: OTP, persetujuan pemakaian data, **foto KTP**,
-   lalu sepuluh tanda tangan yang tiap goresannya dicocokkan dengan goresan sebelumnya
-   pada ambang onboarding sebelum disimpan.
+   lalu **lima tanda tangan** (`onboarding_specimen_count`) yang tiap goresannya
+   dicocokkan dengan goresan sebelumnya pada ambang onboarding sebelum disimpan.
 
    KTP adalah **jangkar identitas**, bukan pembanding klaim. Agent menandai sendiri
    bagian tanda tangan pada fotonya; potongan itu disimpan sebagai
    `marketings.reference_signature_png` (`reference_signature_source='ktp'`) dan
-   diperlihatkan kepada Admin bersebelahan dengan kesepuluh goresan saat pemeriksaan.
+   diperlihatkan kepada Admin bersebelahan dengan goresan-goresannya saat pemeriksaan.
    Tanpa jangkar itu, yang dapat dinilai Admin hanya konsistensi antar goresan — dan
-   sepuluh tanda tangan palsu yang konsisten juga lolos ujian itu.
+   tanda tangan palsu yang konsisten juga lolos ujian itu.
 
    Foto KTP utuh **dihapus begitu pendaftarannya diputus**, disetujui maupun ditolak.
    Yang tersimpan seterusnya hanya potongan tanda tangannya: bukan NIK, bukan alamat,
@@ -197,8 +197,10 @@ Dua hal yang membuat hasilnya belum dapat disebut kalibrasi produksi:
    alasan tertulis yang ikut tercatat di jejak audit. Tanpa itu, siapa pun yang dapat
    meminta tautan dapat mengganti pembanding pembayaran dirinya sendiri.
 
-   Yang belum: protokol PRD §12.2 meminta 30–50 agent, dan sampai itu terkumpul angka
-   kalibrasinya belum mewakili apa pun. Marketing tanpa spesimen tidak ditolak —
+   Yang belum: protokol PRD §12.2 meminta 30–50 agent **dan sepuluh tanda tangan per
+   orang**, sedangkan yang dikumpulkan lima — keputusan bisnis yang menukar ketajaman
+   ukuran dengan waktu agent. Layar kalibrasi menyebutkan kekurangan itu apa adanya,
+   dan sampai agent-nya terkumpul angkanya belum mewakili apa pun. Marketing tanpa spesimen tidak ditolak —
    klaimnya diteruskan ke pemeriksaan Admin Sales pada percobaan pertama, dengan
    sebabnya disebutkan kepada agent.
 

@@ -10,7 +10,7 @@
  * tahu sebabnya.
  *
  * Yang menyetujui baseline bukan orang yang membuatnya. Persetujuan dilakukan di
- * sini, setelah sepuluh goresannya benar-benar dilihat — bukan disimpulkan dari
+ * sini, setelah seluruh goresannya benar-benar dilihat — bukan disimpulkan dari
  * angka konsistensi saja.
  */
 
@@ -41,6 +41,7 @@ export default function SpesimenPage() {
 
   const [baris, setBaris] = useState<Baris[]>([]);
   const [ambang, setAmbang] = useState<number | null>(null);
+  const [jumlahSpesimen, setJumlahSpesimen] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [kabar, setKabar] = useState<{ kind: string; html: string } | null>(null);
   const [lihat, setLihat] = useState<string | null>(null);
@@ -68,6 +69,7 @@ export default function SpesimenPage() {
     const d = await api("/marketings");
     setBaris(d.marketings ?? []);
     setAmbang(d.ambang ?? null);
+    setJumlahSpesimen(d.jumlah_spesimen ?? null);
   }, [api, boleh]);
 
   useEffect(() => { if (sesi) void muat(); }, [sesi, muat]);
@@ -158,9 +160,10 @@ export default function SpesimenPage() {
         <>
           <div className="banner info sp">
             <b>{belum} marketing belum punya spesimen · {menunggu} menunggu diperiksa</b>
-            Tiap tautan meminta foto KTP sebagai jangkar identitas, lalu sepuluh
-            tanda tangan yang tiap goresannya dicocokkan dengan goresan
-            sebelumnya pada ambang {ambang ?? "—"} sebelum disimpan.
+            Tiap tautan meminta foto KTP sebagai jangkar identitas, lalu
+            {" "}{jumlahSpesimen ?? "beberapa"} tanda tangan yang tiap goresannya
+            dicocokkan dengan goresan sebelumnya pada ambang {ambang ?? "—"}{" "}
+            sebelum disimpan.
           </div>
 
           {kabar && (
@@ -231,7 +234,7 @@ export default function SpesimenPage() {
                           <>
                             <span className="pill">sedang merekam</span><br />
                             <span style={{ fontSize: 11 }}>
-                              {b.captured ?? 0} dari {b.target ?? 10}
+                              {b.captured ?? 0} dari {b.target ?? jumlahSpesimen ?? 5}
                             </span>
                           </>
                         ) : (
@@ -316,7 +319,7 @@ export default function SpesimenPage() {
               )}
 
               {/* Jangkar identitas, ditaruh sebelum petak spesimen: pertanyaan
-                  pertama bukan "apakah kesepuluhnya mirip satu sama lain"
+                  pertama bukan "apakah semuanya mirip satu sama lain"
                   melainkan "apakah ini orangnya". Sepuluh tanda tangan palsu
                   yang konsisten juga lolos pertanyaan pertama. */}
               <div className="lbl" style={{ marginTop: 4 }}>
@@ -328,7 +331,7 @@ export default function SpesimenPage() {
                   <img src={berkas.ktp_signature_png} alt="Tanda tangan pada KTP" />
                   <div>
                     <p style={{ margin: 0, fontSize: 12.5 }}>
-                      Bandingkan bentuknya dengan kesepuluh goresan di bawah.
+                      Bandingkan bentuknya dengan goresan-goresan di bawah.
                       Beda media — pulpen di kertas lawan jari di layar — jadi
                       tidak akan sama persis; yang dicari kesamaan susunan dan
                       ciri khasnya, bukan kemiripan garis demi garis.
@@ -348,7 +351,7 @@ export default function SpesimenPage() {
                   <b>Tidak ada jangkar KTP pada pendaftaran ini</b>
                   Set ini direkam sebelum KTP diwajibkan, atau fotonya sudah
                   dihapus. Yang dapat Anda nilai hanya konsistensi antar goresan
-                  — dan sepuluh tanda tangan palsu yang konsisten juga lolos itu.
+                  — dan tanda tangan palsu yang konsisten juga lolos itu.
                 </div>
               )}
               <div className="petak-ttd">
@@ -365,7 +368,7 @@ export default function SpesimenPage() {
               </div>
 
               <p className="hint" style={{ textAlign: "left", marginTop: 10 }}>
-                Yang perlu dilihat: apakah kesepuluhnya tampak berasal dari tangan
+                Yang perlu dilihat: apakah semuanya tampak berasal dari tangan
                 yang sama, dan tidak ada yang tergores asal-asalan. Angka kemiripan
                 tidak menangkap goresan yang rapi tetapi bukan tanda tangan orang
                 itu.

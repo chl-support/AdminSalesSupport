@@ -16,7 +16,7 @@
  *
  *   1. Persetujuan direkam terpisah, dengan versinya. Data tanda tangan adalah
  *      data pribadi; "dia toh menandatangani" bukan catatan persetujuan.
- *   2. Tiap goresan diperiksa terhadap goresan sebelumnya. Sepuluh tanda tangan
+ *   2. Tiap goresan diperiksa terhadap goresan sebelumnya. Lima tanda tangan
  *      yang saling berbeda jauh bukan baseline — ia hanya memindahkan
  *      ketidakpastian ke tahap berikutnya, tempat orangnya tidak hadir lagi
  *      untuk mengulang.
@@ -263,8 +263,9 @@ export async function simpanSpesimen(token: string, p: {
   }
   if (!s.ktp_at) {
     throw new WorkflowError(
-      "Foto KTP belum diunggah. KTP-lah yang memastikan sepuluh tanda tangan " +
-      "ini memang milik orang yang namanya terdaftar.", "ktp_required", 409);
+      "Foto KTP belum diunggah. KTP-lah yang memastikan tanda tangan yang " +
+      "direkam berikutnya memang milik orang yang namanya terdaftar.",
+      "ktp_required", 409);
   }
   if (!p.image_png) {
     throw new WorkflowError("Tanda tangan belum digoreskan.", "signature_empty", 422);
@@ -417,8 +418,8 @@ export async function putuskanSet(
       "UPDATE signature_specimens SET archived=TRUE WHERE marketing_id=$1 AND set_id<>$2",
       [marketingId, setId]);
     // Potongan tanda tangan KTP menjadi jangkar identitas orang ini: bukan
-    // pembanding tiap klaim — untuk itu dipakai sepuluh spesimen digital —
-    // melainkan bukti bahwa yang merekam kesepuluhnya adalah orang yang namanya
+    // pembanding tiap klaim — untuk itu dipakai spesimen digitalnya —
+    // melainkan bukti bahwa yang merekam spesimen itu adalah orang yang namanya
     // tertera pada kartu.
     await query(
       `UPDATE marketings SET status='active', baseline_specimen_set_id=$1,

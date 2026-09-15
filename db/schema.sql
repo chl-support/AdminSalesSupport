@@ -412,6 +412,17 @@ ALTER TABLE enrollment_sessions ADD COLUMN IF NOT EXISTS revision_reason TEXT;
 -- kapan.
 ALTER TABLE marketings ADD COLUMN IF NOT EXISTS reference_signature_at TIMESTAMPTZ;
 
+-- Jumlah spesimen per orang turun dari sepuluh ke lima.
+--
+-- Nilai bawaan hanya dipasang saat baris settings belum ada, jadi pemasangan
+-- yang sudah berjalan tetap memegang angka lama. Barisnya diperbarui di sini,
+-- tetapi hanya bila nilainya masih persis bawaan lama — angka yang sengaja
+-- disetel sendiri tidak ikut ditimpa tiap kali migrasi dijalankan.
+UPDATE settings SET value = '5'
+ WHERE key = 'onboarding_specimen_count' AND value = '10';
+
+ALTER TABLE enrollment_sessions ALTER COLUMN target SET DEFAULT 5;
+
 
 CREATE TABLE IF NOT EXISTS signature_attempts (
   id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
