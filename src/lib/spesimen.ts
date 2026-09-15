@@ -468,3 +468,53 @@ export async function putuskanSet(
 export async function ambangOnboarding() {
   return Number(await setting("signature_threshold_onboarding"));
 }
+
+/**
+ * Perbaiki nomor telepon marketing.
+ *
+ * Kolomnya NOT NULL tetapi boleh berisi teks kosong, dan data yang masuk dari
+ * berkas penjualan kerap memang kosong. Akibatnya tautan pendaftaran tidak
+ * dapat diterbitkan sama sekali — OTP tidak punya tujuan — tanpa ada satu pun
+ * layar yang dapat memperbaikinya. Karena itu nomornya dapat disunting dari
+ * layar Data Marketing, dan setiap perubahannya tercatat: nomor inilah yang
+ * menerima kode verifikasi pendaftaran spesimen, jadi menggantinya sama dengan
+ * memindahkan tujuan bukti identitas orang tersebut.
+ */
+export async function ubahNomor(
+  marketingId: string, nomor: string, aktor: string,
+) {
+  const mkt = await one<{ full_name: string; phone: string }>(
+    "SELECT full_name, phone FROM marketings WHERE id=$1", [marketingId]);
+  if (!mkt) throw new WorkflowError("Marketing tidak ditemukan.", "not_found", 404);
+
+  const rapi = rapikanNomor(nomor);
+  if (!rapi) {
+    throw new WorkflowError(
+      "Nomor telepon tidak dikenali. Tuliskan nomor ponsel Indonesia, " +
+      "misalnya 0812xxxxxxx.", "phone_invalid", 422);
+  }
+  if (rapi === mkt.phone) return { phone: rapi, changed: false };
+
+  await query("UPDATE marketings SET phone=$2 WHERE id=$1", [marketingId, rapi]);
+  await audit({
+    entityType: "marketing", entityId: marketingId, action: "phone_changed",
+    actor: aktor, before: { phone: mkt.phone }, after: { phone: rapi },
+  });
+  return { phone: rapi, changed: true };
+}
+
+/**
+ * Bakukan nomor ponsel ke bentuk 62xxxxxxxxxx, atau null bila bukan nomor.
+ *
+ * Satu bentuk saja yang disimpan supaya nomor yang sama tidak tersimpan dalam
+ * tiga ejaan berbeda (0812…, +62812…, 62812…) dan terbaca sebagai tiga orang.
+ */
+function rapikanNomor(masuk: string): string | null {
+  const angka = (masuk ?? "").replace(/[^\d+]/g, "").replace(/^\+/, "");
+  const nomor = angka.startsWith("62") ? angka
+              : angka.startsWith("0") ? "62" + angka.slice(1)
+              : angka.startsWith("8") ? "62" + angka
+              : angka;
+  if (!/^62\d{8,13}$/.test(nomor)) return null;
+  return nomor;
+}

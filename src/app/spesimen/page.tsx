@@ -52,6 +52,9 @@ export default function SpesimenPage() {
   // Permintaan revisi: baris yang sedang diminta, beserta alasannya.
   const [revisi, setRevisi] = useState<string | null>(null);
   const [alasanRevisi, setAlasanRevisi] = useState("");
+  // Pengisian nomor telepon: baris yang sedang disunting, beserta isiannya.
+  const [nomor, setNomor] = useState<string | null>(null);
+  const [nomorBaru, setNomorBaru] = useState("");
 
   const api = useCallback(async (path: string, init: RequestInit = {}) => {
     const res = await fetch(`/api${path}`, {
@@ -92,6 +95,22 @@ export default function SpesimenPage() {
     } catch (e: any) {
       setKabar({ kind: "stop", html:
         `<b>Tautan tidak dapat dibuat</b>${e.body?.detail ?? ""}` });
+    } finally { setBusy(false); }
+  };
+
+  const simpanNomor = async (b: Baris) => {
+    setBusy(true); setKabar(null);
+    try {
+      const r = await api(`/marketings/${b.id}`, {
+        method: "PATCH", body: JSON.stringify({ phone: nomorBaru }) });
+      setKabar({ kind: "ok", html:
+        `<b>Nomor ${b.full_name} tersimpan</b>Tersimpan sebagai ${r.phone}.
+         Tautan pendaftaran kini dapat diterbitkan.` });
+      setNomor(null); setNomorBaru("");
+      await muat();
+    } catch (e: any) {
+      setKabar({ kind: "stop", html:
+        `<b>Nomor tidak dapat disimpan</b>${e.body?.detail ?? ""}` });
     } finally { setBusy(false); }
   };
 
@@ -201,8 +220,31 @@ export default function SpesimenPage() {
                         <span style={{ color: "var(--mut)", fontSize: 11 }}>
                           {b.marketing_type === "agent" ? "Agent" : "Inhouse"}
                           {b.agency_name ? ` · ${b.agency_name}` : ""}
-                          {b.phone ? ` · ${b.phone}` : " · tanpa nomor telepon"}
+                          {" · "}
+                          {/* Nomornya disunting di tempat ia tertulis. Ke nomor
+                              inilah kode verifikasi pendaftaran dikirim, dan
+                              data yang masuk dari berkas penjualan kerap belum
+                              memuatnya — tanpa jalan memperbaikinya di sini,
+                              barisnya buntu. */}
+                          <button type="button" className="tautan"
+                                  style={{ color: "inherit", fontWeight: 500 }}
+                                  title="Ubah nomor telepon"
+                                  onClick={() => { setNomor(b.id); setNomorBaru(b.phone ?? ""); }}>
+                            {b.phone || "tanpa nomor telepon"}
+                          </button>
                         </span>
+                        {nomor === b.id && (
+                          <div className="row" style={{ marginTop: 6, marginBottom: 0 }}>
+                            <input value={nomorBaru} autoFocus inputMode="tel"
+                                   placeholder="08xxxxxxxxxx" style={{ width: 150 }}
+                                   onChange={(e) => setNomorBaru(e.target.value)} />
+                            <button className="pri" disabled={busy}
+                                    onClick={() => void simpanNomor(b)}>Simpan</button>
+                            <button onClick={() => { setNomor(null); setNomorBaru(""); }}>
+                              Batal
+                            </button>
+                          </div>
+                        )}
                       </td>
                       <td>
                         <span className={`pill ${PILL[b.status] ?? ""}`}>
@@ -281,8 +323,16 @@ export default function SpesimenPage() {
                               </button>
                             </>
                           )
+                        ) : !b.phone ? (
+                          /* Tanpa nomor, kode verifikasi tidak punya tujuan.
+                             Sebelumnya tombolnya hanya dimatikan tanpa sebab
+                             yang terbaca, sehingga barisnya tampak rusak. */
+                          <span style={{ fontSize: 11.5, color: "var(--mut)" }}>
+                            Nomor telepon belum terisi. Isi nomornya pada kolom
+                            Marketing lebih dulu.
+                          </span>
                         ) : (
-                          <button className="pri" disabled={busy || !b.phone}
+                          <button className="pri" disabled={busy}
                                   onClick={() => void kirimTautan(b)}>
                             Kirim tautan pendaftaran
                           </button>
