@@ -278,7 +278,13 @@ ul.cetak-ceklis .kotak { border: 1px solid var(--ink); width: 14px; height: 14px
 /* Bilah pengguna di kanan atas, rata kanan bersama kepala halaman. */
 .bilah { text-align: right; flex: none; }
 .bilah .lbl { margin-top: 0; }
-.bilah .row { justify-content: flex-end; flex-wrap: wrap; }
+.siapa { display: flex; align-items: center; justify-content: flex-end;
+         gap: 28px; }
+.siapa > div { display: flex; flex-direction: column; align-items: flex-end;
+               gap: 3px; }
+.siapa b { font-size: 13.5px; line-height: 1.2; }
+.siapa .pill { margin: 0; }
+.siapa button { padding: 5px 11px; font-size: 12px; }
 
 /* Di layar sempit menu kembali mendatar di atas isi: kolom 194px pada layar
    390px tidak menyisakan tempat untuk apa pun. */
@@ -288,7 +294,8 @@ ul.cetak-ceklis .kotak { border: 1px solid var(--ink); width: 14px; height: 14px
      supaya tidak menggantung sendirian di seberang judul. */
   header.top { display: block; }
   .bilah { text-align: left; margin-top: 12px; }
-  .bilah .row { justify-content: flex-start; }
+  .siapa { justify-content: flex-start; }
+  .siapa > div { align-items: flex-start; }
   .sisi { width: 100%; position: static; }
   .nav { display: flex; flex-wrap: wrap; gap: 4px; }
   .nav .grup { display: contents; }

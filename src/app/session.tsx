@@ -72,15 +72,16 @@ export function BilahPengguna({ sesi }: { sesi: Sesi }) {
   return (
     <div className="bilah">
       <div className="lbl">Masuk sebagai</div>
-      <div className="row" style={{ marginBottom: 0, alignItems: "center" }}>
-        <span style={{ fontSize: 13 }}>
-          <b>{sesi.full_name}</b>{" "}
+      {/* Nama di atas, peran di bawahnya: nama yang dicari orang untuk
+          memastikan ia masuk sebagai siapa, peran hanya keterangannya.
+          Tombol keluar diberi jarak dari nama supaya tidak terpencet saat
+          yang dimaksud hanya melihat identitas. */}
+      <div className="siapa">
+        <div>
+          <b>{sesi.full_name}</b>
           <span className="pill">{labelPeran(sesi.role)}</span>
-        </span>
-        <button style={{ padding: "4px 9px", fontSize: 12 }}
-                onClick={() => void keluar()}>
-          Keluar
-        </button>
+        </div>
+        <button onClick={() => void keluar()}>Keluar</button>
       </div>
     </div>
   );
