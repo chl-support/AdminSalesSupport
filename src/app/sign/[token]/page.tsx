@@ -18,10 +18,11 @@
  * sesuatu yang sudah ditandatangani tanpa memuatnya.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 
 import { FormPengajuan } from "../../klaim/form-pengajuan";
+import { KanvasTtd, usePadTtd } from "../../ttd-pad";
 
 const rp = (n?: number | null) => `Rp ${(n ?? 0).toLocaleString("id-ID")}`;
 const kb = (n?: number | null) => `${Math.max(1, Math.round((n ?? 0) / 1024))} KB`;
@@ -38,7 +39,6 @@ const BATAS = 3 * 1024 * 1024;
 
 type Step = "loading" | "otp" | "review" | "berkas" | "sign" | "konfirmasi"
           | "dispute" | "done";
-type Stroke = { points: { x: number; y: number; t: number }[] };
 
 const LANGKAH: { key: Step; no: string; label: string }[] = [
   { key: "otp", no: "1", label: "Verifikasi" },
@@ -62,12 +62,7 @@ export default function SignPage() {
   const [unggahHint, setUnggahHint] = useState<string | null>(null);
   const [pratinjauTtd, setPratinjauTtd] = useState<string | null>(null);
 
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const strokes = useRef<Stroke[]>([]);
-  const current = useRef<Stroke | null>(null);
-  const drawing = useRef(false);
-  const t0 = useRef(0);
-  const inputMethod = useRef("mouse");
+  const pad = usePadTtd();
 
   const api = async (path: string, init?: RequestInit) => {
     const res = await fetch(path, {
@@ -92,72 +87,6 @@ export default function SignPage() {
   };
 
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [token]);
-
-  useEffect(() => {
-    if (step !== "sign") return;
-    const cv = canvasRef.current;
-    if (!cv) return;
-    const dpr = window.devicePixelRatio || 1;
-    cv.width = cv.clientWidth * dpr;
-    cv.height = cv.clientHeight * dpr;
-    const c2d = cv.getContext("2d")!;
-    c2d.scale(dpr, dpr);
-    c2d.lineWidth = 2.4;
-    c2d.lineCap = "round";
-    c2d.lineJoin = "round";
-    c2d.strokeStyle = "#15171A";
-    clear();
-  }, [step]);
-
-  const clear = () => {
-    const cv = canvasRef.current;
-    if (!cv) return;
-    cv.getContext("2d")!.clearRect(0, 0, cv.width, cv.height);
-    strokes.current = [];
-    current.current = null;
-    t0.current = 0;
-  };
-
-  const pos = (e: React.MouseEvent | React.TouchEvent) => {
-    const cv = canvasRef.current!;
-    const r = cv.getBoundingClientRect();
-    const p = "touches" in e ? e.touches[0] : (e as React.MouseEvent);
-    return { x: p.clientX - r.left, y: p.clientY - r.top };
-  };
-
-  const start = (e: React.MouseEvent | React.TouchEvent) => {
-    e.preventDefault();
-    if ("touches" in e) {
-      inputMethod.current =
-        (e.touches[0] as any).touchType === "stylus" ? "stylus" : "finger";
-    }
-    drawing.current = true;
-    if (!t0.current) t0.current = Date.now();
-    const p = pos(e);
-    current.current = { points: [{ x: p.x, y: p.y, t: 0 }] };
-    const c2d = canvasRef.current!.getContext("2d")!;
-    c2d.beginPath();
-    c2d.moveTo(p.x, p.y);
-  };
-
-  const move = (e: React.MouseEvent | React.TouchEvent) => {
-    if (!drawing.current) return;
-    e.preventDefault();
-    const p = pos(e);
-    current.current!.points.push({ x: p.x, y: p.y, t: Date.now() - t0.current });
-    const c2d = canvasRef.current!.getContext("2d")!;
-    c2d.lineTo(p.x, p.y);
-    c2d.stroke();
-  };
-
-  const end = () => {
-    if (!drawing.current) return;
-    drawing.current = false;
-    if (current.current && current.current.points.length > 1) {
-      strokes.current.push(current.current);
-    }
-    current.current = null;
-  };
 
   const verifyOtp = async () => {
     setBusy(true);
@@ -202,13 +131,13 @@ export default function SignPage() {
   };
 
   const tempel = () => {
-    if (!strokes.current.length) {
+    if (pad.kosong()) {
       setFeedback({ kind: "warn", html:
         "<b>Belum ada tanda tangan</b>Tanda tangani di dalam kotak terlebih dahulu." });
       return;
     }
     setFeedback(null);
-    setPratinjauTtd(canvasRef.current!.toDataURL("image/png"));
+    setPratinjauTtd(pad.dataUrl());
     setStep("konfirmasi");
   };
 
@@ -220,7 +149,7 @@ export default function SignPage() {
         method: "POST",
         body: JSON.stringify({
           image_png: pratinjauTtd,
-          strokes: strokes.current, input_method: inputMethod.current }),
+          strokes: pad.goresan(), input_method: pad.metode() }),
       });
       if (r.outcome === "verified") {
         setDone({ kind: "ok", html:
@@ -236,7 +165,7 @@ export default function SignPage() {
            ${r.guidance.map((g: string) => `• ${g}`).join("<br>")}` });
         setPratinjauTtd(null);
         setStep("sign");
-        clear();
+        pad.hapus();
         await load();
       } else {
         // Alasannya dibawa dari server bila ada: "setelah tiga percobaan" akan
@@ -430,13 +359,7 @@ export default function SignPage() {
           <div className="lbl">
             Percobaan {4 - (ctx?.attempts_remaining ?? 3)} dari 3
           </div>
-          <canvas ref={canvasRef}
-                  onMouseDown={start} onMouseMove={move} onMouseUp={end}
-                  onMouseLeave={end} onTouchStart={start} onTouchMove={move}
-                  onTouchEnd={end}
-                  style={{ width: "100%", height: 180,
-                           border: "1.5px dashed var(--sub)", background: "#FCFCFB",
-                           touchAction: "none", display: "block" }} />
+          <KanvasTtd pad={pad} tampil={step === "sign"} />
           <p style={{ fontSize: 11.5, color: "var(--mut)", textAlign: "center",
                       marginTop: 6 }}>
             Tanda tangani di dalam kotak. Tanda tangan ini akan menempel pada kolom
@@ -448,7 +371,7 @@ export default function SignPage() {
                  dangerouslySetInnerHTML={{ __html: feedback.html }} />
           )}
           <div style={{ display: "flex", gap: 8 }}>
-            <button onClick={clear} disabled={busy}
+            <button onClick={pad.hapus} disabled={busy}
                     style={{ flex: 1, padding: 13 }}>Hapus</button>
             <button className="pri" onClick={tempel} disabled={busy}
                     style={{ flex: 1, padding: 13 }}>

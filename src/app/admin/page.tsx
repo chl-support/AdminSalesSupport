@@ -291,6 +291,8 @@ export default function AdminPage() {
                         <td className="n">{kal.bahan.orang}</td></tr>
                     <tr><td>Spesimen</td>
                         <td className="n">{kal.bahan.spesimen}</td></tr>
+                    <tr><td>Di antaranya direkam lewat layar pendaftaran</td>
+                        <td className="n">{kal.bahan.dari_pendaftaran}</td></tr>
                     <tr><td>Pasangan asli / orang lain</td>
                         <td className="n">
                           {kal.bahan.pasangan_asli} / {kal.bahan.pasangan_tiruan}
@@ -316,7 +318,8 @@ export default function AdminPage() {
                   {kal.bahan.sumber_sintetis && (
                     <div className="banner stop" style={{ marginTop: 12 }}>
                       <b>Spesimen yang ada seluruhnya data contoh</b>
-                      Tanda tangannya dibangkitkan program saat penyiapan, bukan
+                      Tidak ada satu pun yang berasal dari layar pendaftaran —
+                      tanda tangannya dibangkitkan program saat penyiapan, bukan
                       tanda tangan agent sungguhan. Angka di bawah menunjukkan
                       mesinnya bekerja, tetapi tidak menyatakan apa pun tentang
                       tanda tangan orang sungguhan — jangan dipasang ke produksi.
@@ -351,6 +354,15 @@ export default function AdminPage() {
                     <tr><td>Ambang tertinggi dengan FRR ≤ 5%</td>
                         <td className="n">{kal.usul.frr_5 ?? "—"}</td></tr>
                   </tbody></table>
+
+                  {kal.usul.far_nol == null && (
+                    <p className="hint" style={{ textAlign: "left", marginTop: 6 }}>
+                      Tidak ada ambang yang membuat FAR 0% pada data ini — pada
+                      setiap ambang masih ada tanda tangan orang lain yang lolos.
+                      Kumpulkan spesimen dari lebih banyak orang sebelum menyetel
+                      ambangnya.
+                    </p>
+                  )}
 
                   <div className="banner warn" style={{ marginTop: 12 }}>
                     <b>Yang belum dipenuhi protokol PRD 12.2</b>

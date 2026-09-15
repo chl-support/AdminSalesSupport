@@ -29,7 +29,7 @@ type Unit = {
   id: string; code: string; project_name: string; cluster_code: string;
   buyer_name: string | null; unit_type: string | null;
   payment_scheme: string | null; contract_date: string | null;
-  contract_value_incl_vat: number; status: string;
+  contract_value_incl_vat: number; received_amount: number; status: string;
   eligible: boolean; missing_requirements: string[];
   marketing_name: string | null; agency_name: string | null;
   recipient: { id: string | null; name: string | null;
@@ -166,6 +166,7 @@ export default function DaftarPenjualanPage() {
                 <th>Penerima fee</th>
                 <th>Skema / tanggal</th>
                 <th style={{ textAlign: "right" }}>Nilai kontrak</th>
+                <th style={{ textAlign: "right" }}>Penerimaan</th>
                 <th style={{ width: 230 }}>Klaim</th>
               </tr>
 
@@ -196,6 +197,19 @@ export default function DaftarPenjualanPage() {
                     </span>
                   </td>
                   <td className="n">{rp(u.contract_value_incl_vat)}</td>
+                  {/* Penerimaan ditampilkan bersama persentasenya terhadap nilai
+                      kontrak: Komisi dihitung dari persentase pembayaran, jadi
+                      angka rupiahnya sendiri belum menjawab pertanyaan yang
+                      dibawa orang ke layar ini. */}
+                  <td className="n">
+                    {rp(u.received_amount)}<br />
+                    <span style={{ color: "var(--mut)", fontSize: 11 }}>
+                      {u.contract_value_incl_vat
+                        ? `${((u.received_amount / u.contract_value_incl_vat) * 100)
+                             .toFixed(1)}% dari kontrak`
+                        : "—"}
+                    </span>
+                  </td>
                   <td>
                     {u.claim ? (
                       <>
@@ -234,13 +248,13 @@ export default function DaftarPenjualanPage() {
 
               {!terlihat.length && !busy && (
                 <tr>
-                  <td colSpan={6} style={{ color: "var(--mut)" }}>
+                  <td colSpan={7} style={{ color: "var(--mut)" }}>
                     Tidak ada penjualan yang cocok dengan penyaringan ini.
                   </td>
                 </tr>
               )}
               {busy && (
-                <tr><td colSpan={6} style={{ color: "var(--mut)" }}>Memuat…</td></tr>
+                <tr><td colSpan={7} style={{ color: "var(--mut)" }}>Memuat…</td></tr>
               )}
             </tbody>
           </table>

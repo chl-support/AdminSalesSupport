@@ -25,6 +25,9 @@ const MENU: { href: string; label: string; peran: string[] | null }[] = [
   { href: "/klaim", label: "Ajukan klaim", peran: null },
   { href: "/konsol", label: "Konsol klaim", peran: null },
   { href: "/audit", label: "Jejak audit", peran: null },
+  // Pendaftaran spesimen: Admin Sales yang menjalankannya sehari-hari, Admin
+  // Sistem ikut karena ia yang memegang kalibrasi ambangnya.
+  { href: "/spesimen", label: "Tanda tangan", peran: ["admin_sales", "admin_system"] },
   // Administrasi hanya untuk Admin Sistem. "Ganti sandi saya" tetap dapat
   // dicapai semua peran lewat tautan pada bilah pengguna — menyembunyikan
   // menunya tidak boleh ikut menutup satu-satunya jalan orang mengganti

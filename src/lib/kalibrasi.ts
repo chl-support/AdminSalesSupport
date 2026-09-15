@@ -38,6 +38,7 @@ export const SYARAT = {
 type Spesimen = {
   marketing_id: string; nama: string;
   image_png: string; strokes: Stroke[] | null;
+  dari_pendaftaran: boolean;
 };
 
 export type Sebaran = {
@@ -57,6 +58,8 @@ export type HasilKalibrasi = {
   bahan: {
     orang: number; spesimen: number;
     pasangan_asli: number; pasangan_tiruan: number;
+    /** Spesimen yang benar-benar direkam orang lewat layar pendaftaran. */
+    dari_pendaftaran: number;
     dipotong_batas: boolean; sumber_sintetis: boolean;
     detik: number;
   };
@@ -114,8 +117,11 @@ export async function kalibrasi(
   const mulai = Date.now();
 
   const spesimen = await query<Spesimen>(
-    `SELECT s.marketing_id, m.full_name AS nama, s.image_png, s.strokes
-       FROM signature_specimens s JOIN marketings m ON m.id = s.marketing_id
+    `SELECT s.marketing_id, m.full_name AS nama, s.image_png, s.strokes,
+            (e.token IS NOT NULL) AS dari_pendaftaran
+       FROM signature_specimens s
+       JOIN marketings m ON m.id = s.marketing_id
+       LEFT JOIN enrollment_sessions e ON e.set_id = s.set_id
       WHERE NOT s.archived
       ORDER BY s.marketing_id, s.sequence`);
 
@@ -181,6 +187,15 @@ export async function kalibrasi(
   const frr5 = cukup
     ? ([...kurva].reverse().find((p) => p.frr <= 5)?.ambang ?? null) : null;
 
+  // Yang membedakan spesimen sungguhan dari spesimen buatan bukan namanya,
+  // melainkan asalnya: tanda tangan yang direkam orang lewat layar pendaftaran
+  // punya sesi pendaftaran, tanda tangan yang dibangkitkan saat penyiapan tidak.
+  // Menebak dari nama akan salah dua arah sekaligus — agent sungguhan yang
+  // kebetulan bernama sama dengan data contoh, dan data contoh yang namanya
+  // diganti.
+  const dariPendaftaran = spesimen.filter((s) => s.dari_pendaftaran).length;
+  const sintetis = spesimen.length > 0 && dariPendaftaran === 0;
+
   const kekurangan: string[] = [];
   if (perOrang.size < SYARAT.orang) {
     kekurangan.push(
@@ -194,23 +209,24 @@ export async function kalibrasi(
       `Spesimen paling sedikit ${minSpesimen} per orang; protokol meminta ` +
       `${SYARAT.spesimenPerOrang} tanda tangan asli per orang.`);
   }
+  if (dariPendaftaran < spesimen.length) {
+    kekurangan.push(
+      `${spesimen.length - dariPendaftaran} dari ${spesimen.length} spesimen ` +
+      "bukan berasal dari layar pendaftaran — kemungkinan besar data contoh " +
+      "yang dibangkitkan saat penyiapan.");
+  }
   kekurangan.push(
     "Kelompok pembanding berisi tanda tangan orang lain, bukan percobaan " +
     "peniruan sungguhan. FAR di bawah ini batas bawah — pemalsu yang pernah " +
     "melihat tanda tangan aslinya akan mencetak skor lebih tinggi.");
 
-  // Data contoh mudah dikenali: nama-namanya berasal dari seed. Menyembunyikan
-  // fakta ini akan membuat ambang hasil "kalibrasi" atas tanda tangan buatan
-  // terlihat sama sahnya dengan hasil pengukuran sungguhan.
-  const sintetis = [...perOrang.values()].every((l) =>
-    ["Fransisca Yolanda", "Budi Santoso", "Hendra Kusuma", "Michael Junior"]
-      .includes(l[0]?.nama));
 
   return {
     bahan: {
       orang: perOrang.size, spesimen: spesimen.length,
       pasangan_asli: skorAsli.length, pasangan_tiruan: skorTiruan.length,
-      dipotong_batas: dipotong, sumber_sintetis: sintetis && perOrang.size > 0,
+      dari_pendaftaran: dariPendaftaran,
+      dipotong_batas: dipotong, sumber_sintetis: sintetis,
       detik: Math.round((Date.now() - mulai) / 100) / 10,
     },
     sebaran: { asli: sebaran(skorAsli), tiruan: sebaran(skorTiruan) },

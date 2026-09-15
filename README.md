@@ -175,12 +175,15 @@ menyimpan `threshold_at_time` sehingga riwayatnya tidak berubah arti.
 
 Dua hal yang membuat hasilnya belum dapat disebut kalibrasi produksi:
 
-1. **Belum ada jalur pendaftaran spesimen.** Satu-satunya spesimen di basis data
-   berasal dari data contoh — tanda tangan yang dibangkitkan program. Marketing yang
-   masuk lewat impor Laporan Penjualan tidak punya spesimen sama sekali, dan klaim
-   mereka otomatis diteruskan ke pemeriksaan Admin Sales (dengan sebabnya disebutkan
-   kepada agent, bukan setelah tiga percobaan gagal). Protokol PRD §12.2 meminta 30–50
-   agent dengan 10 tanda tangan asli per orang.
+1. **Spesimennya masih harus dikumpulkan.** Jalurnya sudah ada — menu **Tanda tangan**
+   menerbitkan tautan pendaftaran per marketing, dan agent merekam sepuluh tanda tangan
+   lewat `/daftar-ttd/<token>` (OTP, persetujuan pemakaian data, lalu tiap goresan
+   dicocokkan dengan goresan sebelumnya pada ambang onboarding sebelum disimpan). Set
+   yang terkumpul masuk sebagai `pending_review` dan baru menjadi baseline setelah
+   Admin melihat kesepuluh goresannya dan menyetujui. Yang belum: protokol PRD §12.2
+   meminta 30–50 agent, dan sampai itu terkumpul angka kalibrasinya belum mewakili
+   apa pun. Marketing tanpa spesimen tidak ditolak — klaimnya diteruskan ke pemeriksaan
+   Admin Sales pada percobaan pertama, dengan sebabnya disebutkan kepada agent.
 2. **Kelompok pembanding bukan pemalsu sungguhan.** Yang dibandingkan adalah tanda
    tangan orang lain, bukan orang yang sengaja meniru setelah melihat aslinya. FAR yang
    dihitung karenanya batas bawah — kenyataannya lebih buruk.
@@ -218,7 +221,7 @@ Finance, Management, dan Admin Sistem, dan ganti seluruh sandi awal.
 | PDF paket cetak & QR | **Selesai** — `GET /api/claims/{id}/print-package/pdf` | Tata letak mengikuti form eksisting; QR dan potongan hash dibubuhkan di setiap halaman |
 | Batch Overriding | Tabel dan tingkat sudah ada; penyusun batch periodik belum | Menunggu persentase dan penerima tiap tingkat (PRD Q35) |
 | Insentif non-tunai | Tersimpan dan tampil di laporan; belum ada alur pengajuan | Menunggu kepastian apakah dicatat manual atau punya form sendiri (PRD Q36, Q37) |
-| Pendaftaran spesimen tanda tangan | Belum ada jalurnya; spesimen hanya dari data contoh | Tanpa ini pencocokan otomatis tidak punya pembanding, dan tiap klaim agent jatuh ke pemeriksaan Admin |
+| Pendaftaran spesimen tanda tangan | **Selesai** — menu Tanda tangan, tautan `/daftar-ttd/<token>`, persetujuan tercatat, disetujui Admin | Datanya sendiri masih harus dikumpulkan dari agent sungguhan sebelum kalibrasi berarti |
 | Enkripsi at-rest, PSrE, Dukcapil, host-to-host bank | Belum | Fase 4 pada roadmap PRD |
 
 Angka tarif pada `scripts/seed.ts` adalah dugaan terbaik dari catatan laporan master

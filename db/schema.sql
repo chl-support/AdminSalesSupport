@@ -352,6 +352,40 @@ CREATE TABLE IF NOT EXISTS signing_sessions (
   expires_at   TIMESTAMPTZ NOT NULL
 );
 
+-- Pendaftaran spesimen tanda tangan (onboarding).
+--
+-- Tanpa spesimen, pencocokan tanda tangan tidak punya pembanding: skor selalu 0
+-- dan setiap klaim agent jatuh ke pemeriksaan manual. Tabel ini yang menampung
+-- sesi pengambilannya — satu tautan sekali pakai per marketing, dengan OTP dan
+-- masa berlaku seperti tautan tanda tangan, karena yang didaftarkan di sini
+-- justru yang akan dipakai membuktikan identitas orang itu berikutnya.
+--
+-- Persetujuan disimpan bersama sesinya, bukan disimpulkan dari adanya spesimen:
+-- data tanda tangan adalah data pribadi, dan "dia toh menandatangani" bukan
+-- catatan persetujuan.
+CREATE TABLE IF NOT EXISTS enrollment_sessions (
+  token           TEXT PRIMARY KEY,
+  marketing_id    UUID NOT NULL REFERENCES marketings(id) ON DELETE CASCADE,
+  set_id          UUID NOT NULL,
+  otp_code        TEXT,
+  otp_attempts    INT NOT NULL DEFAULT 0,
+  otp_verified    BOOLEAN NOT NULL DEFAULT FALSE,
+  consent_at      TIMESTAMPTZ,
+  consent_version TEXT,
+  captured        INT NOT NULL DEFAULT 0,
+  target          INT NOT NULL DEFAULT 10,
+  consistency     INT,
+  state           TEXT NOT NULL DEFAULT 'sent'
+                  CHECK (state IN ('sent','opened','capturing','submitted',
+                                   'approved','rejected','expired','locked')),
+  issued_by       TEXT,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  expires_at      TIMESTAMPTZ NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_enrollment_marketing
+  ON enrollment_sessions(marketing_id);
+
 CREATE TABLE IF NOT EXISTS signature_attempts (
   id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   claim_id          UUID NOT NULL REFERENCES claims(id) ON DELETE CASCADE,
