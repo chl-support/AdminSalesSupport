@@ -138,7 +138,6 @@ tr.terbuka > td { background: #FBFBFA; vertical-align: top; }
 .opsi:hover { border-color: var(--ink); }
 .opsi b { display: block; font-size: 16px; margin-bottom: 4px; }
 .opsi span { display: block; font-size: 12.5px; color: var(--sub); }
-.opsi .syarat { margin-top: 8px; font-size: 11.5px; color: var(--mut); }
 
 /* Kolom klaim pada daftar penjualan */
 a.tombol-klaim {

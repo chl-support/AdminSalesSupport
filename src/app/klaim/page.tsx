@@ -39,7 +39,6 @@ export default function PilihJenisPage() {
           <Link key={j.slug} href={`/klaim/${j.slug}`} className="opsi">
             <b>{j.nama}</b>
             <span>{j.ringkas}</span>
-            <span className="syarat">{j.prasyarat}</span>
           </Link>
         ))}
       </div>
