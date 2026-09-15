@@ -19,8 +19,8 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 
-import { Nav } from "../../nav";
-import { BilahPengguna, useSesi } from "../../session";
+import { Kerangka, MemeriksaSesi } from "../../kerangka";
+import { useSesi } from "../../session";
 import { jenisDari } from "../jenis";
 
 const rp = (n?: number | null) => `Rp ${(n ?? 0).toLocaleString("id-ID")}`;
@@ -73,11 +73,7 @@ export default function DaftarPenjualanPage() {
   useEffect(() => { if (sesi) void muat(); }, [sesi, muat]);
 
   if (memuat || !sesi) {
-    return (
-      <div className="wrap narrow">
-        <p className="hint" style={{ marginTop: 40 }}>Memeriksa sesi…</p>
-      </div>
-    );
+    return <MemeriksaSesi />;
   }
 
   if (!jenis) {
@@ -104,20 +100,15 @@ export default function DaftarPenjualanPage() {
   const bisa = units.filter((u) => u.claimable).length;
 
   return (
-    <div className="wrap">
-      <header className="top">
-        <div>
-          <h1>{jenis.nama}</h1>
-          <p>
-            {jenis.prasyarat} Penjualan yang memenuhi syarat dan belum diklaim
-            dapat diajukan lewat kolom paling kanan.
-          </p>
-        </div>
-        <div className="row" style={{ marginBottom: 0, alignItems: "flex-end" }}>
-          <Nav peran={sesi.role} />
-          <BilahPengguna sesi={sesi} />
-        </div>
-      </header>
+    <Kerangka sesi={sesi} judul={
+      <div>
+        <h1>{jenis.nama}</h1>
+        <p>
+          {jenis.prasyarat} Penjualan yang memenuhi syarat dan belum diklaim
+          dapat diajukan lewat kolom paling kanan.
+        </p>
+      </div>
+    }>
 
       <div className="row sp">
         <Link href="/klaim">← Ganti jenis fee</Link>
@@ -260,6 +251,6 @@ export default function DaftarPenjualanPage() {
           </table>
         </div>
       </div>
-    </div>
+    </Kerangka>
   );
 }

@@ -15,8 +15,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import { Nav } from "../nav";
-import { BilahPengguna, labelPeran, useSesi } from "../session";
+import { Kerangka, MemeriksaSesi } from "../kerangka";
+import { labelPeran, useSesi } from "../session";
 
 const rp = (n?: number | null) => `Rp ${(n ?? 0).toLocaleString("id-ID")}`;
 
@@ -175,11 +175,7 @@ export default function AdminPage() {
   };
 
   if (memuat || !sesi) {
-    return (
-      <div className="wrap narrow">
-        <p className="hint" style={{ marginTop: 40 }}>Memeriksa sesi…</p>
-      </div>
-    );
+    return <MemeriksaSesi />;
   }
 
   const ringkas = (h: Hasil) =>
@@ -187,20 +183,15 @@ export default function AdminPage() {
     `${h.dilewati} dilewati · ${h.marketing} marketing dikenali`;
 
   return (
-    <div className="wrap">
-      <header className="top">
-        <div>
-          <h1>Administrasi</h1>
-          <p>
-            Data penjualan dan akun pengguna. Seluruhnya dikerjakan dari layar
-            ini — tidak ada langkah yang memerlukan baris perintah.
-          </p>
-        </div>
-        <div className="row" style={{ marginBottom: 0, alignItems: "flex-end" }}>
-          <Nav peran={sesi.role} />
-          <BilahPengguna sesi={sesi} />
-        </div>
-      </header>
+    <Kerangka sesi={sesi} judul={
+      <div>
+        <h1>Administrasi</h1>
+        <p>
+          Data penjualan dan akun pengguna. Seluruhnya dikerjakan dari layar
+          ini — tidak ada langkah yang memerlukan baris perintah.
+        </p>
+      </div>
+    }>
 
       {/* ── Ganti sandi sendiri: terbuka bagi semua peran ── */}
       <div className="panel sp">
@@ -550,6 +541,6 @@ export default function AdminPage() {
           </div>
         </>
       )}
-    </div>
+    </Kerangka>
   );
 }

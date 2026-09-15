@@ -248,3 +248,44 @@ ul.cetak-ceklis .kotak { border: 1px solid var(--ink); width: 14px; height: 14px
                  object-fit: contain; mix-blend-mode: multiply; }
 .petak-ttd figcaption { font-size: 10px; color: var(--mut); text-align: center; }
 @media (max-width: 700px) { .petak-ttd { grid-template-columns: repeat(3, 1fr); } }
+
+/* ── Kerangka konsol: menu di kiri, isi di kanan ─────────────────────────── */
+.konsol { display: flex; gap: 26px; max-width: 1240px; margin: 0 auto;
+          padding: 0 22px 60px; align-items: flex-start; }
+.konsol .isi { flex: 1; min-width: 0; }
+.sisi { width: 194px; flex: none; position: sticky; top: 0;
+        padding: 22px 0 18px; }
+.merek { font-size: 13px; font-weight: 700; letter-spacing: -.01em;
+         line-height: 1.25; padding-bottom: 14px; margin-bottom: 14px;
+         border-bottom: 2px solid var(--ink); }
+.merek span { display: block; font-size: 11px; font-weight: 500;
+              color: var(--mut); letter-spacing: .02em; }
+
+/* Menu kolom kiri. Induk tebal, anak menjorok — susunannya sendiri yang
+   menyatakan mana bagian dari mana, tanpa perlu garis atau ikon. */
+.nav { display: block; margin-bottom: 18px; }
+.nav .grup { margin-bottom: 10px; }
+.nav a {
+  display: block; padding: 6px 9px; font-size: 12.5px; font-weight: 600;
+  text-decoration: none; color: var(--sub); border: 1px solid transparent;
+  background: none;
+}
+.nav a:hover { color: var(--ink); background: #EFEFEC; }
+.nav a.active { background: var(--ink); border-color: var(--ink); color: #fff; }
+.nav .anak { margin-top: 2px; }
+.nav .anak a { padding-left: 20px; font-weight: 500; font-size: 12px; }
+
+.sisi .lbl { margin-top: 0; }
+.sisi .row { flex-wrap: wrap; }
+
+/* Di layar sempit menu kembali mendatar di atas isi: kolom 194px pada layar
+   390px tidak menyisakan tempat untuk apa pun. */
+@media (max-width: 900px) {
+  .konsol { flex-direction: column; gap: 0; padding: 0 16px 40px; }
+  .sisi { width: 100%; position: static; }
+  .nav { display: flex; flex-wrap: wrap; gap: 4px; }
+  .nav .grup { display: contents; }
+  .nav .anak { display: contents; }
+  .nav a { border: 1px solid var(--line); background: #fff; }
+  .nav .anak a { padding-left: 9px; }
+}

@@ -16,8 +16,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import { Nav } from "../nav";
-import { BilahPengguna, useSesi } from "../session";
+import { Kerangka, MemeriksaSesi } from "../kerangka";
+import { useSesi } from "../session";
 
 type Baris = {
   id: string; full_name: string; marketing_type: string; status: string;
@@ -112,11 +112,7 @@ export default function SpesimenPage() {
   };
 
   if (memuat || !sesi) {
-    return (
-      <div className="wrap narrow">
-        <p className="hint" style={{ marginTop: 40 }}>Memeriksa sesi…</p>
-      </div>
-    );
+    return <MemeriksaSesi />;
   }
 
   const terlihat = baris.filter((b) =>
@@ -129,21 +125,16 @@ export default function SpesimenPage() {
   const belum = baris.filter((b) => b.spesimen === 0).length;
 
   return (
-    <div className="wrap">
-      <header className="top">
-        <div>
-          <h1>Pendaftaran tanda tangan</h1>
-          <p>
-            Marketing tanpa spesimen tidak dapat dinilai otomatis — klaimnya
-            selalu berakhir di pemeriksaan manual. Kirimkan tautan pendaftaran,
-            lalu periksa hasilnya di sini sebelum diaktifkan.
-          </p>
-        </div>
-        <div className="row" style={{ marginBottom: 0, alignItems: "flex-end" }}>
-          <Nav peran={sesi.role} />
-          <BilahPengguna sesi={sesi} />
-        </div>
-      </header>
+    <Kerangka sesi={sesi} judul={
+      <div>
+        <h1>Pendaftaran tanda tangan</h1>
+        <p>
+          Marketing tanpa spesimen tidak dapat dinilai otomatis — klaimnya
+          selalu berakhir di pemeriksaan manual. Kirimkan tautan pendaftaran,
+          lalu periksa hasilnya di sini sebelum diaktifkan.
+        </p>
+      </div>
+    }>
 
       {!boleh ? (
         <div className="banner warn">
@@ -302,6 +293,6 @@ export default function SpesimenPage() {
           )}
         </>
       )}
-    </div>
+    </Kerangka>
   );
 }

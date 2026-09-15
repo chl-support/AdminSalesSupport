@@ -12,36 +12,27 @@
 
 import Link from "next/link";
 
-import { Nav } from "../nav";
-import { BilahPengguna, useSesi } from "../session";
+import { Kerangka, MemeriksaSesi } from "../kerangka";
+import { useSesi } from "../session";
 import { JENIS } from "./jenis";
 
 export default function PilihJenisPage() {
   const { sesi, memuat } = useSesi();
 
   if (memuat || !sesi) {
-    return (
-      <div className="wrap narrow">
-        <p className="hint" style={{ marginTop: 40 }}>Memeriksa sesi…</p>
-      </div>
-    );
+    return <MemeriksaSesi />;
   }
 
   return (
-    <div className="wrap">
-      <header className="top">
-        <div>
-          <h1>Ajukan klaim fee</h1>
-          <p>
-            Pilih jenis fee lebih dulu. Prasyarat pencairan berbeda per jenis,
-            jadi daftar penjualan yang dapat diklaim ikut berbeda.
-          </p>
-        </div>
-        <div className="row" style={{ marginBottom: 0, alignItems: "flex-end" }}>
-          <Nav peran={sesi.role} />
-          <BilahPengguna sesi={sesi} />
-        </div>
-      </header>
+    <Kerangka sesi={sesi} judul={
+      <div>
+        <h1>Ajukan klaim fee</h1>
+        <p>
+          Pilih jenis fee lebih dulu. Prasyarat pencairan berbeda per jenis,
+          jadi daftar penjualan yang dapat diklaim ikut berbeda.
+        </p>
+      </div>
+    }>
 
       <div className="pilihan">
         {JENIS.map((j) => (
@@ -52,6 +43,6 @@ export default function PilihJenisPage() {
           </Link>
         ))}
       </div>
-    </div>
+    </Kerangka>
   );
 }

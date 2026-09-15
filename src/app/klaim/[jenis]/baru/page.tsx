@@ -24,8 +24,8 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 
-import { Nav } from "../../../nav";
-import { BilahPengguna, useSesi } from "../../../session";
+import { Kerangka, MemeriksaSesi } from "../../../kerangka";
+import { useSesi } from "../../../session";
 import { FormPengajuan } from "../../form-pengajuan";
 import {
   DOKUMEN, LABEL_PERAN, PERAN_PENERIMA, TINGKAT_OVERRIDING, jenisDari,
@@ -138,11 +138,7 @@ export default function FormKlaimPage() {
   };
 
   if (memuat || !sesi) {
-    return (
-      <div className="wrap narrow">
-        <p className="hint" style={{ marginTop: 40 }}>Memeriksa sesi…</p>
-      </div>
-    );
+    return <MemeriksaSesi />;
   }
 
   if (!jenis || !unitId) {
@@ -162,20 +158,15 @@ export default function FormKlaimPage() {
                        (jenis.slug !== "overriding" || tingkat));
 
   return (
-    <div className="wrap">
-      <header className="top">
-        <div>
-          <h1>Form Pengajuan {jenis.nama}</h1>
-          <p>
-            PT. Serpong Bangun Lestari — BIO District. Nominal dihitung sistem
-            dari memo skema yang berlaku pada tanggal kontrak, tidak diisi tangan.
-          </p>
-        </div>
-        <div className="row" style={{ marginBottom: 0, alignItems: "flex-end" }}>
-          <Nav peran={sesi.role} />
-          <BilahPengguna sesi={sesi} />
-        </div>
-      </header>
+    <Kerangka sesi={sesi} judul={
+      <div>
+        <h1>Form Pengajuan {jenis.nama}</h1>
+        <p>
+          PT. Serpong Bangun Lestari — BIO District. Nominal dihitung sistem
+          dari memo skema yang berlaku pada tanggal kontrak, tidak diisi tangan.
+        </p>
+      </div>
+    }>
 
       <div className="row sp">
         <Link href={`/klaim/${jenis.slug}`}>← Kembali ke data penjualan</Link>
@@ -435,6 +426,6 @@ export default function FormKlaimPage() {
           )}
         </>
       )}
-    </div>
+    </Kerangka>
   );
 }

@@ -15,8 +15,8 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Nav } from "../nav";
-import { BilahPengguna, useSesi } from "../session";
+import { Kerangka, MemeriksaSesi } from "../kerangka";
+import { useSesi } from "../session";
 
 const HALAMAN = 50;
 
@@ -162,29 +162,20 @@ export default function AuditPage() {
   const bersih = Object.values(filter).every((v) => !v);
 
   if (memuat || !sesi) {
-    return (
-      <div className="wrap narrow">
-        <p className="hint" style={{ marginTop: 40 }}>Memeriksa sesi…</p>
-      </div>
-    );
+    return <MemeriksaSesi />;
   }
 
   return (
-    <div className="wrap">
-      <header className="top">
-        <div>
-          <h1>Jejak audit</h1>
-          <p>
-            Append-only: basis data menolak UPDATE dan DELETE lewat RULE, yang
-            berlaku bahkan bagi pemilik tabel. Entri yang keliru diperbaiki dengan
-            entri baru, tidak pernah dengan menyuntingnya.
-          </p>
-        </div>
-        <div className="row" style={{ marginBottom: 0, alignItems: "flex-end" }}>
-          <Nav peran={sesi.role} />
-          <BilahPengguna sesi={sesi} />
-        </div>
-      </header>
+    <Kerangka sesi={sesi} judul={
+      <div>
+        <h1>Jejak audit</h1>
+        <p>
+          Append-only: basis data menolak UPDATE dan DELETE lewat RULE, yang
+          berlaku bahkan bagi pemilik tabel. Entri yang keliru diperbaiki dengan
+          entri baru, tidak pernah dengan menyuntingnya.
+        </p>
+      </div>
+    }>
 
       {viewer && (
         <div className={`banner ${viewer.can_annotate ? "info" : "warn"} sp`}>
@@ -396,6 +387,6 @@ export default function AuditPage() {
           <button onClick={() => void muat(filter, 0)} disabled={busy}>Muat ulang</button>
         </div>
       </div>
-    </div>
+    </Kerangka>
   );
 }

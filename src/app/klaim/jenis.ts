@@ -9,6 +9,13 @@
 
 export type Jenis = "closing_fee" | "commission" | "cash_reward" | "overriding";
 
+/**
+ * Keempat jenis fee, dalam urutan tampilnya.
+ *
+ * Satu daftar untuk menu di kiri dan untuk kartu pada layar Pengajuan Fee.
+ * Dua daftar terpisah berarti urutan keduanya berbeda cepat atau lambat, dan
+ * orang yang hafal posisi menunya salah klik.
+ */
 export const JENIS: {
   slug: Jenis; nama: string; ringkas: string; prasyarat: string;
 }[] = [
@@ -19,16 +26,16 @@ export const JENIS: {
     prasyarat: "SPU sudah ditandatangani pemesan (BR-01).",
   },
   {
-    slug: "commission",
-    nama: "Komisi",
-    ringkas: "Komisi atas nilai kontrak.",
-    prasyarat: "SPU dan PPJB sudah ditandatangani pemesan (BR-02).",
-  },
-  {
     slug: "cash_reward",
     nama: "Cash Reward",
     ringkas: "Penghargaan tunai atas pencapaian.",
     prasyarat: "SPU, PPJB, dan DP/angsuran pertama sudah diterima (BR-03).",
+  },
+  {
+    slug: "commission",
+    nama: "Komisi",
+    ringkas: "Komisi atas nilai kontrak.",
+    prasyarat: "SPU dan PPJB sudah ditandatangani pemesan (BR-02).",
   },
   {
     slug: "overriding",

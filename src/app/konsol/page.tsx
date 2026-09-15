@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { FormPengajuan } from "../klaim/form-pengajuan";
-import { Nav } from "../nav";
-import { BilahPengguna, useSesi } from "../session";
+import { Kerangka, MemeriksaSesi } from "../kerangka";
+import { useSesi } from "../session";
 
 const rp = (n?: number | null) => `Rp ${(n ?? 0).toLocaleString("id-ID")}`;
 
@@ -209,28 +209,19 @@ export default function Console() {
   // Tanpa sesi, useSesi sudah mengalihkan ke /login; jangan sempat menampilkan
   // kerangka halaman yang kosong sementara itu berlangsung.
   if (memuat || !sesi) {
-    return (
-      <div className="wrap narrow">
-        <p className="hint" style={{ marginTop: 40 }}>Memeriksa sesi…</p>
-      </div>
-    );
+    return <MemeriksaSesi />;
   }
 
   return (
-    <div className="wrap">
-      <header className="top">
-        <div>
-          <h1>Konsol Klaim Insentif</h1>
-          <p>
-            Next.js + PostgreSQL. Empat gate ditegakkan di server, bukan di layar ini —
-            menyembunyikan tombol tidak menghentikan siapa pun yang memanggil API langsung.
-          </p>
-        </div>
-        <div className="row" style={{ marginBottom: 0, alignItems: "flex-end" }}>
-          <Nav peran={sesi.role} />
-          <BilahPengguna sesi={sesi} />
-        </div>
-      </header>
+    <Kerangka sesi={sesi} judul={
+      <div>
+        <h1>Konsol Klaim Insentif</h1>
+        <p>
+          Next.js + PostgreSQL. Empat gate ditegakkan di server, bukan di layar ini —
+          menyembunyikan tombol tidak menghentikan siapa pun yang memanggil API langsung.
+        </p>
+      </div>
+    }>
 
       <div className="banner info sp">
         <b>Alur pengajuan</b>
@@ -390,6 +381,6 @@ export default function Console() {
           </tbody></table>
         </div>
       </div>
-    </div>
+    </Kerangka>
   );
 }
