@@ -144,7 +144,10 @@ export default function LoginPage() {
           )}
 
           <div className="masuk-bantuan">
-            Lupa kata sandi atau akun terkunci?{" "}
+            {/* Tautannya turun ke barisnya sendiri: sebaris dengan
+                pertanyaannya, ia terbaca sebagai lanjutan kalimat, bukan sebagai
+                sesuatu yang dapat ditekan. */}
+            <p>Lupa kata sandi atau akun terkunci?</p>
             <button type="button" className="tautan"
                     onClick={() => setLihatKontak((v) => !v)}>
               Hubungi Admin IT
