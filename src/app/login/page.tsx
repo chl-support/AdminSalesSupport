@@ -208,8 +208,8 @@ export default function LoginPage() {
                     orang membaca hal yang sama dua kali. Nama kotaknya tetap
                     ada untuk pembaca layar lewat aria-label. */}
                 <p className="pengantar">
-                  Untuk mengatur ulang kata sandi atau membuka akun yang
-                  terkunci.
+                  Silahkan menghubungi kontak dibawah ini, untuk mengatur ulang
+                  username atau kata sandi Anda:
                 </p>
 
                 <div className="kontak">
