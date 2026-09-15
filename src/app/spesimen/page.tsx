@@ -139,7 +139,7 @@ export default function SpesimenPage() {
       {!boleh ? (
         <div className="banner warn">
           <b>Peran Anda tidak berwenang atas pendaftaran tanda tangan</b>
-          Hanya Admin Sales dan Admin Sistem yang dapat menerbitkan tautan dan
+          Hanya Admin Sales dan Admin IT yang dapat menerbitkan tautan dan
           memutuskan baseline.
         </div>
       ) : (

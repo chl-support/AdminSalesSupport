@@ -8,7 +8,7 @@
  * dihapus, bukan disimpan sebagai cadangan.
  *
  * Yang masih kurang untuk produksi (PRD 14): MFA bagi peran Finance, Management,
- * dan Admin Sistem; kebijakan usia dan kerumitan kata sandi; serta alur ganti
+ * dan Admin IT; kebijakan usia dan kerumitan kata sandi; serta alur ganti
  * sandi mandiri. Semuanya di luar cakupan perubahan ini dan belum ada di sini.
  */
 

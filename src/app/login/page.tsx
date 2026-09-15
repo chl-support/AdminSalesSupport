@@ -28,7 +28,7 @@ export default function LoginPage() {
       .catch(() => { /* biarkan formulirnya tampil */ });
   }, []);
 
-  // Kontak Admin Sistem diambil di awal supaya tautannya langsung menampilkan
+  // Kontak Admin IT diambil di awal supaya tautannya langsung menampilkan
   // isinya saat diklik, bukan berpikir dulu.
   useEffect(() => {
     fetch("/api/kontak-admin")
@@ -114,7 +114,7 @@ export default function LoginPage() {
       <main className="masuk-isi">
         <form className="masuk-kartu" onSubmit={masuk}>
           <h1>Masuk</h1>
-          <p className="pengantar">Gunakan akun tim yang diberikan Admin Sistem.</p>
+          <p className="pengantar">Gunakan akun tim yang diberikan Admin IT.</p>
 
           <label className="lbl" htmlFor="username">Username</label>
           <input id="username" type="text" value={username} autoFocus
@@ -147,7 +147,7 @@ export default function LoginPage() {
             Lupa kata sandi atau akun terkunci?{" "}
             <button type="button" className="tautan"
                     onClick={() => setLihatKontak((v) => !v)}>
-              Hubungi Admin Sistem
+              Hubungi Admin IT
             </button>
 
             {lihatKontak && (
@@ -163,7 +163,7 @@ export default function LoginPage() {
                 )}
                 {!kontak?.wa && !kontak?.email && (
                   <span>
-                    Kontak Admin Sistem belum diisi. Hubungi lewat jalur yang
+                    Kontak Admin IT belum diisi. Hubungi lewat jalur yang
                     biasa Anda pakai.
                   </span>
                 )}

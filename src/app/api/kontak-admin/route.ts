@@ -1,9 +1,9 @@
 /**
- * Kontak Admin Sistem, untuk orang yang terkunci di luar.
+ * Kontak Admin IT, untuk orang yang terkunci di luar.
  *
  * GET-nya publik dengan sengaja: yang membutuhkannya justru orang yang belum
  * dapat masuk. Yang dikembalikan hanya nomor dan alamat surel yang memang
- * dipasang untuk diumumkan — tidak ada data pengguna, dan bila Admin Sistem
+ * dipasang untuk diumumkan — tidak ada data pengguna, dan bila Admin IT
  * belum mengisinya, yang keluar kosong, bukan tebakan.
  */
 

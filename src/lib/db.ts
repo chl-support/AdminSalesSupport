@@ -323,7 +323,7 @@ const DEFAULT_SETTINGS: Record<string, string> = {
   backdate_tolerance_days: "7",
   return_escalation_count: "2",
   rounding: "round_half_up_rupiah",
-  // Kontak Admin Sistem yang tampil di halaman masuk. Kosong sampai diisi —
+  // Kontak Admin IT yang tampil di halaman masuk. Kosong sampai diisi —
   // nomor karangan pada layar masuk mengirim orang yang terkunci ke nomor yang
   // tidak menjawab.
   kontak_admin_wa: "",

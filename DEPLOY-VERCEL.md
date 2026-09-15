@@ -111,13 +111,13 @@ mencetaknya saat dijalankan; nilainya juga tertulis di `scripts/seed.ts`.
 | `fmanager` | Finance Manager |
 | `headfin` | Head Finance |
 | `mgmt` | Management |
-| `sysadmin` | Admin Sistem |
+| `sysadmin` | Admin IT |
 
 > Sandi bawaan itu dapat ditebak dan tertulis di repositori publik. **Ganti
 > seluruhnya sebelum dipakai sungguhan.**
 >
 > Lewat konsol: menu **Administrasi**. Setiap pengguna dapat mengganti sandinya
-> sendiri di sana (perlu sandi lama); Admin Sistem dapat mengganti sandi siapa
+> sendiri di sana (perlu sandi lama); Admin IT dapat mengganti sandi siapa
 > pun. Mengganti sandi selalu memutus sesi yang sedang berjalan — kecuali saat
 > seseorang mengganti sandinya sendiri, di mana layar yang sedang dipakai tetap
 > terbuka dan hanya perangkat lain yang terputus.
@@ -140,7 +140,7 @@ bukan per alamat IP.
 
 ## 3c. Impor data penjualan
 
-Lewat konsol: masuk sebagai Admin Sistem, buka menu **Administrasi** → **Unggah
+Lewat konsol: masuk sebagai Admin IT, buka menu **Administrasi** → **Unggah
 Laporan Penjualan**. Pilih berkas, tekan **Lihat pratinjau** untuk melihat apa
 yang akan terjadi, lalu **Tulis ke basis data**. Tidak ada yang ditulis sebelum
 tombol kedua ditekan.
@@ -254,7 +254,7 @@ objek dan sisakan rujukannya di kolom yang sama.
 **Autentikasi berupa username dan kata sandi dengan sesi cookie.** Sandi di-hash
 dengan scrypt bergaram, token sesi disimpan sebagai hash, dan cookie-nya HttpOnly.
 Yang masih kurang sebelum menyentuh pembayaran sungguhan: MFA untuk peran Finance,
-Management, dan Admin Sistem; kebijakan usia dan kerumitan sandi; serta alur ganti
+Management, dan Admin IT; kebijakan usia dan kerumitan sandi; serta alur ganti
 sandi mandiri. Header `X-User` yang lama sudah dihapus.
 
 **Deployment ini publik.** Bila belum siap dilihat umum, aktifkan Vercel Authentication

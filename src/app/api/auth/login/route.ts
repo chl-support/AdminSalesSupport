@@ -44,7 +44,7 @@ export const POST = handler(async (req) => {
     await catatPercobaan(username, ip, false);
     return gagal(
       `Akun dikunci sementara setelah ${PENGUNCIAN.maks} percobaan gagal. ` +
-      `Coba lagi setelah ${PENGUNCIAN.menit} menit, atau hubungi Admin Sistem.`,
+      `Coba lagi setelah ${PENGUNCIAN.menit} menit, atau hubungi Admin IT.`,
       429);
   }
 

@@ -166,7 +166,7 @@ longgar karena sifatnya lintas-medium.
 sebagai nilai sementara, bukan hasil pengukuran — skor kemiripan tidak punya makna
 universal, 75 pada mesin ini tidak setara 75 pada mesin lain.
 
-Menu **Administrasi → Kalibrasi ambang tanda tangan** (hanya Admin Sistem) mengukur
+Menu **Administrasi → Kalibrasi ambang tanda tangan** (hanya Admin IT) mengukur
 sebaran skor pada spesimen yang tersimpan: pasangan spesimen milik orang yang sama
 menghasilkan False Reject Rate, pasangan milik dua orang berbeda menghasilkan False
 Accept Rate, dan tabelnya menunjukkan keduanya pada tiap ambang. Ambang yang dipasang
@@ -207,7 +207,7 @@ dan menyebutkan langkah perbaikan bila gagal, bukan sekadar membalas "ok".
 
 Autentikasi sudah berupa username dan kata sandi dengan sesi cookie; header `X-User`
 sudah dihapus. Sebelum menyentuh pembayaran sungguhan, aktifkan MFA untuk peran
-Finance, Management, dan Admin Sistem, dan ganti seluruh sandi awal.
+Finance, Management, dan Admin IT, dan ganti seluruh sandi awal.
 
 ---
 
@@ -216,7 +216,7 @@ Finance, Management, dan Admin Sistem, dan ganti seluruh sandi awal.
 | Bagian | Status | Alasan |
 |---|---|---|
 | Pengiriman WhatsApp sungguhan | Tautan dan OTP ditampilkan di layar | Perlu akun WhatsApp Business API lewat BSP resmi dan template yang disetujui Meta (PRD Q11) |
-| Autentikasi | **Selesai** — username/sandi, scrypt bergaram, sesi cookie HttpOnly | MFA untuk Finance, Management, dan Admin Sistem belum ada |
+| Autentikasi | **Selesai** — username/sandi, scrypt bergaram, sesi cookie HttpOnly | MFA untuk Finance, Management, dan Admin IT belum ada |
 | Unggah berkas | **Selesai** — isi berkas tersimpan (`bytea`, maks. 3 MB), diunggah agent dari tautan tanda tangan | Enkripsi at-rest dan kebijakan retensi masih menunggu Legal (PRD Q14, Q27) |
 | PDF paket cetak & QR | **Selesai** — `GET /api/claims/{id}/print-package/pdf` | Tata letak mengikuti form eksisting; QR dan potongan hash dibubuhkan di setiap halaman |
 | Batch Overriding | Tabel dan tingkat sudah ada; penyusun batch periodik belum | Menunggu persentase dan penerima tiap tingkat (PRD Q35) |

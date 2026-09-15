@@ -50,6 +50,9 @@ export default function AdminPage() {
   const [pengguna, setPengguna] = useState<Pengguna[]>([]);
   const [target, setTarget] = useState("");
   const [sandiBaru, setSandiBaru] = useState("");
+  const [usernameBaru, setUsernameBaru] = useState("");
+  const [hasilNama, setHasilNama] = useState<string | null>(null);
+  const [galatNama, setGalatNama] = useState<string | null>(null);
   const [hasilSandi, setHasilSandi] = useState<string | null>(null);
   const [galatSandi, setGalatSandi] = useState<string | null>(null);
 
@@ -61,7 +64,7 @@ export default function AdminPage() {
   const [galatKal, setGalatKal] = useState<string | null>(null);
   const [ambangPilih, setAmbangPilih] = useState("");
 
-  // Kontak Admin Sistem yang tampil pada halaman masuk.
+  // Kontak Admin IT yang tampil pada halaman masuk.
   const [wa, setWa] = useState("");
   const [email, setEmail] = useState("");
   const [hasilKontak, setHasilKontak] = useState<string | null>(null);
@@ -160,6 +163,24 @@ export default function AdminPage() {
     }
   };
 
+  const gantiUsername = async () => {
+    setGalatNama(null); setHasilNama(null);
+    const res = await fetch("/api/admin/users", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: target, new_username: usernameBaru }),
+    });
+    const b = await res.json().catch(() => ({}));
+    if (!res.ok) { setGalatNama(b.detail ?? b.title ?? `HTTP ${res.status}`); return; }
+    setHasilNama(
+      `${b.full_name} kini masuk dengan username ${b.username} ` +
+      `(sebelumnya ${b.username_lama}). Sesinya yang sedang berjalan tidak ` +
+      `terputus; nama baru dipakai saat ia masuk berikutnya.`);
+    setUsernameBaru("");
+    setTarget(b.username);
+    void muatPengguna();
+  };
+
   const gantiSandiOrang = async () => {
     setGalatSandi(null);
     setHasilSandi(null);
@@ -200,14 +221,14 @@ export default function AdminPage() {
         <div className="banner warn">
           <b>Peran {labelPeran(sesi.role)} tidak berwenang atas menu ini</b>
           Unggah Laporan Penjualan, kalibrasi ambang tanda tangan, dan
-          penggantian kata sandi seluruhnya dikerjakan Admin Sistem. Hubungi
-          Admin Sistem bila kata sandi Anda perlu diganti.
+          penggantian kata sandi seluruhnya dikerjakan Admin IT. Hubungi
+          Admin IT bila kata sandi Anda perlu diganti.
         </div>
       )}
 
       {bolehKelola && (
         <>
-          {/* ── Kontak Admin Sistem ── */}
+          {/* ── Kontak Admin IT ── */}
           <div className="panel sp">
             <div className="form-blok">
               <h3>KONTAK ADMIN SISTEM</h3>
@@ -483,7 +504,7 @@ export default function AdminPage() {
           {/* ── Sandi pengguna lain ── */}
           <div className="panel">
             <div className="form-blok">
-              <h3>KATA SANDI PENGGUNA</h3>
+              <h3>AKUN PENGGUNA</h3>
               <div className="tscroll">
                 <table><tbody>
                   <tr>
@@ -545,6 +566,45 @@ export default function AdminPage() {
                   <b>Tidak dapat mengganti sandi</b>{galatSandi}
                 </div>
               )}
+
+              {/* ── Ganti username ──────────────────────────────────────────
+                  Pengguna yang dipilih di atas, dipakai lagi di sini: dua
+                  pemilih untuk satu orang yang sama hanya menambah kesempatan
+                  mengganti sandi orang A sambil menamai ulang orang B. */}
+              <div style={{ borderTop: "1px solid var(--line)", marginTop: 16,
+                            paddingTop: 14 }}>
+                <div className="lbl">
+                  Username baru untuk pengguna yang dipilih di atas
+                </div>
+                <div className="row" style={{ marginBottom: 0 }}>
+                  <input value={usernameBaru} autoComplete="off"
+                         placeholder="3–32 karakter, huruf kecil"
+                         style={{ minWidth: 240 }}
+                         onChange={(e) => setUsernameBaru(e.target.value)} />
+                  <button disabled={!target || usernameBaru.trim().length < 3}
+                          onClick={() => void gantiUsername()}>
+                    Ganti username
+                  </button>
+                </div>
+                <p className="hint" style={{ textAlign: "left", marginTop: 6 }}>
+                  Huruf kecil, angka, titik, garis bawah, atau strip. Jejak audit
+                  tidak dapat disunting, jadi entri lama tetap menyebut username
+                  lama — penggantiannya sendiri ikut tercatat agar riwayat
+                  sebelum dan sesudahnya masih dapat dirangkai. Sesi yang sedang
+                  berjalan tidak terputus.
+                </p>
+
+                {hasilNama && (
+                  <div className="banner ok" style={{ marginTop: 12, marginBottom: 0 }}>
+                    <b>Username diganti</b>{hasilNama}
+                  </div>
+                )}
+                {galatNama && (
+                  <div className="banner stop" style={{ marginTop: 12, marginBottom: 0 }}>
+                    <b>Tidak dapat mengganti username</b>{galatNama}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </>

@@ -43,7 +43,7 @@ const MENU: Butir[] = [
   { href: "/audit", label: "Jejak audit" },
   { href: "/spesimen", label: "Tanda tangan",
     peran: ["admin_sales", "admin_system"] },
-  // Administrasi hanya untuk Admin Sistem. "Ganti sandi saya" tetap dapat
+  // Administrasi hanya untuk Admin IT. "Ganti sandi saya" tetap dapat
   // dicapai semua peran lewat tautan pada bilah pengguna.
   { href: "/admin", label: "Administrasi", peran: ["admin_system"] },
 ];

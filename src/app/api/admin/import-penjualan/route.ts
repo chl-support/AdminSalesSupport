@@ -15,7 +15,7 @@ import { imporLaporan } from "@/lib/penjualan";
  * lalu baru menyadarinya setelah 52 baris tertulis bukan kesalahan yang mudah
  * dibereskan.
  *
- * Dibatasi Admin Sistem: impor menimpa data penjualan seluruh proyek.
+ * Dibatasi Admin IT: impor menimpa data penjualan seluruh proyek.
  */
 export const POST = handler(async (req) => {
   const user = await requireRole(req, "admin_system");

@@ -24,7 +24,7 @@ export const PERAN: Record<string, string> = {
   finance_manager: "Finance Manager",
   head_finance: "Head Finance",
   management: "Management",
-  admin_system: "Admin Sistem",
+  admin_system: "Admin IT",
 };
 
 export const labelPeran = (r: string) => PERAN[r] ?? r;
