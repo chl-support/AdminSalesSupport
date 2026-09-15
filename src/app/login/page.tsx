@@ -84,7 +84,7 @@ export default function LoginPage() {
           yang diajarkan untuk dicurigai. */}
       <aside className="masuk-merek">
         <div>
-          <Logo tinggi={56} />
+          <Logo tinggi={118} />
           <div className="wordmark">CHL Support</div>
           <p className="tagline">
             Klaim insentif marketing — Closing Fee, Komisi, Cash Reward, dan

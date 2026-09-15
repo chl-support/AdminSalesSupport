@@ -255,10 +255,10 @@ ul.cetak-ceklis .kotak { border: 1px solid var(--ink); width: 14px; height: 14px
 .konsol .isi { flex: 1; min-width: 0; }
 .sisi { width: 194px; flex: none; position: sticky; top: 0;
         padding: 22px 0 18px; }
-.merek { font-size: 13px; font-weight: 700; letter-spacing: -.01em;
-         line-height: 1.25; padding-bottom: 14px; margin-bottom: 14px;
+.merek { display: flex; align-items: center; gap: 9px;
+         font-size: 13px; font-weight: 700; letter-spacing: -.01em;
+         line-height: 1.25; padding-bottom: 13px; margin-bottom: 14px;
          border-bottom: 2px solid var(--ink); }
-.merek img { margin-bottom: 8px; }
 .merek span { display: block; font-size: 11px; font-weight: 500;
               color: var(--mut); letter-spacing: .02em; }
 

@@ -27,9 +27,11 @@ export function Kerangka(
             berganti nama di pintu depan tetapi tidak di dalamnya terbaca
             sebagai dua sistem berbeda. */}
         <div className="merek">
-          <Logo tinggi={34} />
-          CHL Support
-          <span>Klaim Insentif Marketing</span>
+          <Logo tinggi={34} hanyaLambang />
+          <div>
+            CHL Support
+            <span>Klaim Insentif Marketing</span>
+          </div>
         </div>
         <Nav peran={sesi.role} />
       </aside>

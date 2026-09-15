@@ -3,10 +3,11 @@
 /**
  * Lambang perusahaan.
  *
- * Berkasnya diletakkan di public/logo-chl.png. Selama berkas itu belum ada,
- * komponen ini tidak menampilkan apa pun — bukan ikon gambar rusak: halaman
- * masuk adalah yang pertama dilihat orang, dan gambar rusak di sana membuat
- * seluruh sistem terbaca sebagai setengah jadi.
+ * Berkasnya di public/logo-chl.png, PNG beralfa sehingga sama-sama terbaca di
+ * atas bidang gelap halaman masuk dan bidang terang kolom menu. Bila berkasnya
+ * hilang, komponen ini tidak menampilkan apa pun — bukan ikon gambar rusak:
+ * halaman masuk adalah yang pertama dilihat orang, dan gambar rusak di sana
+ * membuat seluruh sistem terbaca sebagai setengah jadi.
  *
  * Lambangnya tidak digambar ulang di sini sebagai SVG. Lambang perusahaan yang
  * digambar ulang berdasarkan perkiraan akan mirip, tidak sama — dan yang
@@ -15,8 +16,20 @@
 
 import { useEffect, useRef, useState } from "react";
 
-export function Logo({ tinggi = 40, alt = "Cipta Harmoni Lestari" }:
-                     { tinggi?: number; alt?: string }) {
+/**
+ * Bagian lambang saja, tanpa tulisan "CIPTA HARMONI LESTARI" di bawahnya.
+ *
+ * Tulisan itu setinggi 80 piksel pada berkas 1464 piksel: pada ukuran menu ia
+ * mengecil menjadi coretan yang tidak terbaca, dan tulisan yang tidak terbaca
+ * di dalam lambang terlihat seperti cacat cetak. Di tempat sempit yang dipakai
+ * lambangnya saja — namanya toh sudah tertulis di sebelahnya.
+ */
+const TINGGI_PENUH = 1464;
+const TINGGI_LAMBANG = 1300;
+
+export function Logo({ tinggi = 40, hanyaLambang = false,
+                       alt = "Cipta Harmoni Lestari" }:
+                     { tinggi?: number; hanyaLambang?: boolean; alt?: string }) {
   const [gagal, setGagal] = useState(false);
   const ref = useRef<HTMLImageElement | null>(null);
 
@@ -29,10 +42,21 @@ export function Logo({ tinggi = 40, alt = "Cipta Harmoni Lestari" }:
   }, []);
 
   if (gagal) return null;
-  return (
+
+  const img = (
     // eslint-disable-next-line @next/next/no-img-element
-    <img ref={ref} src="/logo-chl.png" alt={alt} height={tinggi}
-         style={{ height: tinggi, width: "auto", display: "block" }}
+    <img ref={ref} src="/logo-chl.png" alt={alt}
+         style={{
+           height: hanyaLambang ? tinggi * (TINGGI_PENUH / TINGGI_LAMBANG) : tinggi,
+           width: "auto", display: "block",
+         }}
          onError={() => setGagal(true)} />
+  );
+
+  if (!hanyaLambang) return img;
+  return (
+    <div style={{ height: tinggi, overflow: "hidden", display: "inline-block" }}>
+      {img}
+    </div>
   );
 }
