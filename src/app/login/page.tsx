@@ -38,6 +38,22 @@ export default function LoginPage() {
   }, []);
 
   /**
+   * Nomor WhatsApp menjadi bentuk yang diterima wa.me.
+   *
+   * Nomor Indonesia hampir selalu ditulis diawali 0 — dan wa.me tidak mengenal
+   * bentuk itu: tautannya terbuka, lalu WhatsApp menjawab nomornya tidak
+   * terdaftar. Yang salah bukan nomornya, melainkan cara menuliskannya, jadi
+   * diperbaiki di sini alih-alih dituntut dari yang mengisinya.
+   */
+  const nomorWa = (nomor: string) => {
+    const angka = nomor.replace(/\D/g, "");
+    if (angka.startsWith("62")) return angka;
+    if (angka.startsWith("0")) return `62${angka.slice(1)}`;
+    if (angka.startsWith("8")) return `62${angka}`;
+    return angka;
+  };
+
+  /**
    * Kembali ke halaman yang tadi diminta, bukan selalu ke beranda.
    *
    * Hanya lintasan relatif yang diterima. Menerima URL utuh akan mengubah
@@ -137,7 +153,7 @@ export default function LoginPage() {
             {lihatKontak && (
               <div className="kontak">
                 {kontak?.wa && (
-                  <a href={`https://wa.me/${kontak.wa.replace(/\D/g, "")}`}
+                  <a href={`https://wa.me/${nomorWa(kontak.wa)}`}
                      target="_blank" rel="noreferrer">
                     WhatsApp {kontak.wa}
                   </a>
