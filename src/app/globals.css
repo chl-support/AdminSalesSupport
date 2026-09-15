@@ -16,9 +16,10 @@ body {
 .wrap { max-width: 1180px; margin: 0 auto; padding: 0 24px 80px; }
 .wrap.narrow { max-width: 440px; padding: 0 16px 48px; }
 
+/* Kepala halaman untuk layar di luar kerangka konsol. */
 header.top {
-  padding: 34px 0 20px; border-bottom: 2px solid var(--ink); margin-bottom: 22px;
-  display: flex; justify-content: space-between; align-items: flex-end;
+  padding: 22px 0 18px; border-bottom: 2px solid var(--ink); margin-bottom: 22px;
+  display: flex; justify-content: space-between; align-items: flex-start;
   gap: 20px; flex-wrap: wrap;
 }
 h1 { margin: 0; font-size: 25px; font-weight: 640; letter-spacing: -.018em; }
@@ -249,22 +250,44 @@ ul.cetak-ceklis .kotak { border: 1px solid var(--ink); width: 14px; height: 14px
 .petak-ttd figcaption { font-size: 10px; color: var(--mut); text-align: center; }
 @media (max-width: 700px) { .petak-ttd { grid-template-columns: repeat(3, 1fr); } }
 
-/* ── Kerangka konsol: menu di kiri, isi di kanan ─────────────────────────── */
-.konsol { display: flex; gap: 26px; max-width: 1240px; margin: 0 auto;
-          padding: 0 22px 60px; align-items: flex-start; }
-.konsol .isi { flex: 1; min-width: 0; }
-.sisi { width: 194px; flex: none; position: sticky; top: 0;
-        padding: 22px 0 18px; }
-.merek { display: flex; align-items: center; gap: 9px;
+/* ── Kerangka konsol: bilah atas menyeberang, menu di kiri, isi di kanan ── */
+.konsol { max-width: 1240px; margin: 0 auto; padding: 0 22px 60px; }
+
+/* Bilah atas. Garis bawahnya satu, menyambung dari kolom menu sampai ujung
+   kanan isi — bukan dua potong pada ketinggian berbeda. */
+.pita { position: relative; display: flex; gap: 26px; align-items: flex-start;
+        padding: 20px 0 16px; border-bottom: 2px solid var(--ink);
+        margin-bottom: 20px; }
+.merek { width: 194px; flex: none; display: flex; align-items: center; gap: 9px;
          font-size: 13px; font-weight: 700; letter-spacing: -.01em;
-         line-height: 1.25; padding-bottom: 13px; margin-bottom: 14px;
-         border-bottom: 2px solid var(--ink); }
+         line-height: 1.25; }
 .merek span { display: block; font-size: 9.5px; font-weight: 600;
               color: var(--mut); letter-spacing: .09em; margin-top: 2px; }
 
+/* Judul dan identitas. Rata atas, bukan rata bawah: rata bawah membuat letak
+   lencana profil bergantung pada panjang keterangan di sebelahnya, sehingga ia
+   berpindah-pindah setiap kali menu diganti. */
+/* Tinggi minimum setara keterangan tiga baris, supaya garis di bawah bilah
+   berada di tempat yang sama pada setiap menu. Tanpa ini, halaman berketerangan
+   dua baris menaikkan garisnya dan halaman tiga baris menurunkannya —
+   berpindah tiap kali menu diganti, persis yang membuat kepala halaman terasa
+   bergoyang. Keterangan yang lebih panjang dari tiga baris tetap mendorongnya
+   turun; itu batas yang disadari, bukan yang terlewat. */
+.kepala { flex: 1; min-width: 0; min-height: 106px; display: flex;
+          align-items: flex-start; justify-content: space-between; gap: 20px;
+          flex-wrap: wrap; }
+.kepala > div { min-width: 0; }
+.kepala h1 { margin: 0; }
+.kepala p { margin: 4px 0 0; color: var(--sub); font-size: 13.5px;
+            max-width: 62ch; }
+
+.badan { display: flex; gap: 26px; align-items: flex-start; }
+.badan .isi { flex: 1; min-width: 0; }
+.sisi { width: 194px; flex: none; position: sticky; top: 16px; }
+
 /* Menu kolom kiri. Induk tebal, anak menjorok — susunannya sendiri yang
    menyatakan mana bagian dari mana, tanpa perlu garis atau ikon. */
-.nav { display: block; margin-bottom: 18px; }
+.nav { display: block; }
 .nav .grup { margin-bottom: 10px; }
 .nav a {
   display: block; padding: 6px 9px; font-size: 12.5px; font-weight: 600;
@@ -297,18 +320,20 @@ ul.cetak-ceklis .kotak { border: 1px solid var(--ink); width: 14px; height: 14px
 .profil .siapa b { font-size: 13.5px; line-height: 1.25; }
 .profil > button { width: 100%; padding: 7px 10px; font-size: 12.5px; }
 
-/* Di layar sempit menu kembali mendatar di atas isi: kolom 194px pada layar
-   390px tidak menyisakan tempat untuk apa pun. */
+/* Di layar sempit semuanya menumpuk: merek di atas, menu mendatar, lalu isi.
+   Kolom 194px pada layar 390px tidak menyisakan tempat untuk apa pun. */
 @media (max-width: 900px) {
-  .konsol { flex-direction: column; gap: 0; padding: 0 16px 40px; }
-  /* Di layar sempit kepala halaman menumpuk; identitas kembali rata kiri
-     supaya tidak menggantung sendirian di seberang judul. */
-  header.top { display: block; }
-  /* Kepala halaman menumpuk di layar sempit; lencana naik ke pojok kanan
-     kepala itu, bukan turun ke bawah judul. */
-  header.top { display: flex; align-items: flex-start; }
-  .bilah { margin-left: auto; }
-  .sisi { width: 100%; position: static; }
+  .konsol { padding: 0 16px 40px; }
+  .pita { flex-direction: column; gap: 14px; padding-top: 16px; }
+  /* Di layar sempit tingginya mengikuti isi: memaksa 106px di sana hanya
+     menyisakan ruang kosong yang harus digulir. */
+  .kepala { min-height: 0; }
+  /* Lencana tetap di pojok kanan atas. Dibiarkan mengalir, ia jatuh ke bawah
+     keterangan — jauh dari tempat orang mencarinya. */
+  .bilah { position: absolute; top: 16px; right: 0; }
+  .merek { width: auto; }
+  .badan { flex-direction: column; gap: 0; }
+  .sisi { width: 100%; position: static; margin-bottom: 18px; }
   .nav { display: flex; flex-wrap: wrap; gap: 4px; }
   .nav .grup { display: contents; }
   .nav .anak { display: contents; }

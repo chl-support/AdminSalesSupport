@@ -22,10 +22,12 @@ export function Kerangka(
 ) {
   return (
     <div className="konsol">
-      <aside className="sisi">
-        {/* Nama yang sama dengan yang tertera di halaman masuk. Sistem yang
-            berganti nama di pintu depan tetapi tidak di dalamnya terbaca
-            sebagai dua sistem berbeda. */}
+      {/* Satu bilah atas selebar halaman: merek di kolom kiri, judul dan
+          identitas di kanan, dan satu garis yang menyambung di bawah keduanya.
+          Sebelumnya garisnya dua potong — satu di bawah merek, satu di bawah
+          judul — pada ketinggian berbeda, sehingga kepala halaman terbaca
+          sebagai dua bagian yang tidak sejajar. */}
+      <header className="pita">
         <div className="merek">
           <Logo tinggi={34} hanyaLambang />
           <div>
@@ -33,19 +35,21 @@ export function Kerangka(
             <span>KLAIM INSENTIF MARKETING</span>
           </div>
         </div>
-        <Nav peran={sesi.role} />
-      </aside>
 
-      <main className="isi">
-        {/* Identitas di kanan atas, bukan di kaki kolom menu: di sanalah orang
-            mencarinya, dan di kolom kiri ia justru tenggelam di bawah menu
-            terakhir — makin panjang menunya, makin jauh terdorong ke bawah. */}
-        <header className="top">
+        <div className="kepala">
           {judul}
+          {/* Identitas di kanan atas: di sanalah orang mencarinya, dan di kaki
+              kolom menu ia justru tenggelam di bawah menu terakhir. */}
           <BilahPengguna sesi={sesi} />
-        </header>
-        {children}
-      </main>
+        </div>
+      </header>
+
+      <div className="badan">
+        <aside className="sisi">
+          <Nav peran={sesi.role} />
+        </aside>
+        <main className="isi">{children}</main>
+      </div>
     </div>
   );
 }
