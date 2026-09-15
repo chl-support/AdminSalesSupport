@@ -239,10 +239,14 @@ export default function SignPage() {
         clear();
         await load();
       } else {
-        setDone({ kind: "warn", html:
-          `<b>Diteruskan ke pemeriksaan Admin</b>
-           Setelah tiga percobaan, tanda tangan Anda diperiksa langsung oleh Admin Sales.
-           Klaim Anda <b>tidak ditolak</b> — Anda akan dihubungi untuk langkah berikutnya.` });
+        // Alasannya dibawa dari server bila ada: "setelah tiga percobaan" akan
+        // keliru untuk penerima yang memang belum punya spesimen terdaftar.
+        setDone({ kind: "warn", html: r.guidance?.length
+          ? `<b>Diteruskan ke pemeriksaan Admin</b>
+             ${r.guidance.map((g: string) => g).join("<br>")}`
+          : `<b>Diteruskan ke pemeriksaan Admin</b>
+             Setelah tiga percobaan, tanda tangan Anda diperiksa langsung oleh Admin Sales.
+             Klaim Anda <b>tidak ditolak</b> — Anda akan dihubungi untuk langkah berikutnya.` });
         setStep("done");
       }
     } catch (e: any) {

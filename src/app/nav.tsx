@@ -23,11 +23,13 @@ const MENU: { href: string; label: string; peran: string[] | null }[] = [
   // Ajukan klaim lebih dulu: itu yang dikerjakan tiap hari, sedangkan konsol
   // dibuka untuk menindaklanjuti klaim yang sudah ada.
   { href: "/klaim", label: "Ajukan klaim", peran: null },
-  { href: "/", label: "Konsol klaim", peran: null },
+  { href: "/konsol", label: "Konsol klaim", peran: null },
   { href: "/audit", label: "Jejak audit", peran: null },
-  // Administrasi terbuka bagi semua peran karena memuat "ganti sandi saya";
-  // isinya sendiri yang menyesuaikan dengan peran pembukanya.
-  { href: "/admin", label: "Administrasi", peran: null },
+  // Administrasi hanya untuk Admin Sistem. "Ganti sandi saya" tetap dapat
+  // dicapai semua peran lewat tautan pada bilah pengguna — menyembunyikan
+  // menunya tidak boleh ikut menutup satu-satunya jalan orang mengganti
+  // sandinya sendiri.
+  { href: "/admin", label: "Administrasi", peran: ["admin_system"] },
 ];
 
 export function Nav({ peran }: { peran?: string }) {
@@ -36,8 +38,7 @@ export function Nav({ peran }: { peran?: string }) {
     <nav className="nav">
       {MENU.filter((m) => !m.peran || (peran && m.peran.includes(peran)))
            .map(({ href, label }) => {
-        // "/" cocok persis saja, kalau tidak ia akan selalu terpilih.
-        const active = href === "/" ? path === "/" : path.startsWith(href);
+        const active = path === href || path.startsWith(href + "/");
         return (
           <Link key={href} href={href}
                 className={active ? "active" : ""}

@@ -162,14 +162,28 @@ longgar karena sifatnya lintas-medium.
 
 ### Yang harus dikerjakan sebelum produksi
 
-**Ambang 75 belum dikalibrasi.** Angka itu berasal dari PRD sebagai nilai sementara,
-bukan hasil pengukuran. Skor kemiripan tidak punya makna universal — 75 pada algoritma
-ini tidak setara 75 pada algoritma lain. Jalankan protokol PRD §12.2 (30–50 agent,
-10 tanda tangan asli per orang, ditambah percobaan tiruan), ukur distribusi skornya,
-lalu tetapkan ambang berdasarkan False Accept Rate dan False Reject Rate yang dapat
-diterima bisnis. Ambang diubah lewat `PUT /api/settings` tanpa deploy ulang, dan setiap
-percobaan menyimpan ambang yang berlaku saat itu (`threshold_at_time`) agar riwayat
-lama tetap dapat ditafsirkan.
+**Ambang tanda tangan: ada alatnya, datanya belum ada.** Angka 75 berasal dari PRD
+sebagai nilai sementara, bukan hasil pengukuran — skor kemiripan tidak punya makna
+universal, 75 pada mesin ini tidak setara 75 pada mesin lain.
+
+Menu **Administrasi → Kalibrasi ambang tanda tangan** (hanya Admin Sistem) mengukur
+sebaran skor pada spesimen yang tersimpan: pasangan spesimen milik orang yang sama
+menghasilkan False Reject Rate, pasangan milik dua orang berbeda menghasilkan False
+Accept Rate, dan tabelnya menunjukkan keduanya pada tiap ambang. Ambang yang dipasang
+tersimpan bersama bukti pengukurannya dan tercatat di jejak audit; percobaan lama tetap
+menyimpan `threshold_at_time` sehingga riwayatnya tidak berubah arti.
+
+Dua hal yang membuat hasilnya belum dapat disebut kalibrasi produksi:
+
+1. **Belum ada jalur pendaftaran spesimen.** Satu-satunya spesimen di basis data
+   berasal dari data contoh — tanda tangan yang dibangkitkan program. Marketing yang
+   masuk lewat impor Laporan Penjualan tidak punya spesimen sama sekali, dan klaim
+   mereka otomatis diteruskan ke pemeriksaan Admin Sales (dengan sebabnya disebutkan
+   kepada agent, bukan setelah tiga percobaan gagal). Protokol PRD §12.2 meminta 30–50
+   agent dengan 10 tanda tangan asli per orang.
+2. **Kelompok pembanding bukan pemalsu sungguhan.** Yang dibandingkan adalah tanda
+   tangan orang lain, bukan orang yang sengaja meniru setelah melihat aslinya. FAR yang
+   dihitung karenanya batas bawah — kenyataannya lebih buruk.
 
 ---
 
@@ -204,6 +218,7 @@ Finance, Management, dan Admin Sistem, dan ganti seluruh sandi awal.
 | PDF paket cetak & QR | **Selesai** — `GET /api/claims/{id}/print-package/pdf` | Tata letak mengikuti form eksisting; QR dan potongan hash dibubuhkan di setiap halaman |
 | Batch Overriding | Tabel dan tingkat sudah ada; penyusun batch periodik belum | Menunggu persentase dan penerima tiap tingkat (PRD Q35) |
 | Insentif non-tunai | Tersimpan dan tampil di laporan; belum ada alur pengajuan | Menunggu kepastian apakah dicatat manual atau punya form sendiri (PRD Q36, Q37) |
+| Pendaftaran spesimen tanda tangan | Belum ada jalurnya; spesimen hanya dari data contoh | Tanpa ini pencocokan otomatis tidak punya pembanding, dan tiap klaim agent jatuh ke pemeriksaan Admin |
 | Enkripsi at-rest, PSrE, Dukcapil, host-to-host bank | Belum | Fase 4 pada roadmap PRD |
 
 Angka tarif pada `scripts/seed.ts` adalah dugaan terbaik dari catatan laporan master

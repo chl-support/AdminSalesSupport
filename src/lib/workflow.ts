@@ -442,6 +442,41 @@ export async function submitSignature(params: {
   const threshold = await settingInt("signature_threshold_claim");
   const maxAttempts = await settingInt("signature_max_attempts");
 
+  // Penerima tanpa spesimen terdaftar tidak mungkin lolos pencocokan: skornya
+  // selalu 0. Membiarkannya menempuh tiga percobaan hanya menghabiskan kuota
+  // agent dan membuatnya menyangka tanda tangannya yang salah, padahal yang
+  // kurang ada di sisi kami. Langsung diteruskan ke pemeriksaan Admin, dengan
+  // sebabnya disebutkan.
+  if (!specimens.length) {
+    const attemptNo = s.attempts + 1;
+    await query(
+      `INSERT INTO signature_attempts (claim_id, attempt_number, score,
+         threshold_at_time, outcome, image_png, input_method, ip_address, user_agent)
+       VALUES ($1,$2,0,$3,'no_specimen',$4,$5,$6,$7)`,
+      [claim.id, attemptNo, threshold, params.imagePng,
+       params.inputMethod ?? "finger", params.ip ?? null,
+       params.userAgent ?? null]);
+    await query("UPDATE signing_sessions SET attempts=$1 WHERE token=$2",
+                [attemptNo, params.token]);
+    await audit({
+      entityType: "claim", entityId: claim.id,
+      action: "signature_attempt:no_specimen", actor: claim.marketing_id,
+      after: { threshold, attempt: attemptNo }, ip: params.ip,
+    });
+    await transition(claim.id, "signature_review_required", "system");
+    return {
+      outcome: "escalated_to_review", score: 0, threshold,
+      attempt_number: attemptNo, attempts_remaining: 0, document_hash: null,
+      layers_used: [],
+      guidance: [
+        "Belum ada spesimen tanda tangan terdaftar atas nama penerima ini, " +
+        "sehingga tanda tangan Anda tidak dapat dicocokkan secara otomatis.",
+        "Tanda tangan Anda tersimpan dan diteruskan ke Admin Sales untuk " +
+        "diperiksa langsung. Klaim Anda tidak ditolak.",
+      ],
+    };
+  }
+
   const result = sig.compareToSet(params.imagePng, params.strokes, specimens as any);
   const attemptNo = s.attempts + 1;
 

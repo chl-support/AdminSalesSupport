@@ -14,6 +14,7 @@ import { configReport, explainDbError, one, setting } from "@/lib/db";
 export const GET = handler(async () => {
   const config = configReport();
   try {
+    const dikalibrasi = await setting("signature_calibrated_at");
     const row = await one<{ count: number }>(
       "SELECT COUNT(*)::int AS count FROM claims");
     return {
@@ -22,8 +23,18 @@ export const GET = handler(async () => {
       claims: row?.count ?? 0,
       signature_threshold: await setting("signature_threshold_claim"),
       config,
-      warning: "Ambang tanda tangan belum dikalibrasi. Jalankan protokol PRD 12.2 " +
-               "sebelum dipakai produksi.",
+      // Peringatan menyebutkan keadaan sebenarnya, bukan kalimat tetap.
+      // Peringatan yang tidak pernah berubah berhenti dibaca, dan yang hilang
+      // setelah satu kali pengukuran atas data contoh akan menyatakan sistemnya
+      // terbukti padahal tidak.
+      warning: dikalibrasi
+        ? `Ambang disetel ${await setting("signature_threshold_claim")} pada ` +
+          `${dikalibrasi.slice(0, 10)} atas data yang tersedia. Protokol PRD 12.2 ` +
+          "(30–50 agent, 10 tanda tangan asli per orang, ditambah percobaan " +
+          "peniruan sungguhan) belum terpenuhi — lihat bukti pada menu " +
+          "Administrasi."
+        : "Ambang tanda tangan belum dikalibrasi. Jalankan pengukuran dari menu " +
+          "Administrasi, dan protokol PRD 12.2 sebelum dipakai produksi.",
     };
   } catch (err: any) {
     // Skema yang belum dimigrasikan bukan kegagalan koneksi: query sampai ke

@@ -54,6 +54,13 @@ export default function AdminPage() {
   const [galatSandi, setGalatSandi] = useState<string | null>(null);
 
   // ── Sandi sendiri ──
+  // Kalibrasi ambang tanda tangan.
+  const [kal, setKal] = useState<any>(null);
+  const [kalStatus, setKalStatus] = useState<any>(null);
+  const [sibukKal, setSibukKal] = useState(false);
+  const [galatKal, setGalatKal] = useState<string | null>(null);
+  const [ambangPilih, setAmbangPilih] = useState("");
+
   const [sandiLama, setSandiLama] = useState("");
   const [sandiSaya, setSandiSaya] = useState("");
   const [hasilSaya, setHasilSaya] = useState<string | null>(null);
@@ -67,6 +74,48 @@ export default function AdminPage() {
   }, [bolehKelola]);
 
   useEffect(() => { if (sesi) void muatPengguna(); }, [sesi, muatPengguna]);
+
+  const muatKalibrasi = useCallback(async () => {
+    if (!bolehKelola) return;
+    const res = await fetch("/api/admin/signature-calibration");
+    if (res.ok) setKalStatus(await res.json());
+  }, [bolehKelola]);
+
+  useEffect(() => { if (sesi) void muatKalibrasi(); }, [sesi, muatKalibrasi]);
+
+  const jalankanKalibrasi = async () => {
+    setSibukKal(true); setGalatKal(null);
+    try {
+      const res = await fetch("/api/admin/signature-calibration",
+                              { method: "POST", body: "{}",
+                                headers: { "Content-Type": "application/json" } });
+      const b = await res.json().catch(() => ({}));
+      if (res.status === 401) { location.href = "/login"; return; }
+      if (!res.ok) { setGalatKal(b.detail ?? b.title ?? `HTTP ${res.status}`); return; }
+      setKal(b);
+      setAmbangPilih(b.usul?.ambang != null ? String(b.usul.ambang) : "");
+    } catch (e: any) { setGalatKal(String(e?.message ?? e)); }
+    finally { setSibukKal(false); }
+  };
+
+  const pasangAmbang = async () => {
+    setSibukKal(true); setGalatKal(null);
+    try {
+      const t = Number(ambangPilih);
+      const titik = kal?.kurva?.find((k: any) => k.ambang === t);
+      const res = await fetch("/api/admin/signature-calibration", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          apply: t,
+          evidence: { ...(kal?.bahan ?? {}), far: titik?.far ?? null,
+                      frr: titik?.frr ?? null } }),
+      });
+      const b = await res.json().catch(() => ({}));
+      if (!res.ok) { setGalatKal(b.detail ?? b.title ?? `HTTP ${res.status}`); return; }
+      await muatKalibrasi();
+    } catch (e: any) { setGalatKal(String(e?.message ?? e)); }
+    finally { setSibukKal(false); }
+  };
 
   const kirimBerkas = async (dryRun: boolean) => {
     if (!berkas) return;
@@ -199,6 +248,141 @@ export default function AdminPage() {
 
       {bolehKelola && (
         <>
+          {/* ── Kalibrasi ambang tanda tangan ── */}
+          <div className="panel sp">
+            <div className="form-blok">
+              <h3>KALIBRASI AMBANG TANDA TANGAN</h3>
+              <p className="hint" style={{ textAlign: "left", marginTop: 0 }}>
+                Mengukur sebaran skor pada spesimen yang tersimpan, lalu
+                menghitung berapa tanda tangan sah yang akan ditolak (FRR) dan
+                berapa tanda tangan orang lain yang akan diterima (FAR) pada tiap
+                ambang. Tidak ada yang berubah sampai Anda menekan tombol pasang.
+              </p>
+
+              <table><tbody>
+                <tr><td>Ambang berlaku sekarang</td>
+                    <td className="n"><b>{kalStatus?.ambang ?? "—"}</b></td></tr>
+                <tr><td>Terakhir dikalibrasi</td>
+                    <td className="n">
+                      {kalStatus?.dikalibrasi_pada
+                        ? String(kalStatus.dikalibrasi_pada).slice(0, 10)
+                        : "belum pernah"}
+                    </td></tr>
+              </tbody></table>
+
+              <div className="row" style={{ marginTop: 12, marginBottom: 0 }}>
+                <button className="pri" disabled={sibukKal}
+                        onClick={() => void jalankanKalibrasi()}>
+                  {sibukKal ? "Mengukur…" : "Jalankan pengukuran"}
+                </button>
+              </div>
+
+              {galatKal && (
+                <div className="banner stop" style={{ marginTop: 12 }}>
+                  <b>Pengukuran gagal</b>{galatKal}
+                </div>
+              )}
+
+              {kal && (
+                <>
+                  <div className="lbl" style={{ marginTop: 14 }}>Bahan pengukuran</div>
+                  <table><tbody>
+                    <tr><td>Orang dengan spesimen</td>
+                        <td className="n">{kal.bahan.orang}</td></tr>
+                    <tr><td>Spesimen</td>
+                        <td className="n">{kal.bahan.spesimen}</td></tr>
+                    <tr><td>Pasangan asli / orang lain</td>
+                        <td className="n">
+                          {kal.bahan.pasangan_asli} / {kal.bahan.pasangan_tiruan}
+                        </td></tr>
+                    {kal.sebaran.asli && (
+                      <tr><td>Skor tanda tangan asli (p05 · median · p95)</td>
+                          <td className="n">
+                            {kal.sebaran.asli.p05} · {kal.sebaran.asli.median} ·{" "}
+                            {kal.sebaran.asli.p95}
+                          </td></tr>
+                    )}
+                    {kal.sebaran.tiruan && (
+                      <tr><td>Skor tanda tangan orang lain (p05 · median · p95)</td>
+                          <td className="n">
+                            {kal.sebaran.tiruan.p05} · {kal.sebaran.tiruan.median} ·{" "}
+                            {kal.sebaran.tiruan.p95}
+                          </td></tr>
+                    )}
+                  </tbody></table>
+
+                  {/* Peringatan mendahului angkanya, bukan menyusul: hasil yang
+                      dibaca lebih dulu akan terlanjur dipercaya. */}
+                  {kal.bahan.sumber_sintetis && (
+                    <div className="banner stop" style={{ marginTop: 12 }}>
+                      <b>Spesimen yang ada seluruhnya data contoh</b>
+                      Tanda tangannya dibangkitkan program saat penyiapan, bukan
+                      tanda tangan agent sungguhan. Angka di bawah menunjukkan
+                      mesinnya bekerja, tetapi tidak menyatakan apa pun tentang
+                      tanda tangan orang sungguhan — jangan dipasang ke produksi.
+                    </div>
+                  )}
+
+                  <div className="lbl" style={{ marginTop: 14 }}>
+                    FRR / FAR pada tiap ambang
+                  </div>
+                  <div className="tscroll">
+                    <table><tbody>
+                      <tr><th>Ambang</th><th>Ditolak padahal sah (FRR)</th>
+                          <th>Diterima padahal orang lain (FAR)</th></tr>
+                      {kal.kurva.filter((k: any) => k.ambang >= 30 && k.ambang <= 95)
+                        .map((k: any) => (
+                        <tr key={k.ambang}
+                            style={k.ambang === Number(ambangPilih)
+                              ? { background: "var(--okbg)" } : undefined}>
+                          <td><b>{k.ambang}</b></td>
+                          <td className="n">{k.frr}%</td>
+                          <td className="n">{k.far}%</td>
+                        </tr>
+                      ))}
+                    </tbody></table>
+                  </div>
+
+                  <table style={{ marginTop: 10 }}><tbody>
+                    <tr><td>Titik setimbang (EER)</td>
+                        <td className="n">{kal.usul.eer ?? "—"}</td></tr>
+                    <tr><td>Ambang terendah dengan FAR 0%</td>
+                        <td className="n">{kal.usul.far_nol ?? "—"}</td></tr>
+                    <tr><td>Ambang tertinggi dengan FRR ≤ 5%</td>
+                        <td className="n">{kal.usul.frr_5 ?? "—"}</td></tr>
+                  </tbody></table>
+
+                  <div className="banner warn" style={{ marginTop: 12 }}>
+                    <b>Yang belum dipenuhi protokol PRD 12.2</b>
+                    <ul style={{ margin: "6px 0 0 16px", padding: 0 }}>
+                      {kal.protokol.kekurangan.map((k: string) => (
+                        <li key={k} style={{ marginBottom: 3 }}>{k}</li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  <div className="lbl" style={{ marginTop: 14 }}>
+                    Pasang ambang (1–100)
+                  </div>
+                  <div className="row" style={{ marginBottom: 0 }}>
+                    <input value={ambangPilih} inputMode="numeric"
+                           onChange={(e) => setAmbangPilih(e.target.value)}
+                           style={{ width: 90 }} />
+                    <button disabled={sibukKal || !ambangPilih}
+                            onClick={() => void pasangAmbang()}>
+                      Pasang ambang ini
+                    </button>
+                  </div>
+                  <p className="hint" style={{ textAlign: "left", marginTop: 6 }}>
+                    Ambang tersimpan bersama bukti pengukurannya dan tercatat di
+                    jejak audit. Percobaan tanda tangan lama tetap menyimpan ambang
+                    yang berlaku saat itu, jadi riwayatnya tidak berubah arti.
+                  </p>
+                </>
+              )}
+            </div>
+          </div>
+
           {/* ── Impor ── */}
           <div className="panel sp">
             <div className="form-blok">

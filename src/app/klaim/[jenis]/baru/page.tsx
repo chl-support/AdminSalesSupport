@@ -429,7 +429,7 @@ export default function FormKlaimPage() {
                 <Link href={`/klaim/${jenis.slug}`}>
                   <button>Ajukan klaim lain</button>
                 </Link>
-                <Link href="/"><button className="pri">Buka konsol klaim</button></Link>
+                <Link href="/konsol"><button className="pri">Buka konsol klaim</button></Link>
               </div>
             </>
           )}
