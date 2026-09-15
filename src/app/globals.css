@@ -435,3 +435,25 @@ button.tautan:hover { color: var(--note); }
   .tagline { font-size: 13px; }
   .masuk-isi { padding: 26px 18px 40px; }
 }
+
+/* Penandaan tanda tangan pada foto KTP. Kotaknya digambar di atas gambar, bukan
+   ke dalam kanvas: fotonya tetap tajam, dan potongannya diambil dari piksel
+   aslinya saat dikirim. */
+.tandai { position: relative; display: block; border: 1px solid var(--line);
+          background: #FCFCFB; touch-action: none; overflow: hidden; }
+.tandai img { display: block; width: 100%; height: auto;
+              user-select: none; -webkit-user-select: none; }
+.kotak-tandai { position: absolute; border: 2px solid var(--stop);
+                background: rgba(140, 47, 47, .12); pointer-events: none; }
+
+/* Jangkar identitas pada layar pemeriksaan: potongan tanda tangan dari KTP,
+   disandingkan dengan keterangan cara membacanya. */
+.jangkar { display: flex; gap: 14px; align-items: flex-start;
+           border: 1px solid var(--line); background: #fff; padding: 10px 12px;
+           margin-bottom: 12px; }
+.jangkar img { width: 190px; flex: none; border: 1px solid var(--line);
+               background: #fff; object-fit: contain; mix-blend-mode: multiply; }
+@media (max-width: 700px) {
+  .jangkar { flex-direction: column; }
+  .jangkar img { width: 100%; }
+}

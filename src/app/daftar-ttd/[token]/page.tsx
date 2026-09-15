@@ -18,18 +18,21 @@
  * ketidakpastian ke tahap tempat orangnya tidak hadir lagi untuk mengulang.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 
 import { KanvasTtd, usePadTtd } from "../../ttd-pad";
 
-type Step = "loading" | "otp" | "setuju" | "rekam" | "done";
+type Step = "loading" | "otp" | "setuju" | "ktp" | "rekam" | "done";
 
 const LANGKAH: { key: Step; no: string; label: string }[] = [
   { key: "otp", no: "1", label: "Verifikasi" },
   { key: "setuju", no: "2", label: "Persetujuan" },
-  { key: "rekam", no: "3", label: "Rekam tanda tangan" },
+  { key: "ktp", no: "3", label: "Foto KTP" },
+  { key: "rekam", no: "4", label: "Rekam tanda tangan" },
 ];
+
+const BATAS_KTP = 3 * 1024 * 1024;
 
 export default function DaftarTtdPage() {
   const { token } = useParams<{ token: string }>();
@@ -42,6 +45,14 @@ export default function DaftarTtdPage() {
   const [error, setError] = useState<string | null>(null);
   const [kabar, setKabar] = useState<{ kind: string; html: string } | null>(null);
   const [done, setDone] = useState<{ kind: string; html: string } | null>(null);
+
+  // Foto KTP dan kotak tanda tangan yang ditandai di atasnya.
+  const [ktpUrl, setKtpUrl] = useState<string | null>(null);
+  const [ktpTipe, setKtpTipe] = useState<string>("");
+  const [kotak, setKotak] = useState<
+    { x: number; y: number; w: number; h: number } | null>(null);
+  const gambarRef = useRef<HTMLImageElement | null>(null);
+  const seretDari = useRef<{ x: number; y: number } | null>(null);
 
   const pad = usePadTtd();
 
@@ -58,7 +69,9 @@ export default function DaftarTtdPage() {
     try {
       const d = await api(`/api/enrollment-sessions/${token}`);
       setCtx(d);
-      setStep(!d.otp_verified ? "otp" : !d.consent_at ? "setuju" : "rekam");
+      setStep(!d.otp_verified ? "otp"
+              : !d.consent_at ? "setuju"
+              : !d.ktp_at ? "ktp" : "rekam");
     } catch (e: any) {
       setError(e.body?.detail ?? "Silakan minta tautan baru ke Admin.");
       setStep("done");
@@ -88,6 +101,99 @@ export default function DaftarTtdPage() {
     } catch (e: any) {
       setKabar({ kind: "stop", html:
         `<b>Persetujuan gagal tersimpan</b>${e.body?.detail ?? ""}` });
+    } finally { setBusy(false); }
+  };
+
+  const pilihKtp = (f: File) => {
+    setKabar(null);
+    if (!/^image\//.test(f.type)) {
+      setKabar({ kind: "stop", html:
+        "<b>Berkas bukan gambar</b>Foto KTP harus berupa JPG, PNG, WEBP, atau HEIC." });
+      return;
+    }
+    if (f.size > BATAS_KTP) {
+      setKabar({ kind: "stop", html:
+        `<b>Foto terlalu besar</b>${(f.size / 1024 / 1024).toFixed(1)} MB, ` +
+        "sedangkan batasnya 3 MB. Perkecil fotonya lalu ulangi." });
+      return;
+    }
+    const fr = new FileReader();
+    fr.onload = () => { setKtpUrl(String(fr.result)); setKotak(null); };
+    fr.readAsDataURL(f);
+    setKtpTipe(f.type);
+  };
+
+  /** Titik pada gambar, dalam satuan tampilan (bukan piksel asli). */
+  const titik = (e: React.MouseEvent | React.TouchEvent) => {
+    const r = gambarRef.current!.getBoundingClientRect();
+    const p = "touches" in e ? e.touches[0] : (e as React.MouseEvent);
+    return { x: p.clientX - r.left, y: p.clientY - r.top };
+  };
+
+  const mulaiSeret = (e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault();
+    seretDari.current = titik(e);
+    setKotak(null);
+  };
+
+  const seret = (e: React.MouseEvent | React.TouchEvent) => {
+    if (!seretDari.current) return;
+    e.preventDefault();
+    const a = seretDari.current, b = titik(e);
+    setKotak({ x: Math.min(a.x, b.x), y: Math.min(a.y, b.y),
+               w: Math.abs(b.x - a.x), h: Math.abs(b.y - a.y) });
+  };
+
+  const selesaiSeret = () => { seretDari.current = null; };
+
+  /**
+   * Potong bagian yang ditandai dari gambar aslinya.
+   *
+   * Dipotong dari piksel asli, bukan dari gambar yang sudah dikecilkan ke layar:
+   * tanda tangan pada KTP tercetak kecil, dan memotong dari versi layar ponsel
+   * membuang justru detail yang hendak dibandingkan.
+   */
+  const potong = (): string | null => {
+    const img = gambarRef.current;
+    if (!img || !kotak || kotak.w < 12 || kotak.h < 8) return null;
+    const sx = img.naturalWidth / img.clientWidth;
+    const sy = img.naturalHeight / img.clientHeight;
+    const cv = document.createElement("canvas");
+    cv.width = Math.round(kotak.w * sx);
+    cv.height = Math.round(kotak.h * sy);
+    const c2d = cv.getContext("2d")!;
+    c2d.fillStyle = "#fff";
+    c2d.fillRect(0, 0, cv.width, cv.height);
+    c2d.drawImage(img, Math.round(kotak.x * sx), Math.round(kotak.y * sy),
+                  cv.width, cv.height, 0, 0, cv.width, cv.height);
+    return cv.toDataURL("image/png");
+  };
+
+  const kirimKtp = async () => {
+    if (!ktpUrl) {
+      setKabar({ kind: "warn", html:
+        "<b>Foto KTP belum dipilih</b>Unggah fotonya terlebih dahulu." });
+      return;
+    }
+    const crop = potong();
+    if (!crop) {
+      setKabar({ kind: "warn", html:
+        "<b>Bagian tanda tangan belum ditandai</b>Tarik kotak di atas tanda " +
+        "tangan yang tercetak pada KTP." });
+      return;
+    }
+    setBusy(true);
+    try {
+      await api(`/api/enrollment-sessions/${token}/ktp`, {
+        method: "POST",
+        body: JSON.stringify({ image_base64: ktpUrl, content_type: ktpTipe,
+                               signature_png: crop }) });
+      setKabar(null);
+      await load();
+      setStep("rekam");
+    } catch (e: any) {
+      setKabar({ kind: "stop", html:
+        `<b>Foto KTP gagal tersimpan</b>${e.body?.detail ?? ""}` });
     } finally { setBusy(false); }
   };
 
@@ -184,7 +290,7 @@ export default function DaftarTtdPage() {
             <p style={{ marginTop: 0 }}>
               Dengan melanjutkan, Anda menyetujui PT. Serpong Bangun Lestari
               merekam <b>{ctx?.target ?? 10} contoh tanda tangan</b> Anda dan
-              menyimpannya sebagai pembanding.
+              menerima <b>foto KTP</b> Anda sebagai bukti identitas.
             </p>
             <p>Yang perlu Anda ketahui:</p>
             <ul style={{ margin: "0 0 10px 16px", padding: 0 }}>
@@ -198,12 +304,19 @@ export default function DaftarTtdPage() {
                 dibatalkan.
               </li>
               <li style={{ marginBottom: 4 }}>
+                Dari foto KTP, yang disimpan seterusnya <b>hanya potongan tanda
+                tangannya</b>. Fotonya sendiri dihapus begitu Admin Sales selesai
+                memeriksa — NIK, alamat, dan foto wajah Anda tidak disimpan.
+              </li>
+              <li style={{ marginBottom: 4 }}>
                 Contoh yang Anda rekam hari ini diperiksa Admin Sales sebelum
                 dipakai, dan diarsipkan — tidak dihapus — bila kelak diganti,
                 agar penilaian lama tetap dapat ditelusuri.
               </li>
               <li>
-                Anda dapat meminta pendaftaran ulang kapan saja lewat Admin Sales.
+                Pendaftaran ini dilakukan sekali. Spesimennya dipakai terus
+                sebagai pembanding; perekaman ulang hanya atas permintaan Anda
+                lewat Admin Sales, dan alasannya dicatat.
               </li>
             </ul>
             <p style={{ marginBottom: 0, color: "var(--mut)" }}>
@@ -226,7 +339,66 @@ export default function DaftarTtdPage() {
           <button className="pri" onClick={kirimPersetujuan}
                   disabled={busy || !setuju}
                   style={{ width: "100%", marginTop: 12, padding: 13 }}>
-            Lanjut ke perekaman
+            Lanjut ke foto KTP
+          </button>
+        </section>
+      )}
+
+      {step === "ktp" && (
+        <section className="panel">
+          <div className="banner info">
+            <b>Unggah foto KTP, lalu tandai tanda tangannya</b>
+            KTP dipakai memastikan tanda tangan yang direkam berikutnya memang
+            milik Anda. Setelah Admin memeriksa, fotonya dihapus — yang disimpan
+            hanya potongan tanda tangan yang Anda tandai.
+          </div>
+
+          <input type="file" accept="image/*" capture="environment"
+                 disabled={busy} style={{ width: "100%", fontSize: 12.5 }}
+                 onChange={(e) => {
+                   const f = e.target.files?.[0];
+                   e.target.value = "";
+                   if (f) pilihKtp(f);
+                 }} />
+
+          {ktpUrl && (
+            <>
+              <div className="lbl" style={{ marginTop: 12 }}>
+                Tarik kotak di atas tanda tangan pada KTP
+              </div>
+              {/* Gambar dan kotak penanda menumpuk; kotaknya digambar dengan
+                  posisi mutlak di atas gambarnya, bukan di dalam kanvas, supaya
+                  fotonya tetap tajam saat diperbesar peramban. */}
+              <div className="tandai"
+                   onMouseDown={mulaiSeret} onMouseMove={seret}
+                   onMouseUp={selesaiSeret} onMouseLeave={selesaiSeret}
+                   onTouchStart={mulaiSeret} onTouchMove={seret}
+                   onTouchEnd={selesaiSeret}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img ref={gambarRef} src={ktpUrl} alt="Foto KTP" draggable={false} />
+                {kotak && (
+                  <div className="kotak-tandai"
+                       style={{ left: kotak.x, top: kotak.y,
+                                width: kotak.w, height: kotak.h }} />
+                )}
+              </div>
+              <p style={{ fontSize: 11.5, color: "var(--mut)", textAlign: "center",
+                          marginTop: 6 }}>
+                Pada e-KTP, tanda tangan tercetak kecil di bawah foto, sebelah
+                kanan bawah kartu.
+              </p>
+            </>
+          )}
+
+          {kabar && (
+            <div className={`banner ${kabar.kind}`}
+                 dangerouslySetInnerHTML={{ __html: kabar.html }} />
+          )}
+
+          <button className="pri" onClick={kirimKtp}
+                  disabled={busy || !ktpUrl || !kotak}
+                  style={{ width: "100%", marginTop: 8, padding: 13 }}>
+            {busy ? "Menyimpan…" : "Simpan dan lanjut merekam"}
           </button>
         </section>
       )}

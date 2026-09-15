@@ -31,11 +31,42 @@ import * as sig from "./signature";
 import { WorkflowError } from "./workflow";
 
 /** Versi teks persetujuan. Naikkan bila kalimatnya berubah. */
-export const VERSI_PERSETUJUAN = "1.0";
+export const VERSI_PERSETUJUAN = "2.0";
 
-export async function terbitkanTautan(marketingId: string, aktor: string) {
+/** Batas ukuran foto KTP. Sama dengan batas lampiran klaim. */
+export const BATAS_KTP = 3 * 1024 * 1024;
+
+/**
+ * Terbitkan tautan pendaftaran.
+ *
+ * Sekali per orang. Spesimen yang sudah disetujui dipakai terus-menerus sebagai
+ * pembanding, dan menerbitkan tautan baru diam-diam berarti seseorang dapat
+ * mengganti pembanding pembayaran dirinya sendiri — cukup dengan meminta tautan
+ * sekali lagi. Pendaftaran ulang karenanya menuntut alasan tertulis dari Admin,
+ * dan alasannya ikut tercatat.
+ */
+export async function terbitkanTautan(
+  marketingId: string, aktor: string,
+  opsi: { revisi?: boolean; alasan?: string } = {},
+) {
   const mkt = await one("SELECT * FROM marketings WHERE id=$1", [marketingId]);
   if (!mkt) throw new WorkflowError("Marketing tidak ditemukan.", "not_found", 404);
+
+  const sudah = await one<{ n: number }>(
+    "SELECT COUNT(*)::int AS n FROM signature_specimens " +
+    "WHERE marketing_id=$1 AND NOT archived", [marketingId]);
+  if ((sudah?.n ?? 0) > 0) {
+    if (!opsi.revisi) {
+      throw new WorkflowError(
+        `${mkt.full_name} sudah punya ${sudah!.n} spesimen yang berlaku. ` +
+        "Pendaftaran hanya sekali; untuk merekam ulang, mintalah revisi " +
+        "beserta alasannya.", "already_enrolled", 409);
+    }
+    if (!opsi.alasan || opsi.alasan.trim().length < 10) {
+      throw new WorkflowError(
+        "Alasan revisi wajib diisi minimal 10 karakter.", "reason_required", 422);
+    }
+  }
   if (!mkt.phone) {
     throw new WorkflowError(
       `${mkt.full_name} belum punya nomor telepon terdaftar, sehingga kode ` +
@@ -56,14 +87,18 @@ export async function terbitkanTautan(marketingId: string, aktor: string) {
 
   const sesi = await one(
     `INSERT INTO enrollment_sessions (token, marketing_id, set_id, otp_code,
-       target, issued_by, expires_at)
-     VALUES ($1,$2,$3,$4,$5,$6, now() + ($7 || ' hours')::interval)
+       target, issued_by, revision_reason, expires_at)
+     VALUES ($1,$2,$3,$4,$5,$6,$7, now() + ($8 || ' hours')::interval)
      RETURNING expires_at`,
-    [token, marketingId, setId, otp, target, aktor, String(ttl)]);
+    [token, marketingId, setId, otp, target, aktor,
+     opsi.revisi ? opsi.alasan!.trim() : null, String(ttl)]);
 
-  await audit({ entityType: "marketing", entityId: marketingId,
-                action: "enrollment_link_issued", actor: aktor,
-                after: { expires_at: sesi!.expires_at, target } });
+  await audit({
+    entityType: "marketing", entityId: marketingId,
+    action: opsi.revisi ? "enrollment_revision_issued" : "enrollment_link_issued",
+    actor: aktor, reason: opsi.revisi ? opsi.alasan!.trim() : undefined,
+    after: { expires_at: sesi!.expires_at, target },
+  });
 
   const phone: string = mkt.phone ?? "";
   const masked = phone.slice(0, 4) + "•".repeat(Math.max(0, phone.length - 7)) +
@@ -106,6 +141,8 @@ export async function konteks(token: string) {
     terkumpul: s.captured,
     otp_verified: s.otp_verified,
     consent_at: s.consent_at,
+    ktp_at: s.ktp_at,
+    revisi: Boolean(s.revision_reason),
     versi_persetujuan: VERSI_PERSETUJUAN,
     expires_at: s.expires_at,
     ambang: await settingInt("signature_threshold_onboarding"),
@@ -150,6 +187,62 @@ export async function setujuiPemakaian(token: string, versi: string) {
 }
 
 /**
+ * Simpan foto KTP beserta potongan tanda tangan yang ditunjuk agent.
+ *
+ * Dua-duanya disimpan pada sesi, bukan langsung pada marketing: keduanya belum
+ * disetujui siapa pun. Foto utuhnya diperlukan Admin untuk memastikan potongan
+ * itu memang berasal dari KTP orang tersebut, dan dihapus begitu putusannya
+ * diambil.
+ */
+export async function simpanKtp(token: string, p: {
+  image_base64: string; content_type?: string; signature_png?: string;
+}) {
+  const s = await bukaSesi(token);
+  if (!s.otp_verified) {
+    throw new WorkflowError("Verifikasi kode terlebih dahulu.", "otp_required", 401);
+  }
+  if (!s.consent_at) {
+    throw new WorkflowError("Persetujuan pemakaian data belum diberikan.",
+                            "consent_required", 409);
+  }
+
+  const raw = p.image_base64 ?? "";
+  const koma = raw.indexOf(",");
+  const dataUrl = raw.startsWith("data:");
+  const tipe = (dataUrl ? raw.slice(5, koma).split(";")[0] : p.content_type ?? "")
+    .toLowerCase().trim();
+  if (!/^image\/(jpeg|png|webp|heic)$/.test(tipe)) {
+    throw new WorkflowError(
+      "Foto KTP harus berupa gambar (JPG, PNG, WEBP, atau HEIC).",
+      "file_type_rejected", 415);
+  }
+  const buf = Buffer.from(dataUrl ? raw.slice(koma + 1) : raw, "base64");
+  if (!buf.length) {
+    throw new WorkflowError("Foto KTP belum dipilih.", "file_required", 422);
+  }
+  if (buf.length > BATAS_KTP) {
+    throw new WorkflowError(
+      `Foto ${(buf.length / 1024 / 1024).toFixed(1)} MB melebihi batas 3 MB. ` +
+      "Perkecil fotonya lalu ulangi.", "file_too_large", 413);
+  }
+  if (!p.signature_png) {
+    throw new WorkflowError(
+      "Bagian tanda tangan pada KTP belum ditandai.", "crop_required", 422);
+  }
+
+  await query(
+    `UPDATE enrollment_sessions
+        SET ktp_image=$1, ktp_content_type=$2, ktp_signature_png=$3, ktp_at=now()
+      WHERE token=$4`,
+    [buf, tipe, p.signature_png, token]);
+  await audit({ entityType: "marketing", entityId: s.marketing_id,
+                action: "enrollment_ktp_uploaded", actor: s.marketing_id,
+                after: { size_bytes: buf.length, content_type: tipe } });
+
+  return { ok: true };
+}
+
+/**
  * Simpan satu spesimen.
  *
  * Yang pertama diterima apa adanya — belum ada pembandingnya. Berikutnya
@@ -167,6 +260,11 @@ export async function simpanSpesimen(token: string, p: {
   if (!s.consent_at) {
     throw new WorkflowError("Persetujuan pemakaian data belum diberikan.",
                             "consent_required", 409);
+  }
+  if (!s.ktp_at) {
+    throw new WorkflowError(
+      "Foto KTP belum diunggah. KTP-lah yang memastikan sepuluh tanda tangan " +
+      "ini memang milik orang yang namanya terdaftar.", "ktp_required", 409);
   }
   if (!p.image_png) {
     throw new WorkflowError("Tanda tangan belum digoreskan.", "signature_empty", 422);
@@ -243,8 +341,11 @@ export async function daftarMarketing() {
             a.name AS agency_name,
             COUNT(s.id) FILTER (WHERE NOT s.archived)::int AS spesimen,
             m.baseline_specimen_set_id,
+            (m.reference_signature_png IS NOT NULL) AS punya_ktp,
+            m.reference_signature_source, m.reference_signature_at,
             e.token AS sesi_token, e.state AS sesi_state, e.captured, e.target,
-            e.consistency, e.set_id AS sesi_set_id, e.expires_at
+            e.consistency, e.set_id AS sesi_set_id, e.expires_at,
+            e.ktp_at AS sesi_ktp_at, e.revision_reason
        FROM marketings m
        LEFT JOIN agencies a ON a.id = m.agency_id
        LEFT JOIN signature_specimens s ON s.marketing_id = m.id
@@ -253,14 +354,41 @@ export async function daftarMarketing() {
           WHERE e2.marketing_id = m.id ORDER BY e2.created_at DESC LIMIT 1
        ) e ON TRUE
       GROUP BY m.id, a.name, e.token, e.state, e.captured, e.target,
-               e.consistency, e.set_id, e.expires_at
+               e.consistency, e.set_id, e.expires_at, e.ktp_at,
+               e.revision_reason
       ORDER BY m.full_name`);
 }
 
 export async function spesimenSet(setId: string) {
-  return query(
+  const spesimen = await query(
     `SELECT id, sequence, image_png, input_method, created_at
        FROM signature_specimens WHERE set_id=$1 ORDER BY sequence`, [setId]);
+  const sesi = await one<{
+    ktp_signature_png: string | null; ktp_at: string | null;
+    revision_reason: string | null; ada_foto: boolean;
+  }>(`SELECT ktp_signature_png, ktp_at, revision_reason,
+             (ktp_image IS NOT NULL) AS ada_foto
+        FROM enrollment_sessions WHERE set_id=$1`, [setId]);
+  return {
+    specimens: spesimen,
+    ktp_signature_png: sesi?.ktp_signature_png ?? null,
+    ktp_at: sesi?.ktp_at ?? null,
+    ada_foto_ktp: Boolean(sesi?.ada_foto),
+    revision_reason: sesi?.revision_reason ?? null,
+  };
+}
+
+/** Foto KTP utuh, hanya selama sesinya belum diputus. */
+export async function fotoKtp(setId: string) {
+  const s = await one<{ ktp_image: Buffer | null; ktp_content_type: string | null }>(
+    "SELECT ktp_image, ktp_content_type FROM enrollment_sessions WHERE set_id=$1",
+    [setId]);
+  if (!s?.ktp_image) {
+    throw new WorkflowError(
+      "Foto KTP tidak tersedia. Ia dihapus begitu pendaftarannya diputus.",
+      "not_found", 404);
+  }
+  return { buf: s.ktp_image, tipe: s.ktp_content_type ?? "image/jpeg" };
 }
 
 /**
@@ -281,14 +409,27 @@ export async function putuskanSet(
     throw new WorkflowError("Set spesimen tidak ditemukan.", "not_found", 404);
   }
 
+  const sesi = await one<{ ktp_signature_png: string | null }>(
+    "SELECT ktp_signature_png FROM enrollment_sessions WHERE set_id=$1", [setId]);
+
   if (keputusan === "approve") {
     await query(
       "UPDATE signature_specimens SET archived=TRUE WHERE marketing_id=$1 AND set_id<>$2",
       [marketingId, setId]);
+    // Potongan tanda tangan KTP menjadi jangkar identitas orang ini: bukan
+    // pembanding tiap klaim — untuk itu dipakai sepuluh spesimen digital —
+    // melainkan bukti bahwa yang merekam kesepuluhnya adalah orang yang namanya
+    // tertera pada kartu.
     await query(
       `UPDATE marketings SET status='active', baseline_specimen_set_id=$1,
-              consent_version=$2 WHERE id=$3`,
-      [setId, VERSI_PERSETUJUAN, marketingId]);
+              consent_version=$2,
+              reference_signature_png=COALESCE($3, reference_signature_png),
+              reference_signature_source=CASE WHEN $3 IS NULL
+                THEN reference_signature_source ELSE 'ktp' END,
+              reference_signature_at=CASE WHEN $3 IS NULL
+                THEN reference_signature_at ELSE now() END
+        WHERE id=$4`,
+      [setId, VERSI_PERSETUJUAN, sesi?.ktp_signature_png ?? null, marketingId]);
     await query(
       "UPDATE enrollment_sessions SET state='approved' WHERE set_id=$1", [setId]);
   } else {
@@ -303,10 +444,21 @@ export async function putuskanSet(
       "UPDATE enrollment_sessions SET state='rejected' WHERE set_id=$1", [setId]);
   }
 
+  // Foto KTP utuh dihapus begitu putusannya diambil, apa pun putusannya. Ia
+  // dipegang hanya selama Admin membutuhkannya untuk memeriksa; menyimpannya
+  // lebih lama berarti menumpuk NIK, alamat, dan foto wajah yang tidak dipakai
+  // lagi oleh apa pun di sistem ini.
+  await query(
+    `UPDATE enrollment_sessions
+        SET ktp_image=NULL, ktp_content_type=NULL WHERE set_id=$1`, [setId]);
+
   await audit({
     entityType: "marketing", entityId: marketingId,
     action: `enrollment_${keputusan === "approve" ? "approved" : "rejected"}`,
-    actor: aktor, after: { set_id: setId, jumlah: jumlah.n }, reason: alasan,
+    actor: aktor, reason: alasan,
+    after: { set_id: setId, jumlah: jumlah.n,
+             jangkar_ktp: keputusan === "approve" && Boolean(sesi?.ktp_signature_png),
+             foto_ktp_dihapus: true },
   });
   return { marketing_id: marketingId, set_id: setId, keputusan };
 }

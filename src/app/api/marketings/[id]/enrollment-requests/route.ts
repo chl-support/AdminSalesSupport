@@ -5,7 +5,8 @@ import { terbitkanTautan } from "@/lib/spesimen";
 export const POST = handler(async (req, { params }) => {
   const { id } = await params;
   const user = await requireRole(req, "admin_sales", "admin_system");
-  await body(req);
+  const p = await body(req);
   return idempotent(idemKey(req), "POST enrollment-requests", () =>
-    terbitkanTautan(id, user.username));
+    terbitkanTautan(id, user.username,
+                    { revisi: Boolean(p.revisi), alasan: p.alasan }));
 });

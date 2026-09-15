@@ -386,6 +386,33 @@ CREATE TABLE IF NOT EXISTS enrollment_sessions (
 CREATE INDEX IF NOT EXISTS idx_enrollment_marketing
   ON enrollment_sessions(marketing_id);
 
+-- KTP sebagai jangkar identitas pendaftaran.
+--
+-- Foto KTP utuh hanya dipegang selama sesi berjalan: ia diperlukan Admin untuk
+-- memastikan tanda tangan yang dipotong memang berasal dari KTP orang itu, dan
+-- setelah putusan diambil ia dihapus. Yang disimpan seterusnya cuma potongan
+-- tanda tangannya (pada marketings.reference_signature_png) — bukan NIK, bukan
+-- alamat, bukan foto wajah.
+--
+-- Menyimpan pindaian KTP selamanya di basis data yang belum terenkripsi
+-- at-rest berarti menumpuk data pribadi yang tidak dibutuhkan lagi setelah
+-- pemeriksaannya selesai (UU PDP 27/2022: secukupnya, selama diperlukan saja).
+ALTER TABLE enrollment_sessions ADD COLUMN IF NOT EXISTS ktp_image BYTEA;
+ALTER TABLE enrollment_sessions ADD COLUMN IF NOT EXISTS ktp_content_type TEXT;
+ALTER TABLE enrollment_sessions ADD COLUMN IF NOT EXISTS ktp_signature_png TEXT;
+ALTER TABLE enrollment_sessions ADD COLUMN IF NOT EXISTS ktp_at TIMESTAMPTZ;
+
+-- Pendaftaran ulang dilakukan sekali per orang, kecuali Admin memintanya lagi.
+-- Alasannya disimpan bersama sesinya: "kenapa orang ini merekam dua kali"
+-- adalah pertanyaan pertama yang muncul saat jejaknya diperiksa.
+ALTER TABLE enrollment_sessions ADD COLUMN IF NOT EXISTS revision_reason TEXT;
+
+-- Kapan jangkar identitasnya ditetapkan. Tanpa ini, "sudah punya KTP" hanya
+-- dapat disimpulkan dari ada-tidaknya gambar, dan tidak ada yang tahu sejak
+-- kapan.
+ALTER TABLE marketings ADD COLUMN IF NOT EXISTS reference_signature_at TIMESTAMPTZ;
+
+
 CREATE TABLE IF NOT EXISTS signature_attempts (
   id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   claim_id          UUID NOT NULL REFERENCES claims(id) ON DELETE CASCADE,

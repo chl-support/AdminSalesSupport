@@ -5,5 +5,5 @@ import { spesimenSet } from "@/lib/spesimen";
 export const GET = handler(async (req, { params }) => {
   const { setId } = await params;
   await requireRole(req, "admin_sales", "admin_system");
-  return { specimens: await spesimenSet(setId) };
+  return spesimenSet(setId);
 });

@@ -175,15 +175,33 @@ menyimpan `threshold_at_time` sehingga riwayatnya tidak berubah arti.
 
 Dua hal yang membuat hasilnya belum dapat disebut kalibrasi produksi:
 
-1. **Spesimennya masih harus dikumpulkan.** Jalurnya sudah ada — menu **Tanda tangan**
-   menerbitkan tautan pendaftaran per marketing, dan agent merekam sepuluh tanda tangan
-   lewat `/daftar-ttd/<token>` (OTP, persetujuan pemakaian data, lalu tiap goresan
-   dicocokkan dengan goresan sebelumnya pada ambang onboarding sebelum disimpan). Set
-   yang terkumpul masuk sebagai `pending_review` dan baru menjadi baseline setelah
-   Admin melihat kesepuluh goresannya dan menyetujui. Yang belum: protokol PRD §12.2
-   meminta 30–50 agent, dan sampai itu terkumpul angka kalibrasinya belum mewakili
-   apa pun. Marketing tanpa spesimen tidak ditolak — klaimnya diteruskan ke pemeriksaan
-   Admin Sales pada percobaan pertama, dengan sebabnya disebutkan kepada agent.
+1. **Spesimennya masih harus dikumpulkan.** Jalurnya sudah ada — menu **Data
+   marketing** menerbitkan tautan pendaftaran per orang, dan agent menempuh empat
+   langkah lewat `/daftar-ttd/<token>`: OTP, persetujuan pemakaian data, **foto KTP**,
+   lalu sepuluh tanda tangan yang tiap goresannya dicocokkan dengan goresan sebelumnya
+   pada ambang onboarding sebelum disimpan.
+
+   KTP adalah **jangkar identitas**, bukan pembanding klaim. Agent menandai sendiri
+   bagian tanda tangan pada fotonya; potongan itu disimpan sebagai
+   `marketings.reference_signature_png` (`reference_signature_source='ktp'`) dan
+   diperlihatkan kepada Admin bersebelahan dengan kesepuluh goresan saat pemeriksaan.
+   Tanpa jangkar itu, yang dapat dinilai Admin hanya konsistensi antar goresan — dan
+   sepuluh tanda tangan palsu yang konsisten juga lolos ujian itu.
+
+   Foto KTP utuh **dihapus begitu pendaftarannya diputus**, disetujui maupun ditolak.
+   Yang tersimpan seterusnya hanya potongan tanda tangannya: bukan NIK, bukan alamat,
+   bukan foto wajah (UU PDP 27/2022 — secukupnya, selama diperlukan saja).
+
+   Pendaftaran **sekali per orang**. Spesimen yang disetujui dipakai terus sebagai
+   pembanding; tautannya tidak muncul lagi di layar Admin, dan perekaman ulang menuntut
+   alasan tertulis yang ikut tercatat di jejak audit. Tanpa itu, siapa pun yang dapat
+   meminta tautan dapat mengganti pembanding pembayaran dirinya sendiri.
+
+   Yang belum: protokol PRD §12.2 meminta 30–50 agent, dan sampai itu terkumpul angka
+   kalibrasinya belum mewakili apa pun. Marketing tanpa spesimen tidak ditolak —
+   klaimnya diteruskan ke pemeriksaan Admin Sales pada percobaan pertama, dengan
+   sebabnya disebutkan kepada agent.
+
 2. **Kelompok pembanding bukan pemalsu sungguhan.** Yang dibandingkan adalah tanda
    tangan orang lain, bukan orang yang sengaja meniru setelah melihat aslinya. FAR yang
    dihitung karenanya batas bawah — kenyataannya lebih buruk.
@@ -221,7 +239,7 @@ Finance, Management, dan Admin IT, dan ganti seluruh sandi awal.
 | PDF paket cetak & QR | **Selesai** — `GET /api/claims/{id}/print-package/pdf` | Tata letak mengikuti form eksisting; QR dan potongan hash dibubuhkan di setiap halaman |
 | Batch Overriding | Tabel dan tingkat sudah ada; penyusun batch periodik belum | Menunggu persentase dan penerima tiap tingkat (PRD Q35) |
 | Insentif non-tunai | Tersimpan dan tampil di laporan; belum ada alur pengajuan | Menunggu kepastian apakah dicatat manual atau punya form sendiri (PRD Q36, Q37) |
-| Pendaftaran spesimen tanda tangan | **Selesai** — menu Tanda tangan, tautan `/daftar-ttd/<token>`, persetujuan tercatat, disetujui Admin | Datanya sendiri masih harus dikumpulkan dari agent sungguhan sebelum kalibrasi berarti |
+| Pendaftaran spesimen tanda tangan | **Selesai** — menu Data marketing, tautan sekali per orang, jangkar KTP, persetujuan tercatat, disetujui Admin | Datanya sendiri masih harus dikumpulkan dari agent sungguhan sebelum kalibrasi berarti |
 | Enkripsi at-rest, PSrE, Dukcapil, host-to-host bank | Belum | Fase 4 pada roadmap PRD |
 
 Angka tarif pada `scripts/seed.ts` adalah dugaan terbaik dari catatan laporan master

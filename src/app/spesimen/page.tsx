@@ -23,9 +23,12 @@ type Baris = {
   id: string; full_name: string; marketing_type: string; status: string;
   phone: string | null; agency_name: string | null; spesimen: number;
   baseline_specimen_set_id: string | null;
+  punya_ktp: boolean; reference_signature_source: string | null;
+  reference_signature_at: string | null;
   sesi_token: string | null; sesi_state: string | null;
   captured: number | null; target: number | null; consistency: number | null;
   sesi_set_id: string | null; expires_at: string | null;
+  sesi_ktp_at: string | null; revision_reason: string | null;
 };
 
 const PILL: Record<string, string> = {
@@ -44,6 +47,10 @@ export default function SpesimenPage() {
   const [citra, setCitra] = useState<any[]>([]);
   const [alasan, setAlasan] = useState("");
   const [saring, setSaring] = useState("semua");
+  const [berkas, setBerkas] = useState<any>(null);
+  // Permintaan revisi: baris yang sedang diminta, beserta alasannya.
+  const [revisi, setRevisi] = useState<string | null>(null);
+  const [alasanRevisi, setAlasanRevisi] = useState("");
 
   const api = useCallback(async (path: string, init: RequestInit = {}) => {
     const res = await fetch(`/api${path}`, {
@@ -65,17 +72,20 @@ export default function SpesimenPage() {
 
   useEffect(() => { if (sesi) void muat(); }, [sesi, muat]);
 
-  const kirimTautan = async (b: Baris) => {
+  const kirimTautan = async (b: Baris, opsi: { revisi?: boolean } = {}) => {
     setBusy(true); setKabar(null);
     try {
-      const r = await api(`/marketings/${b.id}/enrollment-requests`,
-                          { method: "POST", body: "{}" });
+      const r = await api(`/marketings/${b.id}/enrollment-requests`, {
+        method: "POST",
+        body: JSON.stringify(opsi.revisi
+          ? { revisi: true, alasan: alasanRevisi } : {}) });
       setKabar({ kind: "ok", html:
         `<b>Tautan pendaftaran untuk ${b.full_name} terkirim ke ${r.masked_phone}</b>
          Buka: <a href="/daftar-ttd/${r.token}" target="_blank">/daftar-ttd/${r.token}</a><br>
          Kode OTP (hanya demo): <b>${r.otp_demo}</b><br>
          Berlaku sampai ${String(r.expires_at).slice(0, 16).replace("T", " ")} ·
          ${r.target} tanda tangan diminta.` });
+      setRevisi(null); setAlasanRevisi("");
       await muat();
     } catch (e: any) {
       setKabar({ kind: "stop", html:
@@ -84,9 +94,10 @@ export default function SpesimenPage() {
   };
 
   const bukaSet = async (setId: string) => {
-    if (lihat === setId) { setLihat(null); setCitra([]); return; }
+    if (lihat === setId) { setLihat(null); setCitra([]); setBerkas(null); return; }
     const d = await api(`/marketings/specimens/${setId}`);
     setCitra(d.specimens ?? []);
+    setBerkas(d);
     setLihat(setId);
     setAlasan("");
   };
@@ -103,7 +114,7 @@ export default function SpesimenPage() {
            tangan pada klaim. Set lama diarsipkan, tidak dihapus.`
         : `<b>Set ${b.full_name} ditolak</b>Kirimkan tautan pendaftaran baru
            bila ia perlu merekam ulang.` });
-      setLihat(null); setCitra([]);
+      setLihat(null); setCitra([]); setBerkas(null);
       await muat();
     } catch (e: any) {
       setKabar({ kind: "stop", html:
@@ -127,11 +138,12 @@ export default function SpesimenPage() {
   return (
     <Kerangka sesi={sesi} judul={
       <div>
-        <h1>Pendaftaran tanda tangan</h1>
+        <h1>Data marketing</h1>
         <p>
-          Marketing tanpa spesimen tidak dapat dinilai otomatis — klaimnya
-          selalu berakhir di pemeriksaan manual. Kirimkan tautan pendaftaran,
-          lalu periksa hasilnya di sini sebelum diaktifkan.
+          Spesimen tanda tangan didaftarkan sekali per orang dan dipakai
+          seterusnya sebagai pembanding. Yang belum punya, kirimkan tautannya
+          dari sini; yang sudah, tautannya tidak muncul lagi kecuali Anda
+          meminta revisi.
         </p>
       </div>
     }>
@@ -146,8 +158,9 @@ export default function SpesimenPage() {
         <>
           <div className="banner info sp">
             <b>{belum} marketing belum punya spesimen · {menunggu} menunggu diperiksa</b>
-            Tiap tautan meminta sepuluh tanda tangan, dan tiap goresan dicocokkan
-            dengan goresan sebelumnya pada ambang {ambang ?? "—"} sebelum disimpan.
+            Tiap tautan meminta foto KTP sebagai jangkar identitas, lalu sepuluh
+            tanda tangan yang tiap goresannya dicocokkan dengan goresan
+            sebelumnya pada ambang {ambang ?? "—"} sebelum disimpan.
           </div>
 
           {kabar && (
@@ -173,8 +186,9 @@ export default function SpesimenPage() {
                     <th>Marketing</th>
                     <th>Status</th>
                     <th style={{ textAlign: "right" }}>Spesimen</th>
+                    <th>Jangkar KTP</th>
                     <th>Pendaftaran berjalan</th>
-                    <th style={{ width: 260 }}>Tindakan</th>
+                    <th style={{ width: 250 }}>Tindakan</th>
                   </tr>
 
                   {terlihat.map((b) => (
@@ -193,6 +207,18 @@ export default function SpesimenPage() {
                         </span>
                       </td>
                       <td className="n">{b.spesimen}</td>
+                      <td>
+                        {b.punya_ktp ? (
+                          <>
+                            <span className="pill ok">ada</span><br />
+                            <span style={{ fontSize: 11, color: "var(--mut)" }}>
+                              {b.reference_signature_at
+                                ? String(b.reference_signature_at).slice(0, 10)
+                                : b.reference_signature_source}
+                            </span>
+                          </>
+                        ) : <span style={{ color: "var(--mut)" }}>—</span>}
+                      </td>
                       <td>
                         {b.sesi_state === "submitted" ? (
                           <>
@@ -217,11 +243,45 @@ export default function SpesimenPage() {
                           <button onClick={() => void bukaSet(b.sesi_set_id!)}>
                             {lihat === b.sesi_set_id ? "Tutup" : "Periksa spesimen"}
                           </button>
+                        ) : ["sent", "opened", "capturing"].includes(b.sesi_state ?? "") ? (
+                          <span style={{ fontSize: 11.5, color: "var(--mut)" }}>
+                            Tautan sudah dikirim dan masih berlaku.
+                          </span>
+                        ) : b.spesimen > 0 ? (
+                          /* Sudah punya spesimen: tautannya tidak muncul lagi.
+                             Spesimen adalah pembanding pembayaran orang ini —
+                             menerbitkan tautan baru sekali klik berarti ia dapat
+                             menggantinya sendiri tanpa jejak alasan. */
+                          revisi === b.id ? (
+                            <>
+                              <textarea value={alasanRevisi} autoFocus
+                                        placeholder="Alasan revisi, minimal 10 karakter"
+                                        style={{ width: "100%", minHeight: 56 }}
+                                        onChange={(e) => setAlasanRevisi(e.target.value)} />
+                              <div className="row" style={{ marginTop: 6, marginBottom: 0 }}>
+                                <button className="pri"
+                                        disabled={busy || alasanRevisi.trim().length < 10}
+                                        onClick={() => void kirimTautan(b, { revisi: true })}>
+                                  Terbitkan tautan revisi
+                                </button>
+                                <button onClick={() => { setRevisi(null); setAlasanRevisi(""); }}>
+                                  Batal
+                                </button>
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <span className="pill ok">sudah terdaftar</span>
+                              <button style={{ marginTop: 6 }}
+                                      onClick={() => { setRevisi(b.id); setAlasanRevisi(""); }}>
+                                Minta revisi
+                              </button>
+                            </>
+                          )
                         ) : (
                           <button className="pri" disabled={busy || !b.phone}
                                   onClick={() => void kirimTautan(b)}>
-                            {b.spesimen ? "Kirim tautan pendaftaran ulang"
-                                        : "Kirim tautan pendaftaran"}
+                            Kirim tautan pendaftaran
                           </button>
                         )}
                       </td>
@@ -230,7 +290,7 @@ export default function SpesimenPage() {
 
                   {!terlihat.length && (
                     <tr>
-                      <td colSpan={5} style={{ color: "var(--mut)" }}>
+                      <td colSpan={6} style={{ color: "var(--mut)" }}>
                         Tidak ada marketing pada penyaringan ini.
                       </td>
                     </tr>
@@ -246,6 +306,51 @@ export default function SpesimenPage() {
                 Spesimen yang diajukan
                 <span className="pill">{citra.length} tanda tangan</span>
               </h2>
+
+              {berkas?.revision_reason && (
+                <div className="banner warn">
+                  <b>Ini perekaman ulang</b>
+                  Alasan yang dicatat saat tautannya diterbitkan:
+                  “{berkas.revision_reason}”.
+                </div>
+              )}
+
+              {/* Jangkar identitas, ditaruh sebelum petak spesimen: pertanyaan
+                  pertama bukan "apakah kesepuluhnya mirip satu sama lain"
+                  melainkan "apakah ini orangnya". Sepuluh tanda tangan palsu
+                  yang konsisten juga lolos pertanyaan pertama. */}
+              <div className="lbl" style={{ marginTop: 4 }}>
+                Tanda tangan pada KTP
+              </div>
+              {berkas?.ktp_signature_png ? (
+                <div className="jangkar">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={berkas.ktp_signature_png} alt="Tanda tangan pada KTP" />
+                  <div>
+                    <p style={{ margin: 0, fontSize: 12.5 }}>
+                      Bandingkan bentuknya dengan kesepuluh goresan di bawah.
+                      Beda media — pulpen di kertas lawan jari di layar — jadi
+                      tidak akan sama persis; yang dicari kesamaan susunan dan
+                      ciri khasnya, bukan kemiripan garis demi garis.
+                    </p>
+                    {berkas?.ada_foto_ktp && (
+                      <p style={{ margin: "8px 0 0", fontSize: 12.5 }}>
+                        <a href={`/api/marketings/specimens/${lihat}/ktp`}>
+                          Unduh foto KTP untuk diperiksa
+                        </a>{" "}
+                        — terhapus otomatis begitu Anda memutuskan.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="banner warn">
+                  <b>Tidak ada jangkar KTP pada pendaftaran ini</b>
+                  Set ini direkam sebelum KTP diwajibkan, atau fotonya sudah
+                  dihapus. Yang dapat Anda nilai hanya konsistensi antar goresan
+                  — dan sepuluh tanda tangan palsu yang konsisten juga lolos itu.
+                </div>
+              )}
               <div className="petak-ttd">
                 {citra.map((c) => (
                   <figure key={c.id}>

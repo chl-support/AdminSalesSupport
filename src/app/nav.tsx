@@ -41,7 +41,7 @@ const MENU: Butir[] = [
   },
   { href: "/konsol", label: "Konsol klaim" },
   { href: "/audit", label: "Jejak audit" },
-  { href: "/spesimen", label: "Tanda tangan",
+  { href: "/spesimen", label: "Data marketing",
     peran: ["admin_sales", "admin_system"] },
   // Administrasi hanya untuk Admin IT. "Ganti sandi saya" tetap dapat
   // dicapai semua peran lewat tautan pada bilah pengguna.
