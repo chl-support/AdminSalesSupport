@@ -159,14 +159,14 @@ export default function LoginPage() {
                  autoComplete="username" className="isian"
                  onChange={(e) => setUsername(e.target.value)} />
 
-          <label className="lbl" htmlFor="sandi">Kata sandi</label>
+          <label className="lbl" htmlFor="sandi">Password</label>
           <input id="sandi" type="password" value={password}
                  autoComplete="current-password" className="isian"
                  onChange={(e) => setPassword(e.target.value)} />
 
           <button className="pri masuk-tombol" type="submit"
                   disabled={busy || !username || !password}>
-            {busy ? "Memeriksa…" : "Masuk"}
+            {busy ? "Signing in…" : "Sign In"}
           </button>
 
           {galat && (
