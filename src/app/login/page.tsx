@@ -85,18 +85,12 @@ export default function LoginPage() {
       <aside className="masuk-merek">
         <div>
           <Logo tinggi={118} />
-          <div className="wordmark">CHL Support</div>
+          <div className="wordmark">CHL Admin Sales</div>
           <p className="tagline">
-            Klaim insentif marketing — Closing Fee, Komisi, Cash Reward, dan
-            Overriding dalam satu alur.
+            KLAIM INSENTIF MARKETING
+            <span>Closing Fee, Komisi, Cash Reward, dan Overriding.</span>
           </p>
         </div>
-
-        <ul className="poin">
-          <li>Nilai pengajuan diperiksa tim pajak sebelum tautan dikirim.</li>
-          <li>Tanda tangan agent menempel langsung pada Form Pengajuan.</li>
-          <li>Setiap langkah tercatat di jejak audit yang tidak dapat disunting.</li>
-        </ul>
 
         <div className="kaki">PT. Serpong Bangun Lestari</div>
       </aside>

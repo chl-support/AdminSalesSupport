@@ -259,8 +259,8 @@ ul.cetak-ceklis .kotak { border: 1px solid var(--ink); width: 14px; height: 14px
          font-size: 13px; font-weight: 700; letter-spacing: -.01em;
          line-height: 1.25; padding-bottom: 13px; margin-bottom: 14px;
          border-bottom: 2px solid var(--ink); }
-.merek span { display: block; font-size: 11px; font-weight: 500;
-              color: var(--mut); letter-spacing: .02em; }
+.merek span { display: block; font-size: 9.5px; font-weight: 600;
+              color: var(--mut); letter-spacing: .09em; margin-top: 2px; }
 
 /* Menu kolom kiri. Induk tebal, anak menjorok — susunannya sendiri yang
    menyatakan mana bagian dari mana, tanpa perlu garis atau ikon. */
@@ -335,14 +335,14 @@ ul.cetak-ceklis .kotak { border: 1px solid var(--ink); width: 14px; height: 14px
 .masuk-merek img { margin-bottom: 18px; }
 .wordmark { font-size: 30px; font-weight: 680; letter-spacing: -.028em;
             line-height: 1.05; }
-.tagline { margin: 12px 0 0; font-size: 14px; line-height: 1.6;
-           color: #B9BDC2; max-width: 40ch; }
-.poin { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px;
-        max-width: 42ch; }
-.poin li { position: relative; padding-left: 20px; font-size: 13px;
-           line-height: 1.55; color: #D3D6D9; }
-.poin li::before { content: ""; position: absolute; left: 0; top: 8px;
-                   width: 9px; height: 1.5px; background: #7E858C; }
+/* Baris pertama tagline adalah nama kegiatannya, huruf kapital dan berjarak;
+   daftar jenis feenya turun ke baris sendiri supaya keduanya tidak terbaca
+   sebagai satu kalimat panjang. */
+.tagline { margin: 12px 0 0; font-size: 12px; line-height: 1.6;
+           letter-spacing: .14em; font-weight: 600; color: #D3D6D9;
+           max-width: 42ch; }
+.tagline span { display: block; margin-top: 7px; font-size: 13.5px;
+                letter-spacing: normal; font-weight: 400; color: #B9BDC2; }
 .masuk-merek .kaki { font-size: 11.5px; letter-spacing: .06em;
                      text-transform: uppercase; color: #7E858C; }
 
@@ -385,9 +385,9 @@ button.tautan:hover { color: var(--note); }
 @media (max-width: 860px) {
   .masuk { grid-template-columns: 1fr; min-height: 0; }
   .masuk-merek { padding: 28px 22px; gap: 0; }
-  /* Poin dan kaki halaman disembunyikan di ponsel: yang dibutuhkan di layar
-     sekecil itu hanya nama sistemnya dan kolom isiannya. */
-  .masuk-merek .poin, .masuk-merek .kaki { display: none; }
+  /* Kaki halaman disembunyikan di ponsel: yang dibutuhkan di layar sekecil
+     itu hanya nama sistemnya dan kolom isiannya. */
+  .masuk-merek .kaki { display: none; }
   .wordmark { font-size: 24px; }
   .tagline { font-size: 13px; }
   .masuk-isi { padding: 26px 18px 40px; }

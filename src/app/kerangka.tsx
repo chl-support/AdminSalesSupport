@@ -29,8 +29,8 @@ export function Kerangka(
         <div className="merek">
           <Logo tinggi={34} hanyaLambang />
           <div>
-            CHL Support
-            <span>Klaim Insentif Marketing</span>
+            CHL Admin Sales
+            <span>KLAIM INSENTIF MARKETING</span>
           </div>
         </div>
         <Nav peran={sesi.role} />
