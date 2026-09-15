@@ -203,7 +203,10 @@ export default function LoginPage() {
             }}>
               <div className="popup" role="dialog" aria-modal="true"
                    aria-label="Kontak Admin IT">
-                <h2>Hubungi Admin IT</h2>
+                {/* Tanpa judul: tautan yang membukanya sudah berbunyi
+                    "Hubungi Admin IT", dan mengulanginya di dalam kotak membuat
+                    orang membaca hal yang sama dua kali. Nama kotaknya tetap
+                    ada untuk pembaca layar lewat aria-label. */}
                 <p className="pengantar">
                   Untuk mengatur ulang kata sandi atau membuka akun yang
                   terkunci.
