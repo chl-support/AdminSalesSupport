@@ -166,7 +166,7 @@ export default function LoginPage() {
 
           <button className="pri masuk-tombol" type="submit"
                   disabled={busy || !username || !password}>
-            {busy ? "Signing in…" : "Sign In"}
+            {busy ? "Memeriksa…" : "Masuk"}
           </button>
 
           {galat && (
