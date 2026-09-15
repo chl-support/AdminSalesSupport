@@ -29,7 +29,7 @@ export function Kerangka(
           sebagai dua bagian yang tidak sejajar. */}
       <header className="pita">
         <div className="merek">
-          <Logo tinggi={34} hanyaLambang />
+          <Logo tinggi={44} hanyaLambang />
           <div>
             CHL Admin Sales
             <span>KLAIM INSENTIF MARKETING</span>

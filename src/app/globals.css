@@ -258,11 +258,24 @@ ul.cetak-ceklis .kotak { border: 1px solid var(--ink); width: 14px; height: 14px
 .pita { position: relative; display: flex; gap: 26px; align-items: flex-start;
         padding: 20px 0 16px; border-bottom: 2px solid var(--ink);
         margin-bottom: 20px; }
-.merek { width: 194px; flex: none; display: flex; align-items: center; gap: 9px;
-         font-size: 13px; font-weight: 700; letter-spacing: -.01em;
-         line-height: 1.25; }
-.merek span { display: block; font-size: 9.5px; font-weight: 600;
-              color: var(--mut); letter-spacing: .09em; margin-top: 2px; }
+/* Blok merek berlatar gelap: ia yang memisahkan kolom kiri dari judul di
+   kanan, tanpa perlu garis tegak tambahan. Lebarnya sama dengan kolom menu di
+   bawahnya, jadi tepi kanannya segaris dengan tepi kanan menu. */
+/* Blok merek berlatar gelap: ia yang memisahkan kolom kiri dari judul di
+   kanan, tanpa perlu garis tegak tambahan. Lebarnya sama dengan kolom menu di
+   bawahnya, jadi tepi kanannya segaris dengan tepi kanan menu.
+
+   Lambang di atas, nama di bawahnya — bukan bersanding. Pada lebar 194px,
+   bersanding memaksa "CHL Admin Sales" pecah dua baris dan keterangannya ikut
+   patah di tengah kata. */
+.merek { width: 194px; flex: none; align-self: stretch;
+         display: flex; flex-direction: column; justify-content: center;
+         gap: 10px; background: var(--ink); color: #F4F4F1;
+         padding: 14px 16px; font-size: 16.5px; font-weight: 700;
+         letter-spacing: -.016em; line-height: 1.15; }
+.merek span { display: block; font-size: 9px; font-weight: 600;
+              color: #C9A24A; letter-spacing: .1em; margin-top: 5px;
+              line-height: 1.35; white-space: nowrap; }
 
 /* Judul dan identitas. Rata atas, bukan rata bawah: rata bawah membuat letak
    lencana profil bergantung pada panjang keterangan di sebelahnya, sehingga ia
@@ -329,8 +342,11 @@ ul.cetak-ceklis .kotak { border: 1px solid var(--ink); width: 14px; height: 14px
      menyisakan ruang kosong yang harus digulir. */
   .kepala { min-height: 0; }
   /* Lencana tetap di pojok kanan atas. Dibiarkan mengalir, ia jatuh ke bawah
-     keterangan — jauh dari tempat orang mencarinya. */
-  .bilah { position: absolute; top: 16px; right: 0; }
+     keterangan — jauh dari tempat orang mencarinya. Di layar sempit ia
+     tertumpang blok merek yang gelap, jadi warnanya dibalik: lencana gelap di
+     atas latar gelap hanya menyisakan huruf yang melayang. */
+  .bilah { position: absolute; top: 24px; right: 14px; }
+  .lencana { background: #F4F4F1; color: var(--ink); border-color: #F4F4F1; }
   .merek { width: auto; }
   .badan { flex-direction: column; gap: 0; }
   .sisi { width: 100%; position: static; margin-bottom: 18px; }
