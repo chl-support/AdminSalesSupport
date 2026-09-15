@@ -162,7 +162,7 @@ export default function FormKlaimPage() {
       <div>
         <h1>Form Pengajuan {jenis.nama}</h1>
         <p>
-          PT. Serpong Bangun Lestari — BIO District. Nominal dihitung sistem
+          PT. Serpong Bangun Lestari. Nominal dihitung sistem
           dari memo skema yang berlaku pada tanggal kontrak, tidak diisi tangan.
         </p>
       </div>

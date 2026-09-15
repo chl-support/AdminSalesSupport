@@ -258,6 +258,7 @@ ul.cetak-ceklis .kotak { border: 1px solid var(--ink); width: 14px; height: 14px
 .merek { font-size: 13px; font-weight: 700; letter-spacing: -.01em;
          line-height: 1.25; padding-bottom: 14px; margin-bottom: 14px;
          border-bottom: 2px solid var(--ink); }
+.merek img { margin-bottom: 8px; }
 .merek span { display: block; font-size: 11px; font-weight: 500;
               color: var(--mut); letter-spacing: .02em; }
 
@@ -313,4 +314,81 @@ ul.cetak-ceklis .kotak { border: 1px solid var(--ink); width: 14px; height: 14px
   .nav .anak { display: contents; }
   .nav a { border: 1px solid var(--line); background: #fff; }
   .nav .anak a { padding-left: 9px; }
+}
+
+/* ── Halaman masuk ───────────────────────────────────────────────────────
+   Dua sisi: keterangan di kiri, formulir di kanan. Di layar sempit keduanya
+   menumpuk, dan sisi kiri menyusut jadi kepala halaman supaya formulirnya
+   tetap yang pertama terlihat tanpa menggulir. */
+.masuk { min-height: 100vh; display: grid; grid-template-columns: 1.05fr 1fr; }
+
+.masuk-merek {
+  background: var(--ink); color: #F4F4F1;
+  padding: 48px 46px; display: flex; flex-direction: column;
+  justify-content: space-between; gap: 40px;
+  /* Guratan tipis sebagai latar: cukup untuk membuat bidang gelapnya tidak
+     rata mati, tanpa menarik perhatian dari formulirnya. */
+  background-image:
+    radial-gradient(900px 420px at 8% -10%, rgba(255,255,255,.07), transparent 60%),
+    radial-gradient(700px 380px at 110% 110%, rgba(255,255,255,.05), transparent 60%);
+}
+.masuk-merek img { margin-bottom: 18px; }
+.wordmark { font-size: 30px; font-weight: 680; letter-spacing: -.028em;
+            line-height: 1.05; }
+.tagline { margin: 12px 0 0; font-size: 14px; line-height: 1.6;
+           color: #B9BDC2; max-width: 40ch; }
+.poin { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px;
+        max-width: 42ch; }
+.poin li { position: relative; padding-left: 20px; font-size: 13px;
+           line-height: 1.55; color: #D3D6D9; }
+.poin li::before { content: ""; position: absolute; left: 0; top: 8px;
+                   width: 9px; height: 1.5px; background: #7E858C; }
+.masuk-merek .kaki { font-size: 11.5px; letter-spacing: .06em;
+                     text-transform: uppercase; color: #7E858C; }
+
+.masuk-isi { display: flex; align-items: center; justify-content: center;
+             padding: 48px 24px; }
+.masuk-kartu {
+  width: 100%; max-width: 372px; background: #fff;
+  border: 1px solid var(--line); padding: 30px 30px 26px;
+  box-shadow: 0 1px 2px rgba(21,23,26,.04), 0 12px 32px rgba(21,23,26,.06);
+}
+.masuk-kartu h1 { font-size: 21px; letter-spacing: -.015em; }
+.masuk-kartu .pengantar { margin: 5px 0 22px; color: var(--sub); font-size: 13px; }
+.masuk-kartu .lbl { display: block; margin-bottom: 5px; }
+.masuk-kartu .lbl + .isian { margin-bottom: 15px; }
+
+.isian { width: 100%; font-size: 14.5px; padding: 10px 12px;
+         border: 1px solid var(--line); background: #FCFCFB;
+         transition: border-color .12s ease, box-shadow .12s ease; }
+.isian:focus { outline: none; border-color: var(--ink); background: #fff;
+               box-shadow: 0 0 0 3px rgba(21,23,26,.09); }
+
+.masuk-tombol { width: 100%; padding: 12px; font-size: 14px; margin-top: 4px; }
+.masuk-tombol:disabled { opacity: .45; cursor: not-allowed; }
+.masuk-bantuan { margin: 18px 0 0; padding-top: 16px;
+                 border-top: 1px solid var(--line);
+                 font-size: 11.5px; line-height: 1.6; color: var(--mut); }
+
+/* Tombol yang tampil sebagai tautan: perilakunya tombol (membuka isi di
+   halaman yang sama), jadi elemennya tetap <button> demi papan ketik dan
+   pembaca layar. */
+button.tautan { background: none; border: none; padding: 0; font-size: inherit;
+                font-weight: 600; color: var(--ink); text-decoration: underline;
+                text-underline-offset: 2px; cursor: pointer; }
+button.tautan:hover { color: var(--note); }
+.kontak { display: grid; gap: 6px; margin-top: 10px; padding: 10px 11px;
+          border: 1px solid var(--line); background: #FCFCFB;
+          font-size: 12.5px; color: var(--ink); }
+.kontak a { color: var(--note); }
+
+@media (max-width: 860px) {
+  .masuk { grid-template-columns: 1fr; min-height: 0; }
+  .masuk-merek { padding: 28px 22px; gap: 0; }
+  /* Poin dan kaki halaman disembunyikan di ponsel: yang dibutuhkan di layar
+     sekecil itu hanya nama sistemnya dan kolom isiannya. */
+  .masuk-merek .poin, .masuk-merek .kaki { display: none; }
+  .wordmark { font-size: 24px; }
+  .tagline { font-size: 13px; }
+  .masuk-isi { padding: 26px 18px 40px; }
 }

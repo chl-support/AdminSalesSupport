@@ -61,6 +61,12 @@ export default function AdminPage() {
   const [galatKal, setGalatKal] = useState<string | null>(null);
   const [ambangPilih, setAmbangPilih] = useState("");
 
+  // Kontak Admin Sistem yang tampil pada halaman masuk.
+  const [wa, setWa] = useState("");
+  const [email, setEmail] = useState("");
+  const [hasilKontak, setHasilKontak] = useState<string | null>(null);
+  const [galatKontak, setGalatKontak] = useState<string | null>(null);
+
 
   const muatPengguna = useCallback(async () => {
     if (!bolehKelola) return;
@@ -78,6 +84,25 @@ export default function AdminPage() {
   }, [bolehKelola]);
 
   useEffect(() => { if (sesi) void muatKalibrasi(); }, [sesi, muatKalibrasi]);
+
+  useEffect(() => {
+    if (!bolehKelola) return;
+    fetch("/api/kontak-admin")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (d) { setWa(d.wa ?? ""); setEmail(d.email ?? ""); } })
+      .catch(() => { /* biarkan kosong */ });
+  }, [bolehKelola]);
+
+  const simpanKontak = async () => {
+    setGalatKontak(null); setHasilKontak(null);
+    const res = await fetch("/api/kontak-admin", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ wa, email }),
+    });
+    const b = await res.json().catch(() => ({}));
+    if (!res.ok) { setGalatKontak(b.detail ?? b.title ?? `HTTP ${res.status}`); return; }
+    setHasilKontak("Kontak tersimpan dan langsung tampil pada halaman masuk.");
+  };
 
   const jalankanKalibrasi = async () => {
     setSibukKal(true); setGalatKal(null);
@@ -182,6 +207,46 @@ export default function AdminPage() {
 
       {bolehKelola && (
         <>
+          {/* ── Kontak Admin Sistem ── */}
+          <div className="panel sp">
+            <div className="form-blok">
+              <h3>KONTAK ADMIN SISTEM</h3>
+              <p className="hint" style={{ textAlign: "left", marginTop: 0 }}>
+                Tampil pada halaman masuk bagi orang yang lupa sandinya atau
+                akunnya terkunci — merekalah yang tidak dapat menghubungi siapa
+                pun lewat sistem ini. Dikosongkan berarti halaman masuk hanya
+                menyarankan jalur biasa, bukan menampilkan nomor karangan.
+              </p>
+              <div className="filters">
+                <div>
+                  <div className="lbl">Nomor WhatsApp (mis. 628123456789)</div>
+                  <input value={wa} inputMode="tel"
+                         onChange={(e) => setWa(e.target.value)} />
+                </div>
+                <div>
+                  <div className="lbl">Email</div>
+                  <input value={email} type="email"
+                         onChange={(e) => setEmail(e.target.value)} />
+                </div>
+              </div>
+              <div className="row" style={{ marginTop: 12, marginBottom: 0 }}>
+                <button className="pri" onClick={() => void simpanKontak()}>
+                  Simpan kontak
+                </button>
+              </div>
+              {hasilKontak && (
+                <div className="banner ok" style={{ marginTop: 12, marginBottom: 0 }}>
+                  <b>Berhasil</b>{hasilKontak}
+                </div>
+              )}
+              {galatKontak && (
+                <div className="banner stop" style={{ marginTop: 12, marginBottom: 0 }}>
+                  <b>Tidak dapat disimpan</b>{galatKontak}
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* ── Kalibrasi ambang tanda tangan ── */}
           <div className="panel sp">
             <div className="form-blok">

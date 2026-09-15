@@ -12,6 +12,7 @@
  * sengaja tidak memakai kerangka ini.
  */
 
+import { Logo } from "./logo";
 import { Nav } from "./nav";
 import { BilahPengguna, type Sesi } from "./session";
 
@@ -22,9 +23,13 @@ export function Kerangka(
   return (
     <div className="konsol">
       <aside className="sisi">
+        {/* Nama yang sama dengan yang tertera di halaman masuk. Sistem yang
+            berganti nama di pintu depan tetapi tidak di dalamnya terbaca
+            sebagai dua sistem berbeda. */}
         <div className="merek">
-          Klaim Insentif
-          <span>BIO District</span>
+          <Logo tinggi={34} />
+          CHL Support
+          <span>Klaim Insentif Marketing</span>
         </div>
         <Nav peran={sesi.role} />
       </aside>
