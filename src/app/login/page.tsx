@@ -152,8 +152,7 @@ export default function LoginPage() {
 
       <main className="masuk-isi">
         <form className="masuk-kartu" onSubmit={masuk}>
-          <h1>Masuk</h1>
-          <p className="pengantar">Gunakan akun tim yang diberikan Admin IT.</p>
+          <h1>Sign In</h1>
 
           <label className="lbl" htmlFor="username">Username</label>
           <input id="username" type="text" value={username} autoFocus
@@ -208,7 +207,7 @@ export default function LoginPage() {
                     orang membaca hal yang sama dua kali. Nama kotaknya tetap
                     ada untuk pembaca layar lewat aria-label. */}
                 <p className="pengantar">
-                  Silahkan menghubungi kontak dibawah ini, untuk mengatur ulang
+                  Silakan menghubungi kontak di bawah ini untuk mengatur ulang
                   username atau kata sandi Anda:
                 </p>
 
