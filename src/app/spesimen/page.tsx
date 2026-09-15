@@ -140,7 +140,7 @@ export default function SpesimenPage() {
   return (
     <Kerangka sesi={sesi} judul={
       <div>
-        <h1>Data marketing</h1>
+        <h1>Data Marketing</h1>
         <p>
           Spesimen tanda tangan didaftarkan sekali per orang dan dipakai
           seterusnya sebagai pembanding. Yang belum punya, kirimkan tautannya

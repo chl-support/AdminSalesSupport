@@ -36,7 +36,7 @@ const MENU: Butir[] = [
   // punya spesimen tanda tangan klaimnya selalu berakhir di pemeriksaan manual.
   // Yang menentukan hasil pengajuan karenanya dilihat lebih dulu daripada
   // pengajuannya.
-  { href: "/spesimen", label: "Data marketing",
+  { href: "/spesimen", label: "Data Marketing",
     peran: ["admin_sales", "admin_system"] },
   {
     href: "/klaim", label: "Pengajuan Fee",
