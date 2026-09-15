@@ -32,6 +32,12 @@ type Butir = {
  * jadi mengetikkan alamatnya langsung tidak memberi akses apa pun.
  */
 const MENU: Butir[] = [
+  // Data marketing di atas: penerima fee berasal dari sini, dan yang belum
+  // punya spesimen tanda tangan klaimnya selalu berakhir di pemeriksaan manual.
+  // Yang menentukan hasil pengajuan karenanya dilihat lebih dulu daripada
+  // pengajuannya.
+  { href: "/spesimen", label: "Data marketing",
+    peran: ["admin_sales", "admin_system"] },
   {
     href: "/klaim", label: "Pengajuan Fee",
     // Keempat jenis, beserta urutannya, diambil dari daftar yang sama dengan
@@ -41,8 +47,6 @@ const MENU: Butir[] = [
   },
   { href: "/konsol", label: "Konsol klaim" },
   { href: "/audit", label: "Jejak audit" },
-  { href: "/spesimen", label: "Data marketing",
-    peran: ["admin_sales", "admin_system"] },
   // Administrasi hanya untuk Admin IT. "Ganti sandi saya" tetap dapat
   // dicapai semua peran lewat tautan pada bilah pengguna.
   { href: "/admin", label: "Administrasi", peran: ["admin_system"] },
