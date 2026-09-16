@@ -52,6 +52,11 @@ export default function AdminPage() {
   const [tertulisTerima, setTertulisTerima] = useState<any>(null);
   const [sibukTerima, setSibukTerima] = useState(false);
   const [galatTerima, setGalatTerima] = useState<string | null>(null);
+  const [berkasAgen, setBerkasAgen] = useState<File | null>(null);
+  const [pratinjauAgen, setPratinjauAgen] = useState<any>(null);
+  const [tertulisAgen, setTertulisAgen] = useState<any>(null);
+  const [sibukAgen, setSibukAgen] = useState(false);
+  const [galatAgen, setGalatAgen] = useState<string | null>(null);
 
   // ── Sandi orang lain ──
   const [pengguna, setPengguna] = useState<Pengguna[]>([]);
@@ -192,6 +197,27 @@ export default function AdminPage() {
     }
   };
 
+  const kirimAgen = async (dryRun: boolean) => {
+    if (!berkasAgen) return;
+    setSibukAgen(true);
+    setGalatAgen(null);
+    try {
+      const fd = new FormData();
+      fd.append("file", berkasAgen);
+      const res = await fetch(`/api/admin/import-agen?dry_run=${dryRun}`,
+                              { method: "POST", body: fd });
+      const b = await res.json().catch(() => ({}));
+      if (res.status === 401) { location.href = "/login"; return; }
+      if (!res.ok) { setGalatAgen(b.detail ?? b.title ?? `HTTP ${res.status}`); return; }
+      if (dryRun) { setPratinjauAgen(b); setTertulisAgen(null); }
+      else { setTertulisAgen(b); setPratinjauAgen(null); }
+    } catch (e: any) {
+      setGalatAgen(String(e?.message ?? e));
+    } finally {
+      setSibukAgen(false);
+    }
+  };
+
   const gantiUsername = async () => {
     setGalatNama(null); setHasilNama(null);
     const res = await fetch("/api/admin/users", {
@@ -230,6 +256,11 @@ export default function AdminPage() {
   if (memuat || !sesi) {
     return <MemeriksaSesi />;
   }
+
+  const ringkasAgen = (h: any) =>
+    `${h.baru} marketing baru · ${h.diperbarui} diperbarui · ` +
+    `${h.dilewati} dilewati · ${h.rekening_baru} rekening dicatat · ` +
+    `dari ${h.baris} orang`;
 
   const ringkasTerima = (h: any) =>
     `${h.diperbarui} unit diperbarui · ${h.sama} tidak berubah · ` +
@@ -610,6 +641,99 @@ export default function AdminPage() {
                             : p.tindakan === "tidak berubah" ? "" : "stop"}`}>
                             {p.tindakan}
                           </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody></table>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* ── Impor agent ── */}
+          <div className="panel sp">
+            <div className="form-blok">
+              <h3>UNGGAH LAPORAN AGENT</h3>
+              <p className="hint" style={{ textAlign: "left", marginTop: 0 }}>
+                Berkas ekspor Laporan Agent (.xls). Menyinkronkan data marketing:
+                nama, agensi, <b>nomor WhatsApp</b>, email, NPWP, dan rekening.
+                Nomor itulah tujuan kode verifikasi pendaftaran tanda tangan, dan
+                tanpa nomor tautannya tidak dapat diterbitkan.
+              </p>
+              <input type="file" accept=".xls,.tsv,.txt,.csv"
+                     style={{ width: "100%" }}
+                     onChange={(e) => {
+                       setBerkasAgen(e.target.files?.[0] ?? null);
+                       setPratinjauAgen(null); setTertulisAgen(null);
+                       setGalatAgen(null);
+                     }} />
+              <div className="row" style={{ marginTop: 12, marginBottom: 0 }}>
+                <button disabled={!berkasAgen || sibukAgen}
+                        onClick={() => void kirimAgen(true)}>
+                  {sibukAgen ? "Membaca…" : "Lihat pratinjau"}
+                </button>
+                <button className="pri" disabled={!pratinjauAgen || sibukAgen}
+                        onClick={() => void kirimAgen(false)}>
+                  Tulis ke basis data
+                </button>
+              </div>
+            </div>
+
+            {galatAgen && (
+              <div className="banner stop">
+                <b>Berkas tidak dapat diimpor</b>{galatAgen}
+              </div>
+            )}
+
+            {tertulisAgen && (
+              <div className="banner ok">
+                <b>Sinkronisasi selesai</b>
+                {ringkasAgen(tertulisAgen)}
+                <ul style={{ margin: "6px 0 0 16px" }}>
+                  {tertulisAgen.catatan.map((c: string) => <li key={c}>{c}</li>)}
+                </ul>
+              </div>
+            )}
+
+            {pratinjauAgen && (
+              <>
+                <div className="banner info">
+                  <b>Pratinjau — belum ada yang ditulis</b>
+                  {ringkasAgen(pratinjauAgen)}
+                </div>
+                <div className="tscroll">
+                  <table><tbody>
+                    <tr>
+                      <th>Nama</th><th>Agensi</th><th>Tipe</th>
+                      <th>Keagenan</th><th>Nomor WA</th><th>NPWP</th>
+                      <th>Rekening</th><th>Tindakan</th>
+                    </tr>
+                    {pratinjauAgen.pratinjau.map((p: any, i: number) => (
+                      <tr key={`${p.nama}-${i}`}>
+                        <td><b>{p.nama}</b></td>
+                        <td>{p.agensi ?? "—"}</td>
+                        <td>{p.tipe}</td>
+                        <td>
+                          <span className={`pill ${p.status === "AKTIF" ? "ok" : "stop"}`}>
+                            {p.status}
+                          </span>
+                        </td>
+                        <td>{p.telepon ?? (
+                          <span style={{ color: "var(--stop)" }}>tidak ada</span>
+                        )}</td>
+                        <td>{p.npwp ? "ada" : "—"}</td>
+                        <td>{p.rekening ?? "—"}</td>
+                        <td>
+                          <span className={`pill ${
+                            p.tindakan === "baru" ? "" :
+                            p.tindakan === "diperbarui" ? "ok" : "warn"}`}>
+                            {p.tindakan}
+                          </span>
+                          {p.catatan && (
+                            <><br /><span style={{ fontSize: 10.5, color: "var(--mut)" }}>
+                              {p.catatan}
+                            </span></>
+                          )}
                         </td>
                       </tr>
                     ))}
