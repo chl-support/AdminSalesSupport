@@ -445,7 +445,18 @@ button.tautan:hover { color: var(--note); }
 .tandai img { display: block; width: 100%; height: auto;
               user-select: none; -webkit-user-select: none; }
 .kotak-tandai { position: absolute; border: 2px solid var(--stop);
-                background: rgba(140, 47, 47, .12); pointer-events: none; }
+                background: rgba(140, 47, 47, .12); cursor: move; }
+
+/* Pegangan sudut. Titik sentuhnya jauh lebih besar daripada kotak yang
+   terlihat: jari menutupi sekitar 8 mm layar, dan pegangan sebesar gambarnya
+   sendiri berarti tiap kali meleset kotak baru yang justru tergambar. */
+.pegangan { position: absolute; width: 12px; height: 12px; background: #fff;
+            border: 2px solid var(--stop); box-sizing: border-box; }
+.pegangan::after { content: ""; position: absolute; inset: -12px; }
+.pegangan.atas-kiri { left: -7px; top: -7px; cursor: nwse-resize; }
+.pegangan.atas-kanan { right: -7px; top: -7px; cursor: nesw-resize; }
+.pegangan.bawah-kiri { left: -7px; bottom: -7px; cursor: nesw-resize; }
+.pegangan.bawah-kanan { right: -7px; bottom: -7px; cursor: nwse-resize; }
 
 /* Jangkar identitas pada layar pemeriksaan: potongan tanda tangan dari KTP,
    disandingkan dengan keterangan cara membacanya. */
