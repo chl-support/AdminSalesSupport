@@ -18,10 +18,16 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import { JENIS } from "./klaim/jenis";
+import { useBahasa, type Bahasa } from "./bahasa";
+import { JENIS, NAMA_EN } from "./klaim/jenis";
 
 type Butir = {
-  href: string; label: string; peran?: string[] | null; anak?: Butir[];
+  href: string;
+  /** Label per bahasa. Keduanya wajib ada, jadi tidak ada menu yang diam-diam
+      tetap berbahasa Indonesia saat sisanya sudah berganti. */
+  label: Record<Bahasa, string>;
+  peran?: string[] | null;
+  anak?: Butir[];
 };
 
 /**
@@ -36,20 +42,24 @@ const MENU: Butir[] = [
   // punya spesimen tanda tangan klaimnya selalu berakhir di pemeriksaan manual.
   // Yang menentukan hasil pengajuan karenanya dilihat lebih dulu daripada
   // pengajuannya.
-  { href: "/spesimen", label: "Data Marketing",
+  { href: "/spesimen", label: { id: "Data Marketing", en: "Marketing Data" },
     peran: ["admin_sales", "admin_system"] },
   {
-    href: "/klaim", label: "Pengajuan Fee",
+    href: "/klaim", label: { id: "Pengajuan Fee", en: "Fee Submission" },
     // Keempat jenis, beserta urutannya, diambil dari daftar yang sama dengan
     // yang dipakai layar pengajuan dan perhitungannya. Menuliskannya ulang di
     // sini berarti menu dan formulir dapat berbeda tanpa ada yang menyadari.
-    anak: JENIS.map((j) => ({ href: `/klaim/${j.slug}`, label: j.nama })),
+    anak: JENIS.map((j) => ({
+      href: `/klaim/${j.slug}`,
+      label: { id: j.nama, en: NAMA_EN[j.slug] },
+    })),
   },
-  { href: "/konsol", label: "Konsol klaim" },
-  { href: "/audit", label: "Jejak audit" },
+  { href: "/konsol", label: { id: "Konsol klaim", en: "Claim console" } },
+  { href: "/audit", label: { id: "Jejak audit", en: "Audit trail" } },
   // Administrasi hanya untuk Admin IT. "Ganti sandi saya" tetap dapat
   // dicapai semua peran lewat tautan pada bilah pengguna.
-  { href: "/admin", label: "Administrasi", peran: ["admin_system"] },
+  { href: "/admin", label: { id: "Administrasi", en: "Administration" },
+    peran: ["admin_system"] },
 ];
 
 const boleh = (b: Butir, peran?: string) =>
@@ -65,7 +75,8 @@ const boleh = (b: Butir, peran?: string) =>
  * dirinya sendiri: baris yang mengulang judul di bawahnya bukan keterangan,
  * hanya baris tambahan yang harus dilewati mata.
  */
-export function indukDari(path: string): { href: string; label: string } | null {
+export function indukDari(path: string):
+    { href: string; label: Record<Bahasa, string> } | null {
   for (const m of MENU) {
     if (m.anak?.some((a) => path === a.href || path.startsWith(a.href + "/"))) {
       return { href: m.href, label: m.label };
@@ -76,6 +87,7 @@ export function indukDari(path: string): { href: string; label: string } | null 
 
 export function Nav({ peran }: { peran?: string }) {
   const path = usePathname();
+  const { bahasa } = useBahasa();
   // Cocok persis, atau induk dari lintasan sekarang. `startsWith` telanjang
   // akan membuat "/klaim" terpilih bersamaan dengan "/klaim/komisi".
   const aktif = (href: string) => path === href || path.startsWith(href + "/");
@@ -86,7 +98,7 @@ export function Nav({ peran }: { peran?: string }) {
         <div key={m.href} className="grup">
           <Link href={m.href} className={path === m.href ? "active" : ""}
                 aria-current={path === m.href ? "page" : undefined}>
-            {m.label}
+            {m.label[bahasa]}
           </Link>
           {m.anak && (
             <div className="anak">
@@ -94,7 +106,7 @@ export function Nav({ peran }: { peran?: string }) {
                 <Link key={a.href} href={a.href}
                       className={aktif(a.href) ? "active" : ""}
                       aria-current={aktif(a.href) ? "page" : undefined}>
-                  {a.label}
+                  {a.label[bahasa]}
                 </Link>
               ))}
             </div>

@@ -10,6 +10,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { TombolBahasa, useBahasa, useKata } from "../bahasa";
 import { Logo } from "../logo";
 
 /**
@@ -61,11 +62,9 @@ function IkonMata({ tertutup }: { tertutup: boolean }) {
 /**
  * Kata-kata halaman masuk dalam dua bahasa.
  *
- * Disimpan di berkas ini, bukan di pustaka i18n: yang dua bahasa baru halaman
- * ini saja. Memasang kerangka penerjemahan untuk satu halaman berarti
- * menanggung seluruh bebannya tanpa memakai satu pun bagian yang membuatnya
- * sepadan — dan begitu layar konsol ikut diterjemahkan, kerangkanya dipilih
- * berdasarkan kebutuhan yang sudah terlihat, bukan yang dikira-kira.
+ * Duduk di sebelah layar yang memakainya, bukan di satu berkas terpusat: kata
+ * yang hanya dipakai satu layar lebih mudah dijaga tetap benar bila ia ada di
+ * tempat yang sama dengan layarnya.
  */
 const KATA = {
   id: {
@@ -91,7 +90,6 @@ const KATA = {
     kontakKosong:
       "Kontak Admin IT belum diisi. Hubungi lewat jalur yang biasa Anda pakai.",
     tutup: "Tutup",
-    pilihBahasa: "Pilih bahasa",
   },
   en: {
     portal: "Internal Portal",
@@ -116,14 +114,13 @@ const KATA = {
     kontakKosong:
       "No IT Admin contact has been set. Reach out through your usual channel.",
     tutup: "Close",
-    pilihBahasa: "Choose language",
   },
-} as const;
-
-type Bahasa = keyof typeof KATA;
-
-/** Di mana pilihan bahasa disimpan, supaya kuncinya tidak diketik dua kali. */
-const KUNCI_BAHASA = "chl.bahasa";
+  // Sengaja tanpa `as const`: dengan itu tiap kata bertipe nilai literalnya
+  // sendiri, sehingga "Internal Portal" dianggap tidak sepadan dengan "Portal
+  // Internal" dan kedua bahasanya tidak pernah bisa dicocokkan. Tanpa `as
+  // const`, bentuk bahasa Inggris tetap wajib punya kunci yang sama persis
+  // dengan bahasa Indonesia — yang memang itulah yang perlu dijaga.
+};
 
 
 export default function LoginPage() {
@@ -133,11 +130,6 @@ export default function LoginPage() {
   // sementara. Layar masuk sering dibuka di meja terbuka, jadi yang dipilih
   // adalah tersembunyi dulu — bukan terbuka dulu lalu ditutup.
   const [lihatSandi, setLihatSandi] = useState(false);
-  // Bawaannya Indonesia, dan pilihan yang tersimpan dibaca setelah komponen
-  // terpasang — bukan saat render pertama. Membaca localStorage saat render
-  // membuat keluaran server dan klien berbeda, dan React membuang seluruh
-  // pohonnya begitu keduanya tidak cocok.
-  const [bahasa, setBahasa] = useState<Bahasa>("id");
   const [busy, setBusy] = useState(false);
   const [galat, setGalat] = useState<string | null>(null);
   const [sisa, setSisa] = useState<number | null>(null);
@@ -145,28 +137,10 @@ export default function LoginPage() {
   const [lihatKontak, setLihatKontak] = useState(false);
   const tutupRef = useRef<HTMLButtonElement | null>(null);
 
-  // Pilihan bahasa yang tersimpan dari kunjungan sebelumnya. Dibungkus
-  // try/catch: di jendela penyamaran, atau saat penyimpanan situs diblokir,
-  // membaca localStorage melempar — dan halaman masuk yang gagal tampil karena
-  // pilihan bahasa adalah harga yang jauh lebih mahal daripada manfaatnya.
-  useEffect(() => {
-    try {
-      const t = localStorage.getItem(KUNCI_BAHASA);
-      if (t === "id" || t === "en") setBahasa(t);
-    } catch { /* pakai bawaannya */ }
-  }, []);
-
-  // Atribut lang ikut berganti. Pembaca layar memilih pelafalan dari sini, dan
-  // halaman berbahasa Inggris yang mengaku berbahasa Indonesia dibacakan
-  // dengan pelafalan yang salah dari awal sampai akhir.
-  useEffect(() => { document.documentElement.lang = bahasa; }, [bahasa]);
-
-  const k = KATA[bahasa];
-
-  const gantiBahasa = (b: Bahasa) => {
-    setBahasa(b);
-    try { localStorage.setItem(KUNCI_BAHASA, b); } catch { /* tidak apa-apa */ }
-  };
+  // Pilihan bahasanya kini milik seluruh aplikasi, bukan halaman ini saja —
+  // yang disetel di sini tetap berlaku setelah orangnya masuk.
+  const { bahasa } = useBahasa();
+  const k = useKata(KATA);
 
   // Sudah punya sesi hidup: tidak perlu memperlihatkan layar masuk lagi.
   useEffect(() => {
@@ -280,15 +254,7 @@ export default function LoginPage() {
             tepat di atas kolom Username persis terbaca begitu. Pilihannya
             disimpan di peramban, jadi ia sudah tersetel sebelum orangnya
             masuk dan tetap begitu pada kunjungan berikutnya. */}
-        <div className="pilih-bahasa" role="group" aria-label={k.pilihBahasa}>
-          {(["id", "en"] as const).map((b) => (
-            <button key={b} type="button" onClick={() => gantiBahasa(b)}
-                    className={bahasa === b ? "aktif" : ""}
-                    aria-pressed={bahasa === b}>
-              {b.toUpperCase()}
-            </button>
-          ))}
-        </div>
+        <TombolBahasa />
 
         <form className="masuk-kartu" onSubmit={masuk}>
           {/* Nama sistemnya tidak diulang di sini: ia sudah tertulis besar di

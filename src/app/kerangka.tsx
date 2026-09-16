@@ -15,6 +15,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { TombolBahasa, useBahasa } from "./bahasa";
 import { Logo } from "./logo";
 import { Nav, indukDari } from "./nav";
 import { BilahPengguna, type Sesi } from "./session";
@@ -24,6 +25,7 @@ export function Kerangka(
   { sesi: Sesi; judul: React.ReactNode; children: React.ReactNode },
 ) {
   const induk = indukDari(usePathname());
+  const { bahasa } = useBahasa();
 
   return (
     <div className="konsol">
@@ -52,14 +54,19 @@ export function Kerangka(
                 jenis di bawah Pengajuan Fee. Halaman yang bukan anak siapa pun
                 tidak menampilkan baris ini sama sekali. */}
             {induk && (
-              <Link className="induk" href={induk.href}>{induk.label}</Link>
+              <Link className="induk" href={induk.href}>{induk.label[bahasa]}</Link>
             )}
             {judul}
           </div>
 
           {/* Identitas di kanan atas: di sanalah orang mencarinya, dan di kaki
-              kolom menu ia justru tenggelam di bawah menu terakhir. */}
-          <BilahPengguna sesi={sesi} />
+              kolom menu ia justru tenggelam di bawah menu terakhir. Pilihan
+              bahasa duduk di sebelahnya — yang salah pilih sebelum masuk tidak
+              perlu keluar dulu untuk membetulkannya. */}
+          <div className="kanan-atas">
+            <TombolBahasa />
+            <BilahPengguna sesi={sesi} />
+          </div>
         </div>
       </header>
 

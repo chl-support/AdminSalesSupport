@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { PenyediaBahasa } from "./bahasa";
 
 export const metadata: Metadata = {
   title: "CHL Sales Admin System",
@@ -10,8 +11,10 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
+    // lang="id" hanya nilai awal; PenyediaBahasa menggantinya di peramban
+    // begitu pilihan tersimpan terbaca.
     <html lang="id">
-      <body>{children}</body>
+      <body><PenyediaBahasa>{children}</PenyediaBahasa></body>
     </html>
   );
 }

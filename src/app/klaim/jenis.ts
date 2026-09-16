@@ -45,6 +45,47 @@ export const JENIS: {
   },
 ];
 
+/**
+ * Nama keempat jenis dalam bahasa Inggris.
+ *
+ * Terpisah dari JENIS, bukan menggantikan kolom `nama` di sana: `nama` dipakai
+ * belasan tempat, termasuk judul blok pada formulir cetak, dan mengubah
+ * bentuknya menjadi dua bahasa berarti menyentuh semuanya sekaligus.
+ *
+ * Tiga dari empat memang sama dalam kedua bahasa — istilahnya diserap apa
+ * adanya di formulir perusahaan. Yang berbeda hanya Komisi. Ketiganya tetap
+ * ditulis di sini alih-alih dibiarkan jatuh ke nilai bawaan, supaya daftar ini
+ * lengkap dan tidak perlu ditebak saat dibaca.
+ */
+export const NAMA_EN: Record<Jenis, string> = {
+  closing_fee: "Closing Fee",
+  commission: "Commission",
+  cash_reward: "Cash Reward",
+  overriding: "Overriding",
+};
+
+/** Nama satu jenis dalam bahasa yang sedang dipakai. */
+export const namaJenis = (slug: Jenis, bahasa: "id" | "en") =>
+  bahasa === "en" ? NAMA_EN[slug] : (JENIS.find((j) => j.slug === slug)?.nama ?? slug);
+
+/** Keterangan sebaris tiap jenis pada layar pilihan, dalam bahasa Inggris. */
+export const RINGKAS_EN: Record<Jenis, string> = {
+  closing_fee: "Reward for closing a sale.",
+  commission: "Commission on the contract value.",
+  cash_reward: "Cash award for hitting a target.",
+  overriding: "Tiered incentive for supervisors and coordinators.",
+};
+
+/** Prasyarat pencairan tiap jenis, dalam bahasa Inggris. */
+export const PRASYARAT_EN: Record<Jenis, string> = {
+  closing_fee: "The SPU has been signed by the buyer (BR-01).",
+  commission: "The SPU and PPJB have been signed by the buyer (BR-02).",
+  cash_reward:
+    "The SPU, PPJB, and the down payment or first instalment have been " +
+    "received (BR-03).",
+  overriding: "The unit has been Sign P3U (BR-04).",
+};
+
 export const jenisDari = (slug: string) =>
   JENIS.find((j) => j.slug === slug) ?? null;
 
