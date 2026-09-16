@@ -43,6 +43,32 @@ const BATAS_KTP = 3 * 1024 * 1024;
  * petunjuk bentuk foto, bukan salinan kartu.
  */
 function ContohKtp() {
+  // Berkas contoh yang dipilih kantor: public/contoh-ktp.png. Gambar pada
+  // ContohKtpGambar hanyalah cadangan bila berkas itu hilang — halaman ini
+  // dibuka orang luar lewat tautan WhatsApp, dan ikon gambar rusak di sana
+  // membuat seluruh permintaan terbaca sebagai tidak sungguh-sungguh.
+  const [adaBerkas, setAdaBerkas] = useState(true);
+  const ref = useRef<HTMLImageElement | null>(null);
+
+  // Gambar yang gagal dimuat sebelum React terpasang tidak pernah memicu
+  // onError — dan itu justru yang terjadi pada muatan pertama halaman. Keadaan
+  // berkasnya karena itu diperiksa sekali lagi setelah komponen terpasang.
+  useEffect(() => {
+    const img = ref.current;
+    if (img?.complete && img.naturalWidth === 0) setAdaBerkas(false);
+  }, []);
+
+  if (adaBerkas) {
+    return (
+      /* eslint-disable-next-line @next/next/no-img-element */
+      <img ref={ref} src="/contoh-ktp.png" alt="Contoh foto KTP yang benar"
+           className="contoh-ktp" onError={() => setAdaBerkas(false)} />
+    );
+  }
+  return <ContohKtpGambar />;
+}
+
+function ContohKtpGambar() {
   const baris: [string, string][] = [
     ["Nama", "BUDI CONTOH"],
     ["Tempat/Tgl Lahir", "CONTOH, 01-01-1990"],
