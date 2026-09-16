@@ -780,16 +780,16 @@ export default function AdminPage() {
             <div className="form-blok">
               <h3>KOSONGKAN DATA OPERASIONAL</h3>
               <p className="hint" style={{ textAlign: "left", marginTop: 0 }}>
-                Menghapus seluruh data penjualan, marketing, rekening, klaim,
-                tanda tangan, dan pendaftaran — untuk memulai dari nol dengan
-                data sungguhan. <b>Tidak dapat dibatalkan</b>: yang terhapus
-                tidak ada salinannya di sistem ini.
+                Menghapus data penjualan, marketing, rekening, klaim, tanda
+                tangan, dan pendaftaran <b>milik project {sesi.project_name}</b>{" "}
+                saja — project lain tidak disentuh. <b>Tidak dapat dibatalkan</b>:
+                yang terhapus tidak ada salinannya di sistem ini.
               </p>
               <p className="hint" style={{ textAlign: "left" }}>
-                Yang <b>tidak</b> disentuh: akun pengguna dan sesi Anda, skema
-                insentif, tarif pajak, periode akuntansi, pengaturan dan kontak
-                Admin IT, serta jejak audit — justru di sanalah pengosongan ini
-                tercatat.
+                Yang <b>tidak</b> disentuh: project lain, akun pengguna dan sesi
+                Anda, skema insentif, tarif pajak, periode akuntansi, pengaturan
+                dan kontak Admin IT, serta jejak audit — justru di sanalah
+                pengosongan ini tercatat.
               </p>
 
               <div className="row" style={{ marginBottom: 0 }}>
@@ -820,7 +820,7 @@ export default function AdminPage() {
             {isiTabel && (
               <>
                 <div className="banner stop">
-                  <b>Baris berikut akan dihapus permanen</b>
+                  <b>Baris berikut akan dihapus permanen dari project {sesi.project_name}</b>
                   Periksa angkanya sekali lagi. Setelah tombol ditekan, tidak ada
                   cara mengembalikannya.
                 </div>

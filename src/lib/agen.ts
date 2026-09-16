@@ -22,6 +22,7 @@ import type { PoolClient } from "pg";
 
 import { audit, one, query } from "./db";
 import { uraiNama } from "./penjualan";
+import { WorkflowError } from "./workflow";
 
 export type BarisAgen = {
   kode: string; tipe: string; nama_penuh: string;
@@ -151,10 +152,19 @@ export type HasilAgen = {
 
 export async function imporAgen(
   teks: string,
-  opsi: { dryRun?: boolean; aktor?: string; namaBerkas?: string } = {},
+  opsi: { dryRun?: boolean; aktor?: string; namaBerkas?: string;
+          projectId?: string } = {},
   client?: PoolClient,
 ): Promise<HasilAgen> {
   const dryRun = Boolean(opsi.dryRun);
+  // Laporan Agent diterbitkan per project, dan tidak menyebut project-nya
+  // sendiri. Yang menentukan adalah project yang sedang dikerjakan.
+  const projectId = opsi.projectId ?? null;
+  if (!projectId) {
+    throw new WorkflowError(
+      "Project belum dipilih. Pilih project yang akan dikerjakan lebih dulu.",
+      "project_required", 409);
+  }
   const semua = bacaAgen(teks);
 
   // Satu orang dapat muncul dua kali — barisnya yang lama berstatus BATAL, yang
@@ -174,8 +184,8 @@ export async function imporAgen(
   for (const b of per.values()) {
     const catatan: string[] = [];
     const mkt = await one<any>(
-      "SELECT * FROM marketings WHERE lower(full_name)=$1",
-      [b.nama.toLowerCase()], client);
+      "SELECT * FROM marketings WHERE lower(full_name)=$1 AND project_id=$2",
+      [b.nama.toLowerCase(), projectId], client);
 
     if (!mkt && b.status === "BATAL") {
       dilewati++;
@@ -208,12 +218,12 @@ export async function imporAgen(
       if (!dryRun) {
         marketingId = (await query<{ id: string }>(
           `INSERT INTO marketings (full_name, marketing_type, agency_id, npwp,
-             npwp_type, recipient_type, phone, email, status)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'draft') RETURNING id`,
+             npwp_type, recipient_type, phone, email, status, project_id)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'draft',$9) RETURNING id`,
           [b.nama, jenisDari(b), agencyId, b.npwp,
            b.npwp ? (b.agensi ? "company" : "personal") : "none",
            b.agensi ? "company" : "individual",
-           b.telepon ?? "", b.email], client))[0].id;
+           b.telepon ?? "", b.email, projectId], client))[0].id;
       }
       baru++;
       if (!b.telepon) catatan.push("tanpa nomor telepon");

@@ -630,4 +630,68 @@ CREATE TABLE IF NOT EXISTS login_attempts (
 CREATE INDEX IF NOT EXISTS idx_login_attempts_lookup
   ON login_attempts(username, attempted_at DESC);
 
+-- ─────────────────────────── Project ───────────────────────────
+--
+-- Satu pemasangan melayani lima project sekaligus. Datanya dipisah per baris,
+-- bukan per basis data: penjualan, marketing, klaim, dan skema insentif
+-- masing-masing menyandang project_id, dan seluruh layar menyaring ke project
+-- yang sedang dipilih.
+--
+-- Nama PT berbeda per project dan ikut tercetak pada formulir pengajuan, jadi
+-- ia disimpan di sini — bukan ditulis tetap di dalam kode, tempat mengubahnya
+-- menuntut penempatan ulang.
+CREATE TABLE IF NOT EXISTS projects (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  slug         TEXT UNIQUE NOT NULL,
+  name         TEXT NOT NULL,
+  company_name TEXT NOT NULL,
+  urutan       INT NOT NULL DEFAULT 0,
+  active       BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+INSERT INTO projects (slug, name, company_name, urutan) VALUES
+  ('banara-serpong', 'Banara Serpong', 'PT. Serpong Bangun Cipta', 1),
+  ('naraya-serpong', 'Naraya Serpong', 'PT. Serpong Bangun Cipta', 2),
+  ('marchand-hype-station', 'Marchand Hype Station', 'PT. Serpong Bangun Cipta', 3),
+  ('mazenta-residence', 'Mazenta Residence', 'PT. Serpong Bangun Cipta', 4),
+  ('bio-district', 'BIO District', 'PT. Serpong Bangun Lestari', 5)
+ON CONFLICT (slug) DO UPDATE
+  SET name = EXCLUDED.name, company_name = EXCLUDED.company_name,
+      urutan = EXCLUDED.urutan;
+
+-- Penanda project pada data yang memang milik satu project.
+--
+-- agencies dan tax_rates sengaja tidak diberi penanda: agensi yang sama bekerja
+-- pada beberapa project, dan tarif pajak berlaku menurut undang-undang, bukan
+-- menurut project.
+ALTER TABLE units ADD COLUMN IF NOT EXISTS project_id UUID REFERENCES projects(id);
+ALTER TABLE marketings ADD COLUMN IF NOT EXISTS project_id UUID REFERENCES projects(id);
+ALTER TABLE claims ADD COLUMN IF NOT EXISTS project_id UUID REFERENCES projects(id);
+ALTER TABLE incentive_schemes ADD COLUMN IF NOT EXISTS project_id UUID REFERENCES projects(id);
+
+-- Data yang sudah ada berasal dari BIO District: itulah satu-satunya project
+-- yang berjalan sebelum pemisahan ini. Dibiarkan kosong, seluruhnya akan hilang
+-- dari layar begitu penyaringan menyala.
+UPDATE units SET project_id = (SELECT id FROM projects WHERE slug='bio-district')
+ WHERE project_id IS NULL;
+UPDATE marketings SET project_id = (SELECT id FROM projects WHERE slug='bio-district')
+ WHERE project_id IS NULL;
+UPDATE claims SET project_id = (SELECT id FROM projects WHERE slug='bio-district')
+ WHERE project_id IS NULL;
+UPDATE incentive_schemes SET project_id = (SELECT id FROM projects WHERE slug='bio-district')
+ WHERE project_id IS NULL;
+
+CREATE INDEX IF NOT EXISTS idx_units_project ON units(project_id);
+CREATE INDEX IF NOT EXISTS idx_marketings_project ON marketings(project_id);
+CREATE INDEX IF NOT EXISTS idx_claims_project ON claims(project_id);
+CREATE INDEX IF NOT EXISTS idx_schemes_project ON incentive_schemes(project_id);
+
+-- Project yang sedang dikerjakan, menempel pada sesinya.
+--
+-- Di sesi, bukan di peramban: penyaringan dilakukan server, dan pilihan yang
+-- hanya hidup di peramban berarti server tetap harus mempercayai apa yang
+-- dikirimkan layar.
+ALTER TABLE sessions ADD COLUMN IF NOT EXISTS project_id UUID REFERENCES projects(id);
+
 COMMIT;

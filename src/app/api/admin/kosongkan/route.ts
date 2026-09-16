@@ -1,10 +1,10 @@
-import { handler, requireRole, body } from "@/lib/api";
+import { handler, requireRole, body, projectAktif } from "@/lib/api";
 import { isiTabel, kosongkan } from "@/lib/kosongkan";
 
 /** Isi tiap tabel operasional, untuk diperlihatkan sebelum pengosongan. */
 export const GET = handler(async (req) => {
   await requireRole(req, "admin_system");
-  return { isi: await isiTabel() };
+  return { isi: await isiTabel(await projectAktif(req)) };
 });
 
 /**
@@ -16,5 +16,6 @@ export const GET = handler(async (req) => {
 export const POST = handler(async (req) => {
   const user = await requireRole(req, "admin_system");
   const p = await body(req);
-  return kosongkan(user.username, String(p.penegasan ?? ""));
+  return kosongkan(user.username, String(p.penegasan ?? ""),
+                   await projectAktif(req));
 });

@@ -52,15 +52,25 @@ export function recipientContext(
   };
 }
 
+/**
+ * Skema yang berlaku, dalam lingkup satu project.
+ *
+ * Project-nya wajib: memo skema berbeda per project, dan mencari tanpa
+ * menyebutkannya akan memungut memo project lain begitu tanggal kontraknya
+ * kebetulan bertumpang tindih — kesalahan yang berakhir pada angka pembayaran,
+ * bukan pada layar.
+ */
 export async function findScheme(
   claimType: ClaimType, role: RecipientRole | null,
   level: OverridingLevel | null, onDate: string, client?: PoolClient,
+  projectId?: string | null,
 ) {
   const rows = await query(
     `SELECT * FROM incentive_schemes
      WHERE claim_type = $1 AND effective_from <= $2::date
-       AND (effective_to IS NULL OR effective_to >= $2::date)`,
-    [claimType, onDate], client,
+       AND (effective_to IS NULL OR effective_to >= $2::date)
+       AND ($3::uuid IS NULL OR project_id = $3)`,
+    [claimType, onDate, projectId ?? null], client,
   );
   let best: any = null, bestRank = -1;
   for (const r of rows) {
@@ -190,7 +200,8 @@ export async function calculate(
     : String(unit.contract_date ?? "1970-01-01").slice(0, 10));
   const ctx = recipientContext(marketing, agency, level, bankAccount);
 
-  const scheme = await findScheme(claimType, role, level, onDate, client);
+  const scheme = await findScheme(claimType, role, level, onDate, client,
+                                  unit.project_id ?? null);
   if (!scheme) {
     throw new Error(
       `Tidak ada skema insentif berlaku untuk ${claimType}/${role} pada ${onDate}. ` +

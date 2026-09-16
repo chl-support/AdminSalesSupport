@@ -38,6 +38,15 @@ export function Kerangka(
 
         <div className="kepala">
           {judul}
+          {/* Nama project di kepala tiap halaman, bukan hanya di pemilihnya:
+              seluruh angka pada layar ini milik satu project, dan yang lupa
+              project mana yang sedang dibuka akan membaca angka yang benar
+              sebagai angka yang salah. */}
+          {sesi.project_name && (
+            <span className="pill proyek" title={sesi.project_company ?? ""}>
+              {sesi.project_name}
+            </span>
+          )}
           {/* Identitas di kanan atas: di sanalah orang mencarinya, dan di kaki
               kolom menu ia justru tenggelam di bawah menu terakhir. */}
           <BilahPengguna sesi={sesi} />

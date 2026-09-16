@@ -1,4 +1,5 @@
-import { handler, currentUser, body, idemKey, claimView } from "@/lib/api";
+import { handler, currentUser, body, idemKey, claimView,
+         projectAktif } from "@/lib/api";
 import { idempotent, query } from "@/lib/db";
 import { createClaim } from "@/lib/workflow";
 
@@ -6,7 +7,9 @@ export const GET = handler(async (req) => {
   const url = new URL(req.url);
   const status = url.searchParams.get("status");
   const claimType = url.searchParams.get("claim_type");
-  const conds: string[] = ["1=1"]; const args: any[] = [];
+  // Konsol klaim hanya menampilkan klaim project yang sedang dikerjakan.
+  const args: any[] = [await projectAktif(req)];
+  const conds: string[] = ["project_id = $1"];
   if (status) { args.push(status.split(",")); conds.push(`status = ANY($${args.length}::claim_status[])`); }
   if (claimType) { args.push(claimType); conds.push(`claim_type = $${args.length}`); }
   const rows = await query(

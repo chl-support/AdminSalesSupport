@@ -100,10 +100,13 @@ export default function LoginPage() {
    * mengantar orang ke situs lain tepat setelah mereka mengetikkan sandinya.
    */
   const tujuan = () => {
-    // Bawaannya /klaim, bukan beranda: yang pertama dikerjakan setelah masuk
-    // adalah mengajukan klaim, bukan menindaklanjuti yang sudah ada.
+    // Selalu lewat pemilih project lebih dulu: hampir seluruh layar menyaring
+    // datanya menurut project, dan membuka salah satunya tanpa project terpilih
+    // hanya menghasilkan layar kosong yang tidak menjelaskan sebabnya. Halaman
+    // yang tadi dituju dibawa serta, dan pemilihnya melanjutkan ke sana.
     const n = new URLSearchParams(window.location.search).get("next") ?? "/klaim";
-    return n.startsWith("/") && !n.startsWith("//") ? n : "/klaim";
+    const aman = n.startsWith("/") && !n.startsWith("//") ? n : "/klaim";
+    return `/project?next=${encodeURIComponent(aman)}`;
   };
 
   const masuk = async (e: React.FormEvent) => {

@@ -84,6 +84,10 @@ export async function verifyPassword(
 }
 
 export type SessionUser = {
+  project_id?: string | null;
+  project_slug?: string | null;
+  project_name?: string | null;
+  project_company?: string | null;
   id: string; username: string; full_name: string; role: string;
 };
 
@@ -110,9 +114,17 @@ export async function startSession(
  */
 export async function userFromToken(token: string): Promise<SessionUser | null> {
   if (!token) return null;
+  // Project yang sedang dikerjakan ikut terbawa: seluruh penyaringan data
+  // bergantung padanya, dan mengambilnya lewat panggilan terpisah berarti tiap
+  // route harus ingat memanggilnya — yang lupa akan menampilkan data project
+  // lain tanpa ada yang menyadarinya.
   return await one<SessionUser>(
-    `SELECT u.id, u.username, u.full_name, u.role
-       FROM sessions s JOIN users u ON u.id = s.user_id
+    `SELECT u.id, u.username, u.full_name, u.role,
+            s.project_id, p.slug AS project_slug, p.name AS project_name,
+            p.company_name AS project_company
+       FROM sessions s
+       JOIN users u ON u.id = s.user_id
+       LEFT JOIN projects p ON p.id = s.project_id
       WHERE s.token_hash = $1 AND s.expires_at > now() AND u.active`,
     [hashToken(token)]);
 }
