@@ -15,7 +15,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import { TombolBahasa, useBahasa } from "./bahasa";
+import { useBahasa } from "./bahasa";
 import { Logo } from "./logo";
 import { Nav, indukDari } from "./nav";
 import { BilahPengguna, type Sesi } from "./session";
@@ -60,13 +60,12 @@ export function Kerangka(
           </div>
 
           {/* Identitas di kanan atas: di sanalah orang mencarinya, dan di kaki
-              kolom menu ia justru tenggelam di bawah menu terakhir. Pilihan
-              bahasa duduk di sebelahnya — yang salah pilih sebelum masuk tidak
-              perlu keluar dulu untuk membetulkannya. */}
-          <div className="kanan-atas">
-            <TombolBahasa />
-            <BilahPengguna sesi={sesi} />
-          </div>
+              kolom menu ia justru tenggelam di bawah menu terakhir.
+
+              Tanpa tombol bahasa di sebelahnya: pilihannya dibuat di halaman
+              masuk, sekali, sebelum orangnya masuk. Konsekuensinya disadari —
+              yang salah pilih harus keluar dulu untuk membetulkannya. */}
+          <BilahPengguna sesi={sesi} />
         </div>
       </header>
 

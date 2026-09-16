@@ -342,9 +342,6 @@ ul.cetak-ceklis .kotak { border: 1px solid var(--ink); width: 14px; height: 14px
              border-left: 1px solid var(--line); }
 .nav .anak a { padding-left: 9px; font-weight: 500; font-size: 12px; }
 
-/* Pilihan bahasa dan lencana profil berdampingan di pojok kanan atas. */
-.kanan-atas { display: flex; align-items: center; gap: 12px; flex: none; }
-
 /* Lencana profil di kanan atas, dan panel yang muncul saat diklik. */
 .bilah { position: relative; flex: none; }
 .lencana {
@@ -467,15 +464,12 @@ ul.cetak-ceklis .kotak { border: 1px solid var(--ink); width: 14px; height: 14px
    satu kotak berisi dua tombol, bukan dua tombol terpisah: yang dipilih adalah
    salah satu dari dua, dan bentuk yang menyatu itulah yang menyatakannya tanpa
    perlu tulisan tambahan. */
-.pilih-bahasa {
-  display: flex; border: 1px solid var(--line); border-radius: 999px;
-  overflow: hidden; background: #fff; flex: none;
-}
-/* Pada halaman masuk ia menggantung di pojok bidang formulir; di konsol ia
-   ikut mengalir di dalam bilah atas, jadi yang menggantung hanya yang di
-   halaman masuk. */
 .masuk-isi { position: relative; }
-.masuk-isi > .pilih-bahasa { position: absolute; top: 26px; right: 30px; }
+.pilih-bahasa {
+  position: absolute; top: 26px; right: 30px; display: flex; flex: none;
+  border: 1px solid var(--line); border-radius: 999px; overflow: hidden;
+  background: #fff;
+}
 .pilih-bahasa button {
   border: none; background: none; padding: 5px 13px; font-size: 11.5px;
   font-weight: 700; letter-spacing: .06em; color: var(--mut); cursor: pointer;
@@ -490,9 +484,8 @@ ul.cetak-ceklis .kotak { border: 1px solid var(--ink); width: 14px; height: 14px
   /* Di layar sempit kartunya mulai tepat di bawah bidang gelap, dan tombol di
      pojok kanan atas bidang terang akan menempel pada bahu kartu itu. Ia
      dinaikkan ke dalam bidang gelapnya, di seberang lambang. */
-  .masuk-isi > .pilih-bahasa { top: -46px; right: 18px;
-                               background: transparent;
-                               border-color: rgba(244,244,241,.28); }
+  .pilih-bahasa { top: -46px; right: 18px; background: transparent;
+                  border-color: rgba(244,244,241,.28); }
   .pilih-bahasa button { color: #C8CCD1; }
   .pilih-bahasa button:hover { color: #fff; }
   .pilih-bahasa button.aktif { background: #F4F4F1; color: var(--ink); }
