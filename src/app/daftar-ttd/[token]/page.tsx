@@ -36,67 +36,83 @@ const BATAS_KTP = 3 * 1024 * 1024;
  * tanda tangannya tertutup jempol. Menjelaskannya dengan kalimat saja tidak
  * cukup — orang membandingkan foto dengan gambar, bukan dengan paragraf.
  *
- * Susunannya mengikuti tata letak KTP sungguhan supaya orang mengenali di mana
- * tanda tangannya berada: kanan bawah, di bawah tempat dan tanggal penerbitan.
- * Seluruh isinya karangan dan bercap CONTOH — ia petunjuk bentuk foto yang
- * benar, dan tidak boleh dapat dikira kartu yang sungguhan.
+ * Rupa dan susunannya mengikuti kartu sungguhan — warna biru muda, dua baris
+ * kepala, NIK berspasi lebar, pas foto di kanan, lalu tempat-tanggal dan tanda
+ * tangan di bawahnya — supaya orang mengenali letak tanda tangannya tanpa
+ * membaca satu kalimat pun. Isinya seluruhnya karangan dan bercap CONTOH: ia
+ * petunjuk bentuk foto, bukan salinan kartu.
  */
 function ContohKtp() {
   const baris: [string, string][] = [
-    ["NIK", "0000 0000 0000 0000"],
     ["Nama", "BUDI CONTOH"],
     ["Tempat/Tgl Lahir", "CONTOH, 01-01-1990"],
-    ["Jenis Kelamin", "LAKI-LAKI"],
+    ["Jenis Kelamin", "LAKI-LAKI        Gol. Darah : O"],
     ["Alamat", "JL. CONTOH NO. 1"],
-    ["RT/RW", "000/000"],
-    ["Kel/Desa", "CONTOH"],
-    ["Kecamatan", "CONTOH"],
+    ["    RT/RW", "000/000"],
+    ["    Kel/Desa", "CONTOH"],
+    ["    Kecamatan", "CONTOH"],
     ["Agama", "CONTOH"],
-    ["Status Perkawinan", "CONTOH"],
-    ["Pekerjaan", "CONTOH"],
+    ["Status Perkawinan", "KAWIN"],
+    ["Pekerjaan", "PEGAWAI SWASTA"],
     ["Kewarganegaraan", "WNI"],
     ["Berlaku Hingga", "SEUMUR HIDUP"],
   ];
   return (
     <svg viewBox="0 0 340 214" className="contoh-ktp" role="img"
          aria-label="Contoh foto KTP yang benar: kartu utuh, lurus, dan terang">
-      <rect x="3" y="3" width="334" height="208" rx="9"
-            fill="#E4EEF4" stroke="#8B9198" />
-      <text x="170" y="20" textAnchor="middle" fontSize="10" fontWeight="700"
+      <defs>
+        {/* Guilloche pada kartu aslinya hanya terbaca sebagai tekstur halus
+            pada foto ponsel; sebaris gelombang tipis sudah cukup mewakilinya. */}
+        <pattern id="ktp-pola" width="26" height="14" patternUnits="userSpaceOnUse">
+          <path d="M0 7 Q6.5 0 13 7 T26 7" fill="none"
+                stroke="#9FC3D9" strokeWidth="0.5" opacity="0.5" />
+        </pattern>
+      </defs>
+
+      <rect x="3" y="3" width="334" height="208" rx="10" fill="#CFE6F2" />
+      <rect x="3" y="3" width="334" height="208" rx="10" fill="url(#ktp-pola)" />
+      <rect x="3" y="3" width="334" height="208" rx="10" fill="none"
+            stroke="#8B9198" strokeWidth="1.2" />
+
+      <text x="170" y="19" textAnchor="middle" fontSize="10.5" fontWeight="700"
             fill="#15171A">PROVINSI CONTOH</text>
-      <text x="170" y="32" textAnchor="middle" fontSize="9" fontWeight="700"
+      <text x="170" y="31" textAnchor="middle" fontSize="10.5" fontWeight="700"
             fill="#15171A">KABUPATEN CONTOH</text>
+
+      <text x="14" y="47" fontSize="9" fill="#15171A" letterSpacing="2.2">NIK</text>
+      <text x="80" y="47" fontSize="9.5" fontWeight="700" fill="#15171A">
+        : 0000 0000 0000 0000
+      </text>
 
       {baris.map(([k, v], i) => (
         <g key={k}>
-          <text x="14" y={48 + i * 12} fontSize="6.5" fill="#5B6167">{k}</text>
-          <text x="86" y={48 + i * 12} fontSize="6.5" fill="#15171A">: {v}</text>
+          <text x="14" y={60 + i * 11.5} fontSize="6.6" fill="#2B4C7E"
+                xmlSpace="preserve">{k}</text>
+          <text x="80" y={60 + i * 11.5} fontSize="6.6" fill="#15171A"
+                xmlSpace="preserve">: {v}</text>
         </g>
       ))}
 
-      {/* Pas foto, lalu tempat-tanggal, lalu tanda tangan — urutan yang sama
+      {/* Pas foto, tempat dan tanggal, lalu tanda tangan — urutan yang sama
           dengan kartunya, karena itulah yang dicari mata orang. */}
-      <rect x="252" y="42" width="72" height="92" fill="#C9D3DA" />
-      <text x="288" y="90" textAnchor="middle" fontSize="6.5" fill="#5B6167">
-        PAS FOTO
-      </text>
-      <text x="288" y="146" textAnchor="middle" fontSize="6" fill="#15171A">
-        CONTOH
-      </text>
-      <text x="288" y="155" textAnchor="middle" fontSize="6" fill="#15171A">
-        01-01-2026
-      </text>
+      <rect x="250" y="40" width="74" height="96" fill="#B9C6CF" />
+      <circle cx="287" cy="74" r="15" fill="#9DAEBA" />
+      <path d="M262 136 C262 112, 312 112, 312 136 Z" fill="#9DAEBA" />
+      <text x="287" y="150" textAnchor="middle" fontSize="6.5"
+            fontWeight="700" fill="#15171A">KABUPATEN CONTOH</text>
+      <text x="287" y="159" textAnchor="middle" fontSize="6.5"
+            fontWeight="700" fill="#15171A">01-01-2026</text>
 
-      <path d="M262 182 C272 168, 279 192, 288 178 C295 167, 303 188, 314 175"
-            fill="none" stroke="#15171A" strokeWidth="2" strokeLinecap="round" />
-      <rect x="254" y="163" width="68" height="30" fill="none"
+      <path d="M262 184 C271 170, 278 194, 287 180 C294 169, 302 190, 313 177"
+            fill="none" stroke="#15171A" strokeWidth="1.8" strokeLinecap="round" />
+      <rect x="252" y="165" width="70" height="30" fill="none"
             stroke="#8C2F2F" strokeWidth="1.8" strokeDasharray="4 3" />
-      <text x="248" y="182" textAnchor="end" fontSize="7" fill="#8C2F2F">
+      <text x="246" y="184" textAnchor="end" fontSize="7" fill="#8C2F2F">
         tanda tangan →
       </text>
 
-      <text x="170" y="120" textAnchor="middle" fontSize="40" fontWeight="700"
-            fill="#15171A" opacity="0.07" transform="rotate(-14 170 120)">
+      <text x="150" y="120" textAnchor="middle" fontSize="40" fontWeight="700"
+            fill="#15171A" opacity="0.07" transform="rotate(-14 150 120)">
         CONTOH
       </text>
     </svg>
