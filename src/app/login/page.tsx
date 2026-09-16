@@ -39,9 +39,35 @@ function IkonSurel() {
   );
 }
 
+/**
+ * Mata terbuka/tercoret untuk tombol lihat sandi.
+ *
+ * Satu komponen dengan satu sakelar, bukan dua komponen terpisah: kedua
+ * gambarnya berbagi bentuk mata yang sama, dan yang membedakan hanya garis
+ * coretannya.
+ */
+function IkonMata({ tertutup }: { tertutup: boolean }) {
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"
+         fill="none" stroke="currentColor" strokeWidth="1.7"
+         strokeLinecap="round" strokeLinejoin="round">
+      <path d="M2.2 12S5.9 5.5 12 5.5 21.8 12 21.8 12 18.1 18.5 12 18.5 2.2 12 2.2 12Z" />
+      <circle cx="12" cy="12" r="3.1" />
+      {tertutup && <path d="m4 20 16-16" />}
+    </svg>
+  );
+}
+
+/** Jenis insentif yang dapat diklaim lewat sistem ini. */
+const JENIS_INSENTIF = ["Closing Fee", "Komisi", "Cash Reward", "Overriding"];
+
 export default function LoginPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  // Sandi tersembunyi secara bawaan; tombol di dalam kolomnya membukanya
+  // sementara. Layar masuk sering dibuka di meja terbuka, jadi yang dipilih
+  // adalah tersembunyi dulu — bukan terbuka dulu lalu ditutup.
+  const [lihatSandi, setLihatSandi] = useState(false);
   const [busy, setBusy] = useState(false);
   const [galat, setGalat] = useState<string | null>(null);
   const [sisa, setSisa] = useState<number | null>(null);
@@ -138,13 +164,17 @@ export default function LoginPage() {
           kredensial dari halaman yang tidak memperkenalkan diri — persis bentuk
           yang diajarkan untuk dicurigai. */}
       <aside className="masuk-merek">
-        <div>
-          <Logo tinggi={118} />
+        <div className="isi-merek">
+          <Logo tinggi={112} />
           <div className="wordmark">CHL Admin Sales</div>
-          <p className="tagline">
-            KLAIM INSENTIF MARKETING
-            <span>Closing Fee, Komisi, Cash Reward, dan Overriding.</span>
-          </p>
+          <p className="tagline">KLAIM INSENTIF MARKETING</p>
+
+          {/* Keempat jenisnya didaftar, bukan dirangkai jadi satu kalimat:
+              yang dicari orang di sini adalah apakah yang ia urus ada di
+              sini, dan daftar menjawabnya lebih cepat daripada kalimat. */}
+          <ul className="jenis-insentif">
+            {JENIS_INSENTIF.map((j) => <li key={j}>{j}</li>)}
+          </ul>
         </div>
 
         <div className="kaki">PT. Serpong Bangun Lestari</div>
@@ -152,7 +182,11 @@ export default function LoginPage() {
 
       <main className="masuk-isi">
         <form className="masuk-kartu" onSubmit={masuk}>
-          <h1>Sign In</h1>
+          <p className="eyebrow">Portal Internal</p>
+          <h1>Masuk</h1>
+          <p className="pengantar">
+            Gunakan akun yang diberikan Admin IT untuk melanjutkan.
+          </p>
 
           <label className="lbl" htmlFor="username">Username</label>
           <input id="username" type="text" value={username} autoFocus
@@ -160,9 +194,17 @@ export default function LoginPage() {
                  onChange={(e) => setUsername(e.target.value)} />
 
           <label className="lbl" htmlFor="sandi">Password</label>
-          <input id="sandi" type="password" value={password}
-                 autoComplete="current-password" className="isian"
-                 onChange={(e) => setPassword(e.target.value)} />
+          <div className="isian-sandi">
+            <input id="sandi" type={lihatSandi ? "text" : "password"}
+                   value={password} autoComplete="current-password"
+                   className="isian"
+                   onChange={(e) => setPassword(e.target.value)} />
+            <button type="button" onClick={() => setLihatSandi((v) => !v)}
+                    aria-label={lihatSandi ? "Sembunyikan kata sandi"
+                                           : "Tampilkan kata sandi"}>
+              <IkonMata tertutup={lihatSandi} />
+            </button>
+          </div>
 
           <button className="pri masuk-tombol" type="submit"
                   disabled={busy || !username || !password}>

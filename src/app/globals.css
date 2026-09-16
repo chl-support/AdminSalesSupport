@@ -5,6 +5,9 @@
   --warn: #8A5A00; --warnbg: #FBF2DF;
   --stop: #8C2F2F; --stopbg: #F8EAEA;
   --note: #2B4C7E; --notebg: #EAF0F8;
+  /* Emas lambang perusahaan. Nada tuanya dipakai untuk teks dan garis fokus:
+     emas terang di atas putih tidak cukup kontras untuk dibaca. */
+  --emas: #D6A419; --emas-tua: #9A7203;
   --ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 * { box-sizing: border-box; }
@@ -357,62 +360,122 @@ ul.cetak-ceklis .kotak { border: 1px solid var(--ink); width: 14px; height: 14px
 }
 
 /* ── Halaman masuk ───────────────────────────────────────────────────────
-   Dua sisi: keterangan di kiri, formulir di kanan. Di layar sempit keduanya
-   menumpuk, dan sisi kiri menyusut jadi kepala halaman supaya formulirnya
-   tetap yang pertama terlihat tanpa menggulir. */
-.masuk { min-height: 100vh; display: grid; grid-template-columns: 1.05fr 1fr; }
+   Dua sisi: keterangan di kiri, formulir di kanan. Keduanya rata tengah
+   secara tegak supaya tidak ada bidang kosong menganga di bawah isinya — di
+   layar lebar, isi yang menempel ke atas membuat separuh bawah halaman
+   terbaca sebagai bagian yang belum jadi. Di layar sempit keduanya menumpuk,
+   dan sisi kiri menyusut jadi kepala halaman supaya formulirnya tetap yang
+   pertama terlihat tanpa menggulir. */
+.masuk { min-height: 100vh; display: grid; grid-template-columns: 1.08fr 1fr; }
 
 .masuk-merek {
-  background: var(--ink); color: #F4F4F1;
-  padding: 48px 46px; display: flex; flex-direction: column;
-  justify-content: space-between; gap: 40px;
+  background: var(--ink); color: #F4F4F1; position: relative; overflow: hidden;
+  padding: 56px 56px; display: flex; flex-direction: column;
+  justify-content: center;
   /* Guratan tipis sebagai latar: cukup untuk membuat bidang gelapnya tidak
-     rata mati, tanpa menarik perhatian dari formulirnya. */
+     rata mati, tanpa menarik perhatian dari formulirnya. Sapuan emas di sudut
+     mengambil warna lambangnya sehingga bidang ini terbaca sebagai satu
+     kesatuan dengannya, bukan kotak hitam yang kebetulan memuat lambang. */
   background-image:
-    radial-gradient(900px 420px at 8% -10%, rgba(255,255,255,.07), transparent 60%),
-    radial-gradient(700px 380px at 110% 110%, rgba(255,255,255,.05), transparent 60%);
+    radial-gradient(900px 460px at 6% -12%, rgba(214,164,25,.14), transparent 62%),
+    radial-gradient(760px 420px at 112% 112%, rgba(255,255,255,.06), transparent 60%);
 }
-.masuk-merek img { margin-bottom: 18px; }
+/* Garis emas setipis rambut di batas kedua sisi: pemisah yang tegas tanpa
+   menambah satu elemen pun yang harus dibaca. */
+.masuk-merek::after {
+  content: ""; position: absolute; top: 0; right: 0; bottom: 0; width: 3px;
+  background: linear-gradient(180deg, transparent, var(--emas) 22%,
+                              var(--emas) 78%, transparent);
+  opacity: .5;
+}
+.masuk-merek .isi-merek { max-width: 46ch; }
+.masuk-merek img { margin-bottom: 22px; }
 /* Nama sistem jelas paling besar di bidang ini — selebihnya keterangan, dan
    keterangan yang seukuran namanya membuat mata tidak tahu mulai dari mana. */
-.wordmark { font-size: 42px; font-weight: 690; letter-spacing: -.03em;
+.wordmark { font-size: 44px; font-weight: 690; letter-spacing: -.032em;
             line-height: 1.02; margin-top: 4px; }
-/* Baris pertama tagline adalah nama kegiatannya, huruf kapital dan berjarak;
-   daftar jenis feenya turun ke baris sendiri supaya keduanya tidak terbaca
-   sebagai satu kalimat panjang. */
-.tagline { margin: 12px 0 0; font-size: 12px; line-height: 1.6;
-           letter-spacing: .14em; font-weight: 600; color: #D3D6D9;
-           max-width: 42ch; }
-.tagline span { display: block; margin-top: 7px; font-size: 13.5px;
-                letter-spacing: normal; font-weight: 400; color: #B9BDC2; }
-.masuk-merek .kaki { font-size: 11.5px; letter-spacing: .06em;
+/* Nama kegiatannya, huruf kapital dan berjarak, dengan garis emas pendek di
+   atasnya sebagai penanda bahwa ia keterangan dari nama di atasnya. */
+.tagline { margin: 20px 0 0; padding-top: 16px; font-size: 11.5px;
+           line-height: 1.6; letter-spacing: .16em; font-weight: 600;
+           color: #D3D6D9; border-top: 2px solid rgba(214,164,25,.55);
+           display: inline-block; }
+
+/* Empat jenis insentifnya didaftar sebagai baris, bukan satu kalimat berkoma:
+   yang dicari orang di sini adalah "apakah yang saya urus ada di sini", dan
+   itu terjawab lebih cepat oleh daftar daripada oleh kalimat. */
+.jenis-insentif { list-style: none; margin: 26px 0 0; padding: 0;
+                  display: grid; grid-template-columns: 1fr 1fr; gap: 10px 22px;
+                  max-width: 34ch; }
+.jenis-insentif li { display: flex; align-items: center; gap: 10px;
+                     font-size: 13.5px; color: #C8CCD1; }
+.jenis-insentif li::before {
+  content: ""; flex: none; width: 5px; height: 5px; border-radius: 50%;
+  background: var(--emas);
+}
+.masuk-merek .kaki { position: absolute; left: 56px; bottom: 40px;
+                     font-size: 11.5px; letter-spacing: .06em;
                      text-transform: uppercase; color: #7E858C; }
 
 .masuk-isi { display: flex; align-items: center; justify-content: center;
-             padding: 48px 24px; }
+             padding: 48px 24px; background: var(--bg); }
 .masuk-kartu {
-  width: 100%; max-width: 372px; background: #fff;
-  border: 1px solid var(--line); padding: 30px 30px 26px;
-  box-shadow: 0 1px 2px rgba(21,23,26,.04), 0 12px 32px rgba(21,23,26,.06);
+  width: 100%; max-width: 396px; background: #fff;
+  border: 1px solid var(--line); border-radius: 10px; padding: 34px 34px 28px;
+  box-shadow: 0 1px 2px rgba(21,23,26,.04), 0 18px 44px rgba(21,23,26,.09);
 }
-/* Tanpa kalimat pengantar di bawahnya, judul sendiri yang memberi jarak ke
-   kolom isian pertama. */
-.masuk-kartu h1 { font-size: 21px; letter-spacing: -.015em; margin-bottom: 20px; }
-.masuk-kartu .lbl { display: block; margin-bottom: 5px; }
-.masuk-kartu .lbl + .isian { margin-bottom: 15px; }
+/* Baris kecil di atas judul: menyebut ini pintu masuk milik siapa, sehingga
+   judulnya sendiri cukup satu kata. */
+.masuk-kartu .eyebrow { font-size: 10.5px; letter-spacing: .18em;
+                        text-transform: uppercase; font-weight: 700;
+                        color: var(--emas-tua); margin: 0 0 8px; }
+.masuk-kartu h1 { font-size: 24px; letter-spacing: -.02em; margin: 0; }
+.masuk-kartu .pengantar { margin: 6px 0 24px; font-size: 12.5px;
+                          color: var(--sub); }
+.masuk-kartu .lbl { display: block; margin-bottom: 6px; font-size: 11px;
+                    font-weight: 600; letter-spacing: .04em;
+                    text-transform: uppercase; color: var(--sub); }
+.masuk-kartu .lbl + .isian { margin-bottom: 16px; }
 
-.isian { width: 100%; font-size: 14.5px; padding: 10px 12px;
-         border: 1px solid var(--line); background: #FCFCFB;
-         transition: border-color .12s ease, box-shadow .12s ease; }
-.isian:focus { outline: none; border-color: var(--ink); background: #fff;
-               box-shadow: 0 0 0 3px rgba(21,23,26,.09); }
+.isian { width: 100%; font-size: 14.5px; padding: 11px 13px;
+         border: 1px solid var(--line); border-radius: 7px; background: #FCFCFB;
+         transition: border-color .12s ease, box-shadow .12s ease,
+                     background-color .12s ease; }
+.isian:focus { outline: none; border-color: var(--emas-tua); background: #fff;
+               box-shadow: 0 0 0 3px rgba(214,164,25,.18); }
 
-.masuk-tombol { width: 100%; padding: 12px; font-size: 14px; margin-top: 4px; }
-.masuk-tombol:disabled { opacity: .45; cursor: not-allowed; }
-.masuk-bantuan { margin: 18px 0 0; padding-top: 16px; text-align: center;
+/* Sandi dan tombol lihatnya berbagi satu kotak: tombolnya diletakkan di dalam
+   tepi kanan isiannya, dan isiannya diberi ruang kanan supaya teks sandi yang
+   panjang tidak lewat di bawah tombolnya. */
+.isian-sandi { position: relative; margin-bottom: 16px; }
+.isian-sandi .isian { margin-bottom: 0; padding-right: 46px; }
+.isian-sandi button {
+  position: absolute; top: 0; right: 0; height: 100%; width: 42px;
+  display: flex; align-items: center; justify-content: center;
+  border: none; background: none; padding: 0; color: var(--mut);
+  cursor: pointer; border-radius: 0 7px 7px 0;
+}
+.isian-sandi button:hover { color: var(--ink); }
+.isian-sandi button:focus-visible { outline: 2px solid var(--emas-tua);
+                                    outline-offset: -2px; }
+
+.masuk-tombol { width: 100%; padding: 13px; font-size: 14px; margin-top: 6px;
+                border-radius: 7px; letter-spacing: .01em;
+                transition: background-color .12s ease, box-shadow .12s ease; }
+.masuk-tombol:not(:disabled):hover { box-shadow: 0 4px 14px rgba(21,23,26,.22); }
+.masuk-tombol:disabled { opacity: .3; cursor: not-allowed; }
+.masuk-bantuan { margin: 22px 0 0; padding-top: 18px; text-align: center;
                  border-top: 1px solid var(--line);
                  font-size: 11.5px; line-height: 1.6; color: var(--mut); }
 .masuk-bantuan p { margin: 0 0 6px; }
+
+/* Sudut tumpul mengikuti kartunya. Banner dan pop-up dipakai juga di layar
+   lain yang bersudut siku, jadi pembulatannya dibatasi pada halaman ini
+   alih-alih diubah untuk semuanya. */
+.masuk-kartu .banner { border-radius: 7px; }
+.masuk .popup { border-radius: 10px; }
+.masuk .popup > button { border-radius: 7px; }
+.masuk .popup .kontak a, .masuk .popup .kontak > span { border-radius: 7px; }
 
 /* Tombol yang tampil sebagai tautan: perilakunya tombol (membuka isi di
    halaman yang sama), jadi elemennya tetap <button> demi papan ketik dan
@@ -428,13 +491,22 @@ button.tautan:hover { color: var(--note); }
 
 @media (max-width: 860px) {
   .masuk { grid-template-columns: 1fr; min-height: 0; }
-  .masuk-merek { padding: 28px 22px; gap: 0; }
-  /* Kaki halaman disembunyikan di ponsel: yang dibutuhkan di layar sekecil
-     itu hanya nama sistemnya dan kolom isiannya. */
-  .masuk-merek .kaki { display: none; }
+  .masuk-merek { padding: 30px 22px 26px; }
+  /* Garis pemisahnya berpindah ke sisi bawah begitu keduanya menumpuk. */
+  .masuk-merek::after { top: auto; left: 0; right: 0; bottom: 0;
+                        width: auto; height: 3px;
+                        background: linear-gradient(90deg, transparent,
+                                    var(--emas) 20%, var(--emas) 80%,
+                                    transparent); }
+  /* Kaki halaman dan daftar jenis insentif disembunyikan di ponsel: yang
+     dibutuhkan di layar sekecil itu hanya nama sistemnya dan kolom
+     isiannya. */
+  .masuk-merek .kaki, .jenis-insentif { display: none; }
+  .masuk-merek img { margin-bottom: 14px; }
   .wordmark { font-size: 30px; }
-  .tagline { font-size: 13px; }
+  .tagline { margin-top: 14px; padding-top: 12px; font-size: 10.5px; }
   .masuk-isi { padding: 26px 18px 40px; }
+  .masuk-kartu { padding: 26px 22px 22px; }
 }
 
 /* Penandaan tanda tangan pada foto KTP. Kotaknya digambar di atas gambar, bukan
