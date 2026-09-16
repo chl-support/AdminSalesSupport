@@ -25,7 +25,20 @@ import { jenisDari } from "../jenis";
 
 const rp = (n?: number | null) => `Rp ${(n ?? 0).toLocaleString("id-ID")}`;
 
+/** Prasyarat pencairan, sama urutannya dengan yang dicatat di basis data. */
+const PRASYARAT = [
+  ["spu_signed", "SPU sudah ditandatangani pemesan",
+   "Syarat Closing Fee, Komisi, dan Cash Reward."],
+  ["ppjb_signed", "PPJB sudah ditandatangani pemesan",
+   "Syarat Komisi dan Cash Reward."],
+  ["dp_received", "DP / angsuran pertama sudah diterima",
+   "Syarat Cash Reward."],
+  ["sign_p3u", "Unit sudah Sign P3U", "Syarat Overriding."],
+] as const;
+
 type Unit = {
+  spu_signed: boolean; ppjb_signed: boolean;
+  dp_received: boolean; sign_p3u: boolean;
   id: string; code: string; project_name: string; cluster_code: string;
   buyer_name: string | null; unit_type: string | null;
   payment_scheme: string | null; contract_date: string | null;
@@ -51,6 +64,11 @@ export default function DaftarPenjualanPage() {
   const [busy, setBusy] = useState(true);
   const [galat, setGalat] = useState<string | null>(null);
   const [cari, setCari] = useState("");
+  // Unit yang sedang dicatat dokumennya, beserta isian pop-upnya.
+  const [catat, setCatat] = useState<Unit | null>(null);
+  const [isian, setIsian] = useState<Record<string, any>>({});
+  const [simpan, setSimpan] = useState(false);
+  const [kabar, setKabar] = useState<{ kind: string; teks: string } | null>(null);
   const [saring, setSaring] = useState<Saring>("semua");
 
   const muat = useCallback(async () => {
@@ -71,6 +89,37 @@ export default function DaftarPenjualanPage() {
   }, [jenis]);
 
   useEffect(() => { if (sesi) void muat(); }, [sesi, muat]);
+
+  const bukaCatat = (u: Unit) => {
+    setKabar(null);
+    setCatat(u);
+    setIsian({
+      spu_signed: u.spu_signed, ppjb_signed: u.ppjb_signed,
+      dp_received: u.dp_received, sign_p3u: u.sign_p3u,
+      received_amount: String(u.received_amount ?? 0),
+    });
+  };
+
+  const simpanCatat = async () => {
+    if (!catat) return;
+    setSimpan(true);
+    try {
+      const res = await fetch(`/api/units/${catat.id}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...isian,
+          received_amount: Number(String(isian.received_amount).replace(/[^\d]/g, "")) || 0,
+        }) });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.detail ?? body.title ?? `HTTP ${res.status}`);
+      setKabar({ kind: "ok",
+                 teks: `Dokumen unit ${catat.code} tercatat.` });
+      setCatat(null);
+      await muat();
+    } catch (e: any) {
+      setKabar({ kind: "stop", teks: String(e?.message ?? e) });
+    } finally { setSimpan(false); }
+  };
 
   if (memuat || !sesi) {
     return <MemeriksaSesi />;
@@ -98,6 +147,9 @@ export default function DaftarPenjualanPage() {
   });
 
   const bisa = units.filter((u) => u.claimable).length;
+  // Penanda prasyarat membuka pembayaran atas unit, jadi hanya Admin Sales dan
+  // Admin IT yang boleh mencatatnya — bukan yang mengajukan klaimnya.
+  const boleh = sesi.role === "admin_sales" || sesi.role === "admin_system";
 
   return (
     <Kerangka sesi={sesi} judul={
@@ -115,6 +167,10 @@ export default function DaftarPenjualanPage() {
         <span className="pill">{bisa} dapat diklaim</span>
         <span className="pill">{units.length} penjualan</span>
       </div>
+
+      {kabar && (
+        <div className={`banner ${kabar.kind}`}>{kabar.teks}</div>
+      )}
 
       {galat && (
         <div className="banner stop">
@@ -217,6 +273,13 @@ export default function DaftarPenjualanPage() {
                     ) : (
                       <>
                         <span className="pill warn">belum dapat diklaim</span>
+                        {boleh && (
+                          <button style={{ marginLeft: 6, padding: "2px 8px",
+                                           fontSize: 11 }}
+                                  onClick={() => bukaCatat(u)}>
+                            Catat dokumen
+                          </button>
+                        )}
                         <ul className="kurang">
                           {u.missing_requirements.map((m) => <li key={m}>{m}</li>)}
                           {u.marketing_missing && (
@@ -251,6 +314,84 @@ export default function DaftarPenjualanPage() {
           </table>
         </div>
       </div>
+
+      {/* Pencatatan dokumen. Keempat penanda ini tidak ada di Laporan Penjualan
+          — impor sengaja tidak menyentuhnya — sehingga tanpa layar ini setiap
+          unit hasil impor berhenti pada "belum dapat diklaim" tanpa jalan
+          keluar. Yang mencatat adalah Admin Sales yang memegang berkasnya. */}
+      {catat && (
+        <div className="tirai"
+             onMouseDown={(e) => {
+               if (e.target === e.currentTarget && !simpan) setCatat(null);
+             }}>
+          <div className="popup lebar" role="dialog" aria-modal="true"
+               aria-label="Catat dokumen unit" style={{ maxWidth: 520 }}>
+            <div className="popup-kepala">
+              <h2>
+                Dokumen unit {catat.code}
+                <span className="pill">{catat.buyer_name ?? "—"}</span>
+              </h2>
+              <button className="tautan" aria-label="Tutup"
+                      onClick={() => setCatat(null)}>✕</button>
+            </div>
+
+            <div className="popup-isi">
+              <p className="hint" style={{ textAlign: "left", margin: "0 0 12px" }}>
+                Tandai yang berkasnya sudah ada di tangan Anda. Penanda inilah
+                yang membuka pengajuan atas unit ini, dan setiap perubahannya
+                tercatat pada jejak audit beserta nama Anda.
+              </p>
+
+              {PRASYARAT.map(([kolom, label, ket]) => (
+                <label key={kolom} className="tandai-syarat">
+                  <input type="checkbox" checked={Boolean(isian[kolom])}
+                         onChange={(e) =>
+                           setIsian({ ...isian, [kolom]: e.target.checked })} />
+                  <span>
+                    {label}
+                    <span className="lbl" style={{ margin: 0 }}>{ket}</span>
+                  </span>
+                </label>
+              ))}
+
+              {/* Penerimaan ikut di sini: Komisi dihitung dari persentase
+                  pembayaran, dan angkanya pun tidak ada di laporan penjualan. */}
+              <div className="lbl" style={{ marginTop: 14 }}>
+                Penerimaan sampai hari ini (Rp)
+              </div>
+              <input value={isian.received_amount ?? ""} inputMode="numeric"
+                     style={{ width: "100%" }}
+                     onChange={(e) =>
+                       setIsian({ ...isian, received_amount: e.target.value })} />
+              <div className="lbl" style={{ marginTop: 4 }}>
+                Nilai kontrak {rp(catat.contract_value_incl_vat)}.
+              </div>
+              {/* Diperingatkan, bukan ditolak: pembayaran melebihi nilai kontrak
+                  memang terjadi (denda, penyesuaian), tetapi jauh lebih sering
+                  ia adalah angka yang salah ketik — dan Komisi dihitung dari
+                  persentase pembayaran, jadi salah ketiknya ikut terbawa. */}
+              {Number(String(isian.received_amount).replace(/[^\d]/g, "")) >
+                 catat.contract_value_incl_vat && (
+                <div className="banner warn" style={{ marginTop: 8 }}>
+                  <b>Penerimaan melebihi nilai kontrak</b>
+                  Periksa sekali lagi sebelum disimpan.
+                </div>
+              )}
+            </div>
+
+            <div className="popup-kaki">
+              <div className="row">
+                <button className="pri" disabled={simpan}
+                        onClick={() => void simpanCatat()}>
+                  {simpan ? "Menyimpan…" : "Simpan"}
+                </button>
+                <button disabled={simpan}
+                        onClick={() => setCatat(null)}>Batal</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </Kerangka>
   );
 }

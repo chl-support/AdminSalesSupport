@@ -19,6 +19,7 @@
 import type { PoolClient } from "pg";
 
 import { audit, one, query } from "./db";
+import { WorkflowError } from "./workflow";
 
 export type Baris = Record<string, string>;
 export type Seksi = { seksi: string; hdr: string[]; rows: Baris[] };
@@ -296,4 +297,81 @@ export async function imporLaporan(
       "kontrak berbeda.",
     ],
   };
+}
+
+/** Kolom prasyarat pencairan, beserta bunyinya di layar. */
+export const PRASYARAT: { kolom: string; label: string; ket: string }[] = [
+  { kolom: "spu_signed", label: "SPU sudah ditandatangani pemesan",
+    ket: "Syarat Closing Fee, Komisi, dan Cash Reward." },
+  { kolom: "ppjb_signed", label: "PPJB sudah ditandatangani pemesan",
+    ket: "Syarat Komisi dan Cash Reward." },
+  { kolom: "dp_received", label: "DP / angsuran pertama sudah diterima",
+    ket: "Syarat Cash Reward." },
+  { kolom: "sign_p3u", label: "Unit sudah Sign P3U",
+    ket: "Syarat Overriding." },
+];
+
+/**
+ * Catat pemenuhan prasyarat pencairan sebuah unit.
+ *
+ * Keempat penanda ini — SPU, PPJB, DP, Sign P3U — tidak ada di Laporan
+ * Penjualan, jadi impor sengaja tidak menyentuhnya: menulis TRUE berarti
+ * mengarang pemenuhan syarat yang belum terjadi, menulis FALSE berarti menghapus
+ * yang sudah dicatat orang. Akibatnya keempatnya tidak pernah terisi sama
+ * sekali, dan setiap unit hasil impor berhenti pada "belum dapat diklaim" tanpa
+ * jalan keluar. Fungsi ini jalan keluarnya: Admin Sales yang memegang berkasnya
+ * mencatat apa yang memang sudah ada di tangannya.
+ *
+ * Nilai lamanya ikut tercatat di jejak audit. Menandai SPU sudah ditandatangani
+ * membuka pembayaran atas unit itu, jadi pertanyaan "siapa yang menandai ini,
+ * dan kapan" harus punya jawaban.
+ */
+export async function catatPrasyarat(
+  unitId: string,
+  data: Record<string, unknown>,
+  aktor: string,
+) {
+  const unit = await one<any>("SELECT * FROM units WHERE id=$1", [unitId]);
+  if (!unit) throw new WorkflowError("Unit tidak ditemukan.", "not_found", 404);
+
+  const set: string[] = [];
+  const nilai: any[] = [unitId];
+  const sebelum: Record<string, unknown> = {};
+  const sesudah: Record<string, unknown> = {};
+
+  for (const { kolom } of PRASYARAT) {
+    if (!(kolom in data)) continue;
+    const v = Boolean(data[kolom]);
+    if (v === unit[kolom]) continue;
+    nilai.push(v);
+    set.push(`${kolom}=$${nilai.length}`);
+    sebelum[kolom] = unit[kolom];
+    sesudah[kolom] = v;
+  }
+
+  if ("received_amount" in data) {
+    const angka = Math.round(Number(data.received_amount));
+    if (!Number.isFinite(angka) || angka < 0) {
+      throw new WorkflowError(
+        "Penerimaan harus berupa angka rupiah, tidak boleh negatif.",
+        "invalid_amount", 422);
+    }
+    if (angka !== Number(unit.received_amount)) {
+      nilai.push(angka);
+      set.push(`received_amount=$${nilai.length}`);
+      sebelum.received_amount = Number(unit.received_amount);
+      sesudah.received_amount = angka;
+    }
+  }
+
+  if (!set.length) return { unit: unit.code, changed: false };
+
+  await query(`UPDATE units SET ${set.join(", ")} WHERE id=$1`, nilai);
+  await audit({
+    entityType: "unit", entityId: unitId, action: "requirements_recorded",
+    actor: aktor, before: sebelum, after: sesudah,
+    reason: typeof data.reason === "string" && data.reason.trim()
+      ? data.reason.trim() : undefined,
+  });
+  return { unit: unit.code, changed: true };
 }

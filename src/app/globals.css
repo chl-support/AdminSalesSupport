@@ -523,3 +523,14 @@ button.tautan:hover { color: var(--note); }
   .ttd-besar img { height: 200px; }
   .ttd-besar.banding img { height: 130px; }
 }
+
+/* Pencatatan prasyarat pencairan: satu baris per penanda, kotaknya sejajar di
+   kiri supaya keempatnya terbaca sebagai satu daftar, bukan empat pertanyaan. */
+.tandai-syarat { display: flex; gap: 10px; align-items: flex-start;
+                 padding: 9px 11px; border: 1px solid var(--line);
+                 background: #FCFCFB; margin-bottom: 6px; cursor: pointer;
+                 font-size: 13px; }
+.tandai-syarat:hover { border-color: var(--sub); }
+.tandai-syarat input { flex: none; margin: 2px 0 0; width: 15px; height: 15px; }
+.tandai-syarat > span { display: block; }
+.tandai-syarat .lbl { display: block; margin: 2px 0 0; }
