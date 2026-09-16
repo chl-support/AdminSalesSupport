@@ -58,9 +58,6 @@ function IkonMata({ tertutup }: { tertutup: boolean }) {
   );
 }
 
-/** Jenis insentif yang dapat diklaim lewat sistem ini. */
-const JENIS_INSENTIF = ["Closing Fee", "Komisi", "Cash Reward", "Overriding"];
-
 export default function LoginPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -159,22 +156,16 @@ export default function LoginPage() {
 
   return (
     <div className="masuk">
-      {/* Sisi kiri menerangkan sistem apa ini sebelum orang mengetikkan
-          sandinya. Layar masuk tanpa keterangan apa pun sama saja meminta
-          kredensial dari halaman yang tidak memperkenalkan diri — persis bentuk
-          yang diajarkan untuk dicurigai. */}
+      {/* Sisi kiri memuat lambang perusahaan saja. Yang memperkenalkan halaman
+          ini adalah kartu di sebelah kanan — lambangnya di sini bekerja sebagai
+          pengenal, bukan sebagai keterangan. */}
       <aside className="masuk-merek">
+        {/* Lambangnya sendirian, di tengah bidang. Tidak ada tulisan yang
+            menemaninya di sini, jadi menempatkannya rata kiri di sepertiga
+            atas hanya menyisakan bidang kosong yang tidak menyeimbangkan
+            apa pun. */}
         <div className="isi-merek">
-          <Logo tinggi={112} />
-          <div className="wordmark">CHL Admin Sales</div>
-          <p className="tagline">KLAIM INSENTIF MARKETING</p>
-
-          {/* Keempat jenisnya didaftar, bukan dirangkai jadi satu kalimat:
-              yang dicari orang di sini adalah apakah yang ia urus ada di
-              sini, dan daftar menjawabnya lebih cepat daripada kalimat. */}
-          <ul className="jenis-insentif">
-            {JENIS_INSENTIF.map((j) => <li key={j}>{j}</li>)}
-          </ul>
+          <Logo tinggi={168} />
         </div>
       </aside>
 
