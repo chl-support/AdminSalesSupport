@@ -412,15 +412,8 @@ ALTER TABLE enrollment_sessions ADD COLUMN IF NOT EXISTS revision_reason TEXT;
 -- kapan.
 ALTER TABLE marketings ADD COLUMN IF NOT EXISTS reference_signature_at TIMESTAMPTZ;
 
--- Jumlah spesimen per orang turun dari sepuluh ke lima.
---
--- Nilai bawaan hanya dipasang saat baris settings belum ada, jadi pemasangan
--- yang sudah berjalan tetap memegang angka lama. Barisnya diperbarui di sini,
--- tetapi hanya bila nilainya masih persis bawaan lama — angka yang sengaja
--- disetel sendiri tidak ikut ditimpa tiap kali migrasi dijalankan.
-UPDATE settings SET value = '5'
- WHERE key = 'onboarding_specimen_count' AND value = '10';
-
+-- Jumlah spesimen per orang turun dari sepuluh ke lima. Angka yang sudah
+-- tersimpan di settings diperbarui di bawah, setelah tabelnya dibuat.
 ALTER TABLE enrollment_sessions ALTER COLUMN target SET DEFAULT 5;
 
 
@@ -593,6 +586,22 @@ CREATE TABLE IF NOT EXISTS settings (
   key   TEXT PRIMARY KEY,
   value TEXT NOT NULL
 );
+
+-- Jumlah spesimen per orang turun dari sepuluh ke lima.
+--
+-- Nilai bawaan hanya dipasang saat baris settings belum ada, jadi pemasangan
+-- yang sudah berjalan tetap memegang angka lama. Barisnya diperbarui di sini,
+-- tetapi hanya bila nilainya masih persis bawaan lama — angka yang sengaja
+-- disetel sendiri tidak ikut ditimpa tiap kali migrasi dijalankan.
+--
+-- Letaknya di bawah CREATE TABLE settings, bukan di antara ALTER TABLE lain di
+-- atas: berkas ini dijalankan sebagai satu perintah, jadi UPDATE yang berdiri
+-- sebelum tabelnya dibuat menggagalkan seluruh migrasi pada basis data yang
+-- masih kosong — pemasangan baru tidak pernah bisa selesai. Pada basis data
+-- kosong ia tidak mengenai baris apa pun, dan nilai bawaannya dipasang
+-- setelah ini oleh ensureDefaultSettings().
+UPDATE settings SET value = '5'
+ WHERE key = 'onboarding_specimen_count' AND value = '10';
 
 -- Sesi login.
 --
