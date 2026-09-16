@@ -485,3 +485,23 @@ button.tautan:hover { color: var(--note); }
 .popup .kontak > span { padding: 9px 11px; border: 1px solid var(--line);
                         background: #FCFCFB; font-size: 12.5px;
                         color: var(--sub); }
+
+/* ── Pop-up pemeriksaan spesimen ─────────────────────────────────────────── */
+/* Lebih lebar daripada pop-up kontak: isinya petak lima tanda tangan yang harus
+   dibandingkan satu sama lain, dan membandingkannya sambil menggulir berarti
+   tidak pernah melihat semuanya sekaligus. Isinya yang menggulir, bukan
+   halamannya, supaya kepala dan tombol keputusan tetap terlihat. */
+.popup.lebar { max-width: 860px; padding: 0; display: flex;
+               flex-direction: column; max-height: 88vh; }
+.popup-kepala { display: flex; align-items: center; justify-content: space-between;
+                gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--line); }
+.popup-kepala h2 { margin: 0; font-size: 14px; font-weight: 650;
+                   display: flex; align-items: center; gap: 10px; border: none;
+                   padding: 0; }
+.popup-kepala button.tautan { font-size: 16px; text-decoration: none;
+                              line-height: 1; color: var(--sub); }
+.popup-isi { padding: 16px 18px; overflow-y: auto; }
+.popup-kaki { padding: 12px 18px 16px; border-top: 1px solid var(--line);
+              background: #FBFBFA; }
+.popup-kaki .row { margin-bottom: 0; }
+@media (max-width: 700px) { .popup.lebar { max-height: 92vh; } }

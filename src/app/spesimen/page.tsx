@@ -77,6 +77,14 @@ export default function SpesimenPage() {
 
   useEffect(() => { if (sesi) void muat(); }, [sesi, muat]);
 
+  // Esc menutup pop-up, sama seperti pop-up lain di sistem ini.
+  useEffect(() => {
+    if (!lihat) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") tutupSet(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [lihat]);
+
   const kirimTautan = async (b: Baris, opsi: { revisi?: boolean } = {}) => {
     setBusy(true); setKabar(null);
     try {
@@ -114,13 +122,29 @@ export default function SpesimenPage() {
     } finally { setBusy(false); }
   };
 
+  const tutupSet = () => { setLihat(null); setCitra([]); setBerkas(null); };
+
   const bukaSet = async (setId: string) => {
-    if (lihat === setId) { setLihat(null); setCitra([]); setBerkas(null); return; }
-    const d = await api(`/marketings/specimens/${setId}`);
-    setCitra(d.specimens ?? []);
-    setBerkas(d);
-    setLihat(setId);
-    setAlasan("");
+    if (lihat === setId) { tutupSet(); return; }
+    // Galatnya ditangkap. Sebelumnya tidak: bila permintaannya gagal, janji
+    // yang ditolak berakhir di konsol peramban dan tombolnya tampak tidak
+    // melakukan apa-apa — keluhan yang mustahil ditelusuri dari layar.
+    setBusy(true); setKabar(null);
+    try {
+      const d = await api(`/marketings/specimens/${setId}`);
+      setCitra(d.specimens ?? []);
+      setBerkas(d);
+      setLihat(setId);
+      setAlasan("");
+      if (!(d.specimens ?? []).length) {
+        setKabar({ kind: "warn", html:
+          `<b>Set ini tidak berisi tanda tangan</b>Perekamannya terputus sebelum
+           satu goresan pun tersimpan. Mintalah tautan revisi.` });
+      }
+    } catch (e: any) {
+      setKabar({ kind: "stop", html:
+        `<b>Spesimen tidak dapat dibuka</b>${e.body?.detail ?? "Coba muat ulang halaman."}` });
+    } finally { setBusy(false); }
   };
 
   const putuskan = async (b: Baris, keputusan: "approve" | "reject") => {
@@ -135,7 +159,7 @@ export default function SpesimenPage() {
            tangan pada klaim. Set lama diarsipkan, tidak dihapus.`
         : `<b>Set ${b.full_name} ditolak</b>Kirimkan tautan pendaftaran baru
            bila ia perlu merekam ulang.` });
-      setLihat(null); setCitra([]); setBerkas(null);
+      tutupSet();
       await muat();
     } catch (e: any) {
       setKabar({ kind: "stop", html:
@@ -285,7 +309,8 @@ export default function SpesimenPage() {
                       </td>
                       <td>
                         {b.sesi_state === "submitted" ? (
-                          <button onClick={() => void bukaSet(b.sesi_set_id!)}>
+                          <button disabled={busy}
+                                  onClick={() => void bukaSet(b.sesi_set_id!)}>
                             {lihat === b.sesi_set_id ? "Tutup" : "Periksa spesimen"}
                           </button>
                         ) : ["sent", "opened", "capturing"].includes(b.sesi_state ?? "") ? (
@@ -353,13 +378,28 @@ export default function SpesimenPage() {
             </div>
           </div>
 
+          {/* Pemeriksaan dibuka sebagai pop-up, bukan panel di bawah tabel.
+              Pada daftar marketing yang panjang panelnya jatuh jauh di luar
+              layar, sehingga menekan "Periksa spesimen" tampak tidak
+              menghasilkan apa-apa. Sebagai pop-up ia muncul di depan baris yang
+              ditekan, dan keputusannya diambil di tempat yang sama. */}
           {lihat && (
-            <div className="panel sp">
-              <h2>
-                Spesimen yang diajukan
-                <span className="pill">{citra.length} tanda tangan</span>
-              </h2>
+            <div className="tirai"
+                 onMouseDown={(e) => {
+                   if (e.target === e.currentTarget) tutupSet();
+                 }}>
+              <div className="popup lebar" role="dialog" aria-modal="true"
+                   aria-label="Spesimen yang diajukan">
+                <div className="popup-kepala">
+                  <h2>
+                    Spesimen {baris.find((x) => x.sesi_set_id === lihat)?.full_name}
+                    <span className="pill">{citra.length} tanda tangan</span>
+                  </h2>
+                  <button className="tautan" onClick={tutupSet}
+                          aria-label="Tutup">✕</button>
+                </div>
 
+                <div className="popup-isi">
               {berkas?.revision_reason && (
                 <div className="banner warn">
                   <b>Ini perekaman ulang</b>
@@ -423,7 +463,9 @@ export default function SpesimenPage() {
                 tidak menangkap goresan yang rapi tetapi bukan tanda tangan orang
                 itu.
               </p>
+                </div>
 
+                <div className="popup-kaki">
               {(() => {
                 const b = baris.find((x) => x.sesi_set_id === lihat);
                 if (!b) return null;
@@ -447,6 +489,8 @@ export default function SpesimenPage() {
                   </>
                 );
               })()}
+                </div>
+              </div>
             </div>
           )}
         </>
