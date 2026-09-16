@@ -17,6 +17,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 
 import { useBahasa, type Bahasa } from "./bahasa";
 import { JENIS, NAMA_EN } from "./klaim/jenis";
@@ -107,9 +108,69 @@ export function indukDari(path: string):
   return null;
 }
 
+/**
+ * Panah pelipat. Satu bentuk yang diputar, bukan dua gambar berbeda: yang
+ * membedakan "terbuka" dan "tertutup" memang hanya arahnya, dan memutarnya
+ * membuat peralihannya terbaca sebagai gerakan yang sama benda.
+ */
+function IkonLipat({ terbuka }: { terbuka: boolean }) {
+  return (
+    <svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"
+         fill="none" stroke="currentColor" strokeWidth="2.4"
+         strokeLinecap="round" strokeLinejoin="round"
+         style={{ transform: `rotate(${terbuka ? 90 : 0}deg)`,
+                  transition: "transform .16s ease" }}>
+      <path d="m9 5 7 7-7 7" />
+    </svg>
+  );
+}
+
+const BANTU = {
+  id: { buka: (n: string) => `Tampilkan sub menu ${n}`,
+        tutup: (n: string) => `Sembunyikan sub menu ${n}` },
+  en: { buka: (n: string) => `Show ${n} submenu`,
+        tutup: (n: string) => `Hide ${n} submenu` },
+};
+
+/** Di mana rumpun yang sedang terlipat disimpan. */
+const KUNCI_LIPAT = "chl.menu-tertutup";
+
 export function Nav({ peran }: { peran?: string }) {
   const path = usePathname();
   const { bahasa } = useBahasa();
+  const bantu = BANTU[bahasa];
+
+  /**
+   * Rumpun yang sedang terlipat, bukan yang sedang terbuka.
+   *
+   * Yang disimpan kebalikannya supaya keadaan awalnya — belum ada yang pernah
+   * dilipat — berarti semuanya terbuka. Menyimpan "yang terbuka" membuat
+   * pemakai baru, dan siapa pun yang penyimpanan situsnya dibersihkan,
+   * mendapat menu yang seluruh sub-nya tersembunyi.
+   */
+  const [tertutup, setTertutup] = useState<string[]>([]);
+
+  // Dibaca setelah komponen terpasang, bukan saat render: membaca localStorage
+  // saat render membuat keluaran server dan klien berbeda. Dibungkus try/catch
+  // karena di jendela penyamaran ia melempar, dan menu yang gagal tampil karena
+  // ingatan lipatan jauh lebih mahal daripada manfaatnya.
+  useEffect(() => {
+    try {
+      const t = JSON.parse(localStorage.getItem(KUNCI_LIPAT) ?? "[]");
+      if (Array.isArray(t)) setTertutup(t.filter((x) => typeof x === "string"));
+    } catch { /* biarkan semuanya terbuka */ }
+  }, []);
+
+  const lipat = (kunci: string) => {
+    setTertutup((lama) => {
+      const baru = lama.includes(kunci)
+        ? lama.filter((x) => x !== kunci) : [...lama, kunci];
+      try { localStorage.setItem(KUNCI_LIPAT, JSON.stringify(baru)); }
+      catch { /* tidak apa-apa */ }
+      return baru;
+    });
+  };
+
   // Cocok persis, atau induk dari lintasan sekarang. `startsWith` telanjang
   // akan membuat "/klaim" terpilih bersamaan dengan "/klaim/komisi".
   const aktif = (href: string) => path === href || path.startsWith(href + "/");
@@ -123,22 +184,50 @@ export function Nav({ peran }: { peran?: string }) {
         // hanya menggantung sebagai kata yang tidak menuju ke mana-mana.
         if (!m.href && !anak.length) return null;
 
+        const kunci = m.href ?? m.label.id;
+        const idAnak = `submenu-${kunci.replace(/[^a-zA-Z0-9]+/g, "-")}`;
+        // Rumpun yang memuat halaman yang sedang dibuka dipaksa terbuka. Menu
+        // yang menyembunyikan justru baris yang sedang menyala membuat orang
+        // kehilangan letaknya sendiri di dalam sistem.
+        const memuatYangAktif = anak.some((a) => aktif(a.href!));
+        const terbuka = memuatYangAktif || !tertutup.includes(kunci);
+        const nama = m.label[bahasa];
+
         return (
-          <div key={m.href ?? m.label.id} className="grup">
+          <div key={kunci} className="grup">
             {m.href ? (
-              <Link href={m.href} className={path === m.href ? "active" : ""}
-                    aria-current={path === m.href ? "page" : undefined}>
-                {m.label[bahasa]}
-              </Link>
+              /* Punya layarnya sendiri: namanya tetap tautan, dan pelipatnya
+                 tombol tersendiri di sebelahnya. Menjadikan seluruh barisnya
+                 pelipat berarti menu ini tidak lagi dapat dibuka dengan
+                 menekan namanya. */
+              <div className="grup-baris">
+                <Link href={m.href} className={path === m.href ? "active" : ""}
+                      aria-current={path === m.href ? "page" : undefined}>
+                  {nama}
+                </Link>
+                {anak.length > 0 && (
+                  <button type="button" className="grup-lipat"
+                          aria-expanded={terbuka} aria-controls={idAnak}
+                          aria-label={terbuka ? bantu.tutup(nama) : bantu.buka(nama)}
+                          onClick={() => lipat(kunci)}>
+                    <IkonLipat terbuka={terbuka} />
+                  </button>
+                )}
+              </div>
             ) : (
-              /* Judul rumpun, bukan tautan. Digambar sebagai teks biasa supaya
-                 papan ketik tidak berhenti di atasnya — tidak ada yang terjadi
-                 bila ia ditekan. */
-              <div className="grup-judul">{m.label[bahasa]}</div>
+              /* Tidak punya layar sendiri: seluruh barisnya jadi pelipat. Nama
+                 rumpun yang tidak menuju ke mana-mana tetapi juga tidak dapat
+                 ditekan hanya menggantung sebagai kata mati. */
+              <button type="button" className="grup-judul"
+                      aria-expanded={terbuka} aria-controls={idAnak}
+                      onClick={() => lipat(kunci)}>
+                <span>{nama}</span>
+                <IkonLipat terbuka={terbuka} />
+              </button>
             )}
 
             {anak.length > 0 && (
-              <div className="anak">
+              <div className="anak" id={idAnak} hidden={!terbuka}>
                 {anak.map((a) => (
                   <Link key={a.href} href={a.href!}
                         className={aktif(a.href!) ? "active" : ""}

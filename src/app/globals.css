@@ -327,12 +327,32 @@ ul.cetak-ceklis .kotak { border: 1px solid var(--ink); width: 14px; height: 14px
   border: 1px solid transparent; border-radius: 6px; background: none;
   transition: color .12s ease, background-color .12s ease;
 }
-/* Judul rumpun: nama kategori yang tidak dapat ditekan. Sejajar dengan butir
-   menu di sekitarnya, tetapi tanpa warna sorot — tidak ada yang terjadi bila
-   tetikus lewat di atasnya, dan penampilan yang menjanjikan sebaliknya membuat
-   orang menekannya berulang kali. */
+/* Baris rumpun yang punya layar sendiri: namanya tautan, pelipatnya tombol
+   tersendiri di ujung kanan. */
+.nav .grup-baris { display: flex; align-items: stretch; gap: 2px; }
+.nav .grup-baris > a { flex: 1; min-width: 0; }
+
+/* Judul rumpun yang tidak punya layar sendiri: seluruh barisnya pelipat. */
 .nav .grup-judul {
-  padding: 7px 10px; font-size: 12.5px; font-weight: 600; color: var(--sub);
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  width: 100%; padding: 7px 10px; font-size: 12.5px; font-weight: 600;
+  color: var(--sub); background: none; border: 1px solid transparent;
+  border-radius: 6px; cursor: pointer; text-align: left;
+  transition: color .12s ease, background-color .12s ease;
+}
+.nav .grup-judul:hover { color: var(--ink); background: #E7E7E3; }
+
+/* Tombol pelipat di sebelah nama yang sudah jadi tautan. Lebarnya tetap supaya
+   panah pada semua rumpun berbaris rapi di tepi yang sama. */
+.nav .grup-lipat {
+  flex: none; width: 26px; padding: 0; display: flex; align-items: center;
+  justify-content: center; border: 1px solid transparent; border-radius: 6px;
+  background: none; color: var(--mut); cursor: pointer;
+  transition: color .12s ease, background-color .12s ease;
+}
+.nav .grup-lipat:hover { color: var(--ink); background: #E7E7E3; }
+.nav .grup-judul:focus-visible, .nav .grup-lipat:focus-visible {
+  outline: 2px solid var(--emas-tua); outline-offset: -2px;
 }
 .nav a:hover { color: var(--ink); background: #E7E7E3; }
 .nav a.active { background: var(--ink); border-color: var(--ink); color: #fff; }
@@ -404,9 +424,18 @@ ul.cetak-ceklis .kotak { border: 1px solid var(--ink); width: 14px; height: 14px
   .nav .grup { display: contents; }
   .nav .anak { display: contents; }
   .nav a { border: 1px solid var(--line); background: #fff; }
-  .nav .grup-judul { border: 1px solid transparent; padding: 7px 4px 7px 10px;
-                     font-size: 11.5px; letter-spacing: .04em;
-                     text-transform: uppercase; color: var(--mut); }
+  /* Barisnya tidak lagi melebar penuh: pada deretan mendatar, judul rumpun
+     selebar kolom akan mendorong seluruh menu turun satu baris. */
+  .nav .grup-baris { display: contents; }
+  /* flex:1 dari tata letak kolom ikut terbawa begitu barisnya jadi `contents`:
+     tautannya menjadi anak langsung deretan mendatar dan berebut melebar,
+     sehingga kepingnya meluber keluar layar. Di sini ia selebar isinya. */
+  .nav .grup-baris > a { flex: 0 0 auto; }
+  .nav .grup-judul { width: auto; border-color: var(--line); background: #fff;
+                     padding: 7px 8px 7px 10px; font-size: 11.5px;
+                     letter-spacing: .04em; text-transform: uppercase;
+                     color: var(--mut); }
+  .nav .grup-lipat { border-color: var(--line); background: #fff; }
   .nav a.active::before { display: none; }
   .nav .anak a { padding-left: 10px; }
 }
