@@ -95,9 +95,14 @@ function ContohKtp() {
 
       {/* Pas foto, tempat dan tanggal, lalu tanda tangan — urutan yang sama
           dengan kartunya, karena itulah yang dicari mata orang. */}
-      <rect x="250" y="40" width="74" height="96" fill="#B9C6CF" />
-      <circle cx="287" cy="74" r="15" fill="#9DAEBA" />
-      <path d="M262 136 C262 112, 312 112, 312 136 Z" fill="#9DAEBA" />
+      {/* Pas foto berlatar merah, seperti pada kartunya. Kotak abu-abu polos
+          tidak terbaca sebagai pas foto, dan orang justru mencari letaknya
+          untuk memastikan seluruh kartu masuk ke dalam bingkai. */}
+      <rect x="250" y="40" width="74" height="96" fill="#B93A32" />
+      <circle cx="287" cy="72" r="14" fill="#E8C6A8" />
+      <path d="M264 136 C264 113, 310 113, 310 136 Z" fill="#2B3640" />
+      <path d="M273 88 C273 104, 301 104, 301 88 L301 136 L273 136 Z"
+            fill="#F2F2EF" />
       <text x="287" y="150" textAnchor="middle" fontSize="6.5"
             fontWeight="700" fill="#15171A">KABUPATEN CONTOH</text>
       <text x="287" y="159" textAnchor="middle" fontSize="6.5"
