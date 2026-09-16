@@ -41,7 +41,6 @@ export default function SpesimenPage() {
 
   const [baris, setBaris] = useState<Baris[]>([]);
   const [ambang, setAmbang] = useState<number | null>(null);
-  const [jumlahSpesimen, setJumlahSpesimen] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [kabar, setKabar] = useState<{ kind: string; html: string } | null>(null);
   const [lihat, setLihat] = useState<string | null>(null);
@@ -55,11 +54,6 @@ export default function SpesimenPage() {
   // Pengisian nomor telepon: baris yang sedang disunting, beserta isiannya.
   const [nomor, setNomor] = useState<string | null>(null);
   const [nomorBaru, setNomorBaru] = useState("");
-  // Spesimen yang sedang diperbesar, sebagai nomor urut dalam `citra`.
-  // Petaknya memuat lima tanda tangan bersebelahan, jadi tiap petak hanya
-  // selebar seperlima pop-up — cukup untuk melihat bahwa kelimanya serupa,
-  // tidak cukup untuk memeriksa goresannya.
-  const [zoom, setZoom] = useState<number | null>(null);
 
   const api = useCallback(async (path: string, init: RequestInit = {}) => {
     const res = await fetch(`/api${path}`, {
@@ -77,7 +71,6 @@ export default function SpesimenPage() {
     const d = await api("/marketings");
     setBaris(d.marketings ?? []);
     setAmbang(d.ambang ?? null);
-    setJumlahSpesimen(d.jumlah_spesimen ?? null);
   }, [api, boleh]);
 
   useEffect(() => { if (sesi) void muat(); }, [sesi, muat]);
@@ -86,16 +79,11 @@ export default function SpesimenPage() {
   useEffect(() => {
     if (!lihat) return;
     const onKey = (e: KeyboardEvent) => {
-      // Esc menutup perbesaran lebih dulu, baru pop-upnya. Menutup keduanya
-      // sekaligus berarti satu kali salah tekan mengulang pemeriksaan.
-      if (e.key === "Escape") { zoom === null ? tutupSet() : setZoom(null); }
-      if (zoom === null) return;
-      if (e.key === "ArrowRight") setZoom((z) => Math.min(citra.length - 1, (z ?? 0) + 1));
-      if (e.key === "ArrowLeft") setZoom((z) => Math.max(0, (z ?? 0) - 1));
+      if (e.key === "Escape") tutupSet();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [lihat, zoom, citra.length]);
+  }, [lihat]);
 
   const kirimTautan = async (b: Baris, opsi: { revisi?: boolean } = {}) => {
     setBusy(true); setKabar(null);
@@ -135,13 +123,8 @@ export default function SpesimenPage() {
   };
 
   const tutupSet = () => {
-    setLihat(null); setCitra([]); setBerkas(null); setZoom(null);
+    setLihat(null); setCitra([]); setBerkas(null);
   };
-
-  /** Sumber citra spesimen; yang lama tersimpan tanpa awalan data URI. */
-  const sumber = (c: any) =>
-    String(c.image_png).startsWith("data:")
-      ? c.image_png : `data:image/png;base64,${c.image_png}`;
 
   const bukaSet = async (setId: string) => {
     if (lihat === setId) { tutupSet(); return; }
@@ -222,10 +205,12 @@ export default function SpesimenPage() {
         <>
           <div className="banner info sp">
             <b>{belum} marketing belum punya spesimen · {menunggu} menunggu diperiksa</b>
-            Tiap tautan meminta foto KTP sebagai jangkar identitas, lalu
-            {" "}{jumlahSpesimen ?? "beberapa"} tanda tangan yang tiap goresannya
-            dicocokkan dengan goresan sebelumnya pada ambang {ambang ?? "—"}{" "}
-            sebelum disimpan.
+            Tautan meminta foto KTP, lalu potongan tanda tangan yang tercetak di
+            atasnya — itulah pembanding yang dipakai menilai tanda tangan pada
+            klaim. Karena pembandingnya goresan pulpen di kertas sedangkan tanda
+            tangan klaim dibuat di layar, angka kecocokannya rendah dengan
+            sendirinya: yang memutuskan adalah Anda yang melihat keduanya, bukan
+            ambang {ambang ?? "—"}.
           </div>
 
           {kabar && (
@@ -312,14 +297,14 @@ export default function SpesimenPage() {
                           <>
                             <span className="pill warn">menunggu diperiksa</span><br />
                             <span style={{ fontSize: 11 }}>
-                              {b.captured} tanda tangan · kemiripan {b.consistency}/100
+                              tanda tangan pada KTP
                             </span>
                           </>
                         ) : ["sent", "opened", "capturing"].includes(b.sesi_state ?? "") ? (
                           <>
-                            <span className="pill">sedang merekam</span><br />
+                            <span className="pill">tautan terbuka</span><br />
                             <span style={{ fontSize: 11 }}>
-                              {b.captured ?? 0} dari {b.target ?? jumlahSpesimen ?? 5}
+                              {b.sesi_ktp_at ? "KTP sudah diunggah" : "belum mengunggah KTP"}
                             </span>
                           </>
                         ) : (
@@ -330,7 +315,7 @@ export default function SpesimenPage() {
                         {b.sesi_state === "submitted" ? (
                           <button disabled={busy}
                                   onClick={() => void bukaSet(b.sesi_set_id!)}>
-                            {lihat === b.sesi_set_id ? "Tutup" : "Periksa spesimen"}
+                            {lihat === b.sesi_set_id ? "Tutup" : "Periksa tanda tangan"}
                           </button>
                         ) : ["sent", "opened", "capturing"].includes(b.sesi_state ?? "") ? (
                           <span style={{ fontSize: 11.5, color: "var(--mut)" }}>
@@ -399,159 +384,94 @@ export default function SpesimenPage() {
 
           {/* Pemeriksaan dibuka sebagai pop-up, bukan panel di bawah tabel.
               Pada daftar marketing yang panjang panelnya jatuh jauh di luar
-              layar, sehingga menekan "Periksa spesimen" tampak tidak
-              menghasilkan apa-apa. Sebagai pop-up ia muncul di depan baris yang
-              ditekan, dan keputusannya diambil di tempat yang sama. */}
+              layar, sehingga menekan tombolnya tampak tidak menghasilkan
+              apa-apa. Sebagai pop-up ia muncul di depan baris yang ditekan, dan
+              keputusannya diambil di tempat yang sama. */}
           {lihat && (
             <div className="tirai"
                  onMouseDown={(e) => {
                    if (e.target === e.currentTarget) tutupSet();
                  }}>
               <div className="popup lebar" role="dialog" aria-modal="true"
-                   aria-label="Spesimen yang diajukan">
+                   aria-label="Tanda tangan yang diajukan">
                 <div className="popup-kepala">
                   <h2>
-                    Spesimen {baris.find((x) => x.sesi_set_id === lihat)?.full_name}
-                    <span className="pill">{citra.length} tanda tangan</span>
+                    Tanda tangan{" "}
+                    {baris.find((x) => x.sesi_set_id === lihat)?.full_name}
                   </h2>
                   <button className="tautan" onClick={tutupSet}
                           aria-label="Tutup">✕</button>
                 </div>
 
-                {zoom !== null && citra[zoom] ? (
-                  /* Perbesaran menggantikan isi pop-up, bukan menumpuknya:
-                     pop-up di atas pop-up berarti dua lapis yang harus ditutup
-                     berurutan, dan yang di bawah toh tidak dapat dibaca. */
-                  <div className="popup-isi">
-                    <div className="row" style={{ justifyContent: "space-between" }}>
-                      <button onClick={() => setZoom(null)}>← Kembali ke petak</button>
-                      <span className="lbl" style={{ margin: 0 }}>
-                        Tanda tangan ke-{citra[zoom].sequence} dari {citra.length}
-                        {" · "}{citra[zoom].input_method}
-                      </span>
-                      <span className="row" style={{ margin: 0, gap: 6 }}>
-                        <button disabled={zoom === 0}
-                                onClick={() => setZoom(zoom - 1)}>‹ Sebelumnya</button>
-                        <button disabled={zoom === citra.length - 1}
-                                onClick={() => setZoom(zoom + 1)}>Berikutnya ›</button>
-                      </span>
-                    </div>
-
-                    <div className="ttd-besar">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={sumber(citra[zoom])}
-                           alt={`Spesimen ${citra[zoom].sequence} diperbesar`} />
-                    </div>
-
-                    {/* Jangkar KTP ikut diperbesar di bawahnya. Pertanyaannya
-                        bukan "apakah goresan ini rapi" melainkan "apakah ini
-                        tangan yang sama", dan itu hanya terjawab bila keduanya
-                        terlihat bersamaan. */}
-                    {berkas?.ktp_signature_png && (
-                      <>
-                        <div className="lbl" style={{ marginTop: 12 }}>
-                          Tanda tangan pada KTP, untuk dibandingkan
-                        </div>
-                        <div className="ttd-besar banding">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={berkas.ktp_signature_png}
-                               alt="Tanda tangan pada KTP" />
-                        </div>
-                      </>
-                    )}
-                  </div>
-                ) : (
                 <div className="popup-isi">
-              {berkas?.revision_reason && (
-                <div className="banner warn">
-                  <b>Ini perekaman ulang</b>
-                  Alasan yang dicatat saat tautannya diterbitkan:
-                  “{berkas.revision_reason}”.
-                </div>
-              )}
+                  {berkas?.revision_reason && (
+                    <div className="banner warn">
+                      <b>Ini penggantian</b>
+                      Alasan yang dicatat saat tautannya diterbitkan:
+                      “{berkas.revision_reason}”.
+                    </div>
+                  )}
 
-              {/* Jangkar identitas, ditaruh sebelum petak spesimen: pertanyaan
-                  pertama bukan "apakah semuanya mirip satu sama lain"
-                  melainkan "apakah ini orangnya". Sepuluh tanda tangan palsu
-                  yang konsisten juga lolos pertanyaan pertama. */}
-              <div className="lbl" style={{ marginTop: 4 }}>
-                Tanda tangan pada KTP
-              </div>
-              {berkas?.ktp_signature_png ? (
-                <div className="jangkar">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={berkas.ktp_signature_png} alt="Tanda tangan pada KTP" />
-                  <div>
-                    <p style={{ margin: 0, fontSize: 12.5 }}>
-                      Bandingkan bentuknya dengan goresan-goresan di bawah.
-                      Beda media — pulpen di kertas lawan jari di layar — jadi
-                      tidak akan sama persis; yang dicari kesamaan susunan dan
-                      ciri khasnya, bukan kemiripan garis demi garis.
-                    </p>
-                    {berkas?.ada_foto_ktp && (
-                      <p style={{ margin: "8px 0 0", fontSize: 12.5 }}>
-                        <a href={`/api/marketings/specimens/${lihat}/ktp`}>
-                          Unduh foto KTP untuk diperiksa
-                        </a>{" "}
-                        — terhapus otomatis begitu Anda memutuskan.
+                  {berkas?.ktp_signature_png ? (
+                    <>
+                      <div className="lbl">Tanda tangan pada KTP</div>
+                      <div className="ttd-besar">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={berkas.ktp_signature_png}
+                             alt="Tanda tangan pada KTP" />
+                      </div>
+                      {berkas?.ada_foto_ktp && (
+                        <p style={{ margin: "10px 0 0", fontSize: 12.5 }}>
+                          <a href={`/api/marketings/specimens/${lihat}/ktp`}
+                             target="_blank" rel="noreferrer">
+                            Buka foto KTP untuk diperiksa
+                          </a>{" "}
+                          — terhapus otomatis begitu Anda memutuskan.
+                        </p>
+                      )}
+                      <p className="hint" style={{ textAlign: "left", marginTop: 10 }}>
+                        Yang perlu dipastikan: potongan ini memang berasal dari
+                        KTP orang yang namanya terdaftar, dan bentuknya utuh —
+                        bukan terpotong sebagian atau tertimpa tulisan lain.
+                        Inilah yang akan Anda pakai membandingkan tanda tangan
+                        pada tiap klaimnya.
                       </p>
-                    )}
-                  </div>
+                    </>
+                  ) : (
+                    <div className="banner stop">
+                      <b>Tidak ada potongan tanda tangan pada pendaftaran ini</b>
+                      Tanpa itu tidak ada yang dapat disetujui. Mintalah
+                      penggantian agar orangnya mengunggah KTP-nya sekali lagi.
+                    </div>
+                  )}
                 </div>
-              ) : (
-                <div className="banner warn">
-                  <b>Tidak ada jangkar KTP pada pendaftaran ini</b>
-                  Set ini direkam sebelum KTP diwajibkan, atau fotonya sudah
-                  dihapus. Yang dapat Anda nilai hanya konsistensi antar goresan
-                  — dan tanda tangan palsu yang konsisten juga lolos itu.
-                </div>
-              )}
-              <div className="petak-ttd">
-                {citra.map((c, i) => (
-                  <figure key={c.id}>
-                    <button type="button" onClick={() => setZoom(i)}
-                            title="Perbesar tanda tangan ini">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={sumber(c)} alt={`Spesimen ${c.sequence}`} />
-                    </button>
-                    <figcaption>{c.sequence} · {c.input_method}</figcaption>
-                  </figure>
-                ))}
-              </div>
-
-              <p className="hint" style={{ textAlign: "left", marginTop: 10 }}>
-                Yang perlu dilihat: apakah semuanya tampak berasal dari tangan
-                yang sama, dan tidak ada yang tergores asal-asalan. Angka kemiripan
-                tidak menangkap goresan yang rapi tetapi bukan tanda tangan orang
-                itu.
-              </p>
-                </div>
-                )}
 
                 <div className="popup-kaki">
-              {(() => {
-                const b = baris.find((x) => x.sesi_set_id === lihat);
-                if (!b) return null;
-                return (
-                  <>
-                    <div className="lbl" style={{ marginTop: 10 }}>
-                      Alasan (wajib bila ditolak, minimal 10 karakter)
-                    </div>
-                    <textarea value={alasan} onChange={(e) => setAlasan(e.target.value)}
-                              style={{ width: "100%", minHeight: 64 }} />
-                    <div className="row" style={{ marginTop: 10, marginBottom: 0 }}>
-                      <button className="pri" disabled={busy}
-                              onClick={() => void putuskan(b, "approve")}>
-                        Setujui sebagai baseline
-                      </button>
-                      <button disabled={busy || alasan.trim().length < 10}
-                              onClick={() => void putuskan(b, "reject")}>
-                        Tolak set ini
-                      </button>
-                    </div>
-                  </>
-                );
-              })()}
+                  {(() => {
+                    const b = baris.find((x) => x.sesi_set_id === lihat);
+                    if (!b) return null;
+                    return (
+                      <>
+                        <div className="lbl">
+                          Alasan (wajib bila ditolak, minimal 10 karakter)
+                        </div>
+                        <textarea value={alasan}
+                                  onChange={(e) => setAlasan(e.target.value)}
+                                  style={{ width: "100%", minHeight: 56 }} />
+                        <div className="row" style={{ marginTop: 10, marginBottom: 0 }}>
+                          <button className="pri"
+                                  disabled={busy || !berkas?.ktp_signature_png}
+                                  onClick={() => void putuskan(b, "approve")}>
+                            Setujui sebagai pembanding
+                          </button>
+                          <button disabled={busy || alasan.trim().length < 10}
+                                  onClick={() => void putuskan(b, "reject")}>
+                            Tolak
+                          </button>
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
             </div>

@@ -3,36 +3,84 @@
 /**
  * Pendaftaran spesimen tanda tangan, dibuka agent dari tautan.
  *
- * Inilah yang selama ini hilang: tanpa spesimen, tanda tangan agent pada klaim
- * tidak punya pembanding, skornya selalu 0, dan setiap klaim berakhir di
- * pemeriksaan manual. Layar ini yang mengumpulkan pembandingnya.
+ * Pembandingnya diambil dari tanda tangan yang tercetak pada KTP, bukan dari
+ * goresan yang dibuat ulang di layar: satu berkas yang memang sudah dipegang
+ * setiap orang, diambil sekali, tanpa menuntut siapa pun menandatangani
+ * berulang kali dengan jari di ponsel.
  *
  * Urutannya dibuat kelihatan, sama seperti layar tanda tangan klaim — tetapi di
  * sini ada satu langkah yang tidak ada di sana: persetujuan pemakaian data.
- * Tanda tangan adalah data pribadi, dan yang diambil di layar ini akan dipakai
- * menilai tanda tangannya berikutnya. Orangnya berhak tahu itu sebelum menggores,
- * bukan sesudah.
- *
- * Tiap goresan dicocokkan dengan goresan sebelumnya sebelum disimpan. Sepuluh
- * tanda tangan yang saling berbeda jauh bukan baseline — ia hanya memindahkan
- * ketidakpastian ke tahap tempat orangnya tidak hadir lagi untuk mengulang.
+ * Tanda tangan dan KTP adalah data pribadi, dan yang diserahkan di layar ini
+ * akan dipakai menilai tanda tangannya berikutnya. Orangnya berhak tahu itu
+ * sebelum mengunggah, bukan sesudah.
  */
 
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 
-import { KanvasTtd, usePadTtd } from "../../ttd-pad";
-
-type Step = "loading" | "otp" | "setuju" | "ktp" | "rekam" | "done";
+type Step = "loading" | "otp" | "setuju" | "ktp" | "done";
 
 const LANGKAH: { key: Step; no: string; label: string }[] = [
   { key: "otp", no: "1", label: "Verifikasi" },
   { key: "setuju", no: "2", label: "Persetujuan" },
-  { key: "ktp", no: "3", label: "Foto KTP" },
-  { key: "rekam", no: "4", label: "Rekam tanda tangan" },
+  { key: "ktp", no: "3", label: "Tanda tangan KTP" },
 ];
 
 const BATAS_KTP = 3 * 1024 * 1024;
+
+/**
+ * Contoh foto KTP, digambar sendiri — bukan foto kartu siapa pun.
+ *
+ * Yang sering membuat potongan tanda tangan tidak terpakai bukan kesalahan
+ * memakai layar ini, melainkan fotonya: kartu terpotong, miring, gelap, atau
+ * tanda tangannya tertutup jempol. Menjelaskannya dengan kalimat saja tidak
+ * cukup — orang membandingkan foto dengan gambar, bukan dengan paragraf.
+ *
+ * Sengaja skematis dan diberi cap CONTOH beserta data karangan: ia petunjuk
+ * bentuk foto yang benar, dan tidak boleh dapat dikira kartu sungguhan.
+ */
+function ContohKtp() {
+  return (
+    <svg viewBox="0 0 340 214" className="contoh-ktp" role="img"
+         aria-label="Contoh foto KTP yang benar: kartu utuh, lurus, dan terang">
+      <rect x="4" y="4" width="332" height="206" rx="8"
+            fill="#EDF2F7" stroke="#8B9198" />
+      <text x="170" y="26" textAnchor="middle" fontSize="11" fontWeight="700"
+            fill="#5B6167">PROVINSI CONTOH</text>
+      <text x="170" y="40" textAnchor="middle" fontSize="8" fill="#8B9198">
+        KABUPATEN CONTOH
+      </text>
+      {[["NIK", "0000 0000 0000 0000"], ["Nama", "BUDI CONTOH"],
+        ["Tempat/Tgl Lahir", "CONTOH, 01-01-1990"],
+        ["Alamat", "JL. CONTOH NO. 1"]].map(([k, v], i) => (
+        <g key={k}>
+          <text x="18" y={62 + i * 15} fontSize="7" fill="#8B9198">{k}</text>
+          <text x="92" y={62 + i * 15} fontSize="7.5" fill="#15171A">: {v}</text>
+        </g>
+      ))}
+      {/* Pas foto dan tanda tangan: dua blok kanan yang harus ikut terpotret. */}
+      <rect x="244" y="52" width="66" height="84" fill="#D8DBDE" />
+      <text x="277" y="98" textAnchor="middle" fontSize="7" fill="#8B9198">
+        PAS FOTO
+      </text>
+      <text x="277" y="150" textAnchor="middle" fontSize="6.5" fill="#8B9198">
+        CONTOH, 01-01-2026
+      </text>
+      {/* Goresan tanda tangan, dilingkari sebagai bagian yang ditandai. */}
+      <path d="M250 176 C262 162, 270 186, 280 172 C288 161, 296 182, 306 170"
+            fill="none" stroke="#15171A" strokeWidth="2.2" strokeLinecap="round" />
+      <rect x="242" y="156" width="74" height="32" fill="none"
+            stroke="#8C2F2F" strokeWidth="2" strokeDasharray="4 3" />
+      <text x="234" y="178" textAnchor="end" fontSize="7.5" fill="#8C2F2F">
+        bagian yang ditandai →
+      </text>
+      <text x="170" y="120" textAnchor="middle" fontSize="34" fontWeight="700"
+            fill="#15171A" opacity="0.08" transform="rotate(-12 170 120)">
+        CONTOH
+      </text>
+    </svg>
+  );
+}
 
 export default function DaftarTtdPage() {
   const { token } = useParams<{ token: string }>();
@@ -54,8 +102,6 @@ export default function DaftarTtdPage() {
   const gambarRef = useRef<HTMLImageElement | null>(null);
   const seretDari = useRef<{ x: number; y: number } | null>(null);
 
-  const pad = usePadTtd();
-
   const api = async (path: string, init?: RequestInit) => {
     const res = await fetch(path, {
       headers: { "Content-Type": "application/json" }, ...init,
@@ -70,8 +116,7 @@ export default function DaftarTtdPage() {
       const d = await api(`/api/enrollment-sessions/${token}`);
       setCtx(d);
       setStep(!d.otp_verified ? "otp"
-              : !d.consent_at ? "setuju"
-              : !d.ktp_at ? "ktp" : "rekam");
+              : !d.consent_at ? "setuju" : "ktp");
     } catch (e: any) {
       setError(e.body?.detail ?? "Silakan minta tautan baru ke Admin.");
       setStep("done");
@@ -188,53 +233,20 @@ export default function DaftarTtdPage() {
         method: "POST",
         body: JSON.stringify({ image_base64: ktpUrl, content_type: ktpTipe,
                                signature_png: crop }) });
+      // Langsung dikirim ke pemeriksaan: tidak ada langkah lain sesudahnya, dan
+      // meninggalkan tombol "kirim" tersendiri hanya menambah satu tempat
+      // pendaftaran dapat berhenti setengah jalan.
+      await api(`/api/enrollment-sessions/${token}/finish`,
+                { method: "POST", body: "{}" });
       setKabar(null);
-      await load();
-      setStep("rekam");
+      setDone({ kind: "ok", html:
+        `<b>Terima kasih — tanda tangan pada KTP Anda tersimpan</b>
+         Admin Sales akan memeriksanya sebelum diaktifkan. Anda tidak perlu
+         melakukan apa pun lagi.` });
+      setStep("done");
     } catch (e: any) {
       setKabar({ kind: "stop", html:
         `<b>Foto KTP gagal tersimpan</b>${e.body?.detail ?? ""}` });
-    } finally { setBusy(false); }
-  };
-
-  const rekam = async () => {
-    if (pad.kosong()) {
-      setKabar({ kind: "warn", html:
-        "<b>Belum ada tanda tangan</b>Tanda tangani di dalam kotak terlebih dahulu." });
-      return;
-    }
-    setBusy(true);
-    try {
-      const r = await api(`/api/enrollment-sessions/${token}/specimens`, {
-        method: "POST",
-        body: JSON.stringify({ image_png: pad.dataUrl(), strokes: pad.goresan(),
-                               input_method: pad.metode() }) });
-      if (!r.diterima) {
-        setKabar({ kind: "stop", html:
-          `<b>Belum cukup mirip dengan yang sebelumnya — skor ${r.skor}, ` +
-          `ambang ${r.ambang}</b>${r.guidance.map((g: string) => g).join("<br>")}` });
-        pad.hapus();
-        return;
-      }
-      pad.hapus();
-      setCtx((c: any) => ({ ...c, terkumpul: r.terkumpul }));
-      if (r.terkumpul >= r.target) {
-        const f = await api(`/api/enrollment-sessions/${token}/finish`,
-                            { method: "POST", body: "{}" });
-        setDone({ kind: "ok", html:
-          `<b>Terima kasih — ${f.jumlah} tanda tangan tersimpan</b>
-           Kemiripan antar tanda tangan Anda: ${f.konsistensi} dari 100.
-           Admin Sales akan memeriksanya sebelum diaktifkan. Anda tidak perlu
-           melakukan apa pun lagi.` });
-        setStep("done");
-      } else {
-        setKabar({ kind: "ok", html:
-          `<b>Tersimpan — ${r.terkumpul} dari ${r.target}</b>
-           Tanda tangani sekali lagi, seperti biasa Anda menandatangani dokumen.` });
-      }
-    } catch (e: any) {
-      setKabar({ kind: "stop", html:
-        `<b>Gagal menyimpan</b>${e.body?.detail ?? "Coba ulangi."}` });
     } finally { setBusy(false); }
   };
 
@@ -289,19 +301,18 @@ export default function DaftarTtdPage() {
                         fontSize: 12.5, lineHeight: 1.6 }}>
             <p style={{ marginTop: 0 }}>
               Dengan melanjutkan, Anda menyetujui PT. Serpong Bangun Lestari
-              merekam <b>{ctx?.target ?? 5} contoh tanda tangan</b> Anda dan
-              menerima <b>foto KTP</b> Anda sebagai bukti identitas.
+              menerima <b>foto KTP</b> Anda dan menyimpan <b>potongan tanda
+              tangan</b> yang tercetak pada kartu itu.
             </p>
             <p>Yang perlu Anda ketahui:</p>
             <ul style={{ margin: "0 0 10px 16px", padding: 0 }}>
               <li style={{ marginBottom: 4 }}>
-                Contoh ini dipakai untuk menilai keaslian tanda tangan Anda pada
+                Potongan itu dipakai sebagai pembanding tanda tangan Anda pada
                 dokumen klaim insentif — dan hanya untuk itu.
               </li>
               <li style={{ marginBottom: 4 }}>
-                Penilaiannya tidak pernah menolak klaim Anda sendirian. Bila
-                tanda tangan tidak cocok, dokumen diperiksa manusia, bukan
-                dibatalkan.
+                Perbandingannya tidak pernah menolak klaim Anda sendirian. Yang
+                memutuskan tetap Admin Sales yang melihat kedua tanda tangan.
               </li>
               <li style={{ marginBottom: 4 }}>
                 Dari foto KTP, yang disimpan seterusnya <b>hanya potongan tanda
@@ -309,14 +320,13 @@ export default function DaftarTtdPage() {
                 memeriksa — NIK, alamat, dan foto wajah Anda tidak disimpan.
               </li>
               <li style={{ marginBottom: 4 }}>
-                Contoh yang Anda rekam hari ini diperiksa Admin Sales sebelum
-                dipakai, dan diarsipkan — tidak dihapus — bila kelak diganti,
-                agar penilaian lama tetap dapat ditelusuri.
+                Yang Anda kirim hari ini diperiksa Admin Sales sebelum dipakai,
+                dan diarsipkan — tidak dihapus — bila kelak diganti, agar
+                penilaian lama tetap dapat ditelusuri.
               </li>
               <li>
-                Pendaftaran ini dilakukan sekali. Spesimennya dipakai terus
-                sebagai pembanding; perekaman ulang hanya atas permintaan Anda
-                lewat Admin Sales, dan alasannya dicatat.
+                Pendaftaran ini dilakukan sekali. Penggantian hanya atas
+                permintaan Anda lewat Admin Sales, dan alasannya dicatat.
               </li>
             </ul>
             <p style={{ marginBottom: 0, color: "var(--mut)" }}>
@@ -339,7 +349,7 @@ export default function DaftarTtdPage() {
           <button className="pri" onClick={kirimPersetujuan}
                   disabled={busy || !setuju}
                   style={{ width: "100%", marginTop: 12, padding: 13 }}>
-            Lanjut ke foto KTP
+            Lanjut ke unggah KTP
           </button>
         </section>
       )}
@@ -348,10 +358,27 @@ export default function DaftarTtdPage() {
         <section className="panel">
           <div className="banner info">
             <b>Unggah foto KTP, lalu tandai tanda tangannya</b>
-            KTP dipakai memastikan tanda tangan yang direkam berikutnya memang
-            milik Anda. Setelah Admin memeriksa, fotonya dihapus — yang disimpan
-            hanya potongan tanda tangan yang Anda tandai.
+            Tanda tangan yang tercetak pada KTP itulah yang menjadi pembanding
+            Anda seterusnya. Setelah Admin memeriksa, fotonya dihapus — yang
+            disimpan hanya potongan tanda tangan yang Anda tandai.
           </div>
+
+          {/* Contoh ditaruh sebelum tombol pilih berkas, bukan sesudahnya:
+              sesudah dipilih, fotonya sudah terlanjur diambil. */}
+          {!ktpUrl && (
+            <>
+              <div className="lbl" style={{ marginTop: 12 }}>
+                Contoh foto yang benar
+              </div>
+              <ContohKtp />
+              <ul className="syarat-foto">
+                <li>Seluruh kartu masuk ke dalam foto, tidak ada sisi terpotong.</li>
+                <li>Lurus menghadap kamera, tidak miring, tidak terbalik.</li>
+                <li>Terang dan fokus — tulisannya terbaca, tidak silau kena lampu.</li>
+                <li>Tanda tangan di kanan bawah tidak tertutup jari atau benda lain.</li>
+              </ul>
+            </>
+          )}
 
           <input type="file" accept="image/*" capture="environment"
                  disabled={busy} style={{ width: "100%", fontSize: 12.5 }}
@@ -398,47 +425,8 @@ export default function DaftarTtdPage() {
           <button className="pri" onClick={kirimKtp}
                   disabled={busy || !ktpUrl || !kotak}
                   style={{ width: "100%", marginTop: 8, padding: 13 }}>
-            {busy ? "Menyimpan…" : "Simpan dan lanjut merekam"}
+            {busy ? "Mengirim…" : "Kirim untuk diperiksa"}
           </button>
-        </section>
-      )}
-
-      {step === "rekam" && ctx && (
-        <section className="panel">
-          <div className="banner info">
-            <b>Tanda tangan {(ctx.terkumpul ?? 0) + 1} dari {ctx.target}</b>
-            Tanda tangani seperti biasa Anda menandatangani dokumen — jangan
-            dibuat lebih rapi dari biasanya, karena inilah yang akan dijadikan
-            pembanding nanti.
-          </div>
-
-          <div className="lbl">
-            Terkumpul {ctx.terkumpul ?? 0} dari {ctx.target}
-          </div>
-          <div className="bar">
-            <span style={{ width: `${((ctx.terkumpul ?? 0) / ctx.target) * 100}%` }} />
-          </div>
-
-          <KanvasTtd pad={pad} tampil={step === "rekam"} />
-          <p style={{ fontSize: 11.5, color: "var(--mut)", textAlign: "center",
-                      marginTop: 6 }}>
-            Gunakan stylus bila ada. Goresan jari lebih bervariasi dan lebih
-            sering perlu diulang.
-          </p>
-
-          {kabar && (
-            <div className={`banner ${kabar.kind}`}
-                 dangerouslySetInnerHTML={{ __html: kabar.html }} />
-          )}
-
-          <div style={{ display: "flex", gap: 8 }}>
-            <button onClick={pad.hapus} disabled={busy}
-                    style={{ flex: 1, padding: 13 }}>Hapus</button>
-            <button className="pri" onClick={rekam} disabled={busy}
-                    style={{ flex: 1, padding: 13 }}>
-              {busy ? "Menyimpan…" : "Simpan tanda tangan ini"}
-            </button>
-          </div>
         </section>
       )}
 

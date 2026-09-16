@@ -12,26 +12,33 @@
  * justru yang akan dipakai membuktikan identitas orang itu berikutnya, jadi
  * pengambilannya tidak boleh lebih longgar daripada pemakaiannya.
  *
- * Tiga hal yang ditegakkan di sini, bukan di layar:
+ * Spesimennya adalah tanda tangan pada KTP, bukan goresan yang dibuat ulang di
+ * layar. Satu berkas yang memang sudah dipegang setiap orang, diambil sekali,
+ * dan tidak menuntut siapa pun menandatangani lima kali dengan jari — sebuah
+ * tuntutan yang pada praktiknya menghentikan pendaftaran di langkah terakhir.
+ *
+ * Akibatnya disebutkan terang-terangan, karena ia nyata: pembandingnya kini
+ * goresan pulpen di kertas hasil foto, sedangkan tanda tangan pada klaim dibuat
+ * dengan jari di layar. Skor kecocokan antara dua media itu rendah dengan
+ * sendirinya, jadi keputusan atas tanda tangan klaim jatuh ke tangan Admin
+ * Sales. Yang dijaga modul ini bukan lagi angka kecocokan, melainkan bahwa ada
+ * pembanding sah yang berasal dari kartu identitas orang tersebut.
+ *
+ * Dua hal yang ditegakkan di sini, bukan di layar:
  *
  *   1. Persetujuan direkam terpisah, dengan versinya. Data tanda tangan adalah
- *      data pribadi; "dia toh menandatangani" bukan catatan persetujuan.
- *   2. Tiap goresan diperiksa terhadap goresan sebelumnya. Lima tanda tangan
- *      yang saling berbeda jauh bukan baseline — ia hanya memindahkan
- *      ketidakpastian ke tahap berikutnya, tempat orangnya tidak hadir lagi
- *      untuk mengulang.
- *   3. Yang terkumpul masuk sebagai 'pending_review'. Admin yang memutuskan
- *      sebuah baseline sah, bukan orang yang baru saja membuatnya.
+ *      data pribadi; "dia toh mengunggah KTP" bukan catatan persetujuan.
+ *   2. Yang terkumpul masuk sebagai 'pending_review'. Admin yang memutuskan
+ *      sebuah baseline sah, bukan orang yang baru saja mengirimkannya.
  */
 
 import { randomBytes, randomInt } from "node:crypto";
 
 import { audit, one, query, settingInt, setting } from "./db";
-import * as sig from "./signature";
 import { WorkflowError } from "./workflow";
 
 /** Versi teks persetujuan. Naikkan bila kalimatnya berubah. */
-export const VERSI_PERSETUJUAN = "2.0";
+export const VERSI_PERSETUJUAN = "3.0";
 
 /** Batas ukuran foto KTP. Sama dengan batas lampiran klaim. */
 export const BATAS_KTP = 3 * 1024 * 1024;
@@ -82,7 +89,10 @@ export async function terbitkanTautan(
   const token = randomBytes(32).toString("base64url");
   const otp = String(randomInt(0, 1_000_000)).padStart(6, "0");
   const ttl = await settingInt("onboarding_link_ttl_hours");
-  const target = await settingInt("onboarding_specimen_count");
+  // Satu: tanda tangan pada KTP. Pengaturan onboarding_specimen_count tidak
+  // dipakai lagi — jumlahnya tidak lagi dapat dipilih, ia ditentukan bentuk
+  // kartunya.
+  const target = 1;
   const setId = (await one<{ id: string }>("SELECT gen_random_uuid() AS id"))!.id;
 
   const sesi = await one(
@@ -137,8 +147,7 @@ export async function konteks(token: string) {
   return {
     nama: mkt?.full_name ?? "—",
     agensi: mkt?.agency_name ?? null,
-    target: s.target,
-    terkumpul: s.captured,
+    ktp_terkirim: Boolean(s.ktp_at),
     otp_verified: s.otp_verified,
     consent_at: s.consent_at,
     ktp_at: s.ktp_at,
@@ -232,9 +241,22 @@ export async function simpanKtp(token: string, p: {
 
   await query(
     `UPDATE enrollment_sessions
-        SET ktp_image=$1, ktp_content_type=$2, ktp_signature_png=$3, ktp_at=now()
+        SET ktp_image=$1, ktp_content_type=$2, ktp_signature_png=$3, ktp_at=now(),
+            captured=1, target=1
       WHERE token=$4`,
     [buf, tipe, p.signature_png, token]);
+
+  // Potongan tanda tangan itu sendiri yang menjadi spesimen. Disimpan pada
+  // tabel yang sama dengan spesimen mana pun supaya seluruh sistem — pemeriksaan
+  // Admin, pencocokan klaim, pengarsipan set lama — tidak perlu tahu dari mana
+  // asalnya. Unggah ulang menggantikan yang sebelumnya: yang berlaku adalah
+  // kartu yang terakhir dikirim, bukan tumpukan percobaan.
+  await query("DELETE FROM signature_specimens WHERE set_id=$1", [s.set_id]);
+  await query(
+    `INSERT INTO signature_specimens (marketing_id, set_id, sequence, image_png,
+       strokes, input_method)
+     VALUES ($1,$2,1,$3,NULL,'ktp')`,
+    [s.marketing_id, s.set_id, p.signature_png]);
   await audit({ entityType: "marketing", entityId: s.marketing_id,
                 action: "enrollment_ktp_uploaded", actor: s.marketing_id,
                 after: { size_bytes: buf.length, content_type: tipe } });
@@ -242,97 +264,28 @@ export async function simpanKtp(token: string, p: {
   return { ok: true };
 }
 
-/**
- * Simpan satu spesimen.
- *
- * Yang pertama diterima apa adanya — belum ada pembandingnya. Berikutnya
- * dicocokkan dengan yang sudah terkumpul memakai ambang onboarding, yang memang
- * lebih longgar daripada ambang klaim: pada tahap ini orangnya sedang membentuk
- * kebiasaan tanda tangannya di layar, bukan membuktikan identitasnya.
- */
-export async function simpanSpesimen(token: string, p: {
-  image_png: string; strokes?: sig.Stroke[] | null; input_method?: string;
-}) {
-  const s = await bukaSesi(token);
-  if (!s.otp_verified) {
-    throw new WorkflowError("Verifikasi kode terlebih dahulu.", "otp_required", 401);
-  }
-  if (!s.consent_at) {
-    throw new WorkflowError("Persetujuan pemakaian data belum diberikan.",
-                            "consent_required", 409);
-  }
-  if (!s.ktp_at) {
-    throw new WorkflowError(
-      "Foto KTP belum diunggah. KTP-lah yang memastikan tanda tangan yang " +
-      "direkam berikutnya memang milik orang yang namanya terdaftar.",
-      "ktp_required", 409);
-  }
-  if (!p.image_png) {
-    throw new WorkflowError("Tanda tangan belum digoreskan.", "signature_empty", 422);
-  }
-  if (s.captured >= s.target) {
-    throw new WorkflowError("Jumlah spesimen sudah terpenuhi.", "already_complete", 409);
-  }
-
-  const sudah = await query<{ image_png: string; strokes: any }>(
-    `SELECT image_png, strokes FROM signature_specimens
-      WHERE set_id=$1 ORDER BY sequence`, [s.set_id]);
-
-  const ambang = await settingInt("signature_threshold_onboarding");
-  if (sudah.length) {
-    const r = sig.compareToSet(p.image_png, p.strokes, sudah as any);
-    if (r.score < ambang) {
-      // Tidak disimpan, dan tidak dihitung sebagai kegagalan yang menutup sesi:
-      // yang diminta memang mengulang sampai konsisten.
-      return {
-        diterima: false, skor: r.score, ambang,
-        terkumpul: sudah.length, target: s.target,
-        guidance: r.guidance.length ? r.guidance : [
-          "Tanda tangan ini berbeda cukup jauh dari yang sebelumnya. " +
-          "Tanda tangani seperti biasa Anda menandatangani dokumen.",
-        ],
-      };
-    }
-  }
-
-  await query(
-    `INSERT INTO signature_specimens (marketing_id, set_id, sequence, image_png,
-       strokes, input_method)
-     VALUES ($1,$2,$3,$4,$5,$6)`,
-    [s.marketing_id, s.set_id, sudah.length + 1, p.image_png,
-     p.strokes ? JSON.stringify(p.strokes) : null, p.input_method ?? "finger"]);
-  const terkumpul = sudah.length + 1;
-  await query("UPDATE enrollment_sessions SET captured=$1 WHERE token=$2",
-              [terkumpul, token]);
-
-  return { diterima: true, skor: null, ambang, terkumpul, target: s.target,
-           guidance: [] };
-}
-
-/** Kirim set yang sudah lengkap ke pemeriksaan Admin. */
+/** Kirim tanda tangan KTP ke pemeriksaan Admin. */
 export async function kirimSet(token: string) {
   const s = await bukaSesi(token);
-  if (s.captured < s.target) {
+  if (!s.ktp_at) {
     throw new WorkflowError(
-      `Baru ${s.captured} dari ${s.target} tanda tangan terkumpul.`,
-      "incomplete", 409);
+      "Foto KTP belum diunggah.", "ktp_required", 409);
   }
-  const spesimen = await query(
-    "SELECT image_png, strokes FROM signature_specimens WHERE set_id=$1",
-    [s.set_id]);
-  const konsistensi = sig.consistency(spesimen as any);
 
+  // Kemiripan antar goresan tidak lagi diukur: hanya ada satu contoh, dan
+  // angka kemiripan satu contoh terhadap dirinya sendiri tidak mengatakan apa
+  // pun. Yang dinilai Admin adalah apakah potongan itu memang tanda tangan
+  // pada KTP orang tersebut — dan itu dilihat, bukan dihitung.
   await query(
-    "UPDATE enrollment_sessions SET state='submitted', consistency=$1 WHERE token=$2",
-    [konsistensi, token]);
+    "UPDATE enrollment_sessions SET state='submitted', consistency=NULL " +
+    "WHERE token=$1", [token]);
   await query("UPDATE marketings SET status='pending_review' WHERE id=$1 " +
               "AND status IN ('draft','rejected')", [s.marketing_id]);
   await audit({ entityType: "marketing", entityId: s.marketing_id,
                 action: "enrollment_submitted", actor: s.marketing_id,
-                after: { set_id: s.set_id, jumlah: s.captured,
-                         konsistensi } });
+                after: { set_id: s.set_id, sumber: "ktp" } });
 
-  return { konsistensi, jumlah: s.captured };
+  return { konsistensi: null, jumlah: 1 };
 }
 
 /** Daftar pendaftaran untuk layar Admin. */
@@ -417,10 +370,10 @@ export async function putuskanSet(
     await query(
       "UPDATE signature_specimens SET archived=TRUE WHERE marketing_id=$1 AND set_id<>$2",
       [marketingId, setId]);
-    // Potongan tanda tangan KTP menjadi jangkar identitas orang ini: bukan
-    // pembanding tiap klaim — untuk itu dipakai spesimen digitalnya —
-    // melainkan bukti bahwa yang merekam spesimen itu adalah orang yang namanya
-    // tertera pada kartu.
+    // Potongan tanda tangan KTP dicatat dua kali dengan maksud berbeda: sebagai
+    // spesimen pembanding pada set ini, dan sebagai jangkar identitas pada
+    // marketing-nya — bukti bahwa pembandingnya berasal dari kartu identitas
+    // orang yang namanya terdaftar, bukan dari goresan yang dibuat entah siapa.
     await query(
       `UPDATE marketings SET status='active', baseline_specimen_set_id=$1,
               consent_version=$2,
