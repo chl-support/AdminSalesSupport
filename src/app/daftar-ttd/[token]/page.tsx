@@ -167,8 +167,23 @@ function ContohKtpGambar() {
  * Yang gagal tidak merusak apa pun: kotaknya tidak terpasang, dan orangnya
  * menariknya sendiri seperti sebelumnya.
  */
-function deteksiTandaTangan(img: HTMLImageElement):
-    { x: number; y: number; w: number; h: number } | null {
+type Kotak = { x: number; y: number; w: number; h: number };
+
+/**
+ * Letak biasanya: kanan bawah kartu, di bawah tempat dan tanggal penerbitan.
+ *
+ * Dipakai bila pencarian tidak menemukan apa pun — foto terlalu gelap, tinta
+ * terlalu tipis, kartunya terlalu miring. Kotak yang meleset masih jauh lebih
+ * mudah digeser daripada kotak yang harus dibuat dari nol dengan jempol, dan
+ * layar tidak pernah menampilkan keadaan "tidak ada apa-apa, silakan mulai
+ * sendiri" — keadaan itulah yang membuat orang berhenti.
+ */
+function letakBiasanya(img: HTMLImageElement): Kotak {
+  const l = img.clientWidth, t = img.clientHeight;
+  return { x: l * 0.72, y: t * 0.76, w: l * 0.25, h: t * 0.19 };
+}
+
+function deteksiTandaTangan(img: HTMLImageElement): Kotak | null {
   const W = img.naturalWidth, H = img.naturalHeight;
   if (!W || !H) return null;
 
@@ -295,6 +310,10 @@ export default function DaftarTtdPage() {
   // memilih kalimat yang tepat: yang ditandai sendiri perlu diperiksa, yang
   // ditarik orangnya tidak.
   const [otomatis, setOtomatis] = useState(false);
+  // Apakah kotaknya hasil pencarian atau sekadar letak yang biasanya. Yang
+  // ditebak perlu dikatakan apa adanya — "ditandai otomatis" untuk kotak yang
+  // sebetulnya asal taruh akan membuat orang percaya pada yang salah.
+  const [ketemu, setKetemu] = useState(false);
 
   const api = async (path: string, init?: RequestInit) => {
     const res = await fetch(path, {
@@ -358,7 +377,8 @@ export default function DaftarTtdPage() {
     }
     const fr = new FileReader();
     fr.onload = () => {
-      setKtpUrl(String(fr.result)); setKotak(null); setOtomatis(false);
+      setKtpUrl(String(fr.result)); setKotak(null);
+      setOtomatis(false); setKetemu(false);
     };
     fr.readAsDataURL(f);
     setKtpTipe(f.type);
@@ -376,6 +396,7 @@ export default function DaftarTtdPage() {
     seretDari.current = titik(e);
     setKotak(null);
     setOtomatis(false);
+    setKetemu(false);
   };
 
   const seret = (e: React.MouseEvent | React.TouchEvent) => {
@@ -588,9 +609,9 @@ export default function DaftarTtdPage() {
           {ktpUrl && (
             <>
               <div className="lbl" style={{ marginTop: 12 }}>
-                {otomatis
-                  ? "Periksa kotaknya — geser bila belum pas"
-                  : "Tarik kotak di atas tanda tangan pada KTP"}
+                {!otomatis ? "Tarik kotak di atas tanda tangan pada KTP"
+                  : ketemu ? "Periksa kotaknya — geser bila belum pas"
+                  : "Geser kotaknya ke tanda tangan pada KTP"}
               </div>
               {/* Gambar dan kotak penanda menumpuk; kotaknya digambar dengan
                   posisi mutlak di atas gambarnya, bukan di dalam kanvas, supaya
@@ -603,8 +624,11 @@ export default function DaftarTtdPage() {
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img ref={gambarRef} src={ktpUrl} alt="Foto KTP" draggable={false}
                      onLoad={(e) => {
-                       const k = deteksiTandaTangan(e.currentTarget);
-                       if (k) { setKotak(k); setOtomatis(true); }
+                       const img = e.currentTarget;
+                       const k = deteksiTandaTangan(img);
+                       setKotak(k ?? letakBiasanya(img));
+                       setOtomatis(true);
+                       setKetemu(Boolean(k));
                      }} />
                 {kotak && (
                   <div className="kotak-tandai"
@@ -614,11 +638,15 @@ export default function DaftarTtdPage() {
               </div>
               <p style={{ fontSize: 11.5, color: "var(--mut)", textAlign: "center",
                           marginTop: 6 }}>
-                {otomatis
+                {!otomatis
+                  ? "Pada e-KTP, tanda tangan tercetak kecil di bawah foto, " +
+                    "sebelah kanan bawah kartu."
+                  : ketemu
                   ? "Kotak merah ditandai otomatis. Bila tanda tangannya tidak " +
                     "berada persis di dalamnya, tarik kotak baru dengan jari."
-                  : "Pada e-KTP, tanda tangan tercetak kecil di bawah foto, " +
-                    "sebelah kanan bawah kartu."}
+                  : "Tanda tangannya tidak terbaca pada foto ini, jadi kotaknya " +
+                    "ditaruh pada letak yang biasanya. Tarik kotak baru dengan " +
+                    "jari tepat di atas tanda tangannya."}
               </p>
             </>
           )}
