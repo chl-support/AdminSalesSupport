@@ -39,7 +39,7 @@ const PILL: Record<string, string> = {
 
 const KATA = {
   id: {
-    judul: "Data Marketing",
+    judul: "Spesimen Tanda Tangan",
     pengantar:
       "Spesimen tanda tangan didaftarkan sekali per orang dan dipakai " +
       "seterusnya sebagai pembanding. Yang belum punya, kirimkan tautannya " +
@@ -149,7 +149,7 @@ const KATA = {
     kTakDiputuskan: "Tidak dapat diputuskan",
   },
   en: {
-    judul: "Marketing Data",
+    judul: "Specimen Signature",
     pengantar:
       "A signature specimen is registered once per person and used from then " +
       "on as the reference. For those without one, send the link from here; " +

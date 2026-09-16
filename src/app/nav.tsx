@@ -22,7 +22,13 @@ import { useBahasa, type Bahasa } from "./bahasa";
 import { JENIS, NAMA_EN } from "./klaim/jenis";
 
 type Butir = {
-  href: string;
+  /**
+   * Lintasan yang dituju. Boleh kosong: "Data Marketing" adalah nama rumpun,
+   * bukan layar — satu-satunya layar di bawahnya adalah Spesimen Tanda Tangan.
+   * Butir tanpa href digambar sebagai judul rumpun yang tidak dapat ditekan,
+   * bukan tautan yang mengantar ke mana-mana.
+   */
+  href?: string;
   /** Label per bahasa. Keduanya wajib ada, jadi tidak ada menu yang diam-diam
       tetap berbahasa Indonesia saat sisanya sudah berganti. */
   label: Record<Bahasa, string>;
@@ -42,8 +48,19 @@ const MENU: Butir[] = [
   // punya spesimen tanda tangan klaimnya selalu berakhir di pemeriksaan manual.
   // Yang menentukan hasil pengajuan karenanya dilihat lebih dulu daripada
   // pengajuannya.
-  { href: "/spesimen", label: { id: "Data Marketing", en: "Marketing Data" },
-    peran: ["admin_sales", "admin_system"] },
+  //
+  // Tanpa href: ia nama rumpun, dan satu-satunya layar di bawahnya adalah
+  // Spesimen Tanda Tangan. Menjadikannya tautan ke layar anaknya berarti dua
+  // butir menu mengantar ke tempat yang sama, dan keduanya menyala bersamaan
+  // saat layar itu dibuka.
+  {
+    label: { id: "Data Marketing", en: "Marketing Data" },
+    peran: ["admin_sales", "admin_system"],
+    anak: [
+      { href: "/spesimen",
+        label: { id: "Spesimen Tanda Tangan", en: "Specimen Signature" } },
+    ],
+  },
   {
     href: "/klaim", label: { id: "Pengajuan Fee", en: "Fee Submission" },
     // Keempat jenis, beserta urutannya, diambil dari daftar yang sama dengan
@@ -54,12 +71,13 @@ const MENU: Butir[] = [
       label: { id: j.nama, en: NAMA_EN[j.slug] },
     })),
   },
-  { href: "/konsol", label: { id: "Konsol klaim", en: "Claim console" } },
-  { href: "/audit", label: { id: "Jejak audit", en: "Audit trail" } },
-  // Administrasi hanya untuk Admin IT. "Ganti sandi saya" tetap dapat
-  // dicapai semua peran lewat tautan pada bilah pengguna.
-  { href: "/admin", label: { id: "Administrasi", en: "Administration" },
-    peran: ["admin_system"] },
+  { href: "/memo", label: { id: "Memo Approval", en: "Approval Memo" } },
+  { href: "/sirkulasi",
+    label: { id: "Sirkulasi Dokumen", en: "Document Workflow" } },
+  { href: "/persetujuan",
+    label: { id: "Approval / Persetujuan", en: "Approval Status" } },
+  { href: "/laporan",
+    label: { id: "Report / Laporan", en: "Marketing Report" } },
 ];
 
 const boleh = (b: Butir, peran?: string) =>
@@ -78,7 +96,11 @@ const boleh = (b: Butir, peran?: string) =>
 export function indukDari(path: string):
     { href: string; label: Record<Bahasa, string> } | null {
   for (const m of MENU) {
-    if (m.anak?.some((a) => path === a.href || path.startsWith(a.href + "/"))) {
+    // Induk tanpa href dilewati: ia nama rumpun, bukan layar, jadi tidak ada
+    // tempat yang dapat dituju baris "kembali" di kepala halaman.
+    if (!m.href) continue;
+    if (m.anak?.some((a) => a.href &&
+                            (path === a.href || path.startsWith(a.href + "/")))) {
       return { href: m.href, label: m.label };
     }
   }
@@ -94,25 +116,41 @@ export function Nav({ peran }: { peran?: string }) {
 
   return (
     <nav className="nav">
-      {MENU.filter((m) => boleh(m, peran)).map((m) => (
-        <div key={m.href} className="grup">
-          <Link href={m.href} className={path === m.href ? "active" : ""}
-                aria-current={path === m.href ? "page" : undefined}>
-            {m.label[bahasa]}
-          </Link>
-          {m.anak && (
-            <div className="anak">
-              {m.anak.filter((a) => boleh(a, peran)).map((a) => (
-                <Link key={a.href} href={a.href}
-                      className={aktif(a.href) ? "active" : ""}
-                      aria-current={aktif(a.href) ? "page" : undefined}>
-                  {a.label[bahasa]}
-                </Link>
-              ))}
-            </div>
-          )}
-        </div>
-      ))}
+      {MENU.filter((m) => boleh(m, peran)).map((m) => {
+        const anak = (m.anak ?? []).filter((a) => boleh(a, peran));
+        // Rumpun tanpa lintasan sendiri yang seluruh anaknya tersembunyi oleh
+        // peran tidak menyisakan apa pun yang dapat ditekan — judulnya saja
+        // hanya menggantung sebagai kata yang tidak menuju ke mana-mana.
+        if (!m.href && !anak.length) return null;
+
+        return (
+          <div key={m.href ?? m.label.id} className="grup">
+            {m.href ? (
+              <Link href={m.href} className={path === m.href ? "active" : ""}
+                    aria-current={path === m.href ? "page" : undefined}>
+                {m.label[bahasa]}
+              </Link>
+            ) : (
+              /* Judul rumpun, bukan tautan. Digambar sebagai teks biasa supaya
+                 papan ketik tidak berhenti di atasnya — tidak ada yang terjadi
+                 bila ia ditekan. */
+              <div className="grup-judul">{m.label[bahasa]}</div>
+            )}
+
+            {anak.length > 0 && (
+              <div className="anak">
+                {anak.map((a) => (
+                  <Link key={a.href} href={a.href!}
+                        className={aktif(a.href!) ? "active" : ""}
+                        aria-current={aktif(a.href!) ? "page" : undefined}>
+                    {a.label[bahasa]}
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
     </nav>
   );
 }
