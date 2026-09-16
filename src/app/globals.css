@@ -459,6 +459,37 @@ ul.cetak-ceklis .kotak { border: 1px solid var(--ink); width: 14px; height: 14px
 
 .masuk-isi { display: flex; align-items: center; justify-content: center;
              padding: 48px 24px; background: var(--bg); }
+
+/* Pilihan bahasa, menggantung di pojok kanan atas bidang formulir. Bentuknya
+   satu kotak berisi dua tombol, bukan dua tombol terpisah: yang dipilih adalah
+   salah satu dari dua, dan bentuk yang menyatu itulah yang menyatakannya tanpa
+   perlu tulisan tambahan. */
+.masuk-isi { position: relative; }
+.pilih-bahasa {
+  position: absolute; top: 26px; right: 30px; display: flex;
+  border: 1px solid var(--line); border-radius: 999px; overflow: hidden;
+  background: #fff;
+}
+.pilih-bahasa button {
+  border: none; background: none; padding: 5px 13px; font-size: 11.5px;
+  font-weight: 700; letter-spacing: .06em; color: var(--mut); cursor: pointer;
+  transition: color .12s ease, background-color .12s ease;
+}
+.pilih-bahasa button:hover { color: var(--ink); }
+.pilih-bahasa button.aktif { background: var(--ink); color: #fff; }
+.pilih-bahasa button:focus-visible { outline: 2px solid var(--emas-tua);
+                                     outline-offset: -2px; }
+
+@media (max-width: 860px) {
+  /* Di layar sempit kartunya mulai tepat di bawah bidang gelap, dan tombol di
+     pojok kanan atas bidang terang akan menempel pada bahu kartu itu. Ia
+     dinaikkan ke dalam bidang gelapnya, di seberang lambang. */
+  .pilih-bahasa { top: -46px; right: 18px; background: transparent;
+                  border-color: rgba(244,244,241,.28); }
+  .pilih-bahasa button { color: #C8CCD1; }
+  .pilih-bahasa button:hover { color: #fff; }
+  .pilih-bahasa button.aktif { background: #F4F4F1; color: var(--ink); }
+}
 .masuk-kartu {
   width: 100%; max-width: 396px; background: #fff; position: relative;
   border: 1px solid var(--line); border-radius: 10px; padding: 34px 34px 28px;

@@ -58,6 +58,74 @@ function IkonMata({ tertutup }: { tertutup: boolean }) {
   );
 }
 
+/**
+ * Kata-kata halaman masuk dalam dua bahasa.
+ *
+ * Disimpan di berkas ini, bukan di pustaka i18n: yang dua bahasa baru halaman
+ * ini saja. Memasang kerangka penerjemahan untuk satu halaman berarti
+ * menanggung seluruh bebannya tanpa memakai satu pun bagian yang membuatnya
+ * sepadan — dan begitu layar konsol ikut diterjemahkan, kerangkanya dipilih
+ * berdasarkan kebutuhan yang sudah terlihat, bukan yang dikira-kira.
+ */
+const KATA = {
+  id: {
+    portal: "Portal Internal",
+    judul: "Masuk",
+    pengantar: "Gunakan akun yang diberikan Admin IT untuk melanjutkan.",
+    username: "Username",
+    sandi: "Password",
+    lihatSandi: "Tampilkan kata sandi",
+    sembunyikanSandi: "Sembunyikan kata sandi",
+    memeriksa: "Memeriksa…",
+    tombolMasuk: "Masuk",
+    gagalJudul: "Tidak dapat masuk",
+    gagalHttp: (kode: number) => `Gagal masuk (HTTP ${kode})`,
+    sisaPercobaan: (n: number) =>
+      `Sisa percobaan sebelum akun dikunci sementara: ${n}.`,
+    lupa: "Lupa kata sandi atau akun terkunci?",
+    hubungi: "Hubungi Admin IT",
+    kontakJudul: "Kontak Admin IT",
+    kontakPengantar:
+      "Silakan menghubungi kontak di bawah ini untuk mengatur ulang username " +
+      "atau kata sandi Anda:",
+    kontakKosong:
+      "Kontak Admin IT belum diisi. Hubungi lewat jalur yang biasa Anda pakai.",
+    tutup: "Tutup",
+    pilihBahasa: "Pilih bahasa",
+  },
+  en: {
+    portal: "Internal Portal",
+    judul: "Sign In",
+    pengantar: "Use the account issued by IT Admin to continue.",
+    username: "Username",
+    sandi: "Password",
+    lihatSandi: "Show password",
+    sembunyikanSandi: "Hide password",
+    memeriksa: "Checking…",
+    tombolMasuk: "Sign In",
+    gagalJudul: "Unable to sign in",
+    gagalHttp: (kode: number) => `Sign-in failed (HTTP ${kode})`,
+    sisaPercobaan: (n: number) =>
+      `Attempts remaining before the account is temporarily locked: ${n}.`,
+    lupa: "Forgot your password, or is your account locked?",
+    hubungi: "Contact IT Admin",
+    kontakJudul: "IT Admin contact",
+    kontakPengantar:
+      "Please reach out to the contact below to reset your username or " +
+      "password:",
+    kontakKosong:
+      "No IT Admin contact has been set. Reach out through your usual channel.",
+    tutup: "Close",
+    pilihBahasa: "Choose language",
+  },
+} as const;
+
+type Bahasa = keyof typeof KATA;
+
+/** Di mana pilihan bahasa disimpan, supaya kuncinya tidak diketik dua kali. */
+const KUNCI_BAHASA = "chl.bahasa";
+
+
 export default function LoginPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -65,12 +133,40 @@ export default function LoginPage() {
   // sementara. Layar masuk sering dibuka di meja terbuka, jadi yang dipilih
   // adalah tersembunyi dulu — bukan terbuka dulu lalu ditutup.
   const [lihatSandi, setLihatSandi] = useState(false);
+  // Bawaannya Indonesia, dan pilihan yang tersimpan dibaca setelah komponen
+  // terpasang — bukan saat render pertama. Membaca localStorage saat render
+  // membuat keluaran server dan klien berbeda, dan React membuang seluruh
+  // pohonnya begitu keduanya tidak cocok.
+  const [bahasa, setBahasa] = useState<Bahasa>("id");
   const [busy, setBusy] = useState(false);
   const [galat, setGalat] = useState<string | null>(null);
   const [sisa, setSisa] = useState<number | null>(null);
   const [kontak, setKontak] = useState<{ wa: string | null; email: string | null } | null>(null);
   const [lihatKontak, setLihatKontak] = useState(false);
   const tutupRef = useRef<HTMLButtonElement | null>(null);
+
+  // Pilihan bahasa yang tersimpan dari kunjungan sebelumnya. Dibungkus
+  // try/catch: di jendela penyamaran, atau saat penyimpanan situs diblokir,
+  // membaca localStorage melempar — dan halaman masuk yang gagal tampil karena
+  // pilihan bahasa adalah harga yang jauh lebih mahal daripada manfaatnya.
+  useEffect(() => {
+    try {
+      const t = localStorage.getItem(KUNCI_BAHASA);
+      if (t === "id" || t === "en") setBahasa(t);
+    } catch { /* pakai bawaannya */ }
+  }, []);
+
+  // Atribut lang ikut berganti. Pembaca layar memilih pelafalan dari sini, dan
+  // halaman berbahasa Inggris yang mengaku berbahasa Indonesia dibacakan
+  // dengan pelafalan yang salah dari awal sampai akhir.
+  useEffect(() => { document.documentElement.lang = bahasa; }, [bahasa]);
+
+  const k = KATA[bahasa];
+
+  const gantiBahasa = (b: Bahasa) => {
+    setBahasa(b);
+    try { localStorage.setItem(KUNCI_BAHASA, b); } catch { /* tidak apa-apa */ }
+  };
 
   // Sudah punya sesi hidup: tidak perlu memperlihatkan layar masuk lagi.
   useEffect(() => {
@@ -142,7 +238,7 @@ export default function LoginPage() {
       });
       const b = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setGalat(b.detail ?? `Gagal masuk (HTTP ${res.status})`);
+        setGalat(b.detail ?? KATA[bahasa].gagalHttp(res.status));
         setSisa(typeof b.sisa_percobaan === "number" ? b.sisa_percobaan : null);
         return;
       }
@@ -178,47 +274,61 @@ export default function LoginPage() {
       </aside>
 
       <main className="masuk-isi">
+        {/* Pilihan bahasa di pojok kanan atas bidang formulir. Di sana ia
+            terbaca sebagai pengaturan halaman, bukan sebagai salah satu isian
+            yang harus diisi sebelum masuk — di dalam kartu, sederet tombol
+            tepat di atas kolom Username persis terbaca begitu. Pilihannya
+            disimpan di peramban, jadi ia sudah tersetel sebelum orangnya
+            masuk dan tetap begitu pada kunjungan berikutnya. */}
+        <div className="pilih-bahasa" role="group" aria-label={k.pilihBahasa}>
+          {(["id", "en"] as const).map((b) => (
+            <button key={b} type="button" onClick={() => gantiBahasa(b)}
+                    className={bahasa === b ? "aktif" : ""}
+                    aria-pressed={bahasa === b}>
+              {b.toUpperCase()}
+            </button>
+          ))}
+        </div>
+
         <form className="masuk-kartu" onSubmit={masuk}>
           {/* Nama sistemnya tidak diulang di sini: ia sudah tertulis besar di
               bidang sebelah kiri, dan dua penyebutan dalam satu layar membuat
               orang membaca hal yang sama dua kali. Di layar sempit bidang itu
               berpindah ke atas kartu — tetap terbaca lebih dulu. */}
-          <p className="eyebrow">Portal Internal</p>
-          <h1>Masuk</h1>
-          <p className="pengantar">
-            Gunakan akun yang diberikan Admin IT untuk melanjutkan.
-          </p>
+          <p className="eyebrow">{k.portal}</p>
+          <h1>{k.judul}</h1>
+          <p className="pengantar">{k.pengantar}</p>
 
-          <label className="lbl" htmlFor="username">Username</label>
+          <label className="lbl" htmlFor="username">{k.username}</label>
           <input id="username" type="text" value={username} autoFocus
                  autoComplete="username" className="isian"
                  onChange={(e) => setUsername(e.target.value)} />
 
-          <label className="lbl" htmlFor="sandi">Password</label>
+          <label className="lbl" htmlFor="sandi">{k.sandi}</label>
           <div className="isian-sandi">
             <input id="sandi" type={lihatSandi ? "text" : "password"}
                    value={password} autoComplete="current-password"
                    className="isian"
                    onChange={(e) => setPassword(e.target.value)} />
             <button type="button" onClick={() => setLihatSandi((v) => !v)}
-                    aria-label={lihatSandi ? "Sembunyikan kata sandi"
-                                           : "Tampilkan kata sandi"}>
+                    aria-label={lihatSandi ? k.sembunyikanSandi
+                                           : k.lihatSandi}>
               <IkonMata tertutup={lihatSandi} />
             </button>
           </div>
 
           <button className="pri masuk-tombol" type="submit"
                   disabled={busy || !username || !password}>
-            {busy ? "Memeriksa…" : "Masuk"}
+            {busy ? k.memeriksa : k.tombolMasuk}
           </button>
 
           {galat && (
             <div className="banner stop" style={{ marginTop: 14, marginBottom: 0 }}>
-              <b>Tidak dapat masuk</b>
+              <b>{k.gagalJudul}</b>
               {galat}
               {sisa !== null && (
                 <div style={{ marginTop: 4 }}>
-                  Sisa percobaan sebelum akun dikunci sementara: {sisa}.
+                  {k.sisaPercobaan(sisa)}
                 </div>
               )}
             </div>
@@ -228,10 +338,10 @@ export default function LoginPage() {
             {/* Tautannya turun ke barisnya sendiri: sebaris dengan
                 pertanyaannya, ia terbaca sebagai lanjutan kalimat, bukan sebagai
                 sesuatu yang dapat ditekan. */}
-            <p>Lupa kata sandi atau akun terkunci?</p>
+            <p>{k.lupa}</p>
             <button type="button" className="tautan"
                     onClick={() => setLihatKontak((v) => !v)}>
-              Hubungi Admin IT
+              {k.hubungi}
             </button>
 
           </div>
@@ -244,15 +354,12 @@ export default function LoginPage() {
               if (e.target === e.currentTarget) setLihatKontak(false);
             }}>
               <div className="popup" role="dialog" aria-modal="true"
-                   aria-label="Kontak Admin IT">
+                   aria-label={k.kontakJudul}>
                 {/* Tanpa judul: tautan yang membukanya sudah berbunyi
                     "Hubungi Admin IT", dan mengulanginya di dalam kotak membuat
                     orang membaca hal yang sama dua kali. Nama kotaknya tetap
                     ada untuk pembaca layar lewat aria-label. */}
-                <p className="pengantar">
-                  Silakan menghubungi kontak di bawah ini untuk mengatur ulang
-                  username atau kata sandi Anda:
-                </p>
+                <p className="pengantar">{k.kontakPengantar}</p>
 
                 <div className="kontak">
                   {kontak?.wa && (
@@ -269,16 +376,13 @@ export default function LoginPage() {
                     </a>
                   )}
                   {!kontak?.wa && !kontak?.email && (
-                    <span>
-                      Kontak Admin IT belum diisi. Hubungi lewat jalur yang
-                      biasa Anda pakai.
-                    </span>
+                    <span>{k.kontakKosong}</span>
                   )}
                 </div>
 
                 <button type="button" ref={tutupRef} className="pri"
                         onClick={() => setLihatKontak(false)}>
-                  Tutup
+                  {k.tutup}
                 </button>
               </div>
             </div>
