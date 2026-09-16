@@ -105,6 +105,23 @@ export const LABEL_PERAN: Record<string, string> = {
   markom: "Markom",
 };
 
+/**
+ * Sebutan peran dan tingkat dalam bahasa Inggris.
+ *
+ * Hampir semuanya sudah berbahasa Inggris — itu memang sebutan yang dipakai di
+ * kantor, dan mengindonesiakannya justru membuat orang tidak mengenalinya.
+ * Yang berbeda hanya "Kantor Agent" dan "Koordinator Agent".
+ */
+export const LABEL_PERAN_EN: Record<string, string> = { ...LABEL_PERAN };
+
+export const TINGKAT_EN: Record<string, string> = {
+  sales_manager_inhouse: "Sales Manager In-house",
+  kantor_agent: "Agent Office",
+  lead_agent: "Lead Agent",
+  coordinator_agent_1: "Agent Coordinator 1",
+  coordinator_agent_2: "Agent Coordinator 2",
+};
+
 /** Tingkat overriding, hanya dipakai bila jenisnya overriding. */
 export const TINGKAT_OVERRIDING: [string, string][] = [
   ["sales_manager_inhouse", "Sales Manager In-house"],
