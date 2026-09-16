@@ -31,6 +31,9 @@ import {
   DOKUMEN, LABEL_PERAN, PERAN_PENERIMA, TINGKAT_OVERRIDING, jenisDari,
 } from "../../jenis";
 
+/** Isian di dalam tabel formulir: selebar kolomnya, rata kanan seperti isinya. */
+const ISIAN: React.CSSProperties = { width: "100%", textAlign: "right" };
+
 const rp = (n?: number | null) => `Rp ${(n ?? 0).toLocaleString("id-ID")}`;
 const tgl = (v?: string | null) => (v ? String(v).slice(0, 10) : "—");
 
@@ -70,6 +73,12 @@ export default function FormKlaimPage() {
   const [peran, setPeran] = useState("");
   const [tingkat, setTingkat] = useState("");
   const [penjelasan, setPenjelasan] = useState("");
+  // Tujuan transfer diketik pada formulirnya: ia berubah dari satu pengajuan ke
+  // pengajuan berikutnya, jadi tidak dapat diambil sekali dari data marketing.
+  const [tf, setTf] = useState({
+    holder_name: "", bank_name: "", account_number: "", branch: "",
+    holder_type: "individual",
+  });
   const [ceklis, setCeklis] = useState<Record<string, boolean>>({});
   const [busy, setBusy] = useState(true);
   const [kirim, setKirim] = useState(false);
@@ -93,6 +102,18 @@ export default function FormKlaimPage() {
   }, [jenis, unitId]);
 
   useEffect(() => { if (sesi) void muat(); }, [sesi, muat]);
+
+  // Rekening yang sudah tercatat dipakai sebagai isian awal — yang paling
+  // sering benar, tetapi tetap dapat diubah sebelum dikirim.
+  useEffect(() => {
+    const b = unit?.recipient.bank;
+    if (!b) return;
+    setTf({
+      holder_name: b.holder_name ?? "", bank_name: b.bank_name ?? "",
+      account_number: b.account_number ?? "", branch: b.branch ?? "",
+      holder_type: b.holder_type === "company" ? "company" : "individual",
+    });
+  }, [unit]);
 
   // Peran bawaan mengikuti jenis marketing pada data penjualan. Tetap dapat
   // diubah, karena satu orang dapat menerima dalam peran berbeda (mis. markom).
@@ -120,6 +141,7 @@ export default function FormKlaimPage() {
           recipient_role: peran,
           overriding_level: jenis.slug === "overriding" ? tingkat : null,
           notes: penjelasan,
+          transfer: tf,
         }),
       });
       const b = await res.json().catch(() => ({}));
@@ -310,37 +332,78 @@ export default function FormKlaimPage() {
 
                 <div className="form-blok">
                   <h3>TUJUAN TRANSFER</h3>
-                  {unit.recipient.bank ? (
-                    <>
-                      <table><tbody>
-                        <tr><td>Nama Penerima</td>
-                            <td>{unit.recipient.bank.holder_name}</td></tr>
-                        <tr><td>BANK</td>
-                            <td>{unit.recipient.bank.bank_name}</td></tr>
-                        <tr><td>No. Rekening</td>
-                            <td>{unit.recipient.bank.account_number}</td></tr>
-                        <tr><td>Kantor Cabang</td>
-                            <td>{unit.recipient.bank.branch ?? "—"}</td></tr>
-                        <tr><td>Atas nama</td>
-                            <td>{unit.recipient.bank.holder_type === "company"
-                                  ? "Badan usaha (PT)" : "Perorangan"}</td></tr>
-                      </tbody></table>
-                      <p className="hint" style={{ textAlign: "left", marginTop: 6 }}>
-                        Rekening tujuan inilah yang menentukan jenis PPh:
-                        ditransfer ke PT dipotong <b>PPh 23</b>, ke perorangan
-                        dipotong <b>PPh 21</b>. Rekening ini atas nama{" "}
-                        {unit.recipient.bank.holder_type === "company"
-                          ? "badan usaha, jadi dipotong PPh 23"
-                          : "perorangan, jadi dipotong PPh 21"}.
-                      </p>
-                    </>
-                  ) : (
+                  {/* Diketik, bukan diambil dari data marketing. Orang yang
+                      sama dapat minta dibayar ke rekening pribadinya kali ini
+                      dan ke rekening agensinya lain kali, dan yang menentukan
+                      jenis PPh adalah tujuan transfer pengajuan ini. Bila sudah
+                      ada rekening tercatat, ia dipakai sebagai isian awal. */}
+                  <table><tbody>
+                    <tr>
+                      <td>Nama Penerima</td>
+                      <td>
+                        <input value={tf.holder_name} style={ISIAN}
+                               placeholder="nama sesuai buku tabungan"
+                               onChange={(e) =>
+                                 setTf({ ...tf, holder_name: e.target.value })} />
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>BANK</td>
+                      <td>
+                        <input value={tf.bank_name} style={ISIAN}
+                               placeholder="mis. BCA"
+                               onChange={(e) =>
+                                 setTf({ ...tf, bank_name: e.target.value })} />
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>No. Rekening</td>
+                      <td>
+                        <input value={tf.account_number} style={ISIAN}
+                               inputMode="numeric" placeholder="tanpa spasi"
+                               onChange={(e) =>
+                                 setTf({ ...tf, account_number: e.target.value })} />
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>Kantor Cabang</td>
+                      <td>
+                        <input value={tf.branch} style={ISIAN}
+                               placeholder="mis. Gading Serpong"
+                               onChange={(e) =>
+                                 setTf({ ...tf, branch: e.target.value })} />
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>Atas nama</td>
+                      <td>
+                        <select value={tf.holder_type} style={ISIAN}
+                                onChange={(e) =>
+                                  setTf({ ...tf, holder_type: e.target.value })}>
+                          <option value="company">Badan Usaha (PT)</option>
+                          <option value="individual">Pribadi (Perorangan)</option>
+                        </select>
+                      </td>
+                    </tr>
+                  </tbody></table>
+
+                  <p className="hint" style={{ textAlign: "left", marginTop: 6 }}>
+                    Rekening tujuan inilah yang menentukan jenis PPh: ditransfer
+                    ke badan usaha dipotong <b>PPh 23</b>, ke perorangan dipotong{" "}
+                    <b>PPh 21</b>. Pilihan sekarang{" "}
+                    <b>{tf.holder_type === "company"
+                          ? "Badan Usaha (PT), jadi dipotong PPh 23"
+                          : "Pribadi (Perorangan), jadi dipotong PPh 21"}</b>.
+                  </p>
+
+                  {/* Rekening yang baru diketik masuk sebagai belum
+                      terverifikasi. Verifikasi pekerjaan Finance; mengetiknya
+                      pada formulir pengajuan bukan verifikasi. */}
+                  {!unit.recipient.bank && (
                     <div className="banner warn" style={{ marginBottom: 0 }}>
-                      <b>Belum ada rekening tujuan yang terverifikasi</b>
-                      Jenis PPh ditentukan oleh rekening tujuan transfer, jadi
-                      tanpa rekening itu potongan pajaknya hanya diperkirakan dari
-                      status marketing. Klaim tetap dapat diajukan, tetapi tidak
-                      dapat dibayarkan sebelum rekeningnya diverifikasi.
+                      <b>Rekening ini belum pernah diverifikasi</b>
+                      Klaim tetap dapat diajukan, tetapi pembayarannya menunggu
+                      Finance memverifikasi rekening tujuannya.
                     </div>
                   )}
                 </div>

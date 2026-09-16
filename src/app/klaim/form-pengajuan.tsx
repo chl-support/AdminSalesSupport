@@ -189,7 +189,8 @@ export function FormPengajuan(
             <tr><td>Kantor Cabang</td><td>{bank.branch ?? "—"}</td></tr>
             <tr><td>Atas nama</td>
                 <td>{bank.holder_type === "company"
-                      ? "Badan usaha (PT)" : "Perorangan"}</td></tr>
+                      ? "Badan Usaha (PT)"
+                      : "Pribadi (Perorangan)"}</td></tr>
           </tbody></table>
         ) : (
           <p className="hint" style={{ textAlign: "left" }}>

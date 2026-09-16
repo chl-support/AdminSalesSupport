@@ -21,6 +21,7 @@ export const POST = handler(async (req) => {
     claimView(await createClaim({
       unitId: p.unit_id, marketingId: p.marketing_id, claimType: p.claim_type,
       recipientRole: p.recipient_role, overridingLevel: p.overriding_level ?? null,
-      notes: p.notes ?? null, actor: user.username,
+      notes: p.notes ?? null, transfer: p.transfer ?? null,
+      actor: user.username,
     })));
 });

@@ -109,12 +109,69 @@ export function assertNotSealed(claim: any) {
 
 // ─────────────────────────── Pembuatan klaim ───────────────────────────
 
+/** Tujuan transfer sebagaimana diketik pada formulir pengajuan. */
+export type Transfer = {
+  holder_name?: string; bank_name?: string; account_number?: string;
+  branch?: string | null; holder_type?: string;
+};
+
+/**
+ * Rekening tujuan untuk satu pengajuan: yang sudah ada dipakai lagi, yang baru
+ * dicatat sebagai rekening tersendiri.
+ *
+ * Dicocokkan atas nomor rekening dan nama banknya — dua hal yang menentukan ke
+ * mana uang benar-benar berpindah. Mencocokkan atas nama pemilik saja akan
+ * menyatukan dua rekening berbeda milik orang yang sama, dan klaim lama ikut
+ * berubah tujuannya.
+ *
+ * Rekening yang sudah pernah diverifikasi Finance tidak kehilangan status itu
+ * hanya karena diketik ulang; tetapi bila salah satu keterangannya berbeda,
+ * statusnya gugur — yang diverifikasi adalah rekening itu apa adanya.
+ */
+async function rekeningTujuan(marketingId: string, t: Transfer, c: any) {
+  const nomor = String(t.account_number ?? "").replace(/[^\d]/g, "");
+  const bankNama = String(t.bank_name ?? "").trim();
+  const atasNama = String(t.holder_name ?? "").trim();
+  const jenis = t.holder_type === "company" ? "company" : "individual";
+  const cabang = String(t.branch ?? "").trim() || null;
+
+  if (!nomor || !bankNama || !atasNama) {
+    throw new WorkflowError(
+      "Tujuan transfer belum lengkap: nama penerima, nama bank, dan nomor " +
+      "rekening wajib diisi.", "transfer_incomplete", 422);
+  }
+
+  const ada = await one<any>(
+    `SELECT * FROM bank_accounts
+      WHERE marketing_id=$1 AND replace(account_number,' ','')=$2
+        AND lower(bank_name)=lower($3) LIMIT 1`,
+    [marketingId, nomor, bankNama], c);
+
+  if (ada) {
+    const berubah = ada.holder_name !== atasNama || ada.branch !== cabang ||
+                    ada.holder_type !== jenis;
+    if (!berubah) return ada;
+    return (await one<any>(
+      `UPDATE bank_accounts SET holder_name=$2, branch=$3, holder_type=$4,
+         verified=FALSE WHERE id=$1 RETURNING *`,
+      [ada.id, atasNama, cabang, jenis], c))!;
+  }
+
+  return (await one<any>(
+    `INSERT INTO bank_accounts (marketing_id, holder_name, account_number,
+       bank_name, branch, holder_type, verified)
+     VALUES ($1,$2,$3,$4,$5,$6,FALSE) RETURNING *`,
+    [marketingId, atasNama, nomor, bankNama, cabang, jenis], c))!;
+}
+
 export async function createClaim(params: {
   unitId: string; marketingId: string; claimType: ClaimType;
   recipientRole: RecipientRole; overridingLevel?: OverridingLevel | null;
   // "Penjelasan Pengajuan" pada formulir — mis. "Full Payment, pembayaran sudah
   // mencapai 20%". Ikut tercetak pada paket dokumen, jadi bukan catatan internal.
   notes?: string | null;
+  // Tujuan transfer sebagaimana diketik pada formulir pengajuan.
+  transfer?: Transfer | null;
   actor?: string;
 }) {
   return tx(async (c) => {
@@ -142,9 +199,20 @@ export async function createClaim(params: {
     // Rekening tujuan dicari SEBELUM menghitung: ia yang menentukan PPh 23 atau
     // PPh 21, jadi menghitung lebih dulu berarti memotong pajak sebelum tahu
     // ke mana uangnya akan ditransfer.
-    const bank = await one(
-      "SELECT * FROM bank_accounts WHERE marketing_id=$1 AND verified LIMIT 1",
-      [params.marketingId], c);
+    // Tujuan transfer diisi pemohon pada formulirnya, karena ia memang berubah
+    // dari satu pengajuan ke pengajuan berikutnya: orang yang sama dapat minta
+    // dibayar ke rekening pribadinya kali ini dan ke rekening agensinya lain
+    // kali. Yang diketik disimpan sebagai rekening tersendiri, bukan menimpa
+    // rekening yang sudah ada — klaim lama harus tetap menunjuk ke rekening
+    // yang benar-benar dipakai saat itu.
+    //
+    // Rekening baru masuk dengan verified=false. Verifikasi adalah pekerjaan
+    // Finance; mengetiknya pada formulir pengajuan bukan verifikasi.
+    const bank = params.transfer
+      ? await rekeningTujuan(params.marketingId, params.transfer, c)
+      : await one(
+          "SELECT * FROM bank_accounts WHERE marketing_id=$1 AND verified LIMIT 1",
+          [params.marketingId], c);
 
     const r = await calc.calculate(unit, mkt, agency, params.claimType,
                                    params.recipientRole,
