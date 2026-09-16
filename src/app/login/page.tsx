@@ -168,11 +168,11 @@ export default function LoginPage() {
           <Logo tinggi={88} />
           {/* Pemenggalan barisnya ditentukan di sini, bukan diserahkan pada
               pembungkusan otomatis: dengan background-clip:text, bagian kata
-              yang meluber keluar kotaknya tidak ikut tergambar sama sekali —
-              "Management" sempat tampil terpotong jadi "Manageme". */}
+              yang meluber keluar kotaknya tidak ikut tergambar sama sekali,
+              jadi kata yang tidak muat hilang separuh alih-alih turun baris. */}
           <div className="wordmark">
             <span>CHL Sales</span>
-            <span>Management System</span>
+            <span>Admin System</span>
           </div>
         </div>
       </aside>
