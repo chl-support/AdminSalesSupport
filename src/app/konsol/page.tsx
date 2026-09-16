@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 
+import { useKata } from "../bahasa";
 import { FormPengajuan } from "../klaim/form-pengajuan";
 import { Kerangka, MemeriksaSesi } from "../kerangka";
 import { useSesi } from "../session";
@@ -20,11 +21,193 @@ const NEXT_HANDOFF: Record<string, string> = {
   circulating_management: "returned_from_management",
 };
 
+/**
+ * Kata-kata layar ini. Yang dikirim ke server sebagai data — misalnya `reason`
+ * pada koreksi pajak dan temuan finansial — sengaja tidak ikut: nilainya
+ * tersimpan di basis data dan terbaca kembali oleh siapa pun yang membuka
+ * jejak audit, jadi ia tidak boleh berubah mengikuti bahasa layar orang yang
+ * kebetulan menekan tombolnya.
+ */
+const KATA = {
+  id: {
+    judul: "Konsol Klaim Insentif",
+    pengantar:
+      "Next.js + PostgreSQL. Empat gate ditegakkan di server, bukan di layar " +
+      "ini — menyembunyikan tombol tidak menghentikan siapa pun yang memanggil " +
+      "API langsung.",
+    alurJudul: "Alur pengajuan",
+    alurIsi:
+      "Admin mengajukan klaim → Form Pengajuan terbentuk → tim pajak memeriksa " +
+      "nilainya → setelah disetujui, Admin mengirim tautan ke Agent → Agent " +
+      "membaca formulirnya, mengunggah Kwitansi dan Invoice, lalu menandatangani " +
+      "pada kolom Pemohon. Tombol di bawah menjalankan satu klaim sampai langkah " +
+      "tanda tangan untuk keperluan pengujian.",
+    jalankanAlur: "Jalankan alur sampai tanda tangan",
+    ujiGate: "Uji gate: kirim link tanpa verifikasi pajak",
+    unduhMaster: "Unduh Laporan Master (.xlsx)",
+    muatUlang: "Muat ulang",
+    gagal: "Gagal",
+    berhasil: "Berhasil.",
+    takDapatDijalankan: "Tidak dapat dijalankan",
+    siapTtd: (nomor: string) => `Klaim ${nomor} siap ditandatangani`,
+    linkWa: "Link WhatsApp:",
+    otpDemo: "Kode OTP (hanya demo):",
+    dikoreksi:
+      "Nominal dikoreksi Finance — agent akan melihat selisih dan alasannya " +
+      "sebelum tanda tangan.",
+    takAdaBelumVerif: "Tidak ada klaim yang belum diverifikasi pajak.",
+    gateBocor: "Gate gagal menahan — ini bug",
+    gateBocorIsi: "Seharusnya ditolak 409.",
+    gateMenahan: (kode: number) => `Gate menahan sesuai BR-13 (HTTP ${kode})`,
+    linkTerkirim: (nomor: string) => `Link terkirim ke ${nomor}`,
+    pesanWaAman:
+      "Pesan WhatsApp tidak memuat nominal maupun nama konsumen.",
+    buka: "Buka:",
+    salinanTerbit: (n: number) => `Salinan #${n} diterbitkan`,
+    hash: "Hash:",
+    salinanDibatalkan: (n: number) => `Salinan #${n} otomatis dibatalkan.`,
+    takAdaInstruksi: "Tidak ada instruksi transfer terbuka.",
+    tanggalTersimpan: (periode: string) =>
+      `Tanggal transfer tersimpan — periode ${periode}`,
+    barisRekap: (n: number) =>
+      `${n} baris rekap Overriding diperbarui otomatis.`,
+    ttdDibatalkan:
+      "Tanda tangan dibatalkan. Klaim kembali ke antrean Finance (Pajak).",
+    aksiTeruskan: "Teruskan ke Finance Pajak",
+    aksiSetujuiKunci: "Setujui & kunci nilai",
+    aksiSetujuiKoreksi: "Setujui dengan koreksi",
+    aksiKirimTautan: "Verifikasi & kirim tautan ke Agent",
+    aksiSetujuiManual: "Setujui manual",
+    aksiCrossAdmin: "Crosscheck Admin Sales",
+    aksiCrossFinance: "Crosscheck Finance",
+    aksiTemuan: "Laporkan temuan finansial",
+    aksiCetak: "Terbitkan paket cetak",
+    aksiSerahTerima: "Catat serah terima berikutnya",
+    aksiUnggahPindaian: "Unggah pindaian bertanda tangan",
+    aksiUjiHash: "Uji: pindaian hash keliru",
+    aksiInputTanggal: "Input tanggal transfer",
+    aksiUjiTanggal: "Uji: tanggal masa depan",
+    daftarKlaim: "Daftar klaim",
+    nKlaim: (n: number) => `${n} klaim`,
+    thNomor: "Nomor", thJenisPeran: "Jenis / peran", thUnit: "Unit",
+    thNilai: "Nilai", thStatus: "Status",
+    aksiPada: "Aksi pada klaim terpilih",
+    klaim: "Klaim",
+    nilaiBersih: "Nilai bersih", verifPajak: "Verifikasi pajak",
+    tandaTangan: "Tanda tangan", skor: (n: number) => `skor ${n}`,
+    crosscheck: "Crosscheck",
+    lampiranAgent: "Lampiran dari Agent",
+    isiTakTersimpan: "isi tidak tersimpan",
+    dariAgent: " · agent", dariKonsol: " · konsol",
+    belumAdaLampiran:
+      "Belum ada lampiran. Agent mengunggahnya saat membuka tautan tanda tangan.",
+    tutupForm: "Tutup form pengajuan", lihatForm: "Lihat form pengajuan",
+    lihatAudit: "Lihat jejak audit klaim ini →",
+    belumAdaKlaim: "Belum ada klaim.",
+    formPengajuan: "Form pengajuan",
+    cetakFormulir: "Cetak formulir",
+    dokumenBeredar: "Dokumen beredar fisik",
+    thSalinan: "Salinan", thPosisi: "Posisi", thUmur: "Umur",
+    hari: (n: number) => `${n} hari`,
+    takAdaBeredar: "Tidak ada dokumen beredar.",
+    rekonsiliasi: "Rekonsiliasi bank",
+    belumDikonfirmasi: "belum dikonfirmasi",
+    thPenerima: "Penerima",
+    semuaDikonfirmasi: "Semua instruksi sudah dikonfirmasi tanggalnya.",
+  },
+  en: {
+    judul: "Incentive Claim Console",
+    pengantar:
+      "Next.js + PostgreSQL. Four gates are enforced on the server, not on " +
+      "this screen — hiding a button stops nobody who calls the API directly.",
+    alurJudul: "Submission flow",
+    alurIsi:
+      "Admin submits a claim → the Submission Form is created → the tax team " +
+      "checks the amounts → once approved, Admin sends a link to the Agent → " +
+      "the Agent reads the form, uploads the Receipt and Invoice, then signs " +
+      "in the Applicant column. The buttons below drive one claim up to the " +
+      "signing step, for testing.",
+    jalankanAlur: "Run the flow up to signing",
+    ujiGate: "Test gate: send link without tax verification",
+    unduhMaster: "Download Master Report (.xlsx)",
+    muatUlang: "Reload",
+    gagal: "Failed",
+    berhasil: "Done.",
+    takDapatDijalankan: "Cannot be run",
+    siapTtd: (nomor: string) => `Claim ${nomor} is ready for signing`,
+    linkWa: "WhatsApp link:",
+    otpDemo: "OTP code (demo only):",
+    dikoreksi:
+      "The amount was corrected by Finance — the agent will see the difference " +
+      "and the reason before signing.",
+    takAdaBelumVerif: "No claim is awaiting tax verification.",
+    gateBocor: "The gate failed to hold — this is a bug",
+    gateBocorIsi: "It should have been rejected with 409.",
+    gateMenahan: (kode: number) => `Gate held as per BR-13 (HTTP ${kode})`,
+    linkTerkirim: (nomor: string) => `Link sent to ${nomor}`,
+    pesanWaAman:
+      "The WhatsApp message contains neither the amount nor the buyer's name.",
+    buka: "Open:",
+    salinanTerbit: (n: number) => `Copy #${n} issued`,
+    hash: "Hash:",
+    salinanDibatalkan: (n: number) => `Copy #${n} was cancelled automatically.`,
+    takAdaInstruksi: "There is no open transfer instruction.",
+    tanggalTersimpan: (periode: string) =>
+      `Transfer date saved — period ${periode}`,
+    barisRekap: (n: number) =>
+      `${n} Overriding recap rows were updated automatically.`,
+    ttdDibatalkan:
+      "The signature was voided. The claim returns to the Finance (Tax) queue.",
+    aksiTeruskan: "Forward to Finance Tax",
+    aksiSetujuiKunci: "Approve & lock the amount",
+    aksiSetujuiKoreksi: "Approve with correction",
+    aksiKirimTautan: "Verify & send link to the Agent",
+    aksiSetujuiManual: "Approve manually",
+    aksiCrossAdmin: "Crosscheck Admin Sales",
+    aksiCrossFinance: "Crosscheck Finance",
+    aksiTemuan: "Report a financial finding",
+    aksiCetak: "Issue print package",
+    aksiSerahTerima: "Record the next handover",
+    aksiUnggahPindaian: "Upload the signed scan",
+    aksiUjiHash: "Test: scan with the wrong hash",
+    aksiInputTanggal: "Enter transfer date",
+    aksiUjiTanggal: "Test: future date",
+    daftarKlaim: "Claim list",
+    nKlaim: (n: number) => `${n} claims`,
+    thNomor: "Number", thJenisPeran: "Type / role", thUnit: "Unit",
+    thNilai: "Amount", thStatus: "Status",
+    aksiPada: "Actions on the selected claim",
+    klaim: "Claim",
+    nilaiBersih: "Net amount", verifPajak: "Tax verification",
+    tandaTangan: "Signature", skor: (n: number) => `score ${n}`,
+    crosscheck: "Crosscheck",
+    lampiranAgent: "Attachments from the Agent",
+    isiTakTersimpan: "contents not stored",
+    dariAgent: " · agent", dariKonsol: " · console",
+    belumAdaLampiran:
+      "No attachments yet. The Agent uploads them when opening the signing link.",
+    tutupForm: "Close submission form", lihatForm: "View submission form",
+    lihatAudit: "View this claim's audit trail →",
+    belumAdaKlaim: "No claims yet.",
+    formPengajuan: "Submission form",
+    cetakFormulir: "Print the form",
+    dokumenBeredar: "Documents circulating physically",
+    thSalinan: "Copy", thPosisi: "Location", thUmur: "Age",
+    hari: (n: number) => `${n} days`,
+    takAdaBeredar: "No documents are circulating.",
+    rekonsiliasi: "Bank reconciliation",
+    belumDikonfirmasi: "not confirmed yet",
+    thPenerima: "Recipient",
+    semuaDikonfirmasi: "Every instruction has its date confirmed.",
+  },
+};
+
 type Claim = any;
 type Note = { html: string; kind: "info" | "ok" | "warn" | "stop" } | null;
 
 export default function Console() {
   const { sesi, memuat } = useSesi();
+  const k = useKata(KATA);
   const [claims, setClaims] = useState<Claim[]>([]);
   const [selected, setSelected] = useState<string>("");
   const [circulating, setCirculating] = useState<any[]>([]);
@@ -44,7 +227,8 @@ export default function Console() {
       });
       const body = await res.json().catch(() => ({}));
       if (res.status === 401) { location.href = "/login"; }
-      if (!res.ok) throw Object.assign(new Error(body.title ?? "Gagal"), { body, status: res.status });
+      if (!res.ok) throw Object.assign(new Error(body.title ?? "Gagal"),
+                                       { body, status: res.status });
       return body;
     },
     [],
@@ -77,11 +261,11 @@ export default function Console() {
     setBusy(true);
     try { await fn(); } catch (e: any) {
       setNote({ kind: "stop",
-                html: `<b>${e.body?.title ?? "Gagal"}</b>${e.body?.detail ?? ""}` });
+                html: `<b>${e.body?.title ?? k.gagal}</b>${e.body?.detail ?? ""}` });
     } finally { setBusy(false); }
   };
 
-  const act = (path: string, body: unknown, ok = "Berhasil.") =>
+  const act = (path: string, body: unknown, ok = k.berhasil) =>
     run(async () => {
       await api(`/claims/${selected}/${path}`,
                 { method: "POST", body: JSON.stringify(body) });
@@ -91,25 +275,28 @@ export default function Console() {
 
   const demo = () => run(async () => {
     const r = await api("/demo/run-flow", { method: "POST" });
-    if (r.error) { setNote({ kind: "warn", html: `<b>Tidak dapat dijalankan</b>${r.error}` }); return; }
+    if (r.error) {
+      setNote({ kind: "warn", html: `<b>${k.takDapatDijalankan}</b>${r.error}` });
+      return;
+    }
     setNote({ kind: "ok", html:
-      `<b>Klaim ${r.claim_number} siap ditandatangani</b>
-       Link WhatsApp: <a href="/sign/${r.token}" target="_blank">/sign/${r.token}</a><br>
-       Kode OTP (hanya demo): <b>${r.otp}</b><br>
-       Nominal dikoreksi Finance — agent akan melihat selisih dan alasannya sebelum tanda tangan.` });
+      `<b>${k.siapTtd(r.claim_number)}</b>
+       ${k.linkWa} <a href="/sign/${r.token}" target="_blank">/sign/${r.token}</a><br>
+       ${k.otpDemo} <b>${r.otp}</b><br>
+       ${k.dikoreksi}` });
     await refresh();
   });
 
   const testGate = () => run(async () => {
     const target = claims.find((c) => c.status === "pending_tax_verification")
                 ?? claims.find((c) => c.status === "draft");
-    if (!target) { setNote({ kind: "warn", html: "Tidak ada klaim yang belum diverifikasi pajak." }); return; }
+    if (!target) { setNote({ kind: "warn", html: k.takAdaBelumVerif }); return; }
     try {
       await api(`/claims/${target.id}/signature-requests`, { method: "POST", body: "{}" });
-      setNote({ kind: "stop", html: "<b>Gate gagal menahan — ini bug</b>Seharusnya ditolak 409." });
+      setNote({ kind: "stop", html: `<b>${k.gateBocor}</b>${k.gateBocorIsi}` });
     } catch (e: any) {
       setNote({ kind: "ok",
-                html: `<b>Gate menahan sesuai BR-13 (HTTP ${e.status})</b>${e.body?.detail}` });
+                html: `<b>${k.gateMenahan(e.status)}</b>${e.body?.detail}` });
     }
   });
 
@@ -117,10 +304,10 @@ export default function Console() {
     const r = await api(`/claims/${selected}/signature-requests`,
                         { method: "POST", body: "{}" });
     setNote({ kind: "ok", html:
-      `<b>Link terkirim ke ${r.masked_phone}</b>
-       Pesan WhatsApp tidak memuat nominal maupun nama konsumen.<br>
-       Buka: <a href="/sign/${r.token}" target="_blank">/sign/${r.token}</a><br>
-       Kode OTP (hanya demo): <b>${r.otp_demo}</b>` });
+      `<b>${k.linkTerkirim(r.masked_phone)}</b>
+       ${k.pesanWaAman}<br>
+       ${k.buka} <a href="/sign/${r.token}" target="_blank">/sign/${r.token}</a><br>
+       ${k.otpDemo} <b>${r.otp_demo}</b>` });
     await refresh();
   });
 
@@ -129,16 +316,16 @@ export default function Console() {
                         { method: "POST", body: "{}" });
     setLastHash(r.document_hash);
     setNote({ kind: "ok", html:
-      `<b>Salinan #${r.copy_number} diterbitkan</b>${r.watermark}<br>
-       Hash: <code>${String(r.document_hash).slice(0, 24)}…</code>
-       ${r.superseded ? `<br>Salinan #${r.superseded} otomatis dibatalkan.` : ""}` });
+      `<b>${k.salinanTerbit(r.copy_number)}</b>${r.watermark}<br>
+       ${k.hash} <code>${String(r.document_hash).slice(0, 24)}…</code>
+       ${r.superseded ? `<br>${k.salinanDibatalkan(r.superseded)}` : ""}` });
     await refresh();
   });
 
   const settle = (dateStr?: string) => run(async () => {
     const all = await api("/payment-instructions");
     const open = all.filter((i: any) => i.claim_id === selected && i.status !== "paid");
-    if (!open.length) { setNote({ kind: "warn", html: "Tidak ada instruksi transfer terbuka." }); return; }
+    if (!open.length) { setNote({ kind: "warn", html: k.takAdaInstruksi }); return; }
     const r = await api("/payment-instructions/settlements", {
       method: "POST",
       body: JSON.stringify({
@@ -147,8 +334,8 @@ export default function Console() {
         proof_file: "bukti_transfer.pdf", reference_number: "TRF/DEMO/001" }),
     });
     setNote({ kind: "ok", html:
-      `<b>Tanggal transfer tersimpan — periode ${r.recap_period}</b>
-       ${r.overriding_rows_updated.length} baris rekap Overriding diperbarui otomatis.` });
+      `<b>${k.tanggalTersimpan(r.recap_period)}</b>
+       ${k.barisRekap(r.overriding_rows_updated.length)}` });
     await refresh();
   });
 
@@ -156,53 +343,53 @@ export default function Console() {
   if (current) {
     const s = current.status;
     if (s === "pending_admin_review")
-      actions.push(<button key="fw" className="pri" onClick={() => act("admin-review", { decision: "forward_to_tax" })}>Teruskan ke Finance Pajak</button>);
+      actions.push(<button key="fw" className="pri" onClick={() => act("admin-review", { decision: "forward_to_tax" })}>{k.aksiTeruskan}</button>);
     if (s === "pending_tax_verification") {
-      actions.push(<button key="tv" className="pri" onClick={() => act("tax-verification", { decision: "approve" })}>Setujui &amp; kunci nilai</button>);
+      actions.push(<button key="tv" className="pri" onClick={() => act("tax-verification", { decision: "approve" })}>{k.aksiSetujuiKunci}</button>);
       actions.push(<button key="tc" onClick={() => act("tax-verification", {
         decision: "approve_with_correction",
         corrected_amounts: { withholding_tax: current.withholding_tax * 2 },
         reason: "Penerima tidak memiliki NPWP aktif, tarif PPh menyesuaikan.",
-      })}>Setujui dengan koreksi</button>);
+      })}>{k.aksiSetujuiKoreksi}</button>);
     }
     if (s === "tax_verified")
-      actions.push(<button key="lk" className="pri" onClick={issueLink}>Verifikasi &amp; kirim tautan ke Agent</button>);
+      actions.push(<button key="lk" className="pri" onClick={issueLink}>{k.aksiKirimTautan}</button>);
     if (s === "signature_review_required")
       actions.push(<button key="sr" className="pri" onClick={() => act("signature-review", {
         decision: "approve_manually",
         reason: "Pola goresan konsisten dengan baseline, skor menaik tiap percobaan.",
-      })}>Setujui manual</button>);
+      })}>{k.aksiSetujuiManual}</button>);
     if (s === "crosscheck_in_progress") {
       if (current.crosscheck_admin !== "completed")
-        actions.push(<button key="ca" onClick={() => act("crosscheck", { party: "admin_sales", decision: "complete" })}>Crosscheck Admin Sales</button>);
+        actions.push(<button key="ca" onClick={() => act("crosscheck", { party: "admin_sales", decision: "complete" })}>{k.aksiCrossAdmin}</button>);
       if (current.crosscheck_finance !== "completed")
-        actions.push(<button key="cf" onClick={() => act("crosscheck", { party: "finance", decision: "complete" })}>Crosscheck Finance</button>);
+        actions.push(<button key="cf" onClick={() => act("crosscheck", { party: "finance", decision: "complete" })}>{k.aksiCrossFinance}</button>);
       actions.push(<button key="ff" onClick={() => act("financial-findings", {
         reason: "Basis perhitungan keliru, PPN tidak seharusnya dikenakan.",
         affected_fields: ["vat"],
-      }, "Tanda tangan dibatalkan. Klaim kembali ke antrean Finance (Pajak).")}>Laporkan temuan finansial</button>);
+      }, k.ttdDibatalkan)}>{k.aksiTemuan}</button>);
     }
     if (s === "ready_to_print" || s === "printed")
-      actions.push(<button key="pp" className="pri" onClick={printPkg}>Terbitkan paket cetak</button>);
+      actions.push(<button key="pp" className="pri" onClick={printPkg}>{k.aksiCetak}</button>);
     if (NEXT_HANDOFF[s])
-      actions.push(<button key="ho" onClick={() => act("offline-approval/handoffs", { event: NEXT_HANDOFF[s], received_by: "—" })}>Catat serah terima berikutnya</button>);
+      actions.push(<button key="ho" onClick={() => act("offline-approval/handoffs", { event: NEXT_HANDOFF[s], received_by: "—" })}>{k.aksiSerahTerima}</button>);
     if (s === "awaiting_scan_upload") {
       actions.push(<button key="sb" className="pri" onClick={() => act("offline-approval/return", {
         outcome: "approved", scanned_hash: lastHash ?? current.document_hash,
         copy_number: current.print_copy_number,
         head_finance_name: "Sri Handayani", management_name: "Andreas Lim",
-      })}>Unggah pindaian bertanda tangan</button>);
+      })}>{k.aksiUnggahPindaian}</button>);
       actions.push(<button key="sw" onClick={() => act("offline-approval/return", {
         outcome: "approved", scanned_hash: "hash-yang-salah",
         copy_number: current.print_copy_number,
         head_finance_name: "Sri Handayani", management_name: "Andreas Lim",
-      })}>Uji: pindaian hash keliru</button>);
+      })}>{k.aksiUjiHash}</button>);
     }
     if (s === "awaiting_settlement_date") {
-      actions.push(<button key="st" className="pri" onClick={() => settle()}>Input tanggal transfer</button>);
+      actions.push(<button key="st" className="pri" onClick={() => settle()}>{k.aksiInputTanggal}</button>);
       actions.push(<button key="sf" onClick={() =>
         settle(new Date(Date.now() + 3 * 864e5).toISOString().slice(0, 10))
-      }>Uji: tanggal masa depan</button>);
+      }>{k.aksiUjiTanggal}</button>);
     }
   }
 
@@ -215,28 +402,21 @@ export default function Console() {
   return (
     <Kerangka sesi={sesi} judul={
       <div>
-        <h1>Konsol Klaim Insentif</h1>
-        <p>
-          Next.js + PostgreSQL. Empat gate ditegakkan di server, bukan di layar ini —
-          menyembunyikan tombol tidak menghentikan siapa pun yang memanggil API langsung.
-        </p>
+        <h1>{k.judul}</h1>
+        <p>{k.pengantar}</p>
       </div>
     }>
 
       <div className="banner info sp">
-        <b>Alur pengajuan</b>
-        Admin mengajukan klaim → Form Pengajuan terbentuk → tim pajak memeriksa
-        nilainya → setelah disetujui, Admin mengirim tautan ke Agent → Agent
-        membaca formulirnya, mengunggah Kwitansi dan Invoice, lalu menandatangani
-        pada kolom Pemohon. Tombol di bawah menjalankan satu klaim sampai langkah
-        tanda tangan untuk keperluan pengujian.
+        <b>{k.alurJudul}</b>
+        {k.alurIsi}
       </div>
 
       <div className="row sp">
-        <button className="pri" onClick={demo} disabled={busy}>Jalankan alur sampai tanda tangan</button>
-        <button onClick={testGate} disabled={busy}>Uji gate: kirim link tanpa verifikasi pajak</button>
-        <button onClick={() => { location.href = "/api/reports/master-report?format=xlsx"; }}>Unduh Laporan Master (.xlsx)</button>
-        <button onClick={() => refresh()} disabled={busy}>Muat ulang</button>
+        <button className="pri" onClick={demo} disabled={busy}>{k.jalankanAlur}</button>
+        <button onClick={testGate} disabled={busy}>{k.ujiGate}</button>
+        <button onClick={() => { location.href = "/api/reports/master-report?format=xlsx"; }}>{k.unduhMaster}</button>
+        <button onClick={() => refresh()} disabled={busy}>{k.muatUlang}</button>
       </div>
 
       {note && (
@@ -245,10 +425,11 @@ export default function Console() {
 
       <div className="grid sp">
         <div className="panel">
-          <h2>Daftar klaim <span className="pill">{claims.length} klaim</span></h2>
+          <h2>{k.daftarKlaim} <span className="pill">{k.nKlaim(claims.length)}</span></h2>
           <table>
             <tbody>
-              <tr><th>Nomor</th><th>Jenis / peran</th><th>Unit</th><th>Nilai</th><th>Status</th></tr>
+              <tr><th>{k.thNomor}</th><th>{k.thJenisPeran}</th><th>{k.thUnit}</th>
+                  <th>{k.thNilai}</th><th>{k.thStatus}</th></tr>
               {claims.map((c) => (
                 <tr key={c.id}>
                   <td><b>{c.claim_number}</b></td>
@@ -263,8 +444,8 @@ export default function Console() {
         </div>
 
         <div className="panel">
-          <h2>Aksi pada klaim terpilih</h2>
-          <div className="lbl">Klaim</div>
+          <h2>{k.aksiPada}</h2>
+          <div className="lbl">{k.klaim}</div>
           <select value={selected} onChange={(e) => setSelected(e.target.value)}
                   style={{ width: "100%", marginBottom: 10 }}>
             {claims.map((c) => (
@@ -275,10 +456,12 @@ export default function Console() {
             <>
               <table>
                 <tbody>
-                  <tr><td>Nilai bersih</td><td className="n">{rp(current.net_amount)}</td></tr>
-                  <tr><td>Verifikasi pajak</td><td className="n">{current.tax_verified_by ?? "—"}</td></tr>
-                  <tr><td>Tanda tangan</td><td className="n">{current.signature_score ? `skor ${current.signature_score}` : "—"}</td></tr>
-                  <tr><td>Crosscheck</td><td className="n">{current.crosscheck_admin} / {current.crosscheck_finance}</td></tr>
+                  <tr><td>{k.nilaiBersih}</td><td className="n">{rp(current.net_amount)}</td></tr>
+                  <tr><td>{k.verifPajak}</td><td className="n">{current.tax_verified_by ?? "—"}</td></tr>
+                  <tr><td>{k.tandaTangan}</td><td className="n">
+                    {current.signature_score ? k.skor(current.signature_score) : "—"}
+                  </td></tr>
+                  <tr><td>{k.crosscheck}</td><td className="n">{current.crosscheck_admin} / {current.crosscheck_finance}</td></tr>
                 </tbody>
               </table>
               <div className="row" style={{ marginTop: 12 }}>{actions}</div>
@@ -287,7 +470,7 @@ export default function Console() {
                   Ditampilkan di sini, bukan hanya di dalam formulir, karena
                   inilah yang dibuka Finance sebelum membayar. */}
               <div className="lbl" style={{ marginTop: 12 }}>
-                Lampiran dari Agent
+                {k.lampiranAgent}
               </div>
               <ul className="lampiran">
                 {(current.documents ?? []).filter((d: any) => d.file_name).length ? (
@@ -305,79 +488,83 @@ export default function Console() {
                       <span className="meta">
                         {d.has_content
                           ? `${Math.max(1, Math.round((d.size_bytes ?? 0) / 1024))} KB`
-                          : "isi tidak tersimpan"}
-                        {d.source === "agent" ? " · agent" : " · konsol"}
+                          : k.isiTakTersimpan}
+                        {d.source === "agent" ? k.dariAgent : k.dariKonsol}
                       </span>
                     </li>
                   ))
                 ) : (
                   <li className="kosong">
-                    Belum ada lampiran. Agent mengunggahnya saat membuka tautan
-                    tanda tangan.
+                    {k.belumAdaLampiran}
                   </li>
                 )}
               </ul>
               <div className="row" style={{ marginTop: 10, marginBottom: 0 }}>
                 <button onClick={() => setLihatForm((v) => !v)}>
-                  {lihatForm ? "Tutup form pengajuan" : "Lihat form pengajuan"}
+                  {lihatForm ? k.tutupForm : k.lihatForm}
                 </button>
               </div>
               <p style={{ margin: "8px 0 0", fontSize: 12 }}>
                 <a href={`/audit?entity_id=${selected}`}>
-                  Lihat jejak audit klaim ini →
+                  {k.lihatAudit}
                 </a>
               </p>
             </>
-          ) : <p style={{ color: "var(--mut)" }}>Belum ada klaim.</p>}
+          ) : <p style={{ color: "var(--mut)" }}>{k.belumAdaKlaim}</p>}
         </div>
       </div>
 
       {lihatForm && current && (
         <div className="panel sp">
           <h2>
-            Form pengajuan
+            {k.formPengajuan}
             <span className="pill">{current.claim_number}</span>
           </h2>
           <FormPengajuan klaim={current} />
           <div className="row" style={{ marginTop: 12, marginBottom: 0 }}>
-            <button onClick={() => window.print()}>Cetak formulir</button>
+            <button onClick={() => window.print()}>{k.cetakFormulir}</button>
           </div>
         </div>
       )}
 
       <div className="grid sp">
         <div className="panel">
-          <h2>Dokumen beredar fisik</h2>
+          <h2>{k.dokumenBeredar}</h2>
           <table><tbody>
             {circulating.length ? (
               <>
-                <tr><th>Nomor</th><th>Salinan</th><th>Posisi</th><th>Umur</th></tr>
+                <tr><th>{k.thNomor}</th><th>{k.thSalinan}</th><th>{k.thPosisi}</th>
+                    <th>{k.thUmur}</th></tr>
                 {circulating.map((c) => (
                   <tr key={c.id}>
                     <td>{c.claim_number}</td><td>#{c.print_copy_number}</td>
                     <td>{c.physical_location ?? "-"}</td>
-                    <td className="n">{c.age_days ?? 0} hari</td>
+                    <td className="n">{k.hari(c.age_days ?? 0)}</td>
                   </tr>
                 ))}
               </>
-            ) : <tr><td style={{ color: "var(--mut)" }}>Tidak ada dokumen beredar.</td></tr>}
+            ) : <tr><td style={{ color: "var(--mut)" }}>{k.takAdaBeredar}</td></tr>}
           </tbody></table>
         </div>
 
         <div className="panel">
-          <h2>Rekonsiliasi bank <span className="pill warn">belum dikonfirmasi</span></h2>
+          <h2>{k.rekonsiliasi}{" "}
+            <span className="pill warn">{k.belumDikonfirmasi}</span>
+          </h2>
           <table><tbody>
             {recon.length ? (
               <>
-                <tr><th>Nomor</th><th>Penerima</th><th>Nilai</th><th>Umur</th></tr>
+                <tr><th>{k.thNomor}</th><th>{k.thPenerima}</th><th>{k.thNilai}</th>
+                    <th>{k.thUmur}</th></tr>
                 {recon.map((r) => (
                   <tr key={r.id}>
                     <td>{r.claim_number}</td><td>{r.recipient_name ?? "-"}</td>
-                    <td className="n">{rp(r.amount)}</td><td className="n">{r.age} hari</td>
+                    <td className="n">{rp(r.amount)}</td>
+                    <td className="n">{k.hari(r.age)}</td>
                   </tr>
                 ))}
               </>
-            ) : <tr><td style={{ color: "var(--ok)" }}>Semua instruksi sudah dikonfirmasi tanggalnya.</td></tr>}
+            ) : <tr><td style={{ color: "var(--ok)" }}>{k.semuaDikonfirmasi}</td></tr>}
           </tbody></table>
         </div>
       </div>
