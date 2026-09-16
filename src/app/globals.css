@@ -425,6 +425,20 @@ ul.cetak-ceklis .kotak { border: 1px solid var(--ink); width: 14px; height: 14px
     radial-gradient(900px 460px at 6% -12%, rgba(214,164,25,.14), transparent 62%),
     radial-gradient(760px 420px at 112% 112%, rgba(255,255,255,.06), transparent 60%);
 }
+/* Lambang perusahaan diperbesar jauh melewati tepi bawah sebagai cap air.
+   Dipasang sebagai background-image, bukan <img>: berkas yang hilang membuat
+   lapisan ini tidak menggambar apa pun, alih-alih meninggalkan ikon gambar
+   rusak sebesar setengah layar. Topengnya meredupkannya ke arah kanan atas
+   supaya ia tidak pernah lewat di belakang tulisan yang harus terbaca. */
+.masuk-merek::before {
+  content: ""; position: absolute; left: -12%; bottom: -46%;
+  width: 78%; aspect-ratio: 1; pointer-events: none;
+  background: url("/logo-chl.png") left bottom / contain no-repeat;
+  opacity: .075;
+  -webkit-mask-image: linear-gradient(28deg, #000 18%, transparent 72%);
+          mask-image: linear-gradient(28deg, #000 18%, transparent 72%);
+}
+
 /* Garis emas setipis rambut di batas kedua sisi: pemisah yang tegas tanpa
    menambah satu elemen pun yang harus dibaca. */
 .masuk-merek::after {
@@ -433,12 +447,21 @@ ul.cetak-ceklis .kotak { border: 1px solid var(--ink); width: 14px; height: 14px
                               var(--emas) 78%, transparent);
   opacity: .5;
 }
-.masuk-merek .isi-merek { max-width: 46ch; }
+.masuk-merek .isi-merek { position: relative; z-index: 1; max-width: 46ch; }
 .masuk-merek img { margin-bottom: 22px; }
 /* Nama sistem jelas paling besar di bidang ini — selebihnya keterangan, dan
    keterangan yang seukuran namanya membuat mata tidak tahu mulai dari mana. */
 .wordmark { font-size: 44px; font-weight: 690; letter-spacing: -.032em;
-            line-height: 1.02; margin-top: 4px; }
+            line-height: 1.02; margin-top: 4px; color: #F4F4F1; }
+/* Gradasi putih ke emas pada hurufnya. Dipasang di dalam @supports dan bukan
+   langsung: peramban yang tidak mengenal background-clip:text akan menerapkan
+   color:transparent-nya saja, dan nama sistemnya lenyap dari halaman masuk. */
+@supports ((-webkit-background-clip: text) or (background-clip: text)) {
+  .wordmark {
+    background: linear-gradient(96deg, #FFFFFF 0%, #FBEFD2 46%, var(--emas) 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+}
 /* Nama kegiatannya, huruf kapital dan berjarak, dengan garis emas pendek di
    atasnya sebagai penanda bahwa ia keterangan dari nama di atasnya. */
 .tagline { margin: 20px 0 0; padding-top: 16px; font-size: 11.5px;
@@ -449,24 +472,25 @@ ul.cetak-ceklis .kotak { border: 1px solid var(--ink); width: 14px; height: 14px
 /* Empat jenis insentifnya didaftar sebagai baris, bukan satu kalimat berkoma:
    yang dicari orang di sini adalah "apakah yang saya urus ada di sini", dan
    itu terjawab lebih cepat oleh daftar daripada oleh kalimat. */
-.jenis-insentif { list-style: none; margin: 26px 0 0; padding: 0;
-                  display: grid; grid-template-columns: 1fr 1fr; gap: 10px 22px;
-                  max-width: 34ch; }
-.jenis-insentif li { display: flex; align-items: center; gap: 10px;
-                     font-size: 13.5px; color: #C8CCD1; }
-.jenis-insentif li::before {
-  content: ""; flex: none; width: 5px; height: 5px; border-radius: 50%;
-  background: var(--emas);
-}
-.masuk-merek .kaki { position: absolute; left: 56px; bottom: 40px;
-                     font-size: 11.5px; letter-spacing: .06em;
-                     text-transform: uppercase; color: #7E858C; }
+.jenis-insentif { list-style: none; margin: 28px 0 0; padding: 0;
+                  display: grid; grid-template-columns: auto auto;
+                  justify-content: start; gap: 8px; }
+/* Keping bertepi emas tipis. Sebelumnya butir bertitik dalam dua kolom —
+   bentuk itu terbaca sebagai daftar tugas yang harus dikerjakan, padahal
+   keempatnya cuma penyebutan apa saja yang dilayani sistem ini. */
+.jenis-insentif li { font-size: 12.5px; padding: 6px 13px; border-radius: 999px;
+                     border: 1px solid rgba(214,164,25,.34);
+                     background: rgba(214,164,25,.07); color: #E2E0DA;
+                     white-space: nowrap; }
 
 .masuk-isi { display: flex; align-items: center; justify-content: center;
              padding: 48px 24px; background: var(--bg); }
 .masuk-kartu {
-  width: 100%; max-width: 396px; background: #fff;
+  width: 100%; max-width: 396px; background: #fff; position: relative;
   border: 1px solid var(--line); border-radius: 10px; padding: 34px 34px 28px;
+  /* Bibir emas di tepi atas: satu-satunya warna di sisi terang halaman, dan
+     yang mengikat kartu ini pada bidang gelap di sebelahnya. */
+  border-top: 3px solid var(--emas);
   box-shadow: 0 1px 2px rgba(21,23,26,.04), 0 18px 44px rgba(21,23,26,.09);
 }
 /* Baris kecil di atas judul: menyebut ini pintu masuk milik siapa, sehingga
@@ -522,6 +546,34 @@ ul.cetak-ceklis .kotak { border: 1px solid var(--ink); width: 14px; height: 14px
 .masuk .popup > button { border-radius: 7px; }
 .masuk .popup .kontak a, .masuk .popup .kontak > span { border-radius: 7px; }
 
+/* Isi halaman masuk naik sedikit saat muncul, berurutan dari atas ke bawah.
+   Halaman ini dibuka dengan kolom kosong dan tanpa data yang perlu ditunggu,
+   jadi ia satu-satunya layar yang mampu membayar gerakan tanpa menunda
+   siapa pun. Jaraknya kecil dan sekali jalan — bukan sesuatu yang harus
+   ditonton sampai selesai sebelum dapat mengetik.
+
+   `backwards` menahan keadaan awalnya selama jeda, tanpa itu tiap bagian
+   berkedip di tempat akhirnya lebih dulu lalu melompat kembali ke awal. */
+@keyframes masuk-naik {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: none; }
+}
+.masuk-merek .isi-merek > *,
+.masuk-kartu {
+  animation: masuk-naik .52s cubic-bezier(.2,.7,.3,1) backwards;
+}
+.masuk-merek .isi-merek > *:nth-child(2) { animation-delay: .06s; }
+.masuk-merek .isi-merek > *:nth-child(3) { animation-delay: .12s; }
+.masuk-merek .isi-merek > *:nth-child(4) { animation-delay: .18s; }
+.masuk-kartu { animation-delay: .1s; }
+
+/* Yang meminta gerakan dikurangi mendapat halaman yang sama tanpa geraknya.
+   Animasinya dimatikan, bukan dipercepat: yang mengganggu pada gerakan layar
+   bukan lamanya, melainkan geraknya itu sendiri. */
+@media (prefers-reduced-motion: reduce) {
+  .masuk-merek .isi-merek > *, .masuk-kartu { animation: none; }
+}
+
 /* Tombol yang tampil sebagai tautan: perilakunya tombol (membuka isi di
    halaman yang sama), jadi elemennya tetap <button> demi papan ketik dan
    pembaca layar. */
@@ -543,10 +595,11 @@ button.tautan:hover { color: var(--note); }
                         background: linear-gradient(90deg, transparent,
                                     var(--emas) 20%, var(--emas) 80%,
                                     transparent); }
-  /* Kaki halaman dan daftar jenis insentif disembunyikan di ponsel: yang
-     dibutuhkan di layar sekecil itu hanya nama sistemnya dan kolom
-     isiannya. */
-  .masuk-merek .kaki, .jenis-insentif { display: none; }
+  /* Daftar jenis insentif disembunyikan di ponsel: yang dibutuhkan di layar
+     sekecil itu hanya nama sistemnya dan kolom isiannya. Cap air lambangnya
+     ikut dimatikan — bidang gelapnya di sini hanya setinggi beberapa baris,
+     jadi lambang sebesar itu lewat tepat di belakang tulisannya. */
+  .jenis-insentif, .masuk-merek::before { display: none; }
   .masuk-merek img { margin-bottom: 14px; }
   .wordmark { font-size: 30px; }
   .tagline { margin-top: 14px; padding-top: 12px; font-size: 10.5px; }

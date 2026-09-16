@@ -176,8 +176,6 @@ export default function LoginPage() {
             {JENIS_INSENTIF.map((j) => <li key={j}>{j}</li>)}
           </ul>
         </div>
-
-        <div className="kaki">PT. Serpong Bangun Lestari</div>
       </aside>
 
       <main className="masuk-isi">
