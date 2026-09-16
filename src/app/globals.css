@@ -284,9 +284,6 @@ ul.cetak-ceklis .kotak { border: 1px solid var(--ink); width: 14px; height: 14px
          background-image:
            radial-gradient(150px 90px at 12% -20%, rgba(214,164,25,.20),
                            transparent 70%); }
-.merek span { display: block; font-size: 9px; font-weight: 600;
-              color: var(--emas); letter-spacing: .1em; margin-top: 5px;
-              line-height: 1.35; white-space: nowrap; }
 
 /* Judul dan identitas. Isinya rata tengah secara tegak terhadap blok merek di
    sebelahnya: rata atas menyisakan bidang kosong sepanjang blok itu pada

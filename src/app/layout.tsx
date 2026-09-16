@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "CHL Sales Admin System — Klaim Insentif Marketing",
+  title: "CHL Sales Admin System",
   description:
     "Sistem klaim Closing Fee, Komisi, Cash Reward, dan Overriding dengan " +
     "verifikasi tanda tangan.",

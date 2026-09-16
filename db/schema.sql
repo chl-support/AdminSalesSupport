@@ -1,4 +1,4 @@
--- Skema PostgreSQL — Sistem Klaim Insentif Marketing (BIO District)
+-- Skema PostgreSQL — CHL Sales Admin System (BIO District)
 --
 -- Perbedaan penting dari versi SQLite:
 --   * Uang bertipe BIGINT rupiah penuh. Tidak ada NUMERIC dengan pecahan untuk uang,

@@ -2,7 +2,7 @@
   "name": "klaim-insentif",
   "version": "1.0.0",
   "private": true,
-  "description": "Sistem Klaim Insentif Marketing dengan verifikasi tanda tangan — BIO District",
+  "description": "CHL Sales Admin System — klaim fee marketing dengan verifikasi tanda tangan, BIO District",
   "scripts": {
     "dev": "next dev -p 3000",
     "build": "next build",

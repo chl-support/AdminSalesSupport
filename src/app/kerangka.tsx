@@ -41,7 +41,6 @@ export function Kerangka(
                 patah menjadi "CHL Sales Admin / System" — satu kata sendirian
                 di baris kedua. */}
             CHL Sales<br />Admin System
-            <span>KLAIM INSENTIF MARKETING</span>
           </div>
         </div>
 

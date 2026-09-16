@@ -1,4 +1,4 @@
-# Sistem Klaim Insentif Marketing — BIO District
+# CHL Sales Admin System — BIO District
 
 Next.js 15 (App Router) + PostgreSQL 16 + TypeScript.
 
