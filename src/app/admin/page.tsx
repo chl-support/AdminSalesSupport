@@ -45,6 +45,13 @@ export default function AdminPage() {
   const [tertulis, setTertulis] = useState<Hasil | null>(null);
   const [sibukImpor, setSibukImpor] = useState(false);
   const [galatImpor, setGalatImpor] = useState<string | null>(null);
+  // Impor penerimaan berdiri sendiri: berkasnya lain, dan mengunggah yang satu
+  // tidak boleh menghapus hasil pratinjau yang lain.
+  const [berkasTerima, setBerkasTerima] = useState<File | null>(null);
+  const [pratinjauTerima, setPratinjauTerima] = useState<any>(null);
+  const [tertulisTerima, setTertulisTerima] = useState<any>(null);
+  const [sibukTerima, setSibukTerima] = useState(false);
+  const [galatTerima, setGalatTerima] = useState<string | null>(null);
 
   // ── Sandi orang lain ──
   const [pengguna, setPengguna] = useState<Pengguna[]>([]);
@@ -163,6 +170,28 @@ export default function AdminPage() {
     }
   };
 
+  const kirimPenerimaan = async (dryRun: boolean) => {
+    if (!berkasTerima) return;
+    setSibukTerima(true);
+    setGalatTerima(null);
+    try {
+      const fd = new FormData();
+      fd.append("file", berkasTerima);
+      const res = await fetch(
+        `/api/admin/import-penerimaan?dry_run=${dryRun}`,
+        { method: "POST", body: fd });
+      const b = await res.json().catch(() => ({}));
+      if (res.status === 401) { location.href = "/login"; return; }
+      if (!res.ok) { setGalatTerima(b.detail ?? b.title ?? `HTTP ${res.status}`); return; }
+      if (dryRun) { setPratinjauTerima(b); setTertulisTerima(null); }
+      else { setTertulisTerima(b); setPratinjauTerima(null); }
+    } catch (e: any) {
+      setGalatTerima(String(e?.message ?? e));
+    } finally {
+      setSibukTerima(false);
+    }
+  };
+
   const gantiUsername = async () => {
     setGalatNama(null); setHasilNama(null);
     const res = await fetch("/api/admin/users", {
@@ -201,6 +230,10 @@ export default function AdminPage() {
   if (memuat || !sesi) {
     return <MemeriksaSesi />;
   }
+
+  const ringkasTerima = (h: any) =>
+    `${h.diperbarui} unit diperbarui · ${h.sama} tidak berubah · ` +
+    `${h.tak_dikenal} tak dikenal · ${h.ganda} ganda · dari ${h.baris} baris`;
 
   const ringkas = (h: Hasil) =>
     `${h.baru} penjualan baru · ${h.diperbarui} diperbarui · ` +
@@ -490,6 +523,91 @@ export default function AdminPage() {
                         <td>{p.sales || "—"}</td>
                         <td>
                           <span className={`pill ${p.tindakan === "baru" ? "" : "warn"}`}>
+                            {p.tindakan}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody></table>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* ── Impor penerimaan ── */}
+          <div className="panel sp">
+            <div className="form-blok">
+              <h3>UNGGAH LAPORAN PENERIMAAN</h3>
+              <p className="hint" style={{ textAlign: "left", marginTop: 0 }}>
+                Berkas ekspor Laporan Penerimaan Customer (.xls). Yang diambil
+                kolom <b>s/d Bulan Ini</b> — penerimaan kumulatif sampai tanggal
+                laporan — dan dituliskan ke kolom Penerimaan pada data penjualan.
+                Angka itu menentukan prasyarat Cash Reward dan besaran Komisi.
+              </p>
+              <input type="file" accept=".xls,.tsv,.txt,.csv"
+                     style={{ width: "100%" }}
+                     onChange={(e) => {
+                       setBerkasTerima(e.target.files?.[0] ?? null);
+                       setPratinjauTerima(null); setTertulisTerima(null);
+                       setGalatTerima(null);
+                     }} />
+              <div className="row" style={{ marginTop: 12, marginBottom: 0 }}>
+                <button disabled={!berkasTerima || sibukTerima}
+                        onClick={() => void kirimPenerimaan(true)}>
+                  {sibukTerima ? "Membaca…" : "Lihat pratinjau"}
+                </button>
+                <button className="pri"
+                        disabled={!pratinjauTerima || sibukTerima}
+                        onClick={() => void kirimPenerimaan(false)}>
+                  Tulis ke basis data
+                </button>
+              </div>
+            </div>
+
+            {galatTerima && (
+              <div className="banner stop">
+                <b>Berkas tidak dapat diimpor</b>{galatTerima}
+              </div>
+            )}
+
+            {tertulisTerima && (
+              <div className="banner ok">
+                <b>Impor penerimaan selesai</b>
+                {ringkasTerima(tertulisTerima)}
+                <ul style={{ margin: "6px 0 0 16px" }}>
+                  {tertulisTerima.catatan.map((c: string) => <li key={c}>{c}</li>)}
+                </ul>
+              </div>
+            )}
+
+            {pratinjauTerima && (
+              <>
+                <div className="banner info">
+                  <b>Pratinjau — belum ada yang ditulis</b>
+                  {ringkasTerima(pratinjauTerima)}
+                </div>
+                <div className="tscroll">
+                  <table><tbody>
+                    <tr>
+                      <th>Unit</th><th>No. Kontrak</th><th>Pembeli</th>
+                      <th style={{ textAlign: "right" }}>Penerimaan tercatat</th>
+                      <th style={{ textAlign: "right" }}>Menjadi</th>
+                      <th>% lunas</th><th>Tindakan</th>
+                    </tr>
+                    {pratinjauTerima.pratinjau.map((p: any, i: number) => (
+                      <tr key={`${p.kontrak}-${p.unit}-${i}`}>
+                        <td><b>{p.unit}</b></td>
+                        <td>{p.kontrak ?? "—"}</td>
+                        <td>{p.customer || "—"}</td>
+                        <td className="n">
+                          {p.sebelum === null ? "—" : rp(p.sebelum)}
+                        </td>
+                        <td className="n">{rp(p.sesudah)}</td>
+                        <td>{p.persen || "—"}</td>
+                        <td>
+                          <span className={`pill ${
+                            p.tindakan === "diperbarui" ? "ok"
+                            : p.tindakan === "tidak berubah" ? "" : "stop"}`}>
                             {p.tindakan}
                           </span>
                         </td>
