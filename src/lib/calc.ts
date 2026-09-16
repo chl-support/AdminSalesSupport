@@ -285,29 +285,54 @@ export async function calculate(
 
 // ─────────────────────── Prasyarat pencairan ───────────────────────
 
+/**
+ * Sebab sebuah unit belum dapat diklaim, sebagai kode yang bukan kalimat.
+ *
+ * Layar daftar penjualan dua bahasa, dan kalimat berbahasa Indonesia yang
+ * dirakit di sini tidak dapat diterjemahkan lagi setelah sampai di peramban.
+ * Kodenya yang dikirim ke sana; kalimatnya tetap dirakit juga karena ia dipakai
+ * pada pesan galat yang dikembalikan endpoint pembuatan klaim.
+ */
+export type SebabTakLayak =
+  | "unit_cancelled" | "unit_moved" | "unit_management"
+  | "spu_unsigned" | "ppjb_unsigned" | "dp_not_received" | "not_sign_p3u";
+
 export function eligibility(unit: any, claimType: ClaimType): {
-  ok: boolean; missing: string[];
+  ok: boolean; missing: string[]; codes: SebabTakLayak[];
 } {
   const missing: string[] = [];
-  if (unit.status === "cancelled") missing.push("Unit sudah dibatalkan.");
+  const codes: SebabTakLayak[] = [];
+  const tambah = (kode: SebabTakLayak, kalimat: string) => {
+    codes.push(kode);
+    missing.push(kalimat);
+  };
+
+  if (unit.status === "cancelled")
+    tambah("unit_cancelled", "Unit sudah dibatalkan.");
   if (unit.status === "moved_to_other_unit")
-    missing.push("Unit sudah dipindahkan ke unit lain.");
+    tambah("unit_moved", "Unit sudah dipindahkan ke unit lain.");
   if (unit.status === "management")
-    missing.push("Unit management — tidak menghasilkan insentif.");
+    tambah("unit_management", "Unit management — tidak menghasilkan insentif.");
 
   if (claimType === "closing_fee") {
-    if (!unit.spu_signed) missing.push("SPU belum ditandatangani pemesan (BR-01).");
+    if (!unit.spu_signed)
+      tambah("spu_unsigned", "SPU belum ditandatangani pemesan (BR-01).");
   } else if (claimType === "commission") {
-    if (!unit.spu_signed) missing.push("SPU belum ditandatangani pemesan (BR-02).");
-    if (!unit.ppjb_signed) missing.push("PPJB belum ditandatangani pemesan (BR-02).");
+    if (!unit.spu_signed)
+      tambah("spu_unsigned", "SPU belum ditandatangani pemesan (BR-02).");
+    if (!unit.ppjb_signed)
+      tambah("ppjb_unsigned", "PPJB belum ditandatangani pemesan (BR-02).");
   } else if (claimType === "cash_reward") {
-    if (!unit.dp_received) missing.push("DP / angsuran 1 belum diterima (BR-03).");
-    if (!unit.spu_signed) missing.push("SPU belum ditandatangani pemesan (BR-03).");
-    if (!unit.ppjb_signed) missing.push("PPJB belum ditandatangani pemesan (BR-03).");
+    if (!unit.dp_received)
+      tambah("dp_not_received", "DP / angsuran 1 belum diterima (BR-03).");
+    if (!unit.spu_signed)
+      tambah("spu_unsigned", "SPU belum ditandatangani pemesan (BR-03).");
+    if (!unit.ppjb_signed)
+      tambah("ppjb_unsigned", "PPJB belum ditandatangani pemesan (BR-03).");
   } else if (claimType === "overriding") {
-    if (!unit.sign_p3u) missing.push("Unit belum Sign P3U (BR-04).");
+    if (!unit.sign_p3u) tambah("not_sign_p3u", "Unit belum Sign P3U (BR-04).");
   }
-  return { ok: missing.length === 0, missing };
+  return { ok: missing.length === 0, missing, codes };
 }
 
 /**
