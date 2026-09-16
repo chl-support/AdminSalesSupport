@@ -36,7 +36,11 @@ export function Kerangka(
         <div className="merek">
           <Logo tinggi={38} hanyaLambang />
           <div>
-            CHL Admin Sales
+            {/* Pemenggalannya ditentukan di sini, sama seperti di halaman
+                masuk. Dibiarkan membungkus sendiri pada kolom 194px, namanya
+                patah menjadi "CHL Sales Admin / System" — satu kata sendirian
+                di baris kedua. */}
+            CHL Sales<br />Admin System
             <span>KLAIM INSENTIF MARKETING</span>
           </div>
         </div>

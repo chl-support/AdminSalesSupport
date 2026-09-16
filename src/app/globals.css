@@ -272,8 +272,8 @@ ul.cetak-ceklis .kotak { border: 1px solid var(--ink); width: 14px; height: 14px
    bawahnya, jadi tepi kanannya segaris dengan tepi kanan menu.
 
    Lambang di atas, nama di bawahnya — bukan bersanding. Pada lebar 194px,
-   bersanding memaksa "CHL Admin Sales" pecah dua baris dan keterangannya ikut
-   patah di tengah kata. */
+   bersanding memaksa nama sistemnya pecah menjadi baris-baris sependek satu
+   kata dan keterangannya ikut patah di tengah kata. */
 .merek { width: 194px; flex: none; align-self: stretch;
          display: flex; flex-direction: column; justify-content: center;
          gap: 10px; background: var(--ink); color: #F4F4F1;
