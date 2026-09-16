@@ -57,6 +57,12 @@ export default function AdminPage() {
   const [tertulisAgen, setTertulisAgen] = useState<any>(null);
   const [sibukAgen, setSibukAgen] = useState(false);
   const [galatAgen, setGalatAgen] = useState<string | null>(null);
+  // Pengosongan data: isi tabel sekarang, kata penegasan, dan hasilnya.
+  const [isiTabel, setIsiTabel] = useState<Record<string, number> | null>(null);
+  const [penegasan, setPenegasan] = useState("");
+  const [sibukKosong, setSibukKosong] = useState(false);
+  const [galatKosong, setGalatKosong] = useState<string | null>(null);
+  const [hasilKosong, setHasilKosong] = useState<any>(null);
 
   // ── Sandi orang lain ──
   const [pengguna, setPengguna] = useState<Pengguna[]>([]);
@@ -216,6 +222,32 @@ export default function AdminPage() {
     } finally {
       setSibukAgen(false);
     }
+  };
+
+  const lihatIsi = async () => {
+    setGalatKosong(null); setHasilKosong(null);
+    try {
+      const res = await fetch("/api/admin/kosongkan");
+      const b = await res.json().catch(() => ({}));
+      if (res.status === 401) { location.href = "/login"; return; }
+      if (!res.ok) { setGalatKosong(b.detail ?? b.title ?? `HTTP ${res.status}`); return; }
+      setIsiTabel(b.isi);
+    } catch (e: any) { setGalatKosong(String(e?.message ?? e)); }
+  };
+
+  const jalankanKosong = async () => {
+    setSibukKosong(true); setGalatKosong(null);
+    try {
+      const res = await fetch("/api/admin/kosongkan", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ penegasan }) });
+      const b = await res.json().catch(() => ({}));
+      if (res.status === 401) { location.href = "/login"; return; }
+      if (!res.ok) { setGalatKosong(b.detail ?? b.title ?? `HTTP ${res.status}`); return; }
+      setHasilKosong(b); setPenegasan(""); setIsiTabel(null);
+    } catch (e: any) {
+      setGalatKosong(String(e?.message ?? e));
+    } finally { setSibukKosong(false); }
   };
 
   const gantiUsername = async () => {
@@ -738,6 +770,88 @@ export default function AdminPage() {
                       </tr>
                     ))}
                   </tbody></table>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* ── Pengosongan data ── */}
+          <div className="panel sp">
+            <div className="form-blok">
+              <h3>KOSONGKAN DATA OPERASIONAL</h3>
+              <p className="hint" style={{ textAlign: "left", marginTop: 0 }}>
+                Menghapus seluruh data penjualan, marketing, rekening, klaim,
+                tanda tangan, dan pendaftaran — untuk memulai dari nol dengan
+                data sungguhan. <b>Tidak dapat dibatalkan</b>: yang terhapus
+                tidak ada salinannya di sistem ini.
+              </p>
+              <p className="hint" style={{ textAlign: "left" }}>
+                Yang <b>tidak</b> disentuh: akun pengguna dan sesi Anda, skema
+                insentif, tarif pajak, periode akuntansi, pengaturan dan kontak
+                Admin IT, serta jejak audit — justru di sanalah pengosongan ini
+                tercatat.
+              </p>
+
+              <div className="row" style={{ marginBottom: 0 }}>
+                <button onClick={() => void lihatIsi()} disabled={sibukKosong}>
+                  Lihat isi data sekarang
+                </button>
+              </div>
+            </div>
+
+            {galatKosong && (
+              <div className="banner stop">
+                <b>Tidak dapat dijalankan</b>{galatKosong}
+              </div>
+            )}
+
+            {hasilKosong && (
+              <div className="banner ok">
+                <b>Data operasional dikosongkan</b>
+                {Object.entries(hasilKosong.terhapus)
+                  .filter(([, n]) => Number(n) > 0)
+                  .map(([t, n]) => `${t}: ${n}`).join(" · ") || "sudah kosong"}
+                <div style={{ marginTop: 4 }}>
+                  Yang dipertahankan: {hasilKosong.dipertahankan.join(", ")}.
+                </div>
+              </div>
+            )}
+
+            {isiTabel && (
+              <>
+                <div className="banner stop">
+                  <b>Baris berikut akan dihapus permanen</b>
+                  Periksa angkanya sekali lagi. Setelah tombol ditekan, tidak ada
+                  cara mengembalikannya.
+                </div>
+                <div className="tscroll">
+                  <table><tbody>
+                    <tr><th>Tabel</th><th style={{ textAlign: "right" }}>Baris</th></tr>
+                    {Object.entries(isiTabel).map(([t, n]) => (
+                      <tr key={t}>
+                        <td><code>{t}</code></td>
+                        <td className="n">{n}</td>
+                      </tr>
+                    ))}
+                  </tbody></table>
+                </div>
+
+                <div className="lbl" style={{ marginTop: 12 }}>
+                  Ketik KOSONGKAN untuk menegaskan
+                </div>
+                <div className="row" style={{ marginBottom: 0 }}>
+                  <input value={penegasan} placeholder="KOSONGKAN"
+                         style={{ width: 200 }}
+                         onChange={(e) => setPenegasan(e.target.value)} />
+                  <button className="pri"
+                          disabled={sibukKosong || penegasan.trim() !== "KOSONGKAN"}
+                          onClick={() => void jalankanKosong()}>
+                    {sibukKosong ? "Menghapus…" : "Hapus permanen"}
+                  </button>
+                  <button disabled={sibukKosong}
+                          onClick={() => { setIsiTabel(null); setPenegasan(""); }}>
+                    Batal
+                  </button>
                 </div>
               </>
             )}
