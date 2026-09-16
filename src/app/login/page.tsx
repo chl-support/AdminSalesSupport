@@ -171,7 +171,12 @@ export default function LoginPage() {
 
       <main className="masuk-isi">
         <form className="masuk-kartu" onSubmit={masuk}>
-          <p className="eyebrow">Portal Internal</p>
+          {/* Nama sistemnya, menggantikan "Portal Internal" yang sebelumnya
+              berdiri di sini. Baris ini hanya muat satu kalimat pendek, dan
+              di antara keduanya yang perlu diketahui orang adalah sistem apa
+              yang sedang ia masuki — bukan bahwa sistemnya internal, yang
+              sudah jelas dari halaman yang meminta username dan sandi. */}
+          <p className="eyebrow">CHL Sales Management System</p>
           <h1>Masuk</h1>
           <p className="pengantar">
             Gunakan akun yang diberikan Admin IT untuk melanjutkan.
