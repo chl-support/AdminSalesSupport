@@ -22,6 +22,7 @@ import { useSesi } from "../session";
 type Baris = {
   id: string; full_name: string; marketing_type: string; status: string;
   phone: string | null; agency_name: string | null; spesimen: number;
+  spesimen_lama: number;
   baseline_specimen_set_id: string | null;
   punya_ktp: boolean; reference_signature_source: string | null;
   reference_signature_at: string | null;
@@ -54,6 +55,11 @@ export default function SpesimenPage() {
   // Pengisian nomor telepon: baris yang sedang disunting, beserta isiannya.
   const [nomor, setNomor] = useState<string | null>(null);
   const [nomorBaru, setNomorBaru] = useState("");
+  // Penggantian massal: satu alasan untuk semua yang spesimennya dari
+  // perekaman lama di layar.
+  const [massal, setMassal] = useState(false);
+  const [alasanMassal, setAlasanMassal] = useState("");
+  const [hasilMassal, setHasilMassal] = useState<any>(null);
 
   const api = useCallback(async (path: string, init: RequestInit = {}) => {
     const res = await fetch(`/api${path}`, {
@@ -122,6 +128,20 @@ export default function SpesimenPage() {
     } finally { setBusy(false); }
   };
 
+  const kirimMassal = async () => {
+    setBusy(true); setKabar(null);
+    try {
+      const r = await api("/marketings/enrollment-requests", {
+        method: "POST", body: JSON.stringify({ alasan: alasanMassal }) });
+      setHasilMassal(r);
+      setMassal(false); setAlasanMassal("");
+      await muat();
+    } catch (e: any) {
+      setKabar({ kind: "stop", html:
+        `<b>Penggantian massal gagal</b>${e.body?.detail ?? ""}` });
+    } finally { setBusy(false); }
+  };
+
   const tutupSet = () => {
     setLihat(null); setCitra([]); setBerkas(null);
   };
@@ -181,6 +201,10 @@ export default function SpesimenPage() {
 
   const menunggu = baris.filter((b) => b.sesi_state === "submitted").length;
   const belum = baris.filter((b) => b.spesimen === 0).length;
+  const lama = baris.filter((b) => b.spesimen_lama > 0).length;
+  // Tautan disusun lengkap dengan nama situsnya supaya dapat langsung disalin
+  // ke WhatsApp; "/daftar-ttd/…" saja tidak dapat dibuka orang lain.
+  const asal = typeof window === "undefined" ? "" : window.location.origin;
 
   return (
     <Kerangka sesi={sesi} judul={
@@ -226,6 +250,15 @@ export default function SpesimenPage() {
                         onClick={() => setSaring(k)}>{l}</button>
               ))}
             <button onClick={() => void muat()} disabled={busy}>Muat ulang</button>
+            {/* Peralihan ke tanda tangan KTP meninggalkan satu golongan di
+                tengah: yang sudah merekam goresan sebelum aturannya berubah.
+                Tombolnya hanya muncul selama golongan itu masih ada. */}
+            {lama > 0 && (
+              <button onClick={() => { setMassal(true); setHasilMassal(null); }}
+                      disabled={busy}>
+                Minta revisi {lama} spesimen lama
+              </button>
+            )}
           </div>
 
           <div className="panel">
@@ -279,7 +312,17 @@ export default function SpesimenPage() {
                           {b.status}
                         </span>
                       </td>
-                      <td className="n">{b.spesimen}</td>
+                      <td className="n">
+                        {b.spesimen}
+                        {b.spesimen > 0 && (
+                          <>
+                            <br />
+                            <span style={{ fontSize: 10.5, color: "var(--mut)" }}>
+                              {b.spesimen_lama > 0 ? "rekaman lama" : "dari KTP"}
+                            </span>
+                          </>
+                        )}
+                      </td>
                       <td>
                         {b.punya_ktp ? (
                           <>
@@ -381,6 +424,108 @@ export default function SpesimenPage() {
               </table>
             </div>
           </div>
+
+          {/* Pop-up penggantian massal. Alasannya diketik sekali dan
+              tercatat pada tiap sesi yang terbit. */}
+          {massal && (
+            <div className="tirai"
+                 onMouseDown={(e) => {
+                   if (e.target === e.currentTarget && !busy) setMassal(false);
+                 }}>
+              <div className="popup lebar" role="dialog" aria-modal="true"
+                   style={{ maxWidth: 560 }}
+                   aria-label="Minta revisi spesimen lama">
+                <div className="popup-kepala">
+                  <h2>Minta revisi spesimen lama</h2>
+                  <button className="tautan" aria-label="Tutup"
+                          onClick={() => setMassal(false)}>✕</button>
+                </div>
+
+                <div className="popup-isi">
+                  <div className="banner info">
+                    <b>{lama} marketing memakai spesimen hasil rekaman layar</b>
+                    Tautan baru terbit untuk mereka semua, dan yang lama mati.
+                    Spesimen sekarang tetap berlaku sampai KTP-nya masuk dan
+                    Anda setujui — tidak ada yang kehilangan pembanding di
+                    tengah jalan.
+                  </div>
+                  <div className="lbl">
+                    Alasan penggantian (minimal 10 karakter, tercatat pada tiap
+                    sesi)
+                  </div>
+                  <textarea value={alasanMassal} autoFocus
+                            placeholder="mis. Spesimen dialihkan ke tanda tangan pada KTP."
+                            style={{ width: "100%", minHeight: 70 }}
+                            onChange={(e) => setAlasanMassal(e.target.value)} />
+                  <p className="hint" style={{ textAlign: "left", marginTop: 8 }}>
+                    Pengiriman WhatsApp belum tersambung, jadi tautan dan kodenya
+                    ditampilkan di layar ini setelah terbit — salin dan kirimkan
+                    ke masing-masing orang. Halaman ini satu-satunya tempat kode
+                    itu terlihat.
+                  </p>
+                </div>
+
+                <div className="popup-kaki">
+                  <div className="row">
+                    <button className="pri"
+                            disabled={busy || alasanMassal.trim().length < 10}
+                            onClick={() => void kirimMassal()}>
+                      {busy ? "Menerbitkan…" : `Terbitkan ${lama} tautan`}
+                    </button>
+                    <button disabled={busy}
+                            onClick={() => setMassal(false)}>Batal</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {hasilMassal && (
+            <div className="panel sp">
+              <div className="form-blok">
+                <h3>TAUTAN PENGGANTIAN YANG TERBIT</h3>
+                <div className="banner warn">
+                  <b>{hasilMassal.terbit.length} tautan terbit dari {hasilMassal.sasaran} sasaran</b>
+                  Salin dan kirimkan sekarang. Kode verifikasi hanya terlihat di
+                  halaman ini — memuat ulang halaman menghilangkannya, dan
+                  menerbitkan ulang akan mematikan tautan yang sudah dikirim.
+                </div>
+
+                {hasilMassal.gagal.length > 0 && (
+                  <div className="banner stop">
+                    <b>{hasilMassal.gagal.length} tidak dapat diterbitkan</b>
+                    <ul style={{ margin: "6px 0 0 16px" }}>
+                      {hasilMassal.gagal.map((g: any) => (
+                        <li key={g.nama}>{g.nama} — {g.sebab}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                <div className="tscroll">
+                  <table><tbody>
+                    <tr>
+                      <th>Marketing</th><th>Nomor</th><th>Tautan</th>
+                      <th>Kode</th><th>Berlaku sampai</th>
+                    </tr>
+                    {hasilMassal.terbit.map((t: any) => (
+                      <tr key={t.marketing_id}>
+                        <td><b>{t.nama}</b></td>
+                        <td>{t.masked_phone}</td>
+                        <td>
+                          <code>{`${asal}/daftar-ttd/${t.token}`}</code>
+                        </td>
+                        <td><b>{t.otp_demo}</b></td>
+                        <td>
+                          {String(t.expires_at).slice(0, 16).replace("T", " ")}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody></table>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Pemeriksaan dibuka sebagai pop-up, bukan panel di bawah tabel.
               Pada daftar marketing yang panjang panelnya jatuh jauh di luar

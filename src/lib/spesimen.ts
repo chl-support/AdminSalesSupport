@@ -294,6 +294,11 @@ export async function daftarMarketing() {
     `SELECT m.id, m.full_name, m.marketing_type, m.status, m.phone,
             a.name AS agency_name,
             COUNT(s.id) FILTER (WHERE NOT s.archived)::int AS spesimen,
+            -- Spesimen lama berasal dari perekaman di layar; yang sekarang dari
+            -- potongan KTP. Bedanya perlu terlihat: yang lama tidak dapat
+            -- dibandingkan Admin dengan tanda tangan pada kartu.
+            COUNT(s.id) FILTER (
+              WHERE NOT s.archived AND s.input_method <> 'ktp')::int AS spesimen_lama,
             m.baseline_specimen_set_id,
             (m.reference_signature_png IS NOT NULL) AS punya_ktp,
             m.reference_signature_source, m.reference_signature_at,
@@ -415,6 +420,57 @@ export async function putuskanSet(
              foto_ktp_dihapus: true },
   });
   return { marketing_id: marketingId, set_id: setId, keputusan };
+}
+
+/**
+ * Terbitkan tautan penggantian untuk semua yang spesimennya dari perekaman lama.
+ *
+ * Peralihan ke tanda tangan KTP meninggalkan satu golongan di tengah: mereka
+ * yang sudah merekam goresan di layar sebelum aturannya berubah. Spesimen itu
+ * tidak salah, tetapi tidak dapat lagi dibandingkan Admin dengan tanda tangan
+ * pada kartu — jadi seluruhnya perlu diganti, dan menerbitkan tautannya satu per
+ * satu untuk puluhan orang adalah pekerjaan yang akan berhenti di tengah jalan.
+ *
+ * Alasannya tetap wajib dan tercatat pada tiap sesi, sama seperti penggantian
+ * satuan: yang membedakan hanya bahwa alasannya diketik sekali.
+ */
+export async function revisiMassal(aktor: string, alasan: string) {
+  if (!alasan || alasan.trim().length < 10) {
+    throw new WorkflowError(
+      "Alasan penggantian wajib diisi minimal 10 karakter.",
+      "reason_required", 422);
+  }
+
+  const sasaran = await query<{ id: string; full_name: string; phone: string }>(
+    `SELECT m.id, m.full_name, m.phone
+       FROM marketings m
+       JOIN signature_specimens s ON s.marketing_id = m.id
+      WHERE NOT s.archived AND s.input_method <> 'ktp'
+      GROUP BY m.id
+      ORDER BY m.full_name`);
+
+  const terbit: any[] = [];
+  const gagal: { nama: string; sebab: string }[] = [];
+
+  for (const m of sasaran) {
+    try {
+      const r = await terbitkanTautan(m.id, aktor,
+                                      { revisi: true, alasan: alasan.trim() });
+      terbit.push({ marketing_id: m.id, nama: m.full_name, ...r });
+    } catch (e: any) {
+      // Satu yang gagal tidak menghentikan sisanya: yang paling sering
+      // menggagalkan adalah nomor telepon kosong, dan itu urusan per orang.
+      gagal.push({ nama: m.full_name, sebab: e?.detail ?? e?.message ?? "gagal" });
+    }
+  }
+
+  await audit({
+    entityType: "marketing", action: "enrollment_revision_bulk", actor: aktor,
+    reason: alasan.trim(),
+    after: { sasaran: sasaran.length, terbit: terbit.length, gagal: gagal.length },
+  });
+
+  return { sasaran: sasaran.length, terbit, gagal };
 }
 
 /** Ambang onboarding, untuk ditampilkan apa adanya di layar Admin. */
