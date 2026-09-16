@@ -55,6 +55,25 @@ const MENU: Butir[] = [
 const boleh = (b: Butir, peran?: string) =>
   !b.peran || (peran ? b.peran.includes(peran) : false);
 
+/**
+ * Menu induk dari lintasan sekarang, bila ia memang anak dari sesuatu.
+ *
+ * Dipakai kepala halaman untuk menyebut halaman ini bagian dari mana —
+ * "Closing Fee" sendirian tidak memberi tahu bahwa ia salah satu dari empat
+ * jenis di bawah Pengajuan Fee, dan menu di kiri baru menjawabnya setelah
+ * dilihat. Yang tidak punya induk mengembalikan null alih-alih menyebut
+ * dirinya sendiri: baris yang mengulang judul di bawahnya bukan keterangan,
+ * hanya baris tambahan yang harus dilewati mata.
+ */
+export function indukDari(path: string): { href: string; label: string } | null {
+  for (const m of MENU) {
+    if (m.anak?.some((a) => path === a.href || path.startsWith(a.href + "/"))) {
+      return { href: m.href, label: m.label };
+    }
+  }
+  return null;
+}
+
 export function Nav({ peran }: { peran?: string }) {
   const path = usePathname();
   // Cocok persis, atau induk dari lintasan sekarang. `startsWith` telanjang

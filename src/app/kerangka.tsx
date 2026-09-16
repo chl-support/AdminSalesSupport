@@ -12,14 +12,19 @@
  * sengaja tidak memakai kerangka ini.
  */
 
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+
 import { Logo } from "./logo";
-import { Nav } from "./nav";
+import { Nav, indukDari } from "./nav";
 import { BilahPengguna, type Sesi } from "./session";
 
 export function Kerangka(
   { sesi, judul, children }:
   { sesi: Sesi; judul: React.ReactNode; children: React.ReactNode },
 ) {
+  const induk = indukDari(usePathname());
+
   return (
     <div className="konsol">
       {/* Satu bilah atas selebar halaman: merek di kolom kiri, judul dan
@@ -29,7 +34,7 @@ export function Kerangka(
           sebagai dua bagian yang tidak sejajar. */}
       <header className="pita">
         <div className="merek">
-          <Logo tinggi={44} hanyaLambang />
+          <Logo tinggi={38} hanyaLambang />
           <div>
             CHL Admin Sales
             <span>KLAIM INSENTIF MARKETING</span>
@@ -37,7 +42,18 @@ export function Kerangka(
         </div>
 
         <div className="kepala">
-          {judul}
+          <div className="judul">
+            {/* Halaman yang merupakan anak dari menu lain menyebut induknya di
+                atas judulnya, sekaligus sebagai jalan kembali. "Closing Fee"
+                sendirian tidak memberi tahu bahwa ia salah satu dari empat
+                jenis di bawah Pengajuan Fee. Halaman yang bukan anak siapa pun
+                tidak menampilkan baris ini sama sekali. */}
+            {induk && (
+              <Link className="induk" href={induk.href}>{induk.label}</Link>
+            )}
+            {judul}
+          </div>
+
           {/* Identitas di kanan atas: di sanalah orang mencarinya, dan di kaki
               kolom menu ia justru tenggelam di bawah menu terakhir. */}
           <BilahPengguna sesi={sesi} />

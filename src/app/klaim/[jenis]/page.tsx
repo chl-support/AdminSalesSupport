@@ -162,8 +162,10 @@ export default function DaftarPenjualanPage() {
       </div>
     }>
 
+      {/* Tanpa "← Ganti jenis fee" di sini: kepala halaman sudah memuat
+          tautan kembali ke Pengajuan Fee, dan dua tautan ke tempat yang sama
+          dalam satu layar membuat orang mengira keduanya berbeda tujuan. */}
       <div className="row sp">
-        <Link href="/klaim">← Ganti jenis fee</Link>
         <span className="pill">{bisa} dapat diklaim</span>
         <span className="pill">{units.length} penjualan</span>
       </div>
