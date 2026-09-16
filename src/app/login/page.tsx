@@ -160,23 +160,30 @@ export default function LoginPage() {
           ini adalah kartu di sebelah kanan — lambangnya di sini bekerja sebagai
           pengenal, bukan sebagai keterangan. */}
       <aside className="masuk-merek">
-        {/* Lambangnya sendirian, di tengah bidang. Tidak ada tulisan yang
-            menemaninya di sini, jadi menempatkannya rata kiri di sepertiga
-            atas hanya menyisakan bidang kosong yang tidak menyeimbangkan
-            apa pun. */}
+        {/* Lambang di atas, nama sistem di bawahnya, keduanya rata kiri
+            sebagai satu blok. Lambangnya lebih kecil daripada saat ia berdiri
+            sendirian: di sini ia kepala dari nama di bawahnya, dan kepala yang
+            seukuran badannya membuat mata tidak tahu mulai dari mana. */}
         <div className="isi-merek">
-          <Logo tinggi={168} />
+          <Logo tinggi={88} />
+          {/* Pemenggalan barisnya ditentukan di sini, bukan diserahkan pada
+              pembungkusan otomatis: dengan background-clip:text, bagian kata
+              yang meluber keluar kotaknya tidak ikut tergambar sama sekali —
+              "Management" sempat tampil terpotong jadi "Manageme". */}
+          <div className="wordmark">
+            <span>CHL Sales</span>
+            <span>Management System</span>
+          </div>
         </div>
       </aside>
 
       <main className="masuk-isi">
         <form className="masuk-kartu" onSubmit={masuk}>
-          {/* Nama sistemnya, menggantikan "Portal Internal" yang sebelumnya
-              berdiri di sini. Baris ini hanya muat satu kalimat pendek, dan
-              di antara keduanya yang perlu diketahui orang adalah sistem apa
-              yang sedang ia masuki — bukan bahwa sistemnya internal, yang
-              sudah jelas dari halaman yang meminta username dan sandi. */}
-          <p className="eyebrow">CHL Sales Management System</p>
+          {/* Nama sistemnya tidak diulang di sini: ia sudah tertulis besar di
+              bidang sebelah kiri, dan dua penyebutan dalam satu layar membuat
+              orang membaca hal yang sama dua kali. Di layar sempit bidang itu
+              berpindah ke atas kartu — tetap terbaca lebih dulu. */}
+          <p className="eyebrow">Portal Internal</p>
           <h1>Masuk</h1>
           <p className="pengantar">
             Gunakan akun yang diberikan Admin IT untuk melanjutkan.
