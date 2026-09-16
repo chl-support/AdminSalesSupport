@@ -55,6 +55,11 @@ export default function SpesimenPage() {
   // Pengisian nomor telepon: baris yang sedang disunting, beserta isiannya.
   const [nomor, setNomor] = useState<string | null>(null);
   const [nomorBaru, setNomorBaru] = useState("");
+  // Spesimen yang sedang diperbesar, sebagai nomor urut dalam `citra`.
+  // Petaknya memuat lima tanda tangan bersebelahan, jadi tiap petak hanya
+  // selebar seperlima pop-up — cukup untuk melihat bahwa kelimanya serupa,
+  // tidak cukup untuk memeriksa goresannya.
+  const [zoom, setZoom] = useState<number | null>(null);
 
   const api = useCallback(async (path: string, init: RequestInit = {}) => {
     const res = await fetch(`/api${path}`, {
@@ -80,10 +85,17 @@ export default function SpesimenPage() {
   // Esc menutup pop-up, sama seperti pop-up lain di sistem ini.
   useEffect(() => {
     if (!lihat) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") tutupSet(); };
+    const onKey = (e: KeyboardEvent) => {
+      // Esc menutup perbesaran lebih dulu, baru pop-upnya. Menutup keduanya
+      // sekaligus berarti satu kali salah tekan mengulang pemeriksaan.
+      if (e.key === "Escape") { zoom === null ? tutupSet() : setZoom(null); }
+      if (zoom === null) return;
+      if (e.key === "ArrowRight") setZoom((z) => Math.min(citra.length - 1, (z ?? 0) + 1));
+      if (e.key === "ArrowLeft") setZoom((z) => Math.max(0, (z ?? 0) - 1));
+    };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [lihat]);
+  }, [lihat, zoom, citra.length]);
 
   const kirimTautan = async (b: Baris, opsi: { revisi?: boolean } = {}) => {
     setBusy(true); setKabar(null);
@@ -122,7 +134,14 @@ export default function SpesimenPage() {
     } finally { setBusy(false); }
   };
 
-  const tutupSet = () => { setLihat(null); setCitra([]); setBerkas(null); };
+  const tutupSet = () => {
+    setLihat(null); setCitra([]); setBerkas(null); setZoom(null);
+  };
+
+  /** Sumber citra spesimen; yang lama tersimpan tanpa awalan data URI. */
+  const sumber = (c: any) =>
+    String(c.image_png).startsWith("data:")
+      ? c.image_png : `data:image/png;base64,${c.image_png}`;
 
   const bukaSet = async (setId: string) => {
     if (lihat === setId) { tutupSet(); return; }
@@ -399,6 +418,49 @@ export default function SpesimenPage() {
                           aria-label="Tutup">✕</button>
                 </div>
 
+                {zoom !== null && citra[zoom] ? (
+                  /* Perbesaran menggantikan isi pop-up, bukan menumpuknya:
+                     pop-up di atas pop-up berarti dua lapis yang harus ditutup
+                     berurutan, dan yang di bawah toh tidak dapat dibaca. */
+                  <div className="popup-isi">
+                    <div className="row" style={{ justifyContent: "space-between" }}>
+                      <button onClick={() => setZoom(null)}>← Kembali ke petak</button>
+                      <span className="lbl" style={{ margin: 0 }}>
+                        Tanda tangan ke-{citra[zoom].sequence} dari {citra.length}
+                        {" · "}{citra[zoom].input_method}
+                      </span>
+                      <span className="row" style={{ margin: 0, gap: 6 }}>
+                        <button disabled={zoom === 0}
+                                onClick={() => setZoom(zoom - 1)}>‹ Sebelumnya</button>
+                        <button disabled={zoom === citra.length - 1}
+                                onClick={() => setZoom(zoom + 1)}>Berikutnya ›</button>
+                      </span>
+                    </div>
+
+                    <div className="ttd-besar">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={sumber(citra[zoom])}
+                           alt={`Spesimen ${citra[zoom].sequence} diperbesar`} />
+                    </div>
+
+                    {/* Jangkar KTP ikut diperbesar di bawahnya. Pertanyaannya
+                        bukan "apakah goresan ini rapi" melainkan "apakah ini
+                        tangan yang sama", dan itu hanya terjawab bila keduanya
+                        terlihat bersamaan. */}
+                    {berkas?.ktp_signature_png && (
+                      <>
+                        <div className="lbl" style={{ marginTop: 12 }}>
+                          Tanda tangan pada KTP, untuk dibandingkan
+                        </div>
+                        <div className="ttd-besar banding">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={berkas.ktp_signature_png}
+                               alt="Tanda tangan pada KTP" />
+                        </div>
+                      </>
+                    )}
+                  </div>
+                ) : (
                 <div className="popup-isi">
               {berkas?.revision_reason && (
                 <div className="banner warn">
@@ -445,13 +507,13 @@ export default function SpesimenPage() {
                 </div>
               )}
               <div className="petak-ttd">
-                {citra.map((c) => (
+                {citra.map((c, i) => (
                   <figure key={c.id}>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={c.image_png.startsWith("data:")
-                               ? c.image_png
-                               : `data:image/png;base64,${c.image_png}`}
-                         alt={`Spesimen ${c.sequence}`} />
+                    <button type="button" onClick={() => setZoom(i)}
+                            title="Perbesar tanda tangan ini">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={sumber(c)} alt={`Spesimen ${c.sequence}`} />
+                    </button>
                     <figcaption>{c.sequence} · {c.input_method}</figcaption>
                   </figure>
                 ))}
@@ -464,6 +526,7 @@ export default function SpesimenPage() {
                 itu.
               </p>
                 </div>
+                )}
 
                 <div className="popup-kaki">
               {(() => {
