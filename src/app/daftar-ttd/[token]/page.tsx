@@ -180,7 +180,12 @@ type Kotak = { x: number; y: number; w: number; h: number };
  */
 function letakBiasanya(img: HTMLImageElement): Kotak {
   const l = img.clientWidth, t = img.clientHeight;
-  return { x: l * 0.72, y: t * 0.76, w: l * 0.25, h: t * 0.19 };
+  const w = l * 0.28, h = t * 0.24;
+  // Dirapatkan ke sudut kanan bawah gambar. Foto KTP hampir selalu diambil
+  // rapat pada kartunya, jadi sudut foto adalah sudut kartu — dan kotak yang
+  // menyentuh kedua tepinya lebih sering sudah memuat tanda tangannya daripada
+  // kotak yang menggantung sedikit di dalam.
+  return { x: l - w, y: t - h, w, h };
 }
 
 function deteksiTandaTangan(img: HTMLImageElement): Kotak | null {
