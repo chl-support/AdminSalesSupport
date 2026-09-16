@@ -36,46 +36,67 @@ const BATAS_KTP = 3 * 1024 * 1024;
  * tanda tangannya tertutup jempol. Menjelaskannya dengan kalimat saja tidak
  * cukup — orang membandingkan foto dengan gambar, bukan dengan paragraf.
  *
- * Sengaja skematis dan diberi cap CONTOH beserta data karangan: ia petunjuk
- * bentuk foto yang benar, dan tidak boleh dapat dikira kartu sungguhan.
+ * Susunannya mengikuti tata letak KTP sungguhan supaya orang mengenali di mana
+ * tanda tangannya berada: kanan bawah, di bawah tempat dan tanggal penerbitan.
+ * Seluruh isinya karangan dan bercap CONTOH — ia petunjuk bentuk foto yang
+ * benar, dan tidak boleh dapat dikira kartu yang sungguhan.
  */
 function ContohKtp() {
+  const baris: [string, string][] = [
+    ["NIK", "0000 0000 0000 0000"],
+    ["Nama", "BUDI CONTOH"],
+    ["Tempat/Tgl Lahir", "CONTOH, 01-01-1990"],
+    ["Jenis Kelamin", "LAKI-LAKI"],
+    ["Alamat", "JL. CONTOH NO. 1"],
+    ["RT/RW", "000/000"],
+    ["Kel/Desa", "CONTOH"],
+    ["Kecamatan", "CONTOH"],
+    ["Agama", "CONTOH"],
+    ["Status Perkawinan", "CONTOH"],
+    ["Pekerjaan", "CONTOH"],
+    ["Kewarganegaraan", "WNI"],
+    ["Berlaku Hingga", "SEUMUR HIDUP"],
+  ];
   return (
     <svg viewBox="0 0 340 214" className="contoh-ktp" role="img"
          aria-label="Contoh foto KTP yang benar: kartu utuh, lurus, dan terang">
-      <rect x="4" y="4" width="332" height="206" rx="8"
-            fill="#EDF2F7" stroke="#8B9198" />
-      <text x="170" y="26" textAnchor="middle" fontSize="11" fontWeight="700"
-            fill="#5B6167">PROVINSI CONTOH</text>
-      <text x="170" y="40" textAnchor="middle" fontSize="8" fill="#8B9198">
-        KABUPATEN CONTOH
-      </text>
-      {[["NIK", "0000 0000 0000 0000"], ["Nama", "BUDI CONTOH"],
-        ["Tempat/Tgl Lahir", "CONTOH, 01-01-1990"],
-        ["Alamat", "JL. CONTOH NO. 1"]].map(([k, v], i) => (
+      <rect x="3" y="3" width="334" height="208" rx="9"
+            fill="#E4EEF4" stroke="#8B9198" />
+      <text x="170" y="20" textAnchor="middle" fontSize="10" fontWeight="700"
+            fill="#15171A">PROVINSI CONTOH</text>
+      <text x="170" y="32" textAnchor="middle" fontSize="9" fontWeight="700"
+            fill="#15171A">KABUPATEN CONTOH</text>
+
+      {baris.map(([k, v], i) => (
         <g key={k}>
-          <text x="18" y={62 + i * 15} fontSize="7" fill="#8B9198">{k}</text>
-          <text x="92" y={62 + i * 15} fontSize="7.5" fill="#15171A">: {v}</text>
+          <text x="14" y={48 + i * 12} fontSize="6.5" fill="#5B6167">{k}</text>
+          <text x="86" y={48 + i * 12} fontSize="6.5" fill="#15171A">: {v}</text>
         </g>
       ))}
-      {/* Pas foto dan tanda tangan: dua blok kanan yang harus ikut terpotret. */}
-      <rect x="244" y="52" width="66" height="84" fill="#D8DBDE" />
-      <text x="277" y="98" textAnchor="middle" fontSize="7" fill="#8B9198">
+
+      {/* Pas foto, lalu tempat-tanggal, lalu tanda tangan — urutan yang sama
+          dengan kartunya, karena itulah yang dicari mata orang. */}
+      <rect x="252" y="42" width="72" height="92" fill="#C9D3DA" />
+      <text x="288" y="90" textAnchor="middle" fontSize="6.5" fill="#5B6167">
         PAS FOTO
       </text>
-      <text x="277" y="150" textAnchor="middle" fontSize="6.5" fill="#8B9198">
-        CONTOH, 01-01-2026
+      <text x="288" y="146" textAnchor="middle" fontSize="6" fill="#15171A">
+        CONTOH
       </text>
-      {/* Goresan tanda tangan, dilingkari sebagai bagian yang ditandai. */}
-      <path d="M250 176 C262 162, 270 186, 280 172 C288 161, 296 182, 306 170"
-            fill="none" stroke="#15171A" strokeWidth="2.2" strokeLinecap="round" />
-      <rect x="242" y="156" width="74" height="32" fill="none"
-            stroke="#8C2F2F" strokeWidth="2" strokeDasharray="4 3" />
-      <text x="234" y="178" textAnchor="end" fontSize="7.5" fill="#8C2F2F">
-        bagian yang ditandai →
+      <text x="288" y="155" textAnchor="middle" fontSize="6" fill="#15171A">
+        01-01-2026
       </text>
-      <text x="170" y="120" textAnchor="middle" fontSize="34" fontWeight="700"
-            fill="#15171A" opacity="0.08" transform="rotate(-12 170 120)">
+
+      <path d="M262 182 C272 168, 279 192, 288 178 C295 167, 303 188, 314 175"
+            fill="none" stroke="#15171A" strokeWidth="2" strokeLinecap="round" />
+      <rect x="254" y="163" width="68" height="30" fill="none"
+            stroke="#8C2F2F" strokeWidth="1.8" strokeDasharray="4 3" />
+      <text x="248" y="182" textAnchor="end" fontSize="7" fill="#8C2F2F">
+        tanda tangan →
+      </text>
+
+      <text x="170" y="120" textAnchor="middle" fontSize="40" fontWeight="700"
+            fill="#15171A" opacity="0.07" transform="rotate(-14 170 120)">
         CONTOH
       </text>
     </svg>
