@@ -829,7 +829,6 @@ ul.syarat-foto { margin: 8px 0 0 16px; padding: 0; font-size: 11.5px;
   .kartu-project.terakhir .nama { padding-bottom: 30px; }
   .kartu-project.terakhir .nama b { font-size: 21px; margin-bottom: 5px; }
   .kartu-project.terakhir .nama span { font-size: 13px; }
-  .kartu-project.terakhir .tanda { font-size: 10.5px; padding: 4px 10px; }
 }
 
 /* Tombol, bukan tautan: memilih project mengubah keadaan sesi di server. */
@@ -855,15 +854,6 @@ ul.syarat-foto { margin: 8px 0 0 16px; padding: 0; font-size: 11.5px;
 .kartu-project .lambang .logo-project {
   height: auto !important; max-height: 72px; max-width: 82%;
 }
-/* Penanda project yang terakhir dikerjakan. Di pojok, bukan di bawah nama:
-   di bawah nama ia menggeser baris dan membuat kartunya tidak lagi setinggi
-   yang lain. */
-.kartu-project .tanda {
-  position: absolute; top: 0; right: 0; width: auto;
-  padding: 3px 8px; font-size: 9.5px; font-weight: 600;
-  letter-spacing: .06em; text-transform: uppercase;
-  background: var(--ink); color: #fff;
-}
 /* Garis rambut memisahkan lambang dari namanya, supaya keduanya tidak terbaca
    sebagai satu gambar — lambang yang membawa tulisan di dalamnya, seperti
    Naraya dan Permai Indah, paling mudah tertukar begitu. */
@@ -887,8 +877,11 @@ ul.syarat-foto { margin: 8px 0 0 16px; padding: 0; font-size: 11.5px;
 .kartu-project.terakhir::after { display: none; }
 .kartu-project:focus-visible { outline: 2px solid var(--emas-tua);
                                outline-offset: 2px; }
-/* Yang terakhir dikerjakan diberi bibir emas di tepi atas — penanda yang sama
-   dengan kartu masuk, dan yang tidak menambah tinggi kartu sedikit pun. */
+/* Yang terakhir dikerjakan dikenali dari bibir emas di tepi atas dan dari
+   petak besarnya sendiri — penanda yang sama dengan kartu masuk, dan yang
+   tidak menambah tinggi kartu sedikit pun. Tidak ada label bertuliskan
+   "terakhir": kartu yang empat kali lebih besar dari tetangganya, dengan
+   bibir emas di atasnya, sudah mengatakannya. */
 .kartu-project.terakhir { border-color: var(--ink); }
 .kartu-project.terakhir .lambang { padding-top: 15px; }
 .kartu-project.terakhir { border-top: 3px solid var(--emas); }

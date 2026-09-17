@@ -111,7 +111,6 @@ export default function PilihProjectPage() {
                 keenamnya satu sumbu yang sama. */}
             <span className="lambang">
               <LogoProject slug={p.slug} tinggi={54} alt="" />
-              {p.id === dipilih && <span className="tanda">terakhir</span>}
             </span>
             {/* Nama tetap ditulis: lambang saja menuntut orang mengenali
                 keenamnya dari ingatan. */}
