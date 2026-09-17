@@ -87,8 +87,9 @@ export function Logo({ tinggi = 40, hanyaLambang = false,
  * project itu, bukan bahan susunan layar. Yang disamakan bidangnya, bukan
  * gambarnya.
  */
-export function LogoProject({ slug, tinggi = 40, alt }:
-                            { slug: string; tinggi?: number; alt: string }) {
+export function LogoProject({ slug, tinggi = 40, alt, gantiTeks }:
+                            { slug: string; tinggi?: number; alt: string;
+                              gantiTeks?: string }) {
   const [gagal, setGagal] = useState(false);
   const ref = useRef<HTMLImageElement | null>(null);
 
@@ -99,7 +100,14 @@ export function LogoProject({ slug, tinggi = 40, alt }:
     if (img && img.complete && img.naturalWidth === 0) setGagal(true);
   }, []);
 
-  if (gagal) return null;
+  // Tanpa berkasnya, namanya yang ditulis. Kartu pemilih project tidak lagi
+  // menuliskan nama project di bawah lambangnya — namanya sudah ada di dalam
+  // lambang itu — jadi lambang yang hilang berarti kartu tanpa nama sama
+  // sekali, dan yang tersisa hanya nama PT yang dipakai bersama beberapa
+  // project.
+  if (gagal) {
+    return gantiTeks ? <b className="ganti-lambang">{gantiTeks}</b> : null;
+  }
 
   return (
     // eslint-disable-next-line @next/next/no-img-element

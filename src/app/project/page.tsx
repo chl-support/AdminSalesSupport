@@ -104,14 +104,16 @@ export default function PilihProjectPage() {
                 yang sejajar di seluruh kisi. Bidang bertinggi tetap memberi
                 keenamnya satu sumbu yang sama. */}
             <span className="lambang">
-              <LogoProject slug={p.slug} tinggi={54} alt="" />
+              <LogoProject slug={p.slug} tinggi={54} alt={p.name}
+                           gantiTeks={p.name} />
             </span>
-            {/* Nama tetap ditulis: lambang saja menuntut orang mengenali
-                keenamnya dari ingatan. */}
-            <span className="nama">
-              <b>{p.name}</b>
-              <span>{p.company_name}</span>
-            </span>
+            {/* Hanya nama PT yang ditulis. Nama project-nya sendiri sudah
+                terbaca di dalam lambangnya — keenam lambang ini membawa
+                namanya masing-masing — jadi menuliskannya lagi tepat di
+                bawahnya hanya mengulang. Nama PT tidak: ia tidak ada di
+                lambang mana pun, dan ia yang membedakan project di bawah PT
+                yang berlainan. */}
+            <span className="nama">{p.company_name}</span>
           </button>
         ))}
         {!urut.length && !busy && (
