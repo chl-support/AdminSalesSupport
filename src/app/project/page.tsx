@@ -14,7 +14,7 @@
  * tetap harus mempercayai apa yang dikirimkan layar.
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { Logo, LogoProject } from "../logo";
 
@@ -47,6 +47,19 @@ export default function PilihProjectPage() {
       .catch((e) => setGalat(String(e?.message ?? e)))
       .finally(() => setBusy(false));
   }, []);
+
+  /**
+   * Yang terakhir dikerjakan dimajukan ke depan.
+   *
+   * Bukan sekadar urutan: kartu pertama diberi petak dua kali dua di kisinya,
+   * dan petak itu hanya masuk akal di sudut kiri atas. Delapan dari sepuluh
+   * kali orang membuka layar ini untuk kembali ke project yang sama seperti
+   * kemarin — itulah yang pantas mendapat kartu terbesar.
+   */
+  const urut = useMemo(
+    () => [...daftar.filter((p) => p.id === dipilih),
+           ...daftar.filter((p) => p.id !== dipilih)],
+    [daftar, dipilih]);
 
   const pilih = async (slug: string) => {
     setBusy(true); setGalat(null);
@@ -85,7 +98,7 @@ export default function PilihProjectPage() {
       {galat && <div className="banner stop">{galat}</div>}
 
       <div className="pilihan">
-        {daftar.map((p) => (
+        {urut.map((p) => (
           <button key={p.slug} disabled={busy}
                   className={"opsi kartu-project" +
                              (p.id === dipilih ? " terakhir" : "")}
@@ -108,7 +121,7 @@ export default function PilihProjectPage() {
             </span>
           </button>
         ))}
-        {!daftar.length && !busy && (
+        {!urut.length && !busy && (
           <div className="banner warn">
             <b>Belum ada project</b>
             Jalankan migrasi basis data lebih dulu.

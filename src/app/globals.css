@@ -799,6 +799,37 @@ ul.syarat-foto { margin: 8px 0 0 16px; padding: 0; font-size: 11.5px;
    tetap cukup lebar untuk lambang yang paling melebar. */
 .pilih-project .pilihan {
   gap: 16px; grid-template-columns: repeat(auto-fit, minmax(236px, 1fr));
+  align-items: stretch;
+}
+
+/* Kisi tiga kali tiga dengan satu petak besar di sudut kiri atas.
+   
+   Enam kartu sama besar terbaca sebagai daftar, dan daftar tidak mengatakan
+   apa pun tentang mana yang dicari. Project yang terakhir dikerjakan diberi
+   petak dua kali dua — empat petak untuk satu kartu, lima kartu sisanya
+   mengisi lima petak yang tersisa, dan sembilan petaknya habis tanpa sisa.
+   Delapan dari sepuluh kali orang membuka layar ini untuk kembali ke project
+   yang sama seperti kemarin, dan kartu itulah yang paling dulu ditemukan
+   mata.
+   
+   Hanya di layar yang cukup lebar untuk tiga kolom. Di bawah itu petak besar
+   akan memakan seluruh lebar layar dan yang tersisa justru daftar yang sama,
+   hanya dengan satu kartu raksasa di atasnya. */
+@media (min-width: 940px) {
+  .pilih-project .pilihan { grid-template-columns: repeat(3, 1fr);
+                            grid-auto-flow: row dense; }
+  .pilih-project .pilihan .kartu-project.terakhir {
+    grid-column: span 2; grid-row: span 2;
+  }
+  /* Bidang lambangnya memuai mengisi tinggi kartu, bukan tetap 108 piksel —
+     kalau tidak, kartu setinggi dua baris akan berisi lambang kecil di atas
+     dan ruang kosong selebar dua kolom di bawahnya. */
+  .kartu-project.terakhir .lambang { height: auto; flex: 1; padding: 30px 30px 14px; }
+  .kartu-project.terakhir .lambang .logo-project { max-height: 132px; max-width: 62%; }
+  .kartu-project.terakhir .nama { padding-bottom: 30px; }
+  .kartu-project.terakhir .nama b { font-size: 21px; margin-bottom: 5px; }
+  .kartu-project.terakhir .nama span { font-size: 13px; }
+  .kartu-project.terakhir .tanda { font-size: 10.5px; padding: 4px 10px; }
 }
 
 /* Tombol, bukan tautan: memilih project mengubah keadaan sesi di server. */
@@ -813,7 +844,7 @@ ul.syarat-foto { margin: 8px 0 0 16px; padding: 0; font-size: 11.5px;
    adanya — sebagiannya memang tidak dirancang untuk latar gelap. */
 .kartu-project .lambang {
   position: relative; display: flex; align-items: center;
-  justify-content: center; height: 108px; padding: 18px 18px 8px;
+  justify-content: center; flex: 1; min-height: 108px; padding: 18px 18px 8px;
 }
 /* Tingginya dibatasi bidang, lebarnya dibatasi kartu, dan yang mana pun lebih
    dulu tercapai itulah yang mengikat. Tinggi tetap saja tidak cukup: lambang
@@ -833,13 +864,27 @@ ul.syarat-foto { margin: 8px 0 0 16px; padding: 0; font-size: 11.5px;
   letter-spacing: .06em; text-transform: uppercase;
   background: var(--ink); color: #fff;
 }
-.kartu-project .nama { display: block; padding: 0 16px 20px; }
+/* Garis rambut memisahkan lambang dari namanya, supaya keduanya tidak terbaca
+   sebagai satu gambar — lambang yang membawa tulisan di dalamnya, seperti
+   Naraya dan Permai Indah, paling mudah tertukar begitu. */
+.kartu-project .nama { display: block; padding: 14px 16px 20px;
+                       border-top: 1px solid #EEF0F1; }
 .kartu-project .nama b { display: block; font-size: 15px; margin-bottom: 3px; }
 .kartu-project .nama span { display: block; font-size: 11.5px; color: var(--sub); }
 
+/* Sapuan emas di tepi atas saat disorot: melebar dari kiri ke kanan, jadi
+   yang berpindah antar kartu terlihat ke mana sorotnya berpindah. */
+.kartu-project::after {
+  content: ""; position: absolute; top: 0; left: 0; height: 3px; width: 0;
+  background: var(--emas); transition: width .18s ease;
+}
+.kartu-project { position: relative; }
 .kartu-project:hover:not(:disabled) {
   border-color: var(--ink); transform: translateY(-2px);
 }
+.kartu-project:hover:not(:disabled)::after { width: 100%; }
+/* Yang terakhir dikerjakan sudah memakai bibir emas penuh di tepi atasnya. */
+.kartu-project.terakhir::after { display: none; }
 .kartu-project:focus-visible { outline: 2px solid var(--emas-tua);
                                outline-offset: 2px; }
 /* Yang terakhir dikerjakan diberi bibir emas di tepi atas — penanda yang sama
@@ -850,6 +895,7 @@ ul.syarat-foto { margin: 8px 0 0 16px; padding: 0; font-size: 11.5px;
 
 @media (prefers-reduced-motion: reduce) {
   .kartu-project:hover:not(:disabled) { transform: none; }
+  .kartu-project::after { transition: none; }
 }
 
 /* Penanda project pada kepala halaman dan tombol gantinya pada profil. */
