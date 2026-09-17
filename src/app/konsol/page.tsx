@@ -215,7 +215,7 @@ export default function Console() {
   return (
     <Kerangka sesi={sesi} judul={
       <div>
-        <h1>Konsol Klaim Insentif</h1>
+        <h1>Approval / Persetujuan</h1>
         <p>
           Next.js + PostgreSQL. Empat gate ditegakkan di server, bukan di layar ini —
           menyembunyikan tombol tidak menghentikan siapa pun yang memanggil API langsung.

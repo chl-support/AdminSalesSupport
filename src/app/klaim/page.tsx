@@ -1,47 +1,24 @@
 "use client";
 
 /**
- * Langkah 1: memilih jenis fee yang akan diklaim.
+ * Pengajuan Fee.
  *
- * Jenisnya dipilih lebih dulu, bukan belakangan, karena jenis itulah yang
- * menentukan unit mana yang boleh diklaim — prasyarat pencairan berbeda per
- * jenis (BR-01 sampai BR-04). Menampilkan seluruh penjualan lebih dulu lalu
- * menyaringnya kemudian akan memperlihatkan baris yang tidak pernah bisa
- * diklaim, dan membuat tombol yang selalu ditolak.
+ * Layar ini tidak lagi menampilkan empat kartu jenis fee. Kartu itu satu layar
+ * perantara yang isinya hanya empat tombol, dan jenisnya toh harus dipilih
+ * sekali lagi bila orangnya salah pilih — jadi pilihannya dipindahkan ke dalam
+ * layar datanya sendiri, sebagai daftar pilihan yang dapat diganti tanpa
+ * kembali ke mana pun.
+ *
+ * Yang tersisa di sini hanya pengalihan ke jenis pertama. Alamat /klaim tetap
+ * hidup karena menu menunjuk ke sana dan orang menyimpannya sebagai penanda.
  */
 
-import Link from "next/link";
+import { useEffect } from "react";
 
-import { Kerangka, MemeriksaSesi } from "../kerangka";
-import { useSesi } from "../session";
+import { MemeriksaSesi } from "../kerangka";
 import { JENIS } from "./jenis";
 
-export default function PilihJenisPage() {
-  const { sesi, memuat } = useSesi();
-
-  if (memuat || !sesi) {
-    return <MemeriksaSesi />;
-  }
-
-  return (
-    <Kerangka sesi={sesi} judul={
-      <div>
-        <h1>Ajukan klaim fee</h1>
-        <p>
-          Pilih jenis fee lebih dulu. Prasyarat pencairan berbeda per jenis,
-          jadi daftar penjualan yang dapat diklaim ikut berbeda.
-        </p>
-      </div>
-    }>
-
-      <div className="pilihan">
-        {JENIS.map((j) => (
-          <Link key={j.slug} href={`/klaim/${j.slug}`} className="opsi">
-            <b>{j.nama}</b>
-            <span>{j.ringkas}</span>
-          </Link>
-        ))}
-      </div>
-    </Kerangka>
-  );
+export default function PengajuanFeePage() {
+  useEffect(() => { location.replace(`/klaim/${JENIS[0].slug}`); }, []);
+  return <MemeriksaSesi />;
 }

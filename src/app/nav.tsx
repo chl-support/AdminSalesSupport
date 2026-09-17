@@ -4,9 +4,8 @@
  * Navigasi konsol — kolom di sebelah kiri.
  *
  * Sebelumnya berupa deretan mendatar di kepala halaman. Bentuk itu tidak
- * menyisakan tempat untuk susunan bertingkat, padahal Pengajuan Fee memang
- * punya empat jenis di bawahnya: keempatnya harus dapat dituju langsung, bukan
- * lewat satu layar perantara yang isinya hanya empat tombol yang sama.
+ * menyisakan tempat untuk susunan bertingkat, dan susunan bertingkat memang
+ * diperlukan: sebagian bab hanya wadah, isinya ada pada anaknya.
  *
  * Sengaja tidak dipasang di layout akar: layar tanda tangan agent
  * (/sign/[token]) dan layar pendaftaran spesimen (/daftar-ttd/[token]) dibuka
@@ -18,10 +17,10 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import { JENIS } from "./klaim/jenis";
-
 type Butir = {
-  href: string; label: string; peran?: string[] | null; anak?: Butir[];
+  /** Kosong berarti bab ini hanya wadah: ia tidak punya layar sendiri. */
+  href?: string;
+  label: string; peran?: string[] | null; anak?: Butir[];
 };
 
 /**
@@ -32,23 +31,24 @@ type Butir = {
  * jadi mengetikkan alamatnya langsung tidak memberi akses apa pun.
  */
 const MENU: Butir[] = [
-  // Data marketing di atas: penerima fee berasal dari sini, dan yang belum
-  // punya spesimen tanda tangan klaimnya selalu berakhir di pemeriksaan manual.
-  // Yang menentukan hasil pengajuan karenanya dilihat lebih dulu daripada
-  // pengajuannya.
-  { href: "/spesimen", label: "Data Marketing",
-    peran: ["admin_sales", "admin_system"] },
+  // Data Marketing hanya wadah: yang punya layar adalah anaknya. Menaruh layar
+  // pada wadahnya sekaligus pada anaknya berarti dua tempat menampilkan hal
+  // yang sama, dan yang satu cepat atau lambat tertinggal dari yang lain.
   {
-    href: "/klaim", label: "Pengajuan Fee",
-    // Keempat jenis, beserta urutannya, diambil dari daftar yang sama dengan
-    // yang dipakai layar pengajuan dan perhitungannya. Menuliskannya ulang di
-    // sini berarti menu dan formulir dapat berbeda tanpa ada yang menyadari.
-    anak: JENIS.map((j) => ({ href: `/klaim/${j.slug}`, label: j.nama })),
+    label: "Data Marketing", peran: ["admin_sales", "admin_system"],
+    anak: [{ href: "/spesimen", label: "Spesimen Tanda Tangan" }],
   },
-  { href: "/konsol", label: "Konsol klaim" },
+  // Jenis fee dipilih di dalam layarnya lewat daftar pilihan, bukan lewat empat
+  // butir menu. Keduanya sekaligus berarti dua jalan menuju layar yang sama,
+  // dan yang satu selalu lebih pendek — yang lain lalu hanya menambah panjang
+  // kolom menu.
+  { href: "/klaim", label: "Pengajuan Fee" },
+  { href: "/memo", label: "Memo Approval" },
+  { href: "/sirkulasi", label: "Sirkulasi Dokumen" },
+  { href: "/konsol", label: "Approval / Persetujuan" },
+  { href: "/laporan", label: "Report / Laporan" },
   { href: "/audit", label: "Jejak audit" },
-  // Administrasi hanya untuk Admin IT. "Ganti sandi saya" tetap dapat
-  // dicapai semua peran lewat tautan pada bilah pengguna.
+  // Administrasi hanya untuk Admin IT.
   { href: "/admin", label: "Administrasi", peran: ["admin_system"] },
 ];
 
@@ -64,17 +64,24 @@ export function Nav({ peran }: { peran?: string }) {
   return (
     <nav className="nav">
       {MENU.filter((m) => boleh(m, peran)).map((m) => (
-        <div key={m.href} className="grup">
-          <Link href={m.href} className={path === m.href ? "active" : ""}
-                aria-current={path === m.href ? "page" : undefined}>
-            {m.label}
-          </Link>
+        <div key={m.href ?? m.label} className="grup">
+          {m.href ? (
+            <Link href={m.href} className={aktif(m.href) ? "active" : ""}
+                  aria-current={aktif(m.href) ? "page" : undefined}>
+              {m.label}
+            </Link>
+          ) : (
+            // Wadah tanpa layar ditulis sebagai teks, bukan tautan mati:
+            // tautan yang tidak menuju ke mana-mana akan diklik berulang kali
+            // sebelum orangnya menyimpulkan ia memang tidak berfungsi.
+            <span className="wadah">{m.label}</span>
+          )}
           {m.anak && (
             <div className="anak">
               {m.anak.filter((a) => boleh(a, peran)).map((a) => (
-                <Link key={a.href} href={a.href}
-                      className={aktif(a.href) ? "active" : ""}
-                      aria-current={aktif(a.href) ? "page" : undefined}>
+                <Link key={a.href} href={a.href!}
+                      className={aktif(a.href!) ? "active" : ""}
+                      aria-current={aktif(a.href!) ? "page" : undefined}>
                   {a.label}
                 </Link>
               ))}

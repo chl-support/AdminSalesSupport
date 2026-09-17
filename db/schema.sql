@@ -694,4 +694,36 @@ CREATE INDEX IF NOT EXISTS idx_schemes_project ON incentive_schemes(project_id);
 -- dikirimkan layar.
 ALTER TABLE sessions ADD COLUMN IF NOT EXISTS project_id UUID REFERENCES projects(id);
 
+-- ─────────────────────────── Memo ───────────────────────────
+--
+-- Berkas memo skema dan persetujuannya, disimpan sebagai lampiran yang dapat
+-- dilihat siapa pun yang mengerjakan project itu.
+--
+-- Isinya tidak dibaca sistem: tarif yang dipakai menghitung tetap berasal dari
+-- tabel incentive_schemes. Memo di sini adalah rujukan bagi manusia — dasar
+-- tertulis yang dapat dibuka saat ada yang mempertanyakan sebuah angka, tanpa
+-- mencari-cari di percakapan atau surel.
+--
+-- Berkasnya disimpan di basis data, bukan di penyimpanan berkas terpisah:
+-- pemasangan ini tidak punya satu pun, dan memo yang tertinggal di komputer
+-- seseorang bukan lampiran.
+CREATE TABLE IF NOT EXISTS memos (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id   UUID NOT NULL REFERENCES projects(id),
+  nomor        TEXT,
+  judul        TEXT NOT NULL,
+  keterangan   TEXT,
+  berlaku_dari DATE,
+  berlaku_sampai DATE,
+  file_name    TEXT NOT NULL,
+  content_type TEXT NOT NULL,
+  size_bytes   INT NOT NULL CHECK (size_bytes > 0 AND size_bytes <= 10485760),
+  content      BYTEA NOT NULL,
+  uploaded_by  TEXT NOT NULL,
+  uploaded_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_memos_project
+  ON memos(project_id, uploaded_at DESC);
+
 COMMIT;

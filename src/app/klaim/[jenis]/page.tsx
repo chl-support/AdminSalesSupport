@@ -21,7 +21,7 @@ import { useParams } from "next/navigation";
 
 import { Kerangka, MemeriksaSesi } from "../../kerangka";
 import { useSesi } from "../../session";
-import { jenisDari } from "../jenis";
+import { JENIS, jenisDari } from "../jenis";
 
 const rp = (n?: number | null) => `Rp ${(n ?? 0).toLocaleString("id-ID")}`;
 
@@ -162,10 +162,25 @@ export default function DaftarPenjualanPage() {
       </div>
     }>
 
+      {/* Jenis fee dipilih di sini, bukan lewat layar perantara berisi kartu:
+          yang salah pilih tinggal mengganti isinya, tanpa kembali ke mana pun
+          dan tanpa kehilangan penyaring yang sudah diketik. */}
       <div className="row sp">
-        <Link href="/klaim">← Ganti jenis fee</Link>
-        <span className="pill">{bisa} dapat diklaim</span>
-        <span className="pill">{units.length} penjualan</span>
+        <div>
+          <div className="lbl">Jenis fee</div>
+          <select value={jenis.slug} style={{ minWidth: 190 }}
+                  onChange={(e) => { location.href = `/klaim/${e.target.value}`; }}>
+            {JENIS.map((j) => (
+              <option key={j.slug} value={j.slug}>{j.nama}</option>
+            ))}
+          </select>
+        </div>
+        <span className="pill" style={{ alignSelf: "flex-end" }}>
+          {bisa} dapat diklaim
+        </span>
+        <span className="pill" style={{ alignSelf: "flex-end" }}>
+          {units.length} penjualan
+        </span>
       </div>
 
       {kabar && (
