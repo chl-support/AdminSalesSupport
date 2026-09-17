@@ -82,6 +82,14 @@ const MENU: Butir[] = [
   // pengguna lain.
   { href: "/admin", label: { id: "Administrasi", en: "Administration" },
     peran: ["admin_system"] },
+  // Jejak audit juga hanya ditampilkan kepada Admin IT, atas permintaan.
+  //
+  // Perlu dicatat: ini kerapian menu, bukan pembatasan akses. Endpoint
+  // /api/audit masih dapat dibaca Finance/Pajak beserta atasannya dan
+  // Management — dan memang harus, karena koreksi jejak audit dibubuhkan dari
+  // sana. Menyempitkannya ke Admin IT saja akan memutus jalur koreksi itu.
+  { href: "/audit", label: { id: "Jejak Audit", en: "Audit Trail" },
+    peran: ["admin_system"] },
 ];
 
 const boleh = (b: Butir, peran?: string) =>
