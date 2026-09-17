@@ -795,9 +795,13 @@ ul.syarat-foto { margin: 8px 0 0 16px; padding: 0; font-size: 11.5px;
 
 /* Tiga kolom, bukan dua: enam project menjadi dua baris penuh, dan kartunya
    tetap cukup lebar untuk lambang yang paling melebar. */
+/* Baris dibuat sama tinggi. Tanpa itu tiap baris setinggi kartu tertingginya
+   sendiri, bidang lambang tiap baris berbeda tinggi, dan jarak antara lambang
+   dengan garis di bawahnya ikut berbeda dari kartu ke kartu — terlihat sebagai
+   kisi yang tidak rata walau semua kartunya sebenarnya rapi. */
 .pilih-project .pilihan {
   gap: 16px; grid-template-columns: repeat(auto-fit, minmax(236px, 1fr));
-  align-items: stretch;
+  align-items: stretch; grid-auto-rows: 1fr;
 }
 
 /* Kisi tiga kali tiga dengan satu petak besar di sudut kiri atas.
@@ -822,9 +826,14 @@ ul.syarat-foto { margin: 8px 0 0 16px; padding: 0; font-size: 11.5px;
   /* Bidang lambangnya memuai mengisi tinggi kartu, bukan tetap 108 piksel —
      kalau tidak, kartu setinggi dua baris akan berisi lambang kecil di atas
      dan ruang kosong selebar dua kolom di bawahnya. */
-  .kartu-project.terakhir .lambang { height: auto; flex: 1; padding: 30px 30px 14px; }
-  .kartu-project.terakhir .lambang .logo-project { max-height: 132px; max-width: 62%; }
-  .kartu-project.terakhir .nama { padding: 18px 16px 22px; font-size: 13px; }
+  /* Tepi kiri-kanan dan jarak ke garisnya mengikuti kartu biasa, hanya
+     dilapangkan sekadarnya — yang membesar kartunya, bukan jaraknya. */
+  .kartu-project.terakhir .lambang { height: auto; flex: 1; padding: 26px 26px 18px; }
+  /* Lambangnya ikut membesar mengisi petaknya. Dibiarkan sebesar kartu biasa,
+     lambang yang dirata-bawah akan menyisakan ruang kosong setinggi satu
+     kartu penuh di atasnya. */
+  .kartu-project.terakhir .lambang .logo-project { max-height: 196px; max-width: 64%; }
+  .kartu-project.terakhir .nama { padding: 18px 26px 20px; font-size: 13px; }
 }
 
 /* Tombol, bukan tautan: memilih project mengubah keadaan sesi di server. */
@@ -837,9 +846,18 @@ ul.syarat-foto { margin: 8px 0 0 16px; padding: 0; font-size: 11.5px;
    bening. Bidang gelap sebanyak enam kotak akan menjadi bobot paling berat di
    layar yang isinya justru bukan itu, dan lambang-lambang ini dipakai apa
    adanya — sebagiannya memang tidak dirancang untuk latar gelap. */
+/* Lambang dirata-bawah, bukan dipusatkan.
+   
+   Dipusatkan, jarak dari bawah lambang ke garis di bawahnya mengikuti tinggi
+   lambang itu sendiri: yang menjulang seperti Mazenta menyisakan 18 piksel,
+   yang mendatar seperti BIO District menyisakan 28. Selisih sepuluh piksel itu
+   kecil, tetapi berulang enam kali bersebelahan dan terbaca sebagai kisi yang
+   tidak rata. Dirata-bawah, jaraknya sama persis di semua kartu, dan
+   kelebihan ruangnya berkumpul di atas — tempat yang tidak dibandingkan mata
+   karena tidak ada garis di sana. */
 .kartu-project .lambang {
-  position: relative; display: flex; align-items: center;
-  justify-content: center; flex: 1; min-height: 108px; padding: 18px 18px 8px;
+  position: relative; display: flex; align-items: flex-end;
+  justify-content: center; flex: 1; min-height: 108px; padding: 20px 18px 18px;
 }
 /* Tingginya dibatasi bidang, lebarnya dibatasi kartu, dan yang mana pun lebih
    dulu tercapai itulah yang mengikat. Tinggi tetap saja tidak cukup: lambang
@@ -859,7 +877,9 @@ ul.syarat-foto { margin: 8px 0 0 16px; padding: 0; font-size: 11.5px;
                  text-align: center; }
 .kartu-project.terakhir .ganti-lambang { font-size: 24px; }
 
-.kartu-project .nama { display: block; padding: 13px 16px 15px;
+/* Jaraknya sama di atas dan di bawah garis: 18 piksel dari bawah lambang ke
+   garis, 18 piksel lagi dari garis ke nama PT. */
+.kartu-project .nama { display: block; padding: 18px 18px 17px;
                        border-top: 1px solid #EEF0F1;
                        font-size: 11.5px; color: var(--sub); }
 
@@ -874,18 +894,13 @@ ul.syarat-foto { margin: 8px 0 0 16px; padding: 0; font-size: 11.5px;
   border-color: var(--ink); transform: translateY(-2px);
 }
 .kartu-project:hover:not(:disabled)::after { width: 100%; }
-/* Yang terakhir dikerjakan sudah memakai bibir emas penuh di tepi atasnya. */
-.kartu-project.terakhir::after { display: none; }
 .kartu-project:focus-visible { outline: 2px solid var(--emas-tua);
                                outline-offset: 2px; }
-/* Yang terakhir dikerjakan dikenali dari bibir emas di tepi atas dan dari
-   petak besarnya sendiri — penanda yang sama dengan kartu masuk, dan yang
-   tidak menambah tinggi kartu sedikit pun. Tidak ada label bertuliskan
-   "terakhir": kartu yang empat kali lebih besar dari tetangganya, dengan
-   bibir emas di atasnya, sudah mengatakannya. */
-.kartu-project.terakhir { border-color: var(--ink); }
-.kartu-project.terakhir .lambang { padding-top: 15px; }
-.kartu-project.terakhir { border-top: 3px solid var(--emas); }
+/* Yang terakhir dikerjakan dikenali dari petak besarnya sendiri, dan hanya
+   dari itu. Tidak ada bibir emas dan tidak ada label: kartu yang empat kali
+   lebih besar dari tetangganya sudah mengatakannya, dan garis atau tulisan
+   tambahan di atasnya hanya membuat kartu itu berbeda bingkai dari lima
+   lainnya. */
 
 @media (prefers-reduced-motion: reduce) {
   .kartu-project:hover:not(:disabled) { transform: none; }
