@@ -801,10 +801,10 @@ ul.syarat-foto { margin: 8px 0 0 16px; padding: 0; font-size: 11.5px;
   font-weight: 400; cursor: pointer; text-align: center;
   transition: border-color .12s ease, transform .12s ease;
 }
-/* Bidang lambang: tinggi tetap, lambang dipusatkan padanya. Latarnya sengaja
-   dibiarkan bening — lambang emas di atas bidang gelap memang lebih tegas,
-   tetapi bidang gelap sebanyak enam kotak akan menjadi bobot paling berat di
-   layar yang isinya justru bukan itu. */
+/* Bidang lambang: tinggi tetap, lambang dipusatkan padanya. Latarnya dibiarkan
+   bening. Bidang gelap sebanyak enam kotak akan menjadi bobot paling berat di
+   layar yang isinya justru bukan itu, dan lambang-lambang ini dipakai apa
+   adanya — sebagiannya memang tidak dirancang untuk latar gelap. */
 .kartu-project .lambang {
   position: relative; display: flex; align-items: center;
   justify-content: center; height: 108px; padding: 18px 18px 8px;
