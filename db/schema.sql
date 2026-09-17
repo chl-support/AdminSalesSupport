@@ -662,16 +662,15 @@ CREATE TABLE IF NOT EXISTS projects (
   created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- Hanya satu baris yang ditanam dari sini: BIO District, yang dituju oleh
+-- pengisian mundur beberapa baris di bawah. Daftar project selengkapnya ada di
+-- src/lib/projects.ts dan diterapkan oleh ensureProjects(). Bukan di sini,
+-- karena baris yang ditanam lewat migrasi hanya sampai ke basis data ketika
+-- migrasi dijalankan ulang — dan project yang ditambahkan lalu di-deploy
+-- ternyata tidak pernah muncul di layar.
 INSERT INTO projects (slug, name, company_name, urutan) VALUES
-  ('banara-serpong', 'Banara Serpong', 'PT. Serpong Bangun Cipta', 1),
-  ('naraya-serpong', 'Naraya Serpong', 'PT. Serpong Bangun Cipta', 2),
-  ('marchand-hype-station', 'Marchand Hype Station', 'PT. Serpong Bangun Cipta', 3),
-  ('mazenta-residence', 'Mazenta Residence', 'PT. Serpong Bangun Cipta', 4),
-  ('bio-district', 'BIO District', 'PT. Serpong Bangun Lestari', 5),
-  ('permai-indah', 'Permai Indah', 'PT. Bumi Mahardika Makmur', 6)
-ON CONFLICT (slug) DO UPDATE
-  SET name = EXCLUDED.name, company_name = EXCLUDED.company_name,
-      urutan = EXCLUDED.urutan;
+  ('bio-district', 'BIO District', 'PT. Serpong Bangun Lestari', 5)
+ON CONFLICT (slug) DO NOTHING;
 
 -- Penanda project pada data yang memang milik satu project.
 --

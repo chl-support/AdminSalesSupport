@@ -3,10 +3,16 @@ import { audit, one, query } from "@/lib/db";
 import { COOKIE } from "@/lib/auth";
 import { createHash } from "node:crypto";
 import { WorkflowError } from "@/lib/workflow";
+import { ensureProjectsSekali } from "@/lib/projects";
 
 /** Project yang dapat dikerjakan, beserta yang sedang dipilih. */
 export const GET = handler(async (req) => {
   const user = await currentUser(req);
+  // Daftar bawaan diselaraskan di sini, sekali per proses. Tanpa ini, project
+  // yang baru ditambahkan di dalam kode hanya sampai ke layar setelah seseorang
+  // menjalankan migrasi ulang — sesuatu yang tidak lagi mungkin setelah
+  // SETUP_SECRET dicabut, seperti yang memang dianjurkan.
+  await ensureProjectsSekali();
   return {
     projects: await query(
       "SELECT id, slug, name, company_name FROM projects WHERE active " +

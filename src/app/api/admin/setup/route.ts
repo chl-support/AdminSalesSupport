@@ -5,6 +5,7 @@ import { join } from "node:path";
 
 import { handler } from "@/lib/api";
 import { ensureDefaultSettings, explainDbError, one, pool, query } from "@/lib/db";
+import { ensureProjects } from "@/lib/projects";
 
 /**
  * Endpoint penyiapan sekali jalan: menjalankan migrasi dan, bila diminta, mengisi
@@ -82,6 +83,7 @@ export const POST = handler(async (req) => {
     const sql = await readFile(join(process.cwd(), "db", "schema.sql"), "utf8");
     await pool.query(sql);
     await ensureDefaultSettings();
+    await ensureProjects();
 
     const tables = await one<{ n: number }>(
       `SELECT COUNT(*)::int AS n FROM information_schema.tables
