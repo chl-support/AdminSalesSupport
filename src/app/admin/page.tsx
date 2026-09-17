@@ -139,6 +139,28 @@ const KATA = {
     ringkasAgen: (baru: number, d: number, dilewati: number, rek: number, baris: number) =>
       `${baru} marketing baru · ${d} diperbarui · ${dilewati} dilewati · ` +
       `${rek} rekening dicatat · dari ${baris} orang`,
+    ujiJudul: "SKEMA INSENTIF UJI COBA",
+    ujiPengantar:
+      "Perhitungan klaim berhenti bila tidak ada skema insentif yang berlaku " +
+      "untuk jenis fee, peran penerima, dan tanggal kontrak unitnya. Selama " +
+      "sistemnya masih dicoba, penghentian itu menutup seluruh alur sesudahnya.",
+    ujiCara:
+      "Yang dipasang di sini adalah salinan skema yang sudah ada di basis " +
+      "data, dengan masa berlakunya dilebarkan sejak tahun 2000. Tarifnya " +
+      "bukan angka baru — tidak ada yang dikarang di sini.",
+    ujiAwas: "Angkanya tetap menentukan uang pada klaim yang dibuat sesudahnya.",
+    ujiAwasB:
+      " Nomor memo tiap baris diawali \"UJI COBA\", jadi klaim yang lahir " +
+      "darinya dapat dikenali kemudian. Cabut sebelum dipakai sungguhan.",
+    ujiTerpasang: (n: number) => `${n} skema uji coba terpasang`,
+    ujiBelum: "Belum ada skema uji coba pada project ini.",
+    ujiSumber: (n: number) => `${n} skema sungguhan tersedia untuk disalin`,
+    ujiPasang: "Pasang skema uji coba",
+    ujiCabut: "Cabut skema uji coba",
+    ujiMemasang: "Memasang…", ujiMencabut: "Mencabut…",
+    ujiDipasang: (n: number) => `${n} skema uji coba dipasang.`,
+    ujiDicabut: (n: number) => `${n} skema uji coba dicabut.`,
+    ujiThJenis: "Jenis fee", ujiThPeran: "Peran", ujiThTarif: "Tarif",
     kosongJudul: "KOSONGKAN DATA OPERASIONAL",
     kosongCatatanA:
       "Menghapus data penjualan, marketing, rekening, klaim, tanda tangan, " +
@@ -295,6 +317,28 @@ const KATA = {
     ringkasAgen: (baru: number, d: number, dilewati: number, rek: number, baris: number) =>
       `${baru} new marketing · ${d} updated · ${dilewati} skipped · ` +
       `${rek} accounts recorded · from ${baris} people`,
+    ujiJudul: "TRIAL INCENTIVE SCHEMES",
+    ujiPengantar:
+      "Claim calculation stops when no incentive scheme applies to the fee " +
+      "type, recipient role and the unit's contract date. While the system is " +
+      "still being tried out, that stop closes off everything downstream.",
+    ujiCara:
+      "What gets installed here are copies of schemes already in the database, " +
+      "with their validity widened back to the year 2000. The rates are not " +
+      "new numbers — nothing is invented here.",
+    ujiAwas: "The figures still decide the money on any claim made afterwards.",
+    ujiAwasB:
+      " Each row's memo number starts with \"UJI COBA\", so claims born from " +
+      "them can be recognised later. Remove these before going live.",
+    ujiTerpasang: (n: number) => `${n} trial schemes installed`,
+    ujiBelum: "No trial schemes on this project yet.",
+    ujiSumber: (n: number) => `${n} real schemes available to copy`,
+    ujiPasang: "Install trial schemes",
+    ujiCabut: "Remove trial schemes",
+    ujiMemasang: "Installing…", ujiMencabut: "Removing…",
+    ujiDipasang: (n: number) => `${n} trial schemes installed.`,
+    ujiDicabut: (n: number) => `${n} trial schemes removed.`,
+    ujiThJenis: "Fee type", ujiThPeran: "Role", ujiThTarif: "Rate",
     kosongJudul: "CLEAR OPERATIONAL DATA",
     kosongCatatanA:
       "Deletes the sales, marketing, bank account, claim, signature, and " +
@@ -376,6 +420,11 @@ export default function AdminPage() {
   const [sibukAgen, setSibukAgen] = useState(false);
   const [galatAgen, setGalatAgen] = useState<string | null>(null);
   // Pengosongan data: isi tabel sekarang, kata penegasan, dan hasilnya.
+  const [uji, setUji] = useState<any>(null);
+  const [sibukUji, setSibukUji] = useState(false);
+  const [galatUji, setGalatUji] = useState<string | null>(null);
+  const [kabarUji, setKabarUji] = useState<string | null>(null);
+
   const [isiTabel, setIsiTabel] = useState<Record<string, number> | null>(null);
   const [penegasan, setPenegasan] = useState("");
   const [sibukKosong, setSibukKosong] = useState(false);
@@ -423,6 +472,34 @@ export default function AdminPage() {
   }, [bolehKelola]);
 
   useEffect(() => { if (sesi) void muatKalibrasi(); }, [sesi, muatKalibrasi]);
+
+  const muatUji = useCallback(async () => {
+    if (!bolehKelola) return;
+    try {
+      const res = await fetch("/api/admin/skema-uji");
+      const b = await res.json().catch(() => ({}));
+      if (!res.ok) { setGalatUji(b.detail ?? b.title ?? `HTTP ${res.status}`); return; }
+      setUji(b);
+      setGalatUji(null);
+    } catch (e: any) { setGalatUji(String(e?.message ?? e)); }
+  }, [bolehKelola]);
+
+  useEffect(() => { if (sesi) void muatUji(); }, [sesi, muatUji]);
+
+  /** Pasang atau cabut skema uji coba pada project yang sedang dikerjakan. */
+  const aturUji = async (cara: "POST" | "DELETE") => {
+    setSibukUji(true); setGalatUji(null); setKabarUji(null);
+    try {
+      const res = await fetch("/api/admin/skema-uji", { method: cara });
+      const b = await res.json().catch(() => ({}));
+      if (!res.ok) { setGalatUji(b.detail ?? b.title ?? `HTTP ${res.status}`); return; }
+      setKabarUji(cara === "POST"
+        ? k.ujiDipasang(b.dipasang ?? 0) : k.ujiDicabut(b.dicabut ?? 0));
+      await muatUji();
+    } catch (e: any) {
+      setGalatUji(String(e?.message ?? e));
+    } finally { setSibukUji(false); }
+  };
 
   useEffect(() => {
     if (!bolehKelola) return;
@@ -1056,6 +1133,64 @@ export default function AdminPage() {
                 </div>
               </>
             )}
+          </div>
+
+          {/* ── Skema insentif uji coba ── */}
+          <div className="panel sp">
+            <div className="form-blok">
+              <h3>{k.ujiJudul}</h3>
+              <p className="hint" style={{ textAlign: "left", marginTop: 0 }}>
+                {k.ujiPengantar}
+              </p>
+              <p className="hint" style={{ textAlign: "left" }}>{k.ujiCara}</p>
+
+              <div className="banner warn">
+                <b>{k.ujiAwas}</b>
+                {k.ujiAwasB}
+              </div>
+
+              {galatUji && <div className="banner stop">{galatUji}</div>}
+              {kabarUji && <div className="banner ok">{kabarUji}</div>}
+
+              <div className="row" style={{ marginTop: 10 }}>
+                <span className="pill">
+                  {uji?.terpasang ? k.ujiTerpasang(uji.terpasang) : k.ujiBelum}
+                </span>
+                {uji && (
+                  <span className="pill">{k.ujiSumber(uji.sumber)}</span>
+                )}
+              </div>
+
+              {uji?.contoh?.length > 0 && (
+                <div className="tscroll" style={{ marginTop: 8 }}>
+                  <table><tbody>
+                    <tr>
+                      <th>{k.ujiThJenis}</th>
+                      <th>{k.ujiThPeran}</th>
+                      <th>{k.ujiThTarif}</th>
+                    </tr>
+                    {uji.contoh.map((c: any, i: number) => (
+                      <tr key={i}>
+                        <td>{c.claim_type}</td>
+                        <td>{c.peran}</td>
+                        <td>{c.tarif}</td>
+                      </tr>
+                    ))}
+                  </tbody></table>
+                </div>
+              )}
+
+              <div className="row" style={{ marginTop: 12, marginBottom: 0 }}>
+                <button className="pri" disabled={sibukUji || uji?.terpasang > 0}
+                        onClick={() => void aturUji("POST")}>
+                  {sibukUji ? k.ujiMemasang : k.ujiPasang}
+                </button>
+                <button disabled={sibukUji || !uji?.terpasang}
+                        onClick={() => void aturUji("DELETE")}>
+                  {sibukUji ? k.ujiMencabut : k.ujiCabut}
+                </button>
+              </div>
+            </div>
           </div>
 
           {/* ── Pengosongan data ── */}
