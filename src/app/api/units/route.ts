@@ -55,10 +55,27 @@ export const GET = handler(async (req) => {
        FROM bank_accounts WHERE verified ORDER BY marketing_id, id`);
   const perRekening = new Map(rekening.map((b) => [b.marketing_id, b]));
 
+  /**
+   * Unit batal tidak ikut saat daftarnya diminta untuk pengajuan fee.
+   *
+   * Yang dilihat di layar Pengajuan Fee adalah penjualan bersih: unit yang
+   * pesanannya dibatalkan bukan penjualan, dan tidak akan pernah menghasilkan
+   * fee. Menampilkannya berikut keterangan "unit sudah dibatalkan" hanya
+   * memanjangkan daftar dengan baris yang tidak pernah menjadi pekerjaan siapa
+   * pun — dan membuat jumlah "N penjualan" di atasnya tidak cocok dengan angka
+   * penjualan bersih yang dipakai di tempat lain.
+   *
+   * Penyaringnya hanya berlaku bila daftar ini diminta untuk satu atau seluruh
+   * jenis fee. Tanpa `eligible_for`, endpoint ini adalah daftar unit apa
+   * adanya, dan yang memanggilnya memang perlu melihat yang batal juga.
+   */
+  const saring = eligibleFor ? " AND u.status <> 'cancelled'" : "";
+
   const rows = await query(
     cluster
-      ? `${SELECT} WHERE u.project_id=$1 AND u.cluster_code=$2 ORDER BY u.code`
-      : `${SELECT} WHERE u.project_id=$1 ORDER BY u.code`,
+      ? `${SELECT} WHERE u.project_id=$1 AND u.cluster_code=$2${saring}
+         ORDER BY u.code`
+      : `${SELECT} WHERE u.project_id=$1${saring} ORDER BY u.code`,
     cluster ? [projectId, cluster] : [projectId]);
   if (!eligibleFor) return rows;
 
