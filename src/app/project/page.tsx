@@ -81,21 +81,26 @@ export default function PilihProjectPage() {
 
       <div className="pilihan">
         {daftar.map((p) => (
-          <button key={p.slug} className="opsi" disabled={busy}
+          <button key={p.slug} disabled={busy}
+                  className={"opsi kartu-project" +
+                             (p.id === dipilih ? " terakhir" : "")}
                   onClick={() => void pilih(p.slug)}>
-            {/* Lambang project di atas namanya. Semuanya berbeda jauh
-                bentuknya — ada yang melebar, ada yang menjulang — jadi
-                tingginya dipatok dan lebarnya mengikuti, supaya semua kartu
-                tetap sejajar. Nama tetap ditulis di bawahnya: lambang saja
-                menuntut orang mengenali semuanya dari ingatan. */}
-            <LogoProject slug={p.slug} tinggi={56} alt="" />
-            <b>{p.name}</b>
-            <span>{p.company_name}</span>
-            {p.id === dipilih && (
-              <span className="pill ok" style={{ marginTop: 8 }}>
-                terakhir dikerjakan
-              </span>
-            )}
+            {/* Bidang lambang setinggi tetap, lambang dipusatkan di dalamnya.
+                Keenamnya berbeda jauh bentuknya — ada yang melebar sampai
+                empat kali tingginya, ada yang menjulang — dan bila masing-
+                masing hanya ditaruh di atas namanya, tidak ada satu pun garis
+                yang sejajar di seluruh kisi. Bidang bertinggi tetap memberi
+                keenamnya satu sumbu yang sama. */}
+            <span className="lambang">
+              <LogoProject slug={p.slug} tinggi={54} alt="" />
+              {p.id === dipilih && <span className="tanda">terakhir</span>}
+            </span>
+            {/* Nama tetap ditulis: lambang saja menuntut orang mengenali
+                keenamnya dari ingatan. */}
+            <span className="nama">
+              <b>{p.name}</b>
+              <span>{p.company_name}</span>
+            </span>
           </button>
         ))}
         {!daftar.length && !busy && (

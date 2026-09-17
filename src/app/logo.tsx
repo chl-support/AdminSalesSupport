@@ -78,8 +78,23 @@ export function Logo({ tinggi = 40, hanyaLambang = false,
  * perusahaan: lambang yang digambar berdasarkan perkiraan akan mirip, tidak
  * sama.
  */
-export function LogoProject({ slug, tinggi = 40, alt }:
-                            { slug: string; tinggi?: number; alt: string }) {
+/**
+ * Lambang project.
+ *
+ * Dua varian. `asli` memakai berkas apa adanya, dengan warna masing-masing
+ * merek. `emas` — yang dipakai pemilih project — adalah versi satu warna dalam
+ * emas perusahaan, dibangkitkan dari alfa berkas aslinya.
+ *
+ * Varian satu warna itu ada karena keenam lambang ini tidak sekeluarga:
+ * cokelat, hijau tua, hitam, emas, hijau kebiruan, masing-masing dengan berat
+ * garis sendiri. Disandingkan apa adanya dalam satu kisi, yang terbaca bukan
+ * enam project melainkan enam merek yang kebetulan berdampingan. Disamakan
+ * warnanya, perbedaan bentuknya justru yang menonjol — dan itulah yang
+ * membedakan kartu-kartu ini.
+ */
+export function LogoProject({ slug, tinggi = 40, alt, varian = "emas" }:
+                            { slug: string; tinggi?: number; alt: string;
+                              varian?: "asli" | "emas" }) {
   const [gagal, setGagal] = useState(false);
   const ref = useRef<HTMLImageElement | null>(null);
 
@@ -94,7 +109,9 @@ export function LogoProject({ slug, tinggi = 40, alt }:
 
   return (
     // eslint-disable-next-line @next/next/no-img-element
-    <img ref={ref} src={`/project/${slug}.png`} alt={alt}
+    <img ref={ref}
+         src={varian === "emas" ? `/project/emas/${slug}.png`
+                                : `/project/${slug}.png`} alt={alt}
          className="logo-project" style={{ height: tinggi }}
          onError={() => setGagal(true)} />
   );
