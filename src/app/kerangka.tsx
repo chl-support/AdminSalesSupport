@@ -36,8 +36,15 @@ export function Kerangka(
           sebagai dua bagian yang tidak sejajar. */}
       <header className="pita">
         <div className="merek">
+          {/* Lambangnya saja, lalu nama perusahaan ditulis sebagai teks di
+              bawahnya — bukan lambang utuh seperti di halaman masuk. Tulisan
+              "CIPTA HARMONI LESTARI" di kaki berkas lambang hanya setinggi
+              164 dari 1464 piksel: pada kolom selebar 194px ia menjadi coretan
+              setinggi empat piksel. Ditulis sebagai teks, namanya terbaca
+              berapa pun kecilnya. */}
           <Logo tinggi={38} hanyaLambang />
-          <div>
+          <div className="nama-pt">Cipta Harmoni Lestari</div>
+          <div className="nama-sistem">
             {/* Pemenggalannya ditentukan di sini, sama seperti di halaman
                 masuk. Dibiarkan membungkus sendiri pada kolom 194px, namanya
                 patah menjadi "CHL Sales Admin / System" — satu kata sendirian
