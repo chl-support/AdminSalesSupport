@@ -97,8 +97,8 @@ const KATA = {
     yangBelum: "yang belum dapat diklaim sama sekali",
     dataPenjualan: "Data penjualan",
     barisDitampilkan: (n: number) => `${n} baris ditampilkan`,
-    thUnit: "Unit", thPembeli: "Pembeli", thPenerima: "Penerima fee",
-    thSkema: "Skema / tanggal", thNilai: "Nilai kontrak",
+    thUnit: "Unit", thPembeli: "Pembeli", thPenerima: "Sales/Agent",
+    thSkema: "Skema Cara Bayar", thNilai: "Nilai kontrak",
     thPenerimaan: "Penerimaan", thKlaim: "Klaim", thKeterangan: "Keterangan",
     belumTercatat: "belum tercatat",
     dariKontrak: (p: string) => `${p}% dari kontrak`,
@@ -143,8 +143,8 @@ const KATA = {
     yangBelum: "with nothing claimable yet",
     dataPenjualan: "Sales data",
     barisDitampilkan: (n: number) => `${n} rows shown`,
-    thUnit: "Unit", thPembeli: "Buyer", thPenerima: "Fee recipient",
-    thSkema: "Scheme / date", thNilai: "Contract value",
+    thUnit: "Unit", thPembeli: "Buyer", thPenerima: "Sales/Agent",
+    thSkema: "Payment Scheme", thNilai: "Contract value",
     thPenerimaan: "Received", thKlaim: "Claim", thKeterangan: "Notes",
     belumTercatat: "not recorded yet",
     dariKontrak: (p: string) => `${p}% of contract`,
@@ -383,12 +383,7 @@ export default function PengajuanFeePage() {
 
                 return (
                   <tr key={u.id}>
-                    <td className="sel-unit">
-                      <b>{u.code}</b><br />
-                      <span style={{ color: "var(--mut)" }}>
-                        {u.cluster_code} · {u.unit_type ?? "—"}
-                      </span>
-                    </td>
+                    <td className="sel-unit"><b>{u.code}</b></td>
                     <td>{u.buyer_name ?? "—"}</td>
                     <td className="sel-penerima">
                       {sales?.name ?? (
@@ -411,13 +406,7 @@ export default function PengajuanFeePage() {
                         </>
                       )}
                     </td>
-                    <td>
-                      {u.payment_scheme ?? "—"}<br />
-                      <span style={{ color: "var(--mut)" }}>
-                        {u.contract_date
-                          ? String(u.contract_date).slice(0, 10) : "—"}
-                      </span>
-                    </td>
+                    <td>{u.payment_scheme ?? "—"}</td>
                     <td className="n">{rp(u.contract_value_incl_vat)}</td>
                     {/* Penerimaan bersama persentasenya terhadap nilai kontrak:
                         Komisi dihitung dari persentase pembayaran, jadi angka
