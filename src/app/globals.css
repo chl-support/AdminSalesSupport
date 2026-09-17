@@ -251,6 +251,29 @@ ul.cetak-ceklis li { display: flex; gap: 8px; align-items: flex-start; }
 ul.cetak-ceklis .kotak { border: 1px solid var(--ink); width: 14px; height: 14px;
                          line-height: 13px; text-align: center; font-size: 10px;
                          flex: none; margin-top: 2px; }
+/* Blok pengesahan: Pemohon di kiri, dua tanda tangan Developer di kanan di
+   bawah satu judul — sebagaimana cetakan formulirnya. */
+.sah { display: grid; grid-template-columns: 1fr 2fr; gap: 16px; margin-top: 6px; }
+.sah-judul {
+  font-size: 11.5px; font-weight: 650; text-align: center; margin-bottom: 6px;
+}
+.sah-dua { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.sah .kotak-ttd { height: 62px; border: 1px solid var(--line);
+  display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.sah .kotak-ttd img { max-height: 58px; max-width: 100%; }
+.sah span {
+  display: block; text-align: center; font-size: 11px; color: var(--sub);
+  margin-top: 4px; line-height: 1.4;
+}
+
+/* Catatan kaki formulir, seperti pada cetakannya. */
+.catatan-form { margin-top: 14px; font-size: 11px; color: var(--sub); }
+.catatan-form ul { margin: 4px 0 0; padding-left: 14px; }
+.catatan-form li { margin-bottom: 2px; line-height: 1.45; }
+
+/* Nama project sebagai baris tebal tanpa label di blok data pemesanan. */
+.baris-project { font-size: 12.5px; letter-spacing: .02em; }
+
 .ttd { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 6px; }
 .ttd .kotak-ttd { height: 62px; border: 1px solid var(--line);
                   display: flex; align-items: center; justify-content: center;
