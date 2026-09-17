@@ -86,13 +86,7 @@ export default function PilihProjectPage() {
             ruangnya lapang, dan ini layar pertama sesudah masuk: tempat yang
             tepat untuk lambang perusahaan tampil utuh. */}
         <Logo tinggi={132} />
-        <div>
-          <h1>Pilih project</h1>
-          <p>
-            Data penjualan, marketing, dan klaim terpisah per project. Yang Anda
-            pilih di sini menentukan isi seluruh layar berikutnya.
-          </p>
-        </div>
+        <h1>Pilih Kategori Proyek</h1>
       </header>
 
       {galat && <div className="banner stop">{galat}</div>}

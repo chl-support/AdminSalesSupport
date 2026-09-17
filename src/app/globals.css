@@ -791,9 +791,7 @@ ul.syarat-foto { margin: 8px 0 0 16px; padding: 0; font-size: 11.5px;
                         align-items: center; text-align: center;
                         border-bottom: 2px solid var(--ink); padding-bottom: 22px;
                         margin-bottom: 26px; }
-.pilih-project header h1 { font-size: 24px; }
-.pilih-project header p { margin: 5px auto 0; color: var(--sub); font-size: 13.5px;
-                          max-width: 58ch; }
+.pilih-project header h1 { font-size: 24px; margin: 0; }
 
 /* Tiga kolom, bukan dua: enam project menjadi dua baris penuh, dan kartunya
    tetap cukup lebar untuk lambang yang paling melebar. */
