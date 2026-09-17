@@ -5,21 +5,34 @@ import { WorkflowError } from "@/lib/workflow";
 /**
  * Siapa boleh apa atas jejak audit.
  *
- * Membaca terbuka bagi seluruh peran konsol, termasuk Admin Sales: jejak audit
- * yang hanya dapat dilihat pihak yang diawasinya sendiri tidak mengawasi apa pun.
+ * Membaca ditutup bagi semua peran selain Admin IT, atas permintaan pemilik
+ * sistem. Sebelumnya terbuka bagi seluruh peran konsol.
  *
- * Yang dibatasi adalah menulis. Itu pun bukan menyunting: tabel ini append-only
- * di sisi basis data (RULE yang berlaku bahkan bagi pemilik tabel), jadi satu-
- * satunya bentuk koreksi yang mungkin adalah membubuhkan entri baru yang menunjuk
- * entri lama. Sifat itu disengaja, bukan keterbatasan — jejak audit yang dapat
- * disunting satu peran berhenti membuktikan apa pun tentang peran itu.
+ * Perlu dicatat apa artinya, karena ini bukan sekadar kerapian menu. Jejak
+ * audit yang hanya dapat dibaca satu peran berhenti mengawasi peran itu, dan
+ * peran itu justru yang berkuasa mengganti sandi pengguna lain serta
+ * mengosongkan data. Kalau kelak jejak ini dipakai membuktikan sesuatu kepada
+ * pihak di luar sistem, yang dapat dikatakan hanyalah bahwa Admin IT-lah
+ * satu-satunya yang pernah melihatnya.
+ *
+ * Yang dibatasi lebih jauh adalah menulis. Itu pun bukan menyunting: tabel ini
+ * append-only di sisi basis data (RULE yang berlaku bahkan bagi pemilik tabel),
+ * jadi satu-satunya bentuk koreksi yang mungkin adalah membubuhkan entri baru
+ * yang menunjuk entri lama. Sifat itu disengaja, bukan keterbatasan — jejak
+ * audit yang dapat disunting satu peran berhenti membuktikan apa pun tentang
+ * peran itu.
  */
-const PEMBACA = [
-  "admin_sales", "finance_tax", "finance_payment", "finance_manager",
-  "head_finance", "management", "admin_system",
-];
+const PEMBACA = ["admin_system"];
 
-/** Finance/Pajak beserta atasannya di jalur yang sama. */
+/**
+ * Finance/Pajak beserta atasannya di jalur yang sama.
+ *
+ * Dibiarkan seperti semula: siapa yang berwenang membubuhkan koreksi adalah
+ * keputusan tata kelola, bukan akibat sampingan dari menutup akses baca. Dalam
+ * praktiknya jalur ini kini tidak tercapai — koreksi dibubuhkan dari layar
+ * /audit, dan layar itu memerlukan hak baca. Perlu diputuskan tersendiri:
+ * wewenangnya dipindahkan, atau ditiadakan.
+ */
 const PENGOREKSI = ["finance_tax", "finance_manager", "head_finance"];
 
 /**

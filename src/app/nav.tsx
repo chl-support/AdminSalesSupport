@@ -4,9 +4,8 @@
  * Navigasi konsol — kolom di sebelah kiri.
  *
  * Sebelumnya berupa deretan mendatar di kepala halaman. Bentuk itu tidak
- * menyisakan tempat untuk susunan bertingkat, padahal Pengajuan Fee memang
- * punya empat jenis di bawahnya: keempatnya harus dapat dituju langsung, bukan
- * lewat satu layar perantara yang isinya hanya empat tombol yang sama.
+ * menyisakan tempat untuk susunan bertingkat, padahal sebagian bab memang hanya
+ * wadah: isinya ada pada anaknya.
  *
  * Sengaja tidak dipasang di layout akar: layar tanda tangan agent
  * (/sign/[token]) dan layar pendaftaran spesimen (/daftar-ttd/[token]) dibuka
@@ -20,7 +19,6 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { useBahasa, type Bahasa } from "./bahasa";
-import { JENIS, NAMA_EN } from "./klaim/jenis";
 
 type Butir = {
   /**
@@ -62,16 +60,11 @@ const MENU: Butir[] = [
         label: { id: "Spesimen Tanda Tangan", en: "Specimen Signature" } },
     ],
   },
-  {
-    href: "/klaim", label: { id: "Pengajuan Fee", en: "Fee Submission" },
-    // Keempat jenis, beserta urutannya, diambil dari daftar yang sama dengan
-    // yang dipakai layar pengajuan dan perhitungannya. Menuliskannya ulang di
-    // sini berarti menu dan formulir dapat berbeda tanpa ada yang menyadari.
-    anak: JENIS.map((j) => ({
-      href: `/klaim/${j.slug}`,
-      label: { id: j.nama, en: NAMA_EN[j.slug] },
-    })),
-  },
+  // Keempat jenis fee tidak lagi menjadi butir menu tersendiri. Menu dan daftar
+  // pilihan pada layarnya adalah dua jalan menuju hal yang sama, dan yang satu
+  // selalu lebih pendek — yang lain lalu hanya memanjangkan kolom menu. Jenisnya
+  // dipilih di dalam layar datanya, tempat penyaring lain juga berada.
+  { href: "/klaim", label: { id: "Pengajuan Fee", en: "Fee Submission" } },
   { href: "/memo", label: { id: "Memo Approval", en: "Approval Memo" } },
   { href: "/sirkulasi",
     label: { id: "Sirkulasi Dokumen", en: "Document Workflow" } },
@@ -79,6 +72,21 @@ const MENU: Butir[] = [
     label: { id: "Approval / Persetujuan", en: "Approval Status" } },
   { href: "/laporan",
     label: { id: "Report / Laporan", en: "Marketing Report" } },
+  // Administrasi sempat hilang dari menu saat susunannya ditata ulang, padahal
+  // layarnya tetap ada: unggah Laporan Penjualan, Laporan Penerimaan, dan
+  // Report Agent semuanya di sana. Butir yang hilang membuat satu-satunya jalan
+  // ke sana adalah mengetik alamatnya, dan itu bukan jalan yang dapat diingat
+  // orang.
+  //
+  // Hanya Admin IT: di dalamnya ada pengosongan data dan penggantian sandi
+  // pengguna lain.
+  { href: "/admin", label: { id: "Administrasi", en: "Administration" },
+    peran: ["admin_system"] },
+  // Jejak audit juga hanya untuk Admin IT, atas permintaan. Bukan sekadar
+  // disembunyikan dari menu: /api/audit pun menolak peran lain, jadi mengetik
+  // alamatnya tidak memberi jalan masuk.
+  { href: "/audit", label: { id: "Jejak Audit", en: "Audit Trail" },
+    peran: ["admin_system"] },
 ];
 
 const boleh = (b: Butir, peran?: string) =>

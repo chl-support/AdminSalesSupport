@@ -22,7 +22,8 @@ import { useParams } from "next/navigation";
 import { useBahasa, useKata } from "../../bahasa";
 import { Kerangka, MemeriksaSesi } from "../../kerangka";
 import { useSesi } from "../../session";
-import { NAMA_EN, PRASYARAT_EN, jenisDari } from "../jenis";
+import { JENIS, NAMA_EN, PRASYARAT_EN, jenisDari, namaJenis }
+  from "../jenis";
 
 const rp = (n?: number | null) => `Rp ${(n ?? 0).toLocaleString("id-ID")}`;
 
@@ -86,6 +87,7 @@ const KATA = {
                     "diajukan lewat kolom paling kanan.",
     takDikenal: "Jenis klaim tidak dikenal",
     kembali: "Kembali ke pilihan jenis",
+    jenisFee: "Jenis fee",
     dapatDiklaim: (n: number) => `${n} dapat diklaim`,
     penjualan: (n: number) => `${n} penjualan`,
     galatBaca: "Data penjualan tidak dapat dibaca",
@@ -131,6 +133,7 @@ const KATA = {
                     "claimed can be submitted from the rightmost column.",
     takDikenal: "Unknown claim type",
     kembali: "Back to the type list",
+    jenisFee: "Fee type",
     dapatDiklaim: (n: number) => `${n} claimable`,
     penjualan: (n: number) => `${n} sales`,
     galatBaca: "Sales data could not be read",
@@ -305,9 +308,27 @@ export default function DaftarPenjualanPage() {
       {/* Tanpa "← Ganti jenis fee" di sini: kepala halaman sudah memuat
           tautan kembali ke Pengajuan Fee, dan dua tautan ke tempat yang sama
           dalam satu layar membuat orang mengira keduanya berbeda tujuan. */}
+      {/* Jenis fee dipilih di sini, bukan lewat butir menu tersendiri: yang
+          salah pilih tinggal mengganti isinya, tanpa kembali ke mana pun dan
+          tanpa kehilangan penyaring yang sudah diketik. */}
       <div className="row sp">
-        <span className="pill">{k.dapatDiklaim(bisa)}</span>
-        <span className="pill">{k.penjualan(units.length)}</span>
+        <div>
+          <div className="lbl">{k.jenisFee}</div>
+          <select value={jenis.slug} style={{ minWidth: 190 }}
+                  onChange={(e) => { location.href = `/klaim/${e.target.value}`; }}>
+            {JENIS.map((j) => (
+              <option key={j.slug} value={j.slug}>
+                {namaJenis(j.slug, bahasa)}
+              </option>
+            ))}
+          </select>
+        </div>
+        <span className="pill" style={{ alignSelf: "flex-end" }}>
+          {k.dapatDiklaim(bisa)}
+        </span>
+        <span className="pill" style={{ alignSelf: "flex-end" }}>
+          {k.penjualan(units.length)}
+        </span>
       </div>
 
       {kabar && (
