@@ -7,8 +7,8 @@
  * dan menyisakan sebagian justru berbahaya, karena angka lama bercampur angka
  * sungguhan tanpa ada yang dapat membedakannya lagi.
  *
- * Sejak satu pemasangan melayani lima project, pengosongan dibatasi pada
- * project yang sedang dikerjakan. Tombol yang menghapus lima project sekaligus
+ * Sejak satu pemasangan melayani beberapa project, pengosongan dibatasi pada
+ * project yang sedang dikerjakan. Tombol yang menghapus seluruh project sekaligus
  * karena satu di antaranya perlu diulang adalah kesalahan yang tidak dapat
  * dibatalkan — dan yang menekannya tidak akan tahu sampai project lain dibuka.
  *

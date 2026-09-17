@@ -3,7 +3,7 @@
 /**
  * Pemilih project, layar pertama setelah masuk.
  *
- * Satu pemasangan melayani lima project, dan hampir seluruh layar menyaring
+ * Satu pemasangan melayani beberapa project, dan hampir seluruh layar menyaring
  * datanya menurut project yang sedang dikerjakan. Pilihan itu diminta di muka,
  * bukan disisipkan sebagai penyaring di tiap layar: yang lupa menggantinya akan
  * mengajukan klaim project A memakai data project B, dan tidak ada apa pun pada
@@ -16,7 +16,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import { Logo } from "../logo";
+import { Logo, LogoProject } from "../logo";
 
 type Project = {
   id: string; slug: string; name: string; company_name: string;
@@ -24,7 +24,6 @@ type Project = {
 
 export default function PilihProjectPage() {
   const [daftar, setDaftar] = useState<Project[]>([]);
-  const [dipilih, setDipilih] = useState<string | null>(null);
   const [busy, setBusy] = useState(true);
   const [galat, setGalat] = useState<string | null>(null);
 
@@ -42,7 +41,6 @@ export default function PilihProjectPage() {
         if (r.status === 401) { location.href = "/login"; return; }
         const b = await r.json();
         setDaftar(b.projects ?? []);
-        setDipilih(b.dipilih ?? null);
       })
       .catch((e) => setGalat(String(e?.message ?? e)))
       .finally(() => setBusy(false));
@@ -67,13 +65,15 @@ export default function PilihProjectPage() {
   return (
     <div className="pilih-project">
       <header>
-        <Logo tinggi={52} hanyaLambang />
+        {/* Lambang penuh, bersama tulisan "CIPTA HARMONI LESTARI" di bawahnya.
+            Di kolom menu yang sempit tulisan itu mengecil menjadi coretan yang
+            tidak terbaca, jadi di sana dipakai lambangnya saja — tetapi di sini
+            ruangnya lapang, dan ini layar pertama sesudah masuk: tempat yang
+            tepat untuk lambang perusahaan tampil utuh. */}
+        <Logo tinggi={132} />
         <div>
-          <h1>Pilih project</h1>
-          <p>
-            Data penjualan, marketing, dan klaim terpisah per project. Yang Anda
-            pilih di sini menentukan isi seluruh layar berikutnya.
-          </p>
+          <h1>Pilih Kategori Proyek</h1>
+          <p>Tentukan kategori proyek untuk melanjutkan proses pengajuan</p>
         </div>
       </header>
 
@@ -81,15 +81,30 @@ export default function PilihProjectPage() {
 
       <div className="pilihan">
         {daftar.map((p) => (
-          <button key={p.slug} className="opsi" disabled={busy}
+          /* Semua kartu sama besar, dan urutannya tetap: urutan yang tersimpan
+             pada tabel projects, bukan urutan yang dipengaruhi project mana
+             yang terakhir dikerjakan. Letak tiap project di layar ini tidak
+             berubah dari satu kali masuk ke kali berikutnya — yang sudah hafal
+             letaknya tidak perlu membaca lagi. */
+          <button key={p.slug} disabled={busy} className="opsi kartu-project"
                   onClick={() => void pilih(p.slug)}>
-            <b>{p.name}</b>
-            <span>{p.company_name}</span>
-            {p.id === dipilih && (
-              <span className="pill ok" style={{ marginTop: 8 }}>
-                terakhir dikerjakan
-              </span>
-            )}
+            {/* Bidang lambang setinggi tetap, lambang dipusatkan di dalamnya.
+                Keenamnya berbeda jauh bentuknya — ada yang melebar sampai
+                empat kali tingginya, ada yang menjulang — dan bila masing-
+                masing hanya ditaruh di atas namanya, tidak ada satu pun garis
+                yang sejajar di seluruh kisi. Bidang bertinggi tetap memberi
+                keenamnya satu sumbu yang sama. */}
+            <span className="lambang">
+              <LogoProject slug={p.slug} tinggi={54} alt={p.name}
+                           gantiTeks={p.name} />
+            </span>
+            {/* Hanya nama PT yang ditulis. Nama project-nya sendiri sudah
+                terbaca di dalam lambangnya — keenam lambang ini membawa
+                namanya masing-masing — jadi menuliskannya lagi tepat di
+                bawahnya hanya mengulang. Nama PT tidak: ia tidak ada di
+                lambang mana pun, dan ia yang membedakan project di bawah PT
+                yang berlainan. */}
+            <span className="nama">{p.company_name}</span>
           </button>
         ))}
         {!daftar.length && !busy && (

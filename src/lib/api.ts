@@ -38,7 +38,7 @@ export async function currentUser(req: NextRequest): Promise<User> {
 /**
  * Project yang sedang dikerjakan, dan keharusan memilihnya lebih dulu.
  *
- * Satu pemasangan melayani lima project, dan hampir seluruh data disaring
+ * Satu pemasangan melayani beberapa project sekaligus, dan hampir seluruh data disaring
  * menurut project ini. Route yang lupa memanggilnya akan bekerja atas seluruh
  * project sekaligus — sesuatu yang tidak akan terlihat sampai ada klaim yang
  * dibayarkan dari data project lain. Karena itu ia mengembalikan galat, bukan
