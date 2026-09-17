@@ -460,24 +460,24 @@ ul.cetak-ceklis .kotak { border: 1px solid var(--ink); width: 14px; height: 14px
 .masuk { min-height: 100vh; display: grid; grid-template-columns: 1.08fr 1fr; }
 
 .masuk-merek {
-  background: var(--ink); color: #F4F4F1; position: relative; overflow: hidden;
+  background: #F6F4EE; color: var(--ink); position: relative; overflow: hidden;
   padding: 56px 56px; display: flex; flex-direction: column;
   justify-content: center;
-  /* Guratan tipis sebagai latar: cukup untuk membuat bidang gelapnya tidak
-     rata mati, tanpa menarik perhatian dari formulirnya. Sapuan emas di sudut
-     mengambil warna lambangnya sehingga bidang ini terbaca sebagai satu
-     kesatuan dengannya, bukan kotak hitam yang kebetulan memuat lambang. */
+  /* Bidangnya terang, sedikit lebih hangat daripada sisi formulirnya — cukup
+     untuk terbaca sebagai dua bidang, tanpa satu pun yang menuntut perhatian
+     lebih dulu. Dua sapuan emas yang sangat tipis menahan bidang seluas ini
+     dari terbaca rata mati. */
   background-image:
-    radial-gradient(900px 460px at 6% -12%, rgba(214,164,25,.14), transparent 62%),
-    radial-gradient(760px 420px at 112% 112%, rgba(255,255,255,.06), transparent 60%);
+    radial-gradient(880px 520px at 4% -14%, rgba(214,164,25,.16), transparent 64%),
+    radial-gradient(620px 380px at 108% 114%, rgba(214,164,25,.10), transparent 62%);
 }
 /* Garis emas setipis rambut di batas kedua sisi: pemisah yang tegas tanpa
    menambah satu elemen pun yang harus dibaca. */
 .masuk-merek::after {
-  content: ""; position: absolute; top: 0; right: 0; bottom: 0; width: 3px;
+  content: ""; position: absolute; top: 0; right: 0; bottom: 0; width: 2px;
   background: linear-gradient(180deg, transparent, var(--emas) 22%,
                               var(--emas) 78%, transparent);
-  opacity: .5;
+  opacity: .65;
 }
 /* Blok merek rata kiri, bukan rata tengah: namanya panjang dan patah jadi dua
    baris, dan dua baris yang dirata-tengahkan membuat tepi kirinya bergerigi
@@ -494,16 +494,28 @@ ul.cetak-ceklis .kotak { border: 1px solid var(--ink); width: 14px; height: 14px
    menjaga ia tetap terbaca sebagai nama, batas atasnya menjaga ia tidak
    melampaui judul kartu. */
 .wordmark { font-size: clamp(27px, 3.3vw, 44px); font-weight: 690;
-            letter-spacing: -.028em; line-height: 1.08; color: #F4F4F1; }
+            letter-spacing: -.028em; line-height: 1.08; color: var(--ink); }
 .wordmark span { display: block; }
-/* Gradasi putih ke emas pada hurufnya. Dipasang di dalam @supports dan bukan
-   langsung: peramban yang tidak mengenal background-clip:text akan menerapkan
-   color:transparent-nya saja, dan nama sistemnya lenyap dari halaman masuk. */
+/* Gradasi tinta ke emas pada hurufnya. Dulu putih ke emas, untuk bidang gelap;
+   di atas bidang terang arahnya dibalik, dan emasnya memakai nada tua — emas
+   terang di atas terang tidak cukup terbaca sebagai huruf.
+
+   Dipasang di dalam @supports dan bukan langsung: peramban yang tidak mengenal
+   background-clip:text akan menerapkan color:transparent-nya saja, dan nama
+   sistemnya lenyap dari halaman masuk. */
 @supports ((-webkit-background-clip: text) or (background-clip: text)) {
   .wordmark {
-    background: linear-gradient(96deg, #FFFFFF 0%, #FBEFD2 46%, var(--emas) 100%);
+    background: linear-gradient(96deg, var(--ink) 0%, #6A5418 54%,
+                                var(--emas-tua) 100%);
     -webkit-background-clip: text; background-clip: text; color: transparent;
   }
+}
+/* Garis emas pendek di bawah nama sistem. Satu-satunya tanda baca pada bidang
+   ini sejak latar gelapnya dilepas: tanpa sesuatu yang menutup, blok merek
+   mengambang di tengah bidang seluas setengah layar. */
+.masuk-merek .isi-merek .garis-merek {
+  display: block; width: 76px; height: 3px; margin-top: 26px;
+  background: linear-gradient(90deg, var(--emas), rgba(214,164,25,0));
 }
 
 .masuk-isi { display: flex; align-items: center; justify-content: center;
@@ -530,14 +542,11 @@ ul.cetak-ceklis .kotak { border: 1px solid var(--ink); width: 14px; height: 14px
                                      outline-offset: -2px; }
 
 @media (max-width: 860px) {
-  /* Di layar sempit kartunya mulai tepat di bawah bidang gelap, dan tombol di
-     pojok kanan atas bidang terang akan menempel pada bahu kartu itu. Ia
-     dinaikkan ke dalam bidang gelapnya, di seberang lambang. */
-  .pilih-bahasa { top: -46px; right: 18px; background: transparent;
-                  border-color: rgba(244,244,241,.28); }
-  .pilih-bahasa button { color: #C8CCD1; }
-  .pilih-bahasa button:hover { color: #fff; }
-  .pilih-bahasa button.aktif { background: #F4F4F1; color: var(--ink); }
+  /* Di layar sempit kartunya mulai tepat di bawah bidang merek, dan tombol di
+     pojok kanan atas bidang formulir akan menempel pada bahu kartu itu. Ia
+     dinaikkan ke dalam bidang merek, di seberang lambang — dan karena bidang
+     itu kini terang, warnanya tidak perlu dibalik lagi seperti dulu. */
+  .pilih-bahasa { top: -52px; right: 18px; }
 }
 .masuk-kartu {
   width: 100%; max-width: 396px; background: #fff; position: relative;
@@ -639,7 +648,10 @@ button.tautan:hover { color: var(--note); }
 
 @media (max-width: 860px) {
   .masuk { grid-template-columns: 1fr; min-height: 0; }
-  .masuk-merek { padding: 30px 22px 26px; }
+  /* Ruang bawah dilebihkan: tombol bahasa menggantung di sini, dan tanpa
+     kelonggaran itu ia duduk tepat di atas garis pemisah bidangnya. */
+  .masuk-merek { padding: 30px 22px 34px; }
+  .masuk-merek .isi-merek .garis-merek { margin-top: 16px; }
   /* Garis pemisahnya berpindah ke sisi bawah begitu keduanya menumpuk. */
   .masuk-merek::after { top: auto; left: 0; right: 0; bottom: 0;
                         width: auto; height: 3px;
@@ -653,7 +665,13 @@ button.tautan:hover { color: var(--note); }
      inline style, dan gaya sebaris mengalahkan lembar gaya berapa pun
      khususnya selektor ini. Menambahkan ukuran per lebar layar ke Logo
      sendiri akan membebani seluruh pemakainya demi satu layar. */
-  .masuk-merek .isi-merek img { height: 62px !important; margin-bottom: 16px; }
+  /* Tulisan "CIPTA HARMONI LESTARI" di kaki lambang dipangkas di sini.
+     Tingginya hanya 164 dari 1464 piksel berkasnya; pada ukuran layar sempit
+     ia menjadi coretan setinggi empat piksel, dan coretan yang tidak terbaca
+     di dalam lambang terlihat seperti cacat cetak. Yang dipangkas tepat
+     sebesar bagiannya — 164/1464 — bukan kira-kira. */
+  .masuk-merek .isi-merek img { height: 74px !important; margin-bottom: 16px;
+                                clip-path: inset(0 0 11.2% 0); }
   .wordmark { font-size: 30px; }
   .masuk-isi { padding: 26px 18px 40px; }
   .masuk-kartu { padding: 26px 22px 22px; }
