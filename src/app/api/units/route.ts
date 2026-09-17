@@ -100,13 +100,17 @@ export const GET = handler(async (req) => {
           kantor: u.agency_name, alamat_kantor: u.agency_address };
 
   return rows.map((u) => {
-    const { ok, missing } = eligibility(u, eligibleFor);
+    const { ok, missing, codes } = eligibility(u, eligibleFor);
     const ada = perUnit.get(u.id) ?? null;
     const p = penerima(u);
     return {
       ...u,
       eligible: ok,
       missing_requirements: missing,
+      // Kode sebabnya dikirim berdampingan dengan kalimatnya: layar daftar
+      // penjualan dua bahasa, dan kalimat yang sudah jadi tidak dapat
+      // diterjemahkan lagi setelah sampai di peramban.
+      missing_codes: codes,
       // Penerima yang berlaku untuk jenis klaim yang diminta, sudah dipilih di
       // sini supaya layar dan formulir tidak menyusun ulang aturannya sendiri.
       recipient: {

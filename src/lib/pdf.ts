@@ -173,7 +173,7 @@ function money(c: Ctx, label: string, value: number,
 export async function buildPrintPdf(p: PrintPayload): Promise<Buffer> {
   const doc = await PDFDocument.create();
   doc.setTitle(`${p.claim.claim_number} — salinan #${p.copyNumber}`);
-  doc.setProducer("Sistem Klaim Insentif Marketing — BIO District");
+  doc.setProducer("CHL Sales Admin System — BIO District");
 
   const font = await doc.embedFont(StandardFonts.Helvetica);
   const bold = await doc.embedFont(StandardFonts.HelveticaBold);

@@ -14,6 +14,8 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { useBahasa } from "./bahasa";
+
 export type Sesi = {
   username: string; full_name: string; role: string;
   project_slug?: string | null;
@@ -32,7 +34,22 @@ export const PERAN: Record<string, string> = {
   admin_system: "Admin IT",
 };
 
-export const labelPeran = (r: string) => PERAN[r] ?? r;
+/**
+ * Nama peran dalam bahasa Inggris.
+ *
+ * Lima dari tujuh sudah berbahasa Inggris sejak awal — itu memang sebutan yang
+ * dipakai di kantor. Yang perlu diterjemahkan hanya keterangan di dalam kurung
+ * pada dua peran Finance, dan singkatan IT pada Admin IT.
+ */
+const PERAN_EN: Record<string, string> = {
+  ...PERAN,
+  finance_tax: "Finance (Tax)",
+  finance_payment: "Finance (Payment)",
+  admin_system: "IT Admin",
+};
+
+export const labelPeran = (r: string, bahasa: "id" | "en" = "id") =>
+  (bahasa === "en" ? PERAN_EN : PERAN)[r] ?? r;
 
 /**
  * Sesi yang sedang berjalan, atau pengalihan ke /login bila tidak ada.
@@ -100,7 +117,16 @@ function inisial(nama: string) {
  * sekali sehari tidak perlu selalu terlihat, dan yang selalu terlihat cepat
  * atau lambat tertekan tanpa sengaja.
  */
+const KATA = {
+  id: { profil: (n: string) => `Profil ${n}`, keluar: "Keluar",
+        gantiProject: "Ganti project" },
+  en: { profil: (n: string) => `${n} profile`, keluar: "Sign out",
+        gantiProject: "Switch project" },
+};
+
 export function BilahPengguna({ sesi }: { sesi: Sesi }) {
+  const { bahasa } = useBahasa();
+  const k = KATA[bahasa];
   const [buka, setBuka] = useState(false);
   const kotak = useRef<HTMLDivElement | null>(null);
 
@@ -124,7 +150,7 @@ export function BilahPengguna({ sesi }: { sesi: Sesi }) {
     <div className="bilah" ref={kotak}>
       <button className="lencana" onClick={() => setBuka((v) => !v)}
               aria-haspopup="menu" aria-expanded={buka}
-              aria-label={`Profil ${sesi.full_name}`}>
+              aria-label={k.profil(sesi.full_name)}>
         {inisial(sesi.full_name)}
       </button>
 
@@ -132,15 +158,15 @@ export function BilahPengguna({ sesi }: { sesi: Sesi }) {
         <div className="profil" role="menu">
           <div className="siapa">
             <b>{sesi.full_name}</b>
-            <span className="pill">{labelPeran(sesi.role)}</span>
+            <span className="pill">{labelPeran(sesi.role, bahasa)}</span>
           </div>
           {/* Berganti project berarti berganti seluruh isi layar, jadi ia
               berada di tempat yang sama dengan keluar — keduanya mengakhiri apa
               yang sedang dikerjakan. */}
           <button onClick={() => { location.href = "/project"; }}>
-            Ganti project
+            {k.gantiProject}
           </button>
-          <button onClick={() => void keluar()}>Keluar</button>
+          <button onClick={() => void keluar()}>{k.keluar}</button>
         </div>
       )}
     </div>
