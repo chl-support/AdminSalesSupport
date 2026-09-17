@@ -24,38 +24,15 @@ import { Kerangka, MemeriksaSesi } from "../kerangka";
 import { useSesi } from "../session";
 import { JENIS, namaJenis, type Jenis } from "./jenis";
 
-const rp = (n?: number | null) => `Rp ${(n ?? 0).toLocaleString("id-ID")}`;
-
 /**
- * Prasyarat pencairan, sama urutannya dengan yang dicatat di basis data.
+ * Ambang penerimaan yang membuka pengajuan, disalin dari server.
  *
- * `singkat` dipakai kolom Keterangan, yang memuat keempatnya berdampingan;
- * kalimat panjangnya dipakai pop-up pencatatan, tempat orang memutuskan
- * mencentangnya.
+ * Yang menentukan tombolnya muncul atau tidak tetap jawaban server; angka ini
+ * hanya dipakai menuliskan kalimatnya di kolom Keterangan.
  */
-const PRASYARAT = [
-  { kolom: "spu_signed",
-    singkat: { id: "SPU", en: "SPU" },
-    id: ["SPU sudah ditandatangani pemesan",
-         "Syarat Closing Fee, Komisi, dan Cash Reward."],
-    en: ["The SPU has been signed by the buyer",
-         "Required for Closing Fee, Commission, and Cash Reward."] },
-  { kolom: "ppjb_signed",
-    singkat: { id: "PPJB", en: "PPJB" },
-    id: ["PPJB sudah ditandatangani pemesan",
-         "Syarat Komisi dan Cash Reward."],
-    en: ["The PPJB has been signed by the buyer",
-         "Required for Commission and Cash Reward."] },
-  { kolom: "dp_received",
-    singkat: { id: "DP / angsuran 1", en: "Down payment" },
-    id: ["DP / angsuran pertama sudah diterima", "Syarat Cash Reward."],
-    en: ["The down payment or first instalment has been received",
-         "Required for Cash Reward."] },
-  { kolom: "sign_p3u",
-    singkat: { id: "Sign P3U", en: "Sign P3U" },
-    id: ["Unit sudah Sign P3U", "Syarat Overriding."],
-    en: ["The unit has been Sign P3U", "Required for Overriding."] },
-] as const;
+const AMBANG = 0.20;
+
+const rp = (n?: number | null) => `Rp ${(n ?? 0).toLocaleString("id-ID")}`;
 
 /**
  * Sebab yang melekat pada unitnya, bukan pada jenis fee-nya.
@@ -82,9 +59,10 @@ const KODE_UNIT = ["unit_cancelled", "unit_moved", "unit_management"];
 const KATA = {
   id: {
     judul: "Pengajuan Fee",
-    pengantar: "Keempat jenis fee berdiri pada baris yang sama. Yang sudah " +
-               "memenuhi syarat dapat langsung diajukan lewat tombolnya; " +
-               "yang belum, sebabnya ada di kolom Keterangan.",
+    pengantar: "Keempat jenis fee berdiri pada baris yang sama. Syaratnya " +
+               "satu: penerimaan sudah mencapai 20% dari nilai kontrak. Yang " +
+               "sudah memenuhinya dapat langsung diajukan lewat tombolnya; " +
+               "yang belum, keadaannya ada di kolom Keterangan.",
     dapatDiklaim: (n: number) => `${n} dapat diklaim`,
     penjualan: (n: number) => `${n} penjualan`,
     galatBaca: "Data penjualan tidak dapat dibaca",
@@ -104,33 +82,21 @@ const KATA = {
     dariKontrak: (p: string) => `${p}% dari kontrak`,
     tombolKlaim: "Klaim",
     belum: "belum",
-    syaratLengkap: "Syarat lengkap",
-    syaratKurang: (n: number) => `${n} syarat belum terpenuhi`,
-    catatDokumen: "Catat dokumen",
+    syaratLengkap: "Syarat terpenuhi",
+    penerimaanKurang: (p: number) =>
+      `Penerimaan baru ${p.toFixed(1)}%, syaratnya ${AMBANG * 100}%`,
     belumMenyebut: (sumber: string) => `Data penjualan belum menyebut ${sumber}.`,
     belumAktif: (nama: string, status: string) =>
       `${nama} berstatus ${status}, belum aktif.`,
     takAdaCocok: "Tidak ada penjualan yang cocok dengan penyaringan ini.",
     memuat: "Memuat…",
-    popupNama: "Catat dokumen unit",
-    dokumenUnit: (kode: string) => `Dokumen unit ${kode}`,
-    tutup: "Tutup",
-    popupPengantar:
-      "Tandai yang berkasnya sudah ada di tangan Anda. Penanda inilah yang " +
-      "membuka pengajuan atas unit ini, dan setiap perubahannya tercatat pada " +
-      "jejak audit beserta nama Anda.",
-    penerimaanHariIni: "Penerimaan sampai hari ini (Rp)",
-    nilaiKontrak: (v: string) => `Nilai kontrak ${v}.`,
-    melebihiJudul: "Penerimaan melebihi nilai kontrak",
-    melebihiIsi: "Periksa sekali lagi sebelum disimpan.",
-    menyimpan: "Menyimpan…", simpan: "Simpan", batal: "Batal",
-    tercatat: (kode: string) => `Dokumen unit ${kode} tercatat.`,
   },
   en: {
     judul: "Fee Submission",
-    pengantar: "All four fee types sit on the same row. Those that meet the " +
-               "requirements can be submitted straight from their button; " +
-               "for the rest, the reason is in the Notes column.",
+    pengantar: "All four fee types sit on the same row. There is one " +
+               "requirement: receipts have reached 20% of the contract value. " +
+               "Those that meet it can be submitted straight from their " +
+               "button; for the rest, the state is in the Notes column.",
     dapatDiklaim: (n: number) => `${n} claimable`,
     penjualan: (n: number) => `${n} sales`,
     galatBaca: "Sales data could not be read",
@@ -150,28 +116,15 @@ const KATA = {
     dariKontrak: (p: string) => `${p}% of contract`,
     tombolKlaim: "Claim",
     belum: "not yet",
-    syaratLengkap: "All requirements met",
-    syaratKurang: (n: number) => `${n} requirements outstanding`,
-    catatDokumen: "Record documents",
+    syaratLengkap: "Requirement met",
+    penerimaanKurang: (p: number) =>
+      `Received is only ${p.toFixed(1)}%, the requirement is ${AMBANG * 100}%`,
     belumMenyebut: (sumber: string) =>
       `The sales data does not name a ${sumber} yet.`,
     belumAktif: (nama: string, status: string) =>
       `${nama} is ${status}, not active yet.`,
     takAdaCocok: "No sales match this filter.",
     memuat: "Loading…",
-    popupNama: "Record unit documents",
-    dokumenUnit: (kode: string) => `Documents for unit ${kode}`,
-    tutup: "Close",
-    popupPengantar:
-      "Tick the ones whose paperwork you already hold. These markers are what " +
-      "open up submission for this unit, and every change is written to the " +
-      "audit trail along with your name.",
-    penerimaanHariIni: "Received to date (Rp)",
-    nilaiKontrak: (v: string) => `Contract value ${v}.`,
-    melebihiJudul: "Received exceeds the contract value",
-    melebihiIsi: "Please check once more before saving.",
-    menyimpan: "Saving…", simpan: "Save", batal: "Cancel",
-    tercatat: (kode: string) => `Documents for unit ${kode} recorded.`,
   },
 };
 
@@ -189,8 +142,6 @@ type Fee = {
 };
 
 type Unit = {
-  spu_signed: boolean; ppjb_signed: boolean;
-  dp_received: boolean; sign_p3u: boolean;
   id: string; code: string; project_name: string; cluster_code: string;
   buyer_name: string | null; unit_type: string | null;
   payment_scheme: string | null; contract_date: string | null;
@@ -201,20 +152,6 @@ type Unit = {
 
 type Saring = "semua" | "bisa" | "sudah" | "belum_syarat";
 
-/**
- * Jenis fee yang tertahan oleh tiap prasyarat.
- *
- * Aturannya sama dengan yang ditegakkan `eligibility()` di server — ditulis
- * ulang di sini hanya untuk menyebut nama jenisnya di kolom Keterangan. Yang
- * menentukan tombolnya muncul atau tidak tetap jawaban server, bukan tabel ini.
- */
-const PERLU: Record<string, Jenis[]> = {
-  spu_signed: ["closing_fee", "commission", "cash_reward"],
-  ppjb_signed: ["commission", "cash_reward"],
-  dp_received: ["cash_reward"],
-  sign_p3u: ["overriding"],
-};
-
 export default function PengajuanFeePage() {
   const { sesi, memuat } = useSesi();
   const { bahasa } = useBahasa();
@@ -224,10 +161,6 @@ export default function PengajuanFeePage() {
   const [busy, setBusy] = useState(true);
   const [galat, setGalat] = useState<string | null>(null);
   const [cari, setCari] = useState("");
-  const [catat, setCatat] = useState<Unit | null>(null);
-  const [isian, setIsian] = useState<Record<string, any>>({});
-  const [simpan, setSimpan] = useState(false);
-  const [kabar, setKabar] = useState<{ kind: string; teks: string } | null>(null);
   const [saring, setSaring] = useState<Saring>("semua");
 
   const muat = useCallback(async () => {
@@ -251,37 +184,6 @@ export default function PengajuanFeePage() {
 
   useEffect(() => { if (sesi) void muat(); }, [sesi, muat]);
 
-  const bukaCatat = (u: Unit) => {
-    setKabar(null);
-    setCatat(u);
-    setIsian({
-      spu_signed: u.spu_signed, ppjb_signed: u.ppjb_signed,
-      dp_received: u.dp_received, sign_p3u: u.sign_p3u,
-      received_amount: String(u.received_amount ?? 0),
-    });
-  };
-
-  const simpanCatat = async () => {
-    if (!catat) return;
-    setSimpan(true);
-    try {
-      const res = await fetch(`/api/units/${catat.id}`, {
-        method: "PATCH", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...isian,
-          received_amount:
-            Number(String(isian.received_amount).replace(/[^\d]/g, "")) || 0,
-        }) });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body.detail ?? body.title ?? `HTTP ${res.status}`);
-      setKabar({ kind: "ok", teks: k.tercatat(catat.code) });
-      setCatat(null);
-      await muat();
-    } catch (e: any) {
-      setKabar({ kind: "stop", teks: String(e?.message ?? e) });
-    } finally { setSimpan(false); }
-  };
-
   if (memuat || !sesi) return <MemeriksaSesi />;
 
   const q = cari.trim().toLowerCase();
@@ -303,10 +205,6 @@ export default function PengajuanFeePage() {
   const bisa = units.reduce(
     (n, u) => n + JENIS.filter((j) => u.fees[j.slug]?.claimable).length, 0);
 
-  // Penanda prasyarat membuka pembayaran atas unit, jadi hanya Admin Sales dan
-  // Admin IT yang boleh mencatatnya — bukan yang mengajukan klaimnya.
-  const boleh = sesi.role === "admin_sales" || sesi.role === "admin_system";
-
   return (
     <Kerangka sesi={sesi} judul={
       <div>
@@ -319,8 +217,6 @@ export default function PengajuanFeePage() {
         <span className="pill">{k.dapatDiklaim(bisa)}</span>
         <span className="pill">{k.penjualan(units.length)}</span>
       </div>
-
-      {kabar && <div className={`banner ${kabar.kind}`}>{kabar.teks}</div>}
 
       {galat && (
         <div className="banner stop">
@@ -375,7 +271,13 @@ export default function PengajuanFeePage() {
                 // diam-diam hanya mewakili tiga dari empat baris di sebelahnya.
                 const sales = u.fees.closing_fee?.recipient;
                 const atas = u.fees.overriding?.recipient;
-                const kurang = PRASYARAT.filter((p) => !(u as any)[p.kolom]);
+                // Satu syarat saja: penerimaan sudah mencapai ambangnya.
+                // Persentasenya dihitung di sini juga, bukan hanya dinilai
+                // lulus-tidaknya — yang belum cukup perlu tahu tinggal berapa.
+                const persen = u.contract_value_incl_vat
+                  ? (u.received_amount / u.contract_value_incl_vat) * 100 : 0;
+                const cukup = u.contract_value_incl_vat > 0 &&
+                              persen >= AMBANG * 100;
                 // Sebab yang melekat pada unitnya diambil dari jenis mana pun —
                 // ia sama untuk keempatnya.
                 const sebabUnit = (u.fees.closing_fee?.missing_codes ?? [])
@@ -452,48 +354,29 @@ export default function PengajuanFeePage() {
                         baris, dan yang membacanya berhenti membacanya. */}
                     <td className="sel-ket">
                       {sebabUnit.map((c) => (
-                        <div key={c} className="pill stop" style={{ marginBottom: 4 }}>
+                        <div key={c} className="pill stop"
+                             style={{ marginBottom: 4 }}>
                           {SEBAB_UNIT[bahasa][c]}
                         </div>
                       ))}
 
                       {/* Saat unitnya sendiri yang menghalangi — dibatalkan,
-                          dipindahkan, unit management — "Syarat lengkap" tidak
-                          ditampilkan. Keduanya berdampingan terbaca seolah
-                          tinggal selangkah lagi, padahal tidak ada langkah yang
-                          tersisa: unit itu memang tidak menghasilkan insentif. */}
+                          dipindahkan, unit management — keadaan penerimaannya
+                          tidak disebut. Angka yang sudah memenuhi syarat
+                          berdampingan dengan unit yang dibatalkan terbaca
+                          seolah tinggal selangkah lagi, padahal tidak ada
+                          langkah yang tersisa. */}
                       {sebabUnit.length === 0 && (
-                        kurang.length === 0 ? (
+                        cukup ? (
                           <span className="pill ok">{k.syaratLengkap}</span>
                         ) : (
                           <span className="pill warn">
-                            {k.syaratKurang(kurang.length)}
+                            {k.penerimaanKurang(persen)}
                           </span>
                         )
                       )}
 
                       <ul className="syarat-daftar">
-                        {PRASYARAT.map((p) => {
-                          const ada = Boolean((u as any)[p.kolom]);
-                          // Jenis fee yang tertahan oleh syarat ini disebut di
-                          // belakangnya: tanpa itu, "PPJB belum" tidak memberi
-                          // tahu tombol mana di sebelah kiri yang sedang diam.
-                          const untuk = PERLU[p.kolom] ?? [];
-                          return (
-                            <li key={p.kolom} className={ada ? "ya" : "tidak"}>
-                              <span aria-hidden="true">{ada ? "✓" : "✕"}</span>
-                              {" "}
-                              {p.singkat[bahasa]}
-                              {!ada && (
-                                <span className="untuk">
-                                  {" — "}
-                                  {untuk.map((j) => namaJenis(j, bahasa))
-                                        .join(", ")}
-                                </span>
-                              )}
-                            </li>
-                          );
-                        })}
                         {u.fees.closing_fee?.marketing_missing && (
                           <li className="tidak">
                             <span aria-hidden="true">✕</span>{" "}
@@ -508,13 +391,6 @@ export default function PengajuanFeePage() {
                           </li>
                         )}
                       </ul>
-
-                      {boleh && (
-                        <button style={{ marginTop: 6, padding: "2px 8px" }}
-                                onClick={() => bukaCatat(u)}>
-                          {k.catatDokumen}
-                        </button>
-                      )}
                     </td>
                   </tr>
                 );
@@ -537,84 +413,6 @@ export default function PengajuanFeePage() {
         </div>
       </div>
 
-      {/* Pencatatan dokumen. Keempat penanda ini tidak ada di Laporan Penjualan
-          — impor sengaja tidak menyentuhnya — sehingga tanpa layar ini setiap
-          unit hasil impor berhenti pada "belum" tanpa jalan keluar. Yang
-          mencatat adalah Admin Sales yang memegang berkasnya. */}
-      {catat && (
-        <div className="tirai"
-             onMouseDown={(e) => {
-               if (e.target === e.currentTarget && !simpan) setCatat(null);
-             }}>
-          <div className="popup lebar" role="dialog" aria-modal="true"
-               aria-label={k.popupNama} style={{ maxWidth: 520 }}>
-            <div className="popup-kepala">
-              <h2>
-                {k.dokumenUnit(catat.code)}
-                <span className="pill">{catat.buyer_name ?? "—"}</span>
-              </h2>
-              <button className="tautan" aria-label={k.tutup}
-                      onClick={() => setCatat(null)}>✕</button>
-            </div>
-
-            <div className="popup-isi">
-              <p className="hint" style={{ textAlign: "left", margin: "0 0 12px" }}>
-                {k.popupPengantar}
-              </p>
-
-              {PRASYARAT.map((pra) => {
-                const [label, ket] = pra[bahasa];
-                return (
-                  <label key={pra.kolom} className="tandai-syarat">
-                    <input type="checkbox" checked={Boolean(isian[pra.kolom])}
-                           onChange={(e) =>
-                             setIsian({ ...isian, [pra.kolom]: e.target.checked })} />
-                    <span>
-                      {label}
-                      <span className="lbl" style={{ margin: 0 }}>{ket}</span>
-                    </span>
-                  </label>
-                );
-              })}
-
-              {/* Penerimaan ikut di sini: Komisi dihitung dari persentase
-                  pembayaran, dan angkanya pun tidak ada di laporan penjualan. */}
-              <div className="lbl" style={{ marginTop: 14 }}>
-                {k.penerimaanHariIni}
-              </div>
-              <input value={isian.received_amount ?? ""} inputMode="numeric"
-                     style={{ width: "100%" }}
-                     onChange={(e) =>
-                       setIsian({ ...isian, received_amount: e.target.value })} />
-              <div className="lbl" style={{ marginTop: 4 }}>
-                {k.nilaiKontrak(rp(catat.contract_value_incl_vat))}
-              </div>
-              {/* Diperingatkan, bukan ditolak: pembayaran melebihi nilai kontrak
-                  memang terjadi (denda, penyesuaian), tetapi jauh lebih sering
-                  ia adalah angka yang salah ketik — dan Komisi dihitung dari
-                  persentase pembayaran, jadi salah ketiknya ikut terbawa. */}
-              {Number(String(isian.received_amount).replace(/[^\d]/g, "")) >
-                 catat.contract_value_incl_vat && (
-                <div className="banner warn" style={{ marginTop: 8 }}>
-                  <b>{k.melebihiJudul}</b>
-                  {k.melebihiIsi}
-                </div>
-              )}
-            </div>
-
-            <div className="popup-kaki">
-              <div className="row">
-                <button className="pri" disabled={simpan}
-                        onClick={() => void simpanCatat()}>
-                  {simpan ? k.menyimpan : k.simpan}
-                </button>
-                <button disabled={simpan}
-                        onClick={() => setCatat(null)}>{k.batal}</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </Kerangka>
   );
 }
