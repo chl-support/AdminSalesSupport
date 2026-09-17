@@ -92,10 +92,15 @@ export default function PilihProjectPage() {
       {galat && <div className="banner stop">{galat}</div>}
 
       <div className="pilihan">
-        {urut.map((p) => (
+        {urut.map((p, i) => (
+          /* Kartu pertama selalu yang besar, ada atau tidak ada project yang
+             terakhir dikerjakan. Dulu petak besar itu hanya dipasang pada
+             project terakhir, jadi pada sesi yang baru — dan sesi yang baru
+             adalah setiap kali orang masuk pagi hari — kisinya kembali menjadi
+             enam kotak sama besar. Susunannya jadi berubah-ubah tanpa sebab
+             yang terlihat dari layar. */
           <button key={p.slug} disabled={busy}
-                  className={"opsi kartu-project" +
-                             (p.id === dipilih ? " terakhir" : "")}
+                  className={"opsi kartu-project" + (i === 0 ? " utama" : "")}
                   onClick={() => void pilih(p.slug)}>
             {/* Bidang lambang setinggi tetap, lambang dipusatkan di dalamnya.
                 Keenamnya berbeda jauh bentuknya — ada yang melebar sampai
