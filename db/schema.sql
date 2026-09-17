@@ -195,6 +195,9 @@ CREATE INDEX IF NOT EXISTS idx_units_marketing ON units(marketing_id);
 -- lain, dan keduanya adalah penjualan tersendiri dengan klaim tersendiri.
 -- Nomor kontrak yang membedakannya, jadi di situlah keunikan ditegakkan.
 ALTER TABLE units DROP CONSTRAINT IF EXISTS units_code_key;
+-- Indeks ini digantikan uniq_units_contract_project lebih jauh di bawah, setelah
+-- kolom project_id ada. Dibiarkan di sini supaya pemasangan lama tetap terjaga
+-- sepanjang migrasi berjalan, lalu dijatuhkan di tempat penggantinya dibuat.
 CREATE UNIQUE INDEX IF NOT EXISTS uniq_units_contract
   ON units (contract_number) WHERE contract_number IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_units_code ON units(code);
@@ -690,6 +693,19 @@ UPDATE claims SET project_id = (SELECT id FROM projects WHERE slug='bio-district
  WHERE project_id IS NULL;
 UPDATE incentive_schemes SET project_id = (SELECT id FROM projects WHERE slug='bio-district')
  WHERE project_id IS NULL;
+
+-- Nomor kontrak unik per project, bukan di seluruh basis data.
+--
+-- Sebelum pemisahan project, keunikan menyeluruh benar: hanya ada satu project.
+-- Setelah pemisahan ia salah. Setiap project menomori kontraknya sendiri, jadi
+-- nomor yang sama wajar muncul di dua project — dan indeks lama menolaknya.
+-- Akibatnya unggahan Laporan Penjualan project kedua gagal dengan pelanggaran
+-- uniq_units_contract, padahal pencarian unitnya sudah dibatasi per project;
+-- baris yang tidak ditemukan karena milik project lain justru berakhir sebagai
+-- INSERT yang bertabrakan.
+DROP INDEX IF EXISTS uniq_units_contract;
+CREATE UNIQUE INDEX IF NOT EXISTS uniq_units_contract_project
+  ON units (project_id, contract_number) WHERE contract_number IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS idx_units_project ON units(project_id);
 CREATE INDEX IF NOT EXISTS idx_marketings_project ON marketings(project_id);

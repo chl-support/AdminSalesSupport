@@ -19,6 +19,25 @@ const TABEL_WAJIB = [
   "signature_specimens", "signing_sessions", "tax_rates", "units", "users",
 ];
 
+/**
+ * Indeks yang menandai migrasi yang tidak menambah tabel apa pun.
+ *
+ * Tanpa daftar ini, migrasi seperti "nomor kontrak unik per project" tidak
+ * meninggalkan jejak yang dapat dilihat dari peramban: jumlah tabelnya tetap,
+ * dan kegagalannya baru muncul sebagai galat saat orang mengunggah laporan.
+ */
+const INDEKS_WAJIB = ["uniq_units_contract_project"];
+
+/** Indeks wajib yang belum ada di basis data ini. */
+async function indeksHilang(): Promise<string[]> {
+  const ada = await query<{ indexname: string }>(
+    `SELECT indexname FROM pg_indexes
+      WHERE schemaname = 'public' AND indexname = ANY($1)`,
+    [INDEKS_WAJIB]);
+  const punya = new Set(ada.map((r) => r.indexname));
+  return INDEKS_WAJIB.filter((i) => !punya.has(i));
+}
+
 /** Tabel wajib yang belum ada di basis data ini. */
 async function tabelHilang(): Promise<string[]> {
   const ada = await query<{ table_name: string }>(
@@ -46,19 +65,22 @@ export const GET = handler(async () => {
     const row = await one<{ count: number }>(
       "SELECT COUNT(*)::int AS count FROM claims");
     const hilang = await tabelHilang();
+    const indeks = await indeksHilang();
+    const belumLengkap = hilang.length > 0 || indeks.length > 0;
     return {
       // Skema yang kurang satu tabel bukan "ok": layar yang memakainya akan
       // gagal, dan kegagalan itu baru terlihat oleh orang yang kebetulan
       // membuka layarnya. Disebut di sini supaya terbaca sebelum itu.
-      status: hilang.length ? "migration_required" : "ok",
+      status: belumLengkap ? "migration_required" : "ok",
       database: "connected",
       schema: {
         tables_expected: TABEL_WAJIB.length,
         tables_present: TABEL_WAJIB.length - hilang.length,
         missing: hilang,
-        ...(hilang.length
-          ? { detail: `Migrasi terakhir belum dijalankan pada basis data ini. ` +
-                      `Jalankan penyiapan sekali lewat /setup.` }
+        missing_indexes: indeks,
+        ...(belumLengkap
+          ? { detail: "Migrasi terakhir belum dijalankan pada basis data ini. " +
+                      "Jalankan penyiapan sekali lewat /setup." }
           : {}),
       },
       claims: row?.count ?? 0,
