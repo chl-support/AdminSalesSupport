@@ -62,17 +62,34 @@ export const GET = handler(async (req) => {
     cluster ? [projectId, cluster] : [projectId]);
   if (!eligibleFor) return rows;
 
-  const klaim = await query<{
-    unit_id: string; id: string; claim_number: string; status: string;
-    net_amount: number; recipient_role: string;
-  }>(
-    `SELECT unit_id, id, claim_number, status, net_amount, recipient_role
-       FROM claims
-      WHERE claim_type = $1 AND project_id = $2
-        AND status NOT IN ('rejected','cancelled','clawback')`,
-    [eligibleFor, projectId]);
+  /**
+   * `eligible_for=all` menjawab keempat jenis sekaligus.
+   *
+   * Daftar penjualan tidak lagi dibuka satu jenis pada satu waktu: keempatnya
+   * berdiri berdampingan pada baris yang sama. Memanggil endpoint ini empat
+   * kali dari peramban akan mengirim seluruh kolom unit empat kali pula, dan
+   * keempat jawabannya tiba pada saat yang berbeda — klaim yang dibuat orang
+   * lain di sela-selanya membuat satu baris menyebut dua keadaan sekaligus.
+   */
+  const SEMUA: ClaimType[] =
+    ["closing_fee", "cash_reward", "commission", "overriding"];
+  const semuaJenis = (eligibleFor as string) === "all";
+  const diminta: ClaimType[] = semuaJenis ? SEMUA : [eligibleFor];
 
-  const perUnit = new Map(klaim.map((k) => [k.unit_id, k]));
+  const klaim = await query<{
+    unit_id: string; claim_type: ClaimType; id: string; claim_number: string;
+    status: string; net_amount: number; recipient_role: string;
+  }>(
+    `SELECT unit_id, claim_type, id, claim_number, status, net_amount,
+            recipient_role
+       FROM claims
+      WHERE claim_type = ANY($1) AND project_id = $2
+        AND status NOT IN ('rejected','cancelled','clawback')`,
+    [diminta, projectId]);
+
+  /** Klaim aktif per unit per jenis. */
+  const perUnitJenis = new Map(
+    klaim.map((k) => [`${k.unit_id}:${k.claim_type}`, k]));
 
   /**
    * Penerima fee untuk jenis klaim ini.
@@ -81,8 +98,8 @@ export const GET = handler(async (req) => {
    * Overriding justru membayar tingkat di atasnya — memakai Sales untuk
    * Overriding berarti membayar orang yang sama dua kali atas satu unit.
    */
-  const penerima = (u: any) =>
-    eligibleFor === "overriding"
+  const penerima = (u: any, jenis: ClaimType) =>
+    jenis === "overriding"
       ? { id: u.sub_coordinator_id ?? u.coordinator_id,
           nama: u.sub_coordinator_name ?? u.coordinator_name,
           status: u.sub_coordinator_status ?? u.coordinator_status,
@@ -99,12 +116,12 @@ export const GET = handler(async (req) => {
           email: u.marketing_email,
           kantor: u.agency_name, alamat_kantor: u.agency_address };
 
-  return rows.map((u) => {
-    const { ok, missing, codes } = eligibility(u, eligibleFor);
-    const ada = perUnit.get(u.id) ?? null;
-    const p = penerima(u);
+  /** Keadaan satu unit untuk satu jenis klaim. */
+  const keadaan = (u: any, jenis: ClaimType) => {
+    const { ok, missing, codes } = eligibility(u, jenis);
+    const ada = perUnitJenis.get(`${u.id}:${jenis}`) ?? null;
+    const p = penerima(u, jenis);
     return {
-      ...u,
       eligible: ok,
       missing_requirements: missing,
       // Kode sebabnya dikirim berdampingan dengan kalimatnya: layar daftar
@@ -135,5 +152,16 @@ export const GET = handler(async (req) => {
       // sudah pasti ditolak createClaim.
       claimable: ok && !ada && Boolean(p.id) && p.status === "active",
     };
-  });
+  };
+
+  return rows.map((u) => semuaJenis
+    ? {
+        ...u,
+        // Bentuknya sengaja berbeda dari jawaban satu jenis, bukan gabungan
+        // keduanya: baris yang memuat `eligible` di akarnya sekaligus `fees` di
+        // dalamnya mengundang layar memakai yang mana saja yang lebih dekat,
+        // dan yang di akar tidak pernah menyebut jenis apa yang dimaksud.
+        fees: Object.fromEntries(SEMUA.map((j) => [j, keadaan(u, j)])),
+      }
+    : { ...u, ...keadaan(u, eligibleFor) });
 });

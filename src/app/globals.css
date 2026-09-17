@@ -153,6 +153,45 @@ ul.kurang {
   margin: 5px 0 0 15px; padding: 0; font-size: 11px; color: var(--mut);
 }
 
+/* Keempat jenis fee pada satu baris penjualan. Tinggi barisnya disamakan lewat
+   min-height, bukan dibiarkan mengikuti isi: tombol dan nomor klaim berbeda
+   tinggi, dan tanpa itu keempat baris fee bergeser naik-turun antar unit
+   sehingga mata kehilangan lajurnya saat menyusuri tabel. */
+.fee-kolom { display: flex; flex-direction: column; gap: 4px; }
+.fee-baris {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px; min-height: 26px;
+}
+.fee-nama { font-size: 11.5px; color: var(--sub); white-space: nowrap; }
+td.sel-fee, th.sel-fee { width: 210px; }
+td.sel-ket, th.sel-ket { width: 240px; }
+/* Pill di kolom keterangan boleh berganti baris. Bentuk bawaannya satu baris
+   utuh, dan kalimat seperti "Unit management — tidak menghasilkan insentif"
+   lalu melebarkan seluruh tabel sampai kolom terakhirnya terpotong. */
+td.sel-ket .pill {
+  white-space: normal; max-width: 100%; text-align: left; line-height: 1.4;
+}
+.fee-keadaan { display: flex; align-items: center; gap: 5px; }
+.fee-status { font-size: 10.5px; color: var(--mut); }
+.fee-belum { font-size: 11px; color: var(--mut); }
+a.tombol-klaim.kecil { padding: 3px 10px; font-size: 11.5px; }
+
+/* Kode unit tidak dipatahkan di tengah: "BIOBA1-04" yang jatuh menjadi dua
+   baris terbaca sebagai dua kode. Kolom penerima diberi lebar minimum karena
+   isinya nama orang beserta kantornya, dan kolom yang terlalu sempit
+   menjatuhkan tiap katanya ke baris sendiri. */
+td.sel-unit, th.sel-unit { white-space: nowrap; }
+td.sel-penerima, th.sel-penerima { min-width: 150px; }
+
+/* Kolom keterangan: keempat prasyarat unit, terpenuhi atau belum. */
+ul.syarat-daftar {
+  margin: 6px 0 0; padding: 0; list-style: none; font-size: 11px;
+}
+ul.syarat-daftar li { margin-bottom: 2px; line-height: 1.45; }
+ul.syarat-daftar li.ya { color: var(--ok); }
+ul.syarat-daftar li.tidak { color: var(--sub); }
+ul.syarat-daftar .untuk { color: var(--mut); }
+
 /* Formulir pengajuan, mengikuti tata letak formulir kertasnya */
 .form-blok { margin-bottom: 18px; }
 .form-blok > h3 {
