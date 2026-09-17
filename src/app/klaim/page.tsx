@@ -356,13 +356,13 @@ export default function PengajuanFeePage() {
         </h2>
 
         <div className="tscroll">
-          <table>
+          <table className="tabel-penjualan">
             <tbody>
               <tr>
                 <th className="sel-unit">{k.thUnit}</th>
                 <th>{k.thPembeli}</th>
                 <th className="sel-penerima">{k.thPenerima}</th>
-                <th>{k.thSkema}</th>
+                <th className="sel-skema">{k.thSkema}</th>
                 <th style={{ textAlign: "right" }}>{k.thNilai}</th>
                 <th style={{ textAlign: "right" }}>{k.thPenerimaan}</th>
                 <th className="sel-fee">{k.thKlaim}</th>
@@ -385,28 +385,19 @@ export default function PengajuanFeePage() {
                   <tr key={u.id}>
                     <td className="sel-unit"><b>{u.code}</b></td>
                     <td>{u.buyer_name ?? "—"}</td>
+                    {/* Nama saja. Peran dan nama kantornya dibuang atas
+                        permintaan: keduanya sudah diketahui orang yang
+                        mengerjakan berkasnya, dan tiga baris keterangan per
+                        orang membuat satu baris tabel setinggi lima baris. */}
                     <td className="sel-penerima">
                       {sales?.name ?? (
                         <span style={{ color: "var(--mut)" }}>{k.belumTercatat}</span>
                       )}
-                      <br />
-                      <span style={{ color: "var(--mut)", fontSize: 11 }}>
-                        {sales?.source}
-                        {u.agency_name && sales?.source === "Sales"
-                          ? ` · ${u.agency_name}` : ""}
-                      </span>
                       {atas?.name && atas.id !== sales?.id && (
-                        <>
-                          <br />
-                          <span style={{ fontSize: 11 }}>{atas.name}</span>
-                          <br />
-                          <span style={{ color: "var(--mut)", fontSize: 11 }}>
-                            {atas.source}
-                          </span>
-                        </>
+                        <><br />{atas.name}</>
                       )}
                     </td>
-                    <td>{u.payment_scheme ?? "—"}</td>
+                    <td className="sel-skema">{u.payment_scheme ?? "—"}</td>
                     <td className="n">{rp(u.contract_value_incl_vat)}</td>
                     {/* Penerimaan bersama persentasenya terhadap nilai kontrak:
                         Komisi dihitung dari persentase pembayaran, jadi angka
@@ -414,7 +405,7 @@ export default function PengajuanFeePage() {
                         orang ke layar ini. */}
                     <td className="n">
                       {rp(u.received_amount)}<br />
-                      <span style={{ color: "var(--mut)", fontSize: 11 }}>
+                      <span style={{ color: "var(--mut)" }}>
                         {u.contract_value_incl_vat
                           ? k.dariKontrak(((u.received_amount /
                                u.contract_value_incl_vat) * 100).toFixed(1))
@@ -519,8 +510,7 @@ export default function PengajuanFeePage() {
                       </ul>
 
                       {boleh && (
-                        <button style={{ marginTop: 6, padding: "2px 8px",
-                                         fontSize: 11 }}
+                        <button style={{ marginTop: 6, padding: "2px 8px" }}
                                 onClick={() => bukaCatat(u)}>
                           {k.catatDokumen}
                         </button>
