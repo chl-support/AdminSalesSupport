@@ -16,7 +16,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import { Logo } from "../logo";
+import { Logo, LogoProject } from "../logo";
 
 type Project = {
   id: string; slug: string; name: string; company_name: string;
@@ -83,6 +83,12 @@ export default function PilihProjectPage() {
         {daftar.map((p) => (
           <button key={p.slug} className="opsi" disabled={busy}
                   onClick={() => void pilih(p.slug)}>
+            {/* Lambang project di atas namanya. Kelimanya berbeda jauh
+                bentuknya — ada yang melebar, ada yang menjulang — jadi
+                tingginya dipatok dan lebarnya mengikuti, supaya kelima kartu
+                tetap sejajar. Nama tetap ditulis di bawahnya: lambang saja
+                menuntut orang mengenali kelimanya dari ingatan. */}
+            <LogoProject slug={p.slug} tinggi={40} alt="" />
             <b>{p.name}</b>
             <span>{p.company_name}</span>
             {p.id === dipilih && (

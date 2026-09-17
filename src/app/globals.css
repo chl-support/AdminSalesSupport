@@ -139,6 +139,15 @@ tr.terbuka > td { background: #FBFBFA; vertical-align: top; }
   padding: 16px 18px; text-decoration: none; color: var(--ink);
 }
 .opsi:hover { border-color: var(--ink); }
+/* Lambang project pada kartu pemilih. Tingginya dipatok dan lebarnya mengikuti
+   isi: kelima lambangnya berbeda jauh perbandingannya — ada yang melebar
+   seperti tulisan, ada yang menjulang seperti tugu — dan memaksakan satu kotak
+   yang sama akan memipihkan sebagiannya. Jarak bawahnya memisahkan lambang
+   dari nama, supaya keduanya tidak terbaca sebagai satu gambar. */
+.logo-project { display: block; width: auto; max-width: 100%;
+                object-fit: contain; object-position: left center;
+                margin-bottom: 12px; }
+
 .opsi b { display: block; font-size: 16px; margin-bottom: 4px; }
 .opsi span { display: block; font-size: 12.5px; color: var(--sub); }
 

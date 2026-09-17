@@ -60,3 +60,42 @@ export function Logo({ tinggi = 40, hanyaLambang = false,
     </div>
   );
 }
+
+/**
+ * Lambang satu project.
+ *
+ * Berkasnya di public/project/<slug>.png — slug yang sama dengan yang ada di
+ * tabel projects, jadi menambah project berarti menaruh satu berkas, bukan
+ * menyunting daftar di dalam kode.
+ *
+ * Bila berkasnya belum ada, komponen ini tidak menampilkan apa pun: kartu
+ * project-nya kembali berupa nama dan nama PT saja, persis seperti sebelum
+ * lambangnya dipasang. Yang dihindari adalah ikon gambar rusak — layar ini
+ * halaman pertama sesudah masuk, dan gambar rusak lima kali berjajar di sana
+ * membuat seluruh sistem terbaca sebagai setengah jadi.
+ *
+ * Lambangnya tidak digambar ulang sebagai SVG, sama seperti lambang
+ * perusahaan: lambang yang digambar berdasarkan perkiraan akan mirip, tidak
+ * sama.
+ */
+export function LogoProject({ slug, tinggi = 40, alt }:
+                            { slug: string; tinggi?: number; alt: string }) {
+  const [gagal, setGagal] = useState(false);
+  const ref = useRef<HTMLImageElement | null>(null);
+
+  // Gambar yang gagal dimuat sebelum React sempat terpasang tidak pernah
+  // memicu onError — dan itu justru yang terjadi pada muatan pertama halaman.
+  useEffect(() => {
+    const img = ref.current;
+    if (img && img.complete && img.naturalWidth === 0) setGagal(true);
+  }, []);
+
+  if (gagal) return null;
+
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img ref={ref} src={`/project/${slug}.png`} alt={alt}
+         className="logo-project" style={{ height: tinggi }}
+         onError={() => setGagal(true)} />
+  );
+}
