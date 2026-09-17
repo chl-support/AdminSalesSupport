@@ -330,6 +330,21 @@ const DEFAULT_SETTINGS: Record<string, string> = {
   // tidak menjawab.
   kontak_admin_wa: "",
   kontak_admin_email: "",
+  /**
+   * Apakah memo skema insentif menjadi dasar penolakan klaim.
+   *
+   * Sementara "false": selama memo-memonya belum selesai diunggah, menolak
+   * klaim karena tidak ada memo yang berlaku menutup seluruh alur sesudahnya —
+   * pajak, tanda tangan, cetak, serah terima — sehingga tidak satu pun dapat
+   * dicoba. Selama mati, perhitungan memakai skema terdekat yang ada sambil
+   * mengabaikan masa berlakunya, dan menandai klaimnya bahwa dasar memonya
+   * belum ditetapkan.
+   *
+   * Dinyalakan dari menu Administrasi begitu memonya lengkap. Sesudah itu
+   * perilakunya kembali seperti seharusnya: tanpa memo yang berlaku, klaim
+   * tidak dapat dihitung.
+   */
+  skema_wajib: "false",
 };
 
 export async function setting(key: string): Promise<string> {

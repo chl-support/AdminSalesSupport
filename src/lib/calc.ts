@@ -7,7 +7,7 @@
  */
 
 import type { PoolClient } from "pg";
-import { one, query } from "./db";
+import { one, query, setting } from "./db";
 import { applyRate, ratio, rupiahWords, stripVat } from "./money";
 
 export type ClaimType = "closing_fee" | "commission" | "cash_reward" | "overriding";
@@ -62,14 +62,20 @@ export function recipientContext(
  */
 export async function findScheme(
   claimType: ClaimType, role: RecipientRole | null,
-  level: OverridingLevel | null, onDate: string, client?: PoolClient,
+  level: OverridingLevel | null, onDate: string | null, client?: PoolClient,
   projectId?: string | null,
 ) {
+  // `onDate` null berarti masa berlakunya diabaikan — dipakai hanya oleh jalur
+  // darurat saat memo belum wajib, dan barisnya diurutkan dari yang paling baru
+  // supaya yang terpilih adalah tarif terakhir yang pernah diputuskan, bukan
+  // tarif lama yang kebetulan lebih dulu terbaca.
   const rows = await query(
     `SELECT * FROM incentive_schemes
-     WHERE claim_type = $1 AND effective_from <= $2::date
-       AND (effective_to IS NULL OR effective_to >= $2::date)
-       AND ($3::uuid IS NULL OR project_id = $3)`,
+     WHERE claim_type = $1
+       AND ($2::date IS NULL OR (effective_from <= $2::date
+            AND (effective_to IS NULL OR effective_to >= $2::date)))
+       AND ($3::uuid IS NULL OR project_id = $3)
+     ORDER BY effective_from DESC`,
     [claimType, onDate, projectId ?? null], client,
   );
   let best: any = null, bestRank = -1;
@@ -200,8 +206,30 @@ export async function calculate(
     : String(unit.contract_date ?? "1970-01-01").slice(0, 10));
   const ctx = recipientContext(marketing, agency, level, bankAccount);
 
-  const scheme = await findScheme(claimType, role, level, onDate, client,
-                                  unit.project_id ?? null);
+  let scheme = await findScheme(claimType, role, level, onDate, client,
+                                unit.project_id ?? null);
+
+  /**
+   * Memo yang belum lengkap tidak menolak klaim, untuk sementara.
+   *
+   * Selama `skema_wajib` mati, tidak adanya memo yang berlaku pada tanggal
+   * kontrak unitnya bukan alasan menolak: dipakai skema terdekat yang ada,
+   * dengan masa berlakunya diabaikan. Klaimnya ditandai `skema_darurat` pada
+   * snapshot, sehingga angka yang lahir dari jalur ini dapat ditemukan kembali
+   * setelah memonya lengkap.
+   *
+   * Yang diabaikan hanya tanggalnya. Jenis fee, peran penerima, dan tingkat
+   * overriding tetap harus cocok — memakai tarif Closing Fee untuk Komisi bukan
+   * kelonggaran, melainkan angka yang salah.
+   */
+  let darurat = false;
+  if (!scheme && (await setting("skema_wajib")) !== "true") {
+    scheme = await findScheme(claimType, role, level, null, client,
+                              unit.project_id ?? null)
+          ?? await findScheme(claimType, role, level, null, client, null);
+    darurat = Boolean(scheme);
+  }
+
   if (!scheme) {
     throw new Error(
       `Tidak ada skema insentif berlaku untuk ${claimType}/${role} pada ${onDate}. ` +
@@ -269,6 +297,11 @@ export async function calculate(
     snapshot: {
       scheme_id: scheme.id,
       scheme_memo: scheme.memo_reference,
+      // Benar berarti tarifnya dipakai tanpa memo yang berlaku pada tanggal
+      // kontrak unit ini. Dicatat pada klaimnya, bukan hanya di layar, supaya
+      // tetap dapat ditemukan setelah memonya lengkap dan penyaringnya kembali
+      // dinyalakan.
+      skema_darurat: darurat,
       scheme_type: scheme.scheme_type,
       basis: scheme.basis,
       basis_value: basisValue,
