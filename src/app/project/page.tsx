@@ -88,7 +88,7 @@ export default function PilihProjectPage() {
                 tingginya dipatok dan lebarnya mengikuti, supaya kelima kartu
                 tetap sejajar. Nama tetap ditulis di bawahnya: lambang saja
                 menuntut orang mengenali kelimanya dari ingatan. */}
-            <LogoProject slug={p.slug} tinggi={40} alt="" />
+            <LogoProject slug={p.slug} tinggi={56} alt="" />
             <b>{p.name}</b>
             <span>{p.company_name}</span>
             {p.id === dipilih && (
