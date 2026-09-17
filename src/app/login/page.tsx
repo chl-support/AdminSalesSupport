@@ -238,7 +238,7 @@ export default function LoginPage() {
             sendirian: di sini ia kepala dari nama di bawahnya, dan kepala yang
             seukuran badannya membuat mata tidak tahu mulai dari mana. */}
         <div className="isi-merek">
-          <Logo tinggi={88} />
+          <Logo tinggi={124} />
           {/* Pemenggalan barisnya ditentukan di sini, bukan diserahkan pada
               pembungkusan otomatis: dengan background-clip:text, bagian kata
               yang meluber keluar kotaknya tidak ikut tergambar sama sekali,
@@ -247,6 +247,7 @@ export default function LoginPage() {
             <span>CHL Sales</span>
             <span>Admin System</span>
           </div>
+          <span className="garis-merek" aria-hidden="true" />
         </div>
       </aside>
 
