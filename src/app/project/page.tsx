@@ -14,7 +14,7 @@
  * tetap harus mempercayai apa yang dikirimkan layar.
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { Logo, LogoProject } from "../logo";
 
@@ -24,7 +24,6 @@ type Project = {
 
 export default function PilihProjectPage() {
   const [daftar, setDaftar] = useState<Project[]>([]);
-  const [dipilih, setDipilih] = useState<string | null>(null);
   const [busy, setBusy] = useState(true);
   const [galat, setGalat] = useState<string | null>(null);
 
@@ -42,24 +41,10 @@ export default function PilihProjectPage() {
         if (r.status === 401) { location.href = "/login"; return; }
         const b = await r.json();
         setDaftar(b.projects ?? []);
-        setDipilih(b.dipilih ?? null);
       })
       .catch((e) => setGalat(String(e?.message ?? e)))
       .finally(() => setBusy(false));
   }, []);
-
-  /**
-   * Yang terakhir dikerjakan dimajukan ke depan.
-   *
-   * Bukan sekadar urutan: kartu pertama diberi petak dua kali dua di kisinya,
-   * dan petak itu hanya masuk akal di sudut kiri atas. Delapan dari sepuluh
-   * kali orang membuka layar ini untuk kembali ke project yang sama seperti
-   * kemarin — itulah yang pantas mendapat kartu terbesar.
-   */
-  const urut = useMemo(
-    () => [...daftar.filter((p) => p.id === dipilih),
-           ...daftar.filter((p) => p.id !== dipilih)],
-    [daftar, dipilih]);
 
   const pilih = async (slug: string) => {
     setBusy(true); setGalat(null);
@@ -86,21 +71,22 @@ export default function PilihProjectPage() {
             ruangnya lapang, dan ini layar pertama sesudah masuk: tempat yang
             tepat untuk lambang perusahaan tampil utuh. */}
         <Logo tinggi={132} />
-        <h1>Pilih Kategori Proyek</h1>
+        <div>
+          <h1>Pilih Kategori Proyek</h1>
+          <p>Tentukan kategori proyek untuk melanjutkan proses pengajuan</p>
+        </div>
       </header>
 
       {galat && <div className="banner stop">{galat}</div>}
 
       <div className="pilihan">
-        {urut.map((p, i) => (
-          /* Kartu pertama selalu yang besar, ada atau tidak ada project yang
-             terakhir dikerjakan. Dulu petak besar itu hanya dipasang pada
-             project terakhir, jadi pada sesi yang baru — dan sesi yang baru
-             adalah setiap kali orang masuk pagi hari — kisinya kembali menjadi
-             enam kotak sama besar. Susunannya jadi berubah-ubah tanpa sebab
-             yang terlihat dari layar. */
-          <button key={p.slug} disabled={busy}
-                  className={"opsi kartu-project" + (i === 0 ? " utama" : "")}
+        {daftar.map((p) => (
+          /* Semua kartu sama besar, dan urutannya tetap: urutan yang tersimpan
+             pada tabel projects, bukan urutan yang dipengaruhi project mana
+             yang terakhir dikerjakan. Letak tiap project di layar ini tidak
+             berubah dari satu kali masuk ke kali berikutnya — yang sudah hafal
+             letaknya tidak perlu membaca lagi. */
+          <button key={p.slug} disabled={busy} className="opsi kartu-project"
                   onClick={() => void pilih(p.slug)}>
             {/* Bidang lambang setinggi tetap, lambang dipusatkan di dalamnya.
                 Keenamnya berbeda jauh bentuknya — ada yang melebar sampai
@@ -121,7 +107,7 @@ export default function PilihProjectPage() {
             <span className="nama">{p.company_name}</span>
           </button>
         ))}
-        {!urut.length && !busy && (
+        {!daftar.length && !busy && (
           <div className="banner warn">
             <b>Belum ada project</b>
             Jalankan migrasi basis data lebih dulu.
