@@ -31,7 +31,7 @@ export function FormPengajuan(
   const u = klaim.unit ?? {};
   const m = klaim.marketing ?? {};
   const bank = klaim.bank_account ?? null;
-  // Nama PT mengikuti project klaimnya, bukan tulisan tetap: lima project
+  // Nama PT mengikuti project klaimnya, bukan tulisan tetap: beberapa project
   // berjalan di pemasangan yang sama dan tidak semuanya di bawah PT yang sama.
   const pt = klaim.project?.company_name ?? "PT. Serpong Bangun Lestari";
   const s = klaim.snapshot ?? {};

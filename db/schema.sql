@@ -644,7 +644,7 @@ CREATE INDEX IF NOT EXISTS idx_login_attempts_lookup
 
 -- ─────────────────────────── Project ───────────────────────────
 --
--- Satu pemasangan melayani lima project sekaligus. Datanya dipisah per baris,
+-- Satu pemasangan melayani beberapa project sekaligus. Datanya dipisah per baris,
 -- bukan per basis data: penjualan, marketing, klaim, dan skema insentif
 -- masing-masing menyandang project_id, dan seluruh layar menyaring ke project
 -- yang sedang dipilih.
@@ -667,7 +667,8 @@ INSERT INTO projects (slug, name, company_name, urutan) VALUES
   ('naraya-serpong', 'Naraya Serpong', 'PT. Serpong Bangun Cipta', 2),
   ('marchand-hype-station', 'Marchand Hype Station', 'PT. Serpong Bangun Cipta', 3),
   ('mazenta-residence', 'Mazenta Residence', 'PT. Serpong Bangun Cipta', 4),
-  ('bio-district', 'BIO District', 'PT. Serpong Bangun Lestari', 5)
+  ('bio-district', 'BIO District', 'PT. Serpong Bangun Lestari', 5),
+  ('permai-indah', 'Permai Indah', 'PT. Bumi Mahardika Makmur', 6)
 ON CONFLICT (slug) DO UPDATE
   SET name = EXCLUDED.name, company_name = EXCLUDED.company_name,
       urutan = EXCLUDED.urutan;

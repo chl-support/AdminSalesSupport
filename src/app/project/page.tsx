@@ -3,7 +3,7 @@
 /**
  * Pemilih project, layar pertama setelah masuk.
  *
- * Satu pemasangan melayani lima project, dan hampir seluruh layar menyaring
+ * Satu pemasangan melayani beberapa project, dan hampir seluruh layar menyaring
  * datanya menurut project yang sedang dikerjakan. Pilihan itu diminta di muka,
  * bukan disisipkan sebagai penyaring di tiap layar: yang lupa menggantinya akan
  * mengajukan klaim project A memakai data project B, dan tidak ada apa pun pada
@@ -83,11 +83,11 @@ export default function PilihProjectPage() {
         {daftar.map((p) => (
           <button key={p.slug} className="opsi" disabled={busy}
                   onClick={() => void pilih(p.slug)}>
-            {/* Lambang project di atas namanya. Kelimanya berbeda jauh
+            {/* Lambang project di atas namanya. Semuanya berbeda jauh
                 bentuknya — ada yang melebar, ada yang menjulang — jadi
-                tingginya dipatok dan lebarnya mengikuti, supaya kelima kartu
+                tingginya dipatok dan lebarnya mengikuti, supaya semua kartu
                 tetap sejajar. Nama tetap ditulis di bawahnya: lambang saja
-                menuntut orang mengenali kelimanya dari ingatan. */}
+                menuntut orang mengenali semuanya dari ingatan. */}
             <LogoProject slug={p.slug} tinggi={56} alt="" />
             <b>{p.name}</b>
             <span>{p.company_name}</span>
