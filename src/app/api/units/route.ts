@@ -1,4 +1,4 @@
-import { handler } from "@/lib/api";
+import { handler, projectAktif } from "@/lib/api";
 import { query } from "@/lib/db";
 import { eligibility, type ClaimType } from "@/lib/calc";
 
@@ -17,6 +17,10 @@ import { eligibility, type ClaimType } from "@/lib/calc";
  * unit yang justru perlu diajukan lagi.
  */
 export const GET = handler(async (req) => {
+  // Seluruh daftar disaring ke project yang sedang dikerjakan. Penyaringnya ada
+  // di kueri, bukan di layar: layar yang lupa menyaring akan menampilkan
+  // penjualan project lain sebagai penjualan yang dapat diklaim.
+  const projectId = await projectAktif(req);
   const url = new URL(req.url);
   const cluster = url.searchParams.get("cluster");
   const eligibleFor = url.searchParams.get("eligible_for") as ClaimType | null;
@@ -52,9 +56,10 @@ export const GET = handler(async (req) => {
   const perRekening = new Map(rekening.map((b) => [b.marketing_id, b]));
 
   const rows = await query(
-    cluster ? `${SELECT} WHERE u.cluster_code=$1 ORDER BY u.code`
-            : `${SELECT} ORDER BY u.code`,
-    cluster ? [cluster] : []);
+    cluster
+      ? `${SELECT} WHERE u.project_id=$1 AND u.cluster_code=$2 ORDER BY u.code`
+      : `${SELECT} WHERE u.project_id=$1 ORDER BY u.code`,
+    cluster ? [projectId, cluster] : [projectId]);
   if (!eligibleFor) return rows;
 
   const klaim = await query<{
@@ -63,9 +68,9 @@ export const GET = handler(async (req) => {
   }>(
     `SELECT unit_id, id, claim_number, status, net_amount, recipient_role
        FROM claims
-      WHERE claim_type = $1
+      WHERE claim_type = $1 AND project_id = $2
         AND status NOT IN ('rejected','cancelled','clawback')`,
-    [eligibleFor]);
+    [eligibleFor, projectId]);
 
   const perUnit = new Map(klaim.map((k) => [k.unit_id, k]));
 

@@ -1,4 +1,4 @@
-import { handler, requireRole, body } from "@/lib/api";
+import { handler, requireRole, body, projectAktif } from "@/lib/api";
 import { catatPrasyarat } from "@/lib/penjualan";
 
 /**
@@ -10,5 +10,6 @@ import { catatPrasyarat } from "@/lib/penjualan";
 export const PATCH = handler(async (req, { params }) => {
   const { id } = await params;
   const user = await requireRole(req, "admin_sales", "admin_system");
-  return catatPrasyarat(id, await body(req), user.username);
+  return catatPrasyarat(id, await body(req), user.username,
+                        await projectAktif(req));
 });

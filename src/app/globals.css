@@ -657,7 +657,18 @@ button.tautan:hover { color: var(--note); }
 .tandai img { display: block; width: 100%; height: auto;
               user-select: none; -webkit-user-select: none; }
 .kotak-tandai { position: absolute; border: 2px solid var(--stop);
-                background: rgba(140, 47, 47, .12); pointer-events: none; }
+                background: rgba(140, 47, 47, .12); cursor: move; }
+
+/* Pegangan sudut. Titik sentuhnya jauh lebih besar daripada kotak yang
+   terlihat: jari menutupi sekitar 8 mm layar, dan pegangan sebesar gambarnya
+   sendiri berarti tiap kali meleset kotak baru yang justru tergambar. */
+.pegangan { position: absolute; width: 12px; height: 12px; background: #fff;
+            border: 2px solid var(--stop); box-sizing: border-box; }
+.pegangan::after { content: ""; position: absolute; inset: -12px; }
+.pegangan.atas-kiri { left: -7px; top: -7px; cursor: nwse-resize; }
+.pegangan.atas-kanan { right: -7px; top: -7px; cursor: nesw-resize; }
+.pegangan.bawah-kiri { left: -7px; bottom: -7px; cursor: nesw-resize; }
+.pegangan.bawah-kanan { right: -7px; bottom: -7px; cursor: nwse-resize; }
 
 /* Jangkar identitas pada layar pemeriksaan: potongan tanda tangan dari KTP,
    disandingkan dengan keterangan cara membacanya. */
@@ -754,3 +765,23 @@ button.tautan:hover { color: var(--note); }
               border: 1px solid var(--line); background: #fff; }
 ul.syarat-foto { margin: 8px 0 0 16px; padding: 0; font-size: 11.5px;
                  color: var(--sub); line-height: 1.6; }
+
+/* ── Pemilih project ─────────────────────────────────────────────────────── */
+.pilih-project { max-width: 760px; margin: 0 auto; padding: 48px 22px 60px; }
+.pilih-project header { display: flex; gap: 16px; align-items: flex-start;
+                        border-bottom: 2px solid var(--ink); padding-bottom: 18px;
+                        margin-bottom: 22px; }
+.pilih-project header h1 { font-size: 24px; }
+.pilih-project header p { margin: 4px 0 0; color: var(--sub); font-size: 13.5px;
+                          max-width: 58ch; }
+/* Tombol, bukan tautan: memilih project mengubah keadaan sesi di server. */
+.pilih-project .opsi { display: block; width: 100%; text-align: left;
+                       font-weight: 400; padding: 16px 18px; cursor: pointer; }
+.pilih-project .opsi b { display: block; font-size: 16px; margin-bottom: 4px; }
+.pilih-project .opsi span { display: block; font-size: 12.5px; color: var(--sub); }
+.pilih-project .opsi:hover:not(:disabled) { border-color: var(--ink); }
+
+/* Penanda project pada kepala halaman dan tombol gantinya pada profil. */
+.kepala .pill.proyek { align-self: center; margin-left: auto; margin-right: 12px;
+                       font-size: 11.5px; border-color: var(--ink);
+                       background: var(--ink); color: #fff; }

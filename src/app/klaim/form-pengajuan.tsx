@@ -31,6 +31,9 @@ export function FormPengajuan(
   const u = klaim.unit ?? {};
   const m = klaim.marketing ?? {};
   const bank = klaim.bank_account ?? null;
+  // Nama PT mengikuti project klaimnya, bukan tulisan tetap: lima project
+  // berjalan di pemasangan yang sama dan tidak semuanya di bawah PT yang sama.
+  const pt = klaim.project?.company_name ?? "PT. Serpong Bangun Lestari";
   const s = klaim.snapshot ?? {};
   const dokumen = DOKUMEN[jenis] ?? [];
   // Hanya berkas yang benar-benar diunggah. Baris checklist tanpa berkas juga
@@ -59,13 +62,18 @@ export function FormPengajuan(
   return (
     <div className="cetak">
       <div className="kop">
-        <b>PT. SERPONG BANGUN LESTARI</b>
+        <b>{pt.toUpperCase()}</b>
         <span>Jl. BSD Raya Utama Ruko Mendrisio III Blok B No. 27–29</span>
         <span>Paramount Gading Serpong, Tangerang Banten 15312</span>
         <span>Telp. +62 21 2222 0080 · Fax. +62 21 2222 0081</span>
       </div>
 
       <h2 className="judul-form">FORM PENGAJUAN {nama.toUpperCase()}</h2>
+      {klaim.project?.name && (
+        <p className="nomor-form" style={{ marginTop: 0 }}>
+          Project {klaim.project.name}
+        </p>
+      )}
       <p className="nomor-form">
         {klaim.claim_number} · status {klaim.status}
         {klaim.created_at ? ` · dibuat ${tgl(klaim.created_at)}` : ""}
@@ -79,7 +87,7 @@ export function FormPengajuan(
               <td>{m.marketing_type === "agent" ? "Agent"
                    : m.marketing_type === "inhouse" ? "Inhouse" : "—"}</td></tr>
           <tr><td>Nama Kantor Marketing</td>
-              <td>{m.agency_name ?? "PT. Serpong Bangun Lestari"}</td></tr>
+              <td>{m.agency_name ?? pt}</td></tr>
           <tr><td>Alamat Kantor</td><td>{m.agency_address ?? "—"}</td></tr>
           <tr><td>NPWP</td><td>{m.npwp || m.agency_npwp || "—"}</td></tr>
           <tr><td>No. Telepon / HP</td><td>{m.phone || "—"}</td></tr>

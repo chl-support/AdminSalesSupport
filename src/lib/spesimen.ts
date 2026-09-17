@@ -54,9 +54,13 @@ export const BATAS_KTP = 3 * 1024 * 1024;
  */
 export async function terbitkanTautan(
   marketingId: string, aktor: string,
-  opsi: { revisi?: boolean; alasan?: string } = {},
+  opsi: { revisi?: boolean; alasan?: string; projectId?: string } = {},
 ) {
-  const mkt = await one("SELECT * FROM marketings WHERE id=$1", [marketingId]);
+  // Project ikut disertakan pada pencariannya: id yang diketikkan langsung ke
+  // alamat tidak boleh menerbitkan tautan bagi marketing project lain.
+  const mkt = await one(
+    "SELECT * FROM marketings WHERE id=$1 AND ($2::uuid IS NULL OR project_id=$2)",
+    [marketingId, opsi.projectId ?? null]);
   if (!mkt) throw new WorkflowError("Marketing tidak ditemukan.", "not_found", 404);
 
   const sudah = await one<{ n: number }>(
@@ -288,8 +292,8 @@ export async function kirimSet(token: string) {
   return { konsistensi: null, jumlah: 1 };
 }
 
-/** Daftar pendaftaran untuk layar Admin. */
-export async function daftarMarketing() {
+/** Daftar pendaftaran untuk layar Admin, dalam lingkup satu project. */
+export async function daftarMarketing(projectId: string) {
   return query(
     `SELECT m.id, m.full_name, m.marketing_type, m.status, m.phone,
             a.name AS agency_name,
@@ -312,10 +316,11 @@ export async function daftarMarketing() {
          SELECT * FROM enrollment_sessions e2
           WHERE e2.marketing_id = m.id ORDER BY e2.created_at DESC LIMIT 1
        ) e ON TRUE
+      WHERE m.project_id = $1
       GROUP BY m.id, a.name, e.token, e.state, e.captured, e.target,
                e.consistency, e.set_id, e.expires_at, e.ktp_at,
                e.revision_reason
-      ORDER BY m.full_name`);
+      ORDER BY m.full_name`, [projectId]);
 }
 
 export async function spesimenSet(setId: string) {
@@ -434,7 +439,9 @@ export async function putuskanSet(
  * Alasannya tetap wajib dan tercatat pada tiap sesi, sama seperti penggantian
  * satuan: yang membedakan hanya bahwa alasannya diketik sekali.
  */
-export async function revisiMassal(aktor: string, alasan: string) {
+export async function revisiMassal(
+  aktor: string, alasan: string, projectId: string,
+) {
   if (!alasan || alasan.trim().length < 10) {
     throw new WorkflowError(
       "Alasan penggantian wajib diisi minimal 10 karakter.",
@@ -445,9 +452,9 @@ export async function revisiMassal(aktor: string, alasan: string) {
     `SELECT m.id, m.full_name, m.phone
        FROM marketings m
        JOIN signature_specimens s ON s.marketing_id = m.id
-      WHERE NOT s.archived AND s.input_method <> 'ktp'
+      WHERE NOT s.archived AND s.input_method <> 'ktp' AND m.project_id = $1
       GROUP BY m.id
-      ORDER BY m.full_name`);
+      ORDER BY m.full_name`, [projectId]);
 
   const terbit: any[] = [];
   const gagal: { nama: string; sebab: string }[] = [];
@@ -455,7 +462,8 @@ export async function revisiMassal(aktor: string, alasan: string) {
   for (const m of sasaran) {
     try {
       const r = await terbitkanTautan(m.id, aktor,
-                                      { revisi: true, alasan: alasan.trim() });
+                                      { revisi: true, alasan: alasan.trim(),
+                                        projectId });
       terbit.push({ marketing_id: m.id, nama: m.full_name, ...r });
     } catch (e: any) {
       // Satu yang gagal tidak menghentikan sisanya: yang paling sering
@@ -490,10 +498,11 @@ export async function ambangOnboarding() {
  * memindahkan tujuan bukti identitas orang tersebut.
  */
 export async function ubahNomor(
-  marketingId: string, nomor: string, aktor: string,
+  marketingId: string, nomor: string, aktor: string, projectId?: string,
 ) {
   const mkt = await one<{ full_name: string; phone: string }>(
-    "SELECT full_name, phone FROM marketings WHERE id=$1", [marketingId]);
+    "SELECT full_name, phone FROM marketings WHERE id=$1 " +
+    "AND ($2::uuid IS NULL OR project_id=$2)", [marketingId, projectId ?? null]);
   if (!mkt) throw new WorkflowError("Marketing tidak ditemukan.", "not_found", 404);
 
   const rapi = rapikanNomor(nomor);

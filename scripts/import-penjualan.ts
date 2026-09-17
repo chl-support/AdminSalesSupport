@@ -12,7 +12,7 @@
 
 import { readFileSync } from "node:fs";
 
-import { pool } from "../src/lib/db";
+import { one, pool } from "../src/lib/db";
 import { imporLaporan } from "../src/lib/penjualan";
 
 async function main() {
@@ -26,8 +26,21 @@ async function main() {
     process.exit(2);
   }
 
+  // Project diberikan lewat --project=<slug>; impor tidak boleh menebak, karena
+  // berkas laporannya tidak menyebut project-nya sendiri.
+  const slug = args.find((a) => a.startsWith("--project="))?.slice(10);
+  const proyek = slug
+    ? await one<{ id: string }>("SELECT id FROM projects WHERE slug=$1", [slug])
+    : null;
+  if (!proyek) {
+    console.error(
+      "Sebutkan project-nya: --project=<slug>. Daftar slug ada pada tabel projects.");
+    process.exit(2);
+  }
+
   const hasil = await imporLaporan(readFileSync(path, "utf8"),
-                                   { dryRun, namaBerkas: path });
+                                   { dryRun, namaBerkas: path,
+                                     projectId: proyek.id });
 
   console.log(`Berkas  : ${path}`);
   for (const s of hasil.seksi) console.log(`  ${s.nama}: ${s.baris} baris`);

@@ -18,6 +18,10 @@ import { WorkflowError } from "./workflow";
 
 export type User = {
   id: string; username: string; full_name: string; role: string;
+  project_id?: string | null;
+  project_slug?: string | null;
+  project_name?: string | null;
+  project_company?: string | null;
 };
 
 export async function currentUser(req: NextRequest): Promise<User> {
@@ -29,6 +33,25 @@ export async function currentUser(req: NextRequest): Promise<User> {
       "unauthenticated", 401);
   }
   return user;
+}
+
+/**
+ * Project yang sedang dikerjakan, dan keharusan memilihnya lebih dulu.
+ *
+ * Satu pemasangan melayani lima project, dan hampir seluruh data disaring
+ * menurut project ini. Route yang lupa memanggilnya akan bekerja atas seluruh
+ * project sekaligus — sesuatu yang tidak akan terlihat sampai ada klaim yang
+ * dibayarkan dari data project lain. Karena itu ia mengembalikan galat, bukan
+ * nilai kosong yang boleh diabaikan.
+ */
+export async function projectAktif(req: NextRequest): Promise<string> {
+  const user = await currentUser(req);
+  if (!user.project_id) {
+    throw new WorkflowError(
+      "Project belum dipilih. Pilih project yang akan dikerjakan lebih dulu.",
+      "project_required", 409);
+  }
+  return user.project_id;
 }
 
 export async function requireRole(
@@ -157,8 +180,18 @@ export async function claimView(claim: any) {
        FROM claim_documents WHERE claim_id = $1 ORDER BY uploaded_at`,
     [claim.id]);
 
+  // Project ikut dibawa: kop formulir memakai nama PT project-nya, dan klaim
+  // lama harus tetap mencetak nama yang berlaku bagi project itu — bukan nama
+  // project yang kebetulan sedang dibuka orang yang mencetaknya.
+  const proyek = claim.project_id
+    ? await one(
+        "SELECT slug, name, company_name FROM projects WHERE id=$1",
+        [claim.project_id])
+    : null;
+
   return {
     ...claim, unit, marketing: mkt, bank_account: bank,
+    project: proyek,
     documents: dokumen,
     signature_png: ttd?.image_png ?? null,
     signed_display_at: ttd?.occurred_at ?? claim.signed_at ?? null,

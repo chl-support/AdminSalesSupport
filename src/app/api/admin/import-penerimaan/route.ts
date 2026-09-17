@@ -1,4 +1,4 @@
-import { handler, requireRole } from "@/lib/api";
+import { handler, requireRole, projectAktif } from "@/lib/api";
 import { WorkflowError } from "@/lib/workflow";
 import { imporPenerimaan } from "@/lib/penerimaan";
 
@@ -30,6 +30,7 @@ export const POST = handler(async (req) => {
   try {
     return await imporPenerimaan(teks, {
       dryRun, aktor: user.username, namaBerkas: (berkas as File).name,
+      projectId: await projectAktif(req),
     });
   } catch (e: any) {
     throw new WorkflowError(String(e?.message ?? e), "validation", 422);

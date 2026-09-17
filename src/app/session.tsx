@@ -16,7 +16,12 @@ import { useEffect, useRef, useState } from "react";
 
 import { useBahasa } from "./bahasa";
 
-export type Sesi = { username: string; full_name: string; role: string };
+export type Sesi = {
+  username: string; full_name: string; role: string;
+  project_slug?: string | null;
+  project_name?: string | null;
+  project_company?: string | null;
+};
 
 /** Label yang dibaca manusia untuk tiap peran di basis data. */
 export const PERAN: Record<string, string> = {
@@ -62,7 +67,18 @@ export function useSesi(): { sesi: Sesi | null; memuat: boolean } {
       .then(async (r) => {
         if (batal) return;
         if (r.ok) {
-          setSesi(await r.json());
+          const s: Sesi = await r.json();
+          // Hampir seluruh layar konsol menyaring datanya menurut project.
+          // Tanpa project terpilih, yang tampil adalah layar kosong yang tidak
+          // menjelaskan sebabnya — jadi dialihkan ke pemilihnya, membawa serta
+          // halaman yang tadi dituju.
+          if (!s.project_slug && window.location.pathname !== "/project") {
+            const next = encodeURIComponent(
+              window.location.pathname + window.location.search);
+            location.href = `/project?next=${next}`;
+            return;
+          }
+          setSesi(s);
         } else {
           // Halaman yang diminta dibawa serta, supaya setelah masuk orangnya
           // mendarat di tempat yang tadi dituju, bukan selalu di beranda.
@@ -102,8 +118,10 @@ function inisial(nama: string) {
  * atau lambat tertekan tanpa sengaja.
  */
 const KATA = {
-  id: { profil: (n: string) => `Profil ${n}`, keluar: "Keluar" },
-  en: { profil: (n: string) => `${n} profile`, keluar: "Sign out" },
+  id: { profil: (n: string) => `Profil ${n}`, keluar: "Keluar",
+        gantiProject: "Ganti project" },
+  en: { profil: (n: string) => `${n} profile`, keluar: "Sign out",
+        gantiProject: "Switch project" },
 };
 
 export function BilahPengguna({ sesi }: { sesi: Sesi }) {
@@ -142,6 +160,12 @@ export function BilahPengguna({ sesi }: { sesi: Sesi }) {
             <b>{sesi.full_name}</b>
             <span className="pill">{labelPeran(sesi.role, bahasa)}</span>
           </div>
+          {/* Berganti project berarti berganti seluruh isi layar, jadi ia
+              berada di tempat yang sama dengan keluar — keduanya mengakhiri apa
+              yang sedang dikerjakan. */}
+          <button onClick={() => { location.href = "/project"; }}>
+            {k.gantiProject}
+          </button>
           <button onClick={() => void keluar()}>{k.keluar}</button>
         </div>
       )}

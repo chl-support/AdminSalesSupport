@@ -141,22 +141,25 @@ const KATA = {
       `${rek} rekening dicatat · dari ${baris} orang`,
     kosongJudul: "KOSONGKAN DATA OPERASIONAL",
     kosongCatatanA:
-      "Menghapus seluruh data penjualan, marketing, rekening, klaim, tanda " +
-      "tangan, dan pendaftaran — untuk memulai dari nol dengan data sungguhan. ",
+      "Menghapus data penjualan, marketing, rekening, klaim, tanda tangan, " +
+      "dan pendaftaran ",
+    kosongMilik: (proyek: string) => `milik project ${proyek}`,
+    kosongCatatanB: " saja — project lain tidak disentuh. ",
     kosongTakDibatalkan: "Tidak dapat dibatalkan",
-    kosongCatatanB: ": yang terhapus tidak ada salinannya di sistem ini.",
+    kosongCatatanC: ": yang terhapus tidak ada salinannya di sistem ini.",
     kosongTidak: "tidak",
-    kosongCatatanC1: "Yang ",
-    kosongCatatanC2:
-      " disentuh: akun pengguna dan sesi Anda, skema insentif, tarif pajak, " +
-      "periode akuntansi, pengaturan dan kontak Admin IT, serta jejak audit — " +
-      "justru di sanalah pengosongan ini tercatat.",
+    kosongCatatanD1: "Yang ",
+    kosongCatatanD2:
+      " disentuh: project lain, akun pengguna dan sesi Anda, skema insentif, " +
+      "tarif pajak, periode akuntansi, pengaturan dan kontak Admin IT, serta " +
+      "jejak audit — justru di sanalah pengosongan ini tercatat.",
     lihatIsi: "Lihat isi data sekarang",
     takDapatDijalankan: "Tidak dapat dijalankan",
     sudahDikosongkan: "Data operasional dikosongkan",
     sudahKosong: "sudah kosong",
     dipertahankan: (daftar: string) => `Yang dipertahankan: ${daftar}.`,
-    akanDihapusJudul: "Baris berikut akan dihapus permanen",
+    akanDihapusJudul: (proyek: string) =>
+      `Baris berikut akan dihapus permanen dari project ${proyek}`,
     akanDihapusIsi:
       "Periksa angkanya sekali lagi. Setelah tombol ditekan, tidak ada cara " +
       "mengembalikannya.",
@@ -294,22 +297,25 @@ const KATA = {
       `${rek} accounts recorded · from ${baris} people`,
     kosongJudul: "CLEAR OPERATIONAL DATA",
     kosongCatatanA:
-      "Deletes all sales, marketing, bank account, claim, signature, and " +
-      "registration data — to start from zero with real data. ",
+      "Deletes the sales, marketing, bank account, claim, signature, and " +
+      "registration data ",
+    kosongMilik: (proyek: string) => `belonging to project ${proyek}`,
+    kosongCatatanB: " only — other projects are untouched. ",
     kosongTakDibatalkan: "This cannot be undone",
-    kosongCatatanB: ": what is deleted has no copy in this system.",
+    kosongCatatanC: ": what is deleted has no copy in this system.",
     kosongTidak: "not",
-    kosongCatatanC1: "What is ",
-    kosongCatatanC2:
-      " touched: user accounts and your session, incentive schemes, tax rates, " +
-      "accounting periods, IT Admin settings and contact, and the audit trail — " +
-      "which is precisely where this clearing is recorded.",
+    kosongCatatanD1: "What is ",
+    kosongCatatanD2:
+      " touched: other projects, user accounts and your session, incentive " +
+      "schemes, tax rates, accounting periods, IT Admin settings and contact, " +
+      "and the audit trail — which is precisely where this clearing is recorded.",
     lihatIsi: "Show what the data holds now",
     takDapatDijalankan: "Cannot be run",
     sudahDikosongkan: "Operational data cleared",
     sudahKosong: "already empty",
     dipertahankan: (daftar: string) => `Kept: ${daftar}.`,
-    akanDihapusJudul: "The rows below will be deleted permanently",
+    akanDihapusJudul: (proyek: string) =>
+      `The rows below will be deleted permanently from project ${proyek}`,
     akanDihapusIsi:
       "Check the numbers once more. Once the button is pressed there is no way " +
       "to bring them back.",
@@ -1057,10 +1063,12 @@ export default function AdminPage() {
             <div className="form-blok">
               <h3>{k.kosongJudul}</h3>
               <p className="hint" style={{ textAlign: "left", marginTop: 0 }}>
-                {k.kosongCatatanA}<b>{k.kosongTakDibatalkan}</b>{k.kosongCatatanB}
+                {k.kosongCatatanA}
+                <b>{k.kosongMilik(sesi.project_name ?? "—")}</b>
+                {k.kosongCatatanB}<b>{k.kosongTakDibatalkan}</b>{k.kosongCatatanC}
               </p>
               <p className="hint" style={{ textAlign: "left" }}>
-                {k.kosongCatatanC1}<b>{k.kosongTidak}</b>{k.kosongCatatanC2}
+                {k.kosongCatatanD1}<b>{k.kosongTidak}</b>{k.kosongCatatanD2}
               </p>
 
               <div className="row" style={{ marginBottom: 0 }}>
@@ -1091,7 +1099,7 @@ export default function AdminPage() {
             {isiTabel && (
               <>
                 <div className="banner stop">
-                  <b>{k.akanDihapusJudul}</b>
+                  <b>{k.akanDihapusJudul(sesi.project_name ?? "—")}</b>
                   {k.akanDihapusIsi}
                 </div>
                 <div className="tscroll">

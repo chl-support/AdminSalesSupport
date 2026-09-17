@@ -1,4 +1,4 @@
-import { handler, requireRole } from "@/lib/api";
+import { handler, requireRole, projectAktif } from "@/lib/api";
 import { WorkflowError } from "@/lib/workflow";
 import { imporLaporan } from "@/lib/penjualan";
 
@@ -39,6 +39,7 @@ export const POST = handler(async (req) => {
       dryRun,
       aktor: user.username,
       namaBerkas: (berkas as File).name,
+      projectId: await projectAktif(req),
     });
   } catch (e: any) {
     // Berkas yang salah bentuk adalah kekeliruan pemanggil, bukan kegagalan

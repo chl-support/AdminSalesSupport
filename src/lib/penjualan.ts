@@ -126,9 +126,18 @@ export type HasilImpor = {
 
 export async function imporLaporan(
   teks: string,
-  opsi: { dryRun?: boolean; aktor?: string; namaBerkas?: string } = {},
+  opsi: { dryRun?: boolean; aktor?: string; namaBerkas?: string;
+          projectId?: string } = {},
   client?: PoolClient,
 ): Promise<HasilImpor> {
+  // Project wajib: laporan penjualan tidak menyebut project-nya sendiri — yang
+  // menentukan adalah project yang sedang dikerjakan saat berkasnya diunggah.
+  const projectId = opsi.projectId ?? null;
+  if (!projectId) {
+    throw new WorkflowError(
+      "Project belum dipilih. Pilih project yang akan dikerjakan lebih dulu.",
+      "project_required", 409);
+  }
   const dryRun = Boolean(opsi.dryRun);
   const seksi = bacaLaporan(teks);
   const summary = seksi.find((s) => /Summary Penjualan/i.test(s.seksi));
@@ -173,17 +182,21 @@ export async function imporLaporan(
     if (!nama) return null;
     const kunci = nama.toLowerCase();
     if (cacheMarketing.has(kunci)) return cacheMarketing.get(kunci)!;
+    // Dicari dalam lingkup project ini saja. Nama yang sama pada project lain
+    // adalah baris lain: orang yang sama pun punya riwayat, spesimen, dan
+    // rekening yang dipisah menurut project tempat ia bekerja.
     const ada = await one<{ id: string }>(
-      "SELECT id FROM marketings WHERE lower(full_name) = $1", [kunci], client);
+      "SELECT id FROM marketings WHERE lower(full_name) = $1 AND project_id = $2",
+      [kunci, projectId], client);
     let id = ada?.id;
     if (!id) {
       id = (await query<{ id: string }>(
         `INSERT INTO marketings (full_name, marketing_type, agency_id,
-           npwp_type, recipient_type, phone, status)
-         VALUES ($1,$2,$3,'none',$4,'','draft') RETURNING id`,
+           npwp_type, recipient_type, phone, status, project_id)
+         VALUES ($1,$2,$3,'none',$4,'','draft',$5) RETURNING id`,
         [nama, agensi ? "agent" : "inhouse",
          agensi ? await agensiId(agensi) : null,
-         agensi ? "company" : "individual"], client))[0].id;
+         agensi ? "company" : "individual", projectId], client))[0].id;
     }
     cacheMarketing.set(kunci, id);
     return id;
@@ -209,12 +222,16 @@ export async function imporLaporan(
     // menimpa yang lama tanpa jejak — padahal klaim melekat pada penjualannya,
     // bukan pada batu batanya.
     const noKontrak = r["No.Kontrak"] || null;
+    // Dicari dalam lingkup project ini. Nomor unit dan nomor kontrak hanya unik
+    // di dalam satu project; mencari lintas project berarti penjualan Banara
+    // menimpa penjualan Naraya yang kebetulan bernomor sama.
     const ada = noKontrak
       ? await one<{ id: string }>(
-          "SELECT id FROM units WHERE contract_number = $1", [noKontrak], client)
+          "SELECT id FROM units WHERE contract_number = $1 AND project_id = $2",
+          [noKontrak, projectId], client)
       : await one<{ id: string }>(
-          "SELECT id FROM units WHERE code = $1 AND contract_number IS NULL",
-          [code], client);
+          "SELECT id FROM units WHERE code = $1 AND contract_number IS NULL " +
+          "AND project_id = $2", [code, projectId], client);
 
     pratinjau.push({
       unit: code, kontrak: noKontrak, tanggal: tglKontrak, status, nilai,
@@ -263,9 +280,10 @@ export async function imporLaporan(
         `INSERT INTO units (code, project_name, cluster_code, buyer_name,
            unit_type, land_area, building_area, orientation, payment_scheme,
            contract_number, contract_date, contract_value_incl_vat, status,
-           cancelled_at, marketing_id, sub_coordinator_id, coordinator_id)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`,
-        [code, ...nilaiKolom], client);
+           cancelled_at, marketing_id, sub_coordinator_id, coordinator_id,
+           project_id)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)`,
+        [code, ...nilaiKolom, projectId], client);
       baru++;
     }
   }
@@ -330,8 +348,13 @@ export async function catatPrasyarat(
   unitId: string,
   data: Record<string, unknown>,
   aktor: string,
+  projectId?: string,
 ) {
-  const unit = await one<any>("SELECT * FROM units WHERE id=$1", [unitId]);
+  // Unit dicari bersama project-nya: id yang diketikkan langsung ke alamat
+  // tidak boleh membuka unit milik project lain.
+  const unit = await one<any>(
+    "SELECT * FROM units WHERE id=$1 AND ($2::uuid IS NULL OR project_id=$2)",
+    [unitId, projectId ?? null]);
   if (!unit) throw new WorkflowError("Unit tidak ditemukan.", "not_found", 404);
 
   const set: string[] = [];

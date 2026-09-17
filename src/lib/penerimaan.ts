@@ -20,6 +20,7 @@
 import type { PoolClient } from "pg";
 
 import { audit, one, query } from "./db";
+import { WorkflowError } from "./workflow";
 
 export type BarisPenerimaan = {
   unit: string; kontrak: string | null; customer: string;
@@ -133,10 +134,17 @@ export type HasilPenerimaan = {
  */
 export async function imporPenerimaan(
   teks: string,
-  opsi: { dryRun?: boolean; aktor?: string; namaBerkas?: string } = {},
+  opsi: { dryRun?: boolean; aktor?: string; namaBerkas?: string;
+          projectId?: string } = {},
   client?: PoolClient,
 ): Promise<HasilPenerimaan> {
   const dryRun = Boolean(opsi.dryRun);
+  const projectId = opsi.projectId ?? null;
+  if (!projectId) {
+    throw new WorkflowError(
+      "Project belum dipilih. Pilih project yang akan dikerjakan lebih dulu.",
+      "project_required", 409);
+  }
   const baris = bacaPenerimaan(teks);
 
   let diperbarui = 0, sama = 0, tak_dikenal = 0, ganda = 0;
@@ -145,8 +153,9 @@ export async function imporPenerimaan(
   for (const b of baris) {
     let unit = b.kontrak
       ? await one<any>(
-          "SELECT id, code, received_amount FROM units WHERE contract_number=$1",
-          [b.kontrak], client)
+          "SELECT id, code, received_amount FROM units " +
+          "WHERE contract_number=$1 AND project_id=$2",
+          [b.kontrak, projectId], client)
       : null;
 
     if (!unit) {
@@ -156,8 +165,8 @@ export async function imporPenerimaan(
       // Yang masih hidup tetap didahulukan bila kodenya menyandang dua
       // penjualan sekaligus.
       const semua = await query<any>(
-        `SELECT id, code, received_amount, status FROM units WHERE code=$1`,
-        [b.unit], client);
+        `SELECT id, code, received_amount, status FROM units
+          WHERE code=$1 AND project_id=$2`, [b.unit, projectId], client);
       const hidup = semua.filter((u) => u.status !== "cancelled");
       const cocok = semua.length === 1 ? semua : hidup;
       if (cocok.length > 1) {

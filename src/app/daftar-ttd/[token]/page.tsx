@@ -310,7 +310,6 @@ export default function DaftarTtdPage() {
   const [kotak, setKotak] = useState<
     { x: number; y: number; w: number; h: number } | null>(null);
   const gambarRef = useRef<HTMLImageElement | null>(null);
-  const seretDari = useRef<{ x: number; y: number } | null>(null);
   // Apakah kotak yang tampil dipilih sendiri oleh sistem. Dipakai hanya untuk
   // memilih kalimat yang tepat: yang ditandai sendiri perlu diperiksa, yang
   // ditarik orangnya tidak.
@@ -390,29 +389,100 @@ export default function DaftarTtdPage() {
   };
 
   /** Titik pada gambar, dalam satuan tampilan (bukan piksel asli). */
+  /** Titik pada gambar, dalam satuan tampilan (bukan piksel asli). */
   const titik = (e: React.MouseEvent | React.TouchEvent) => {
     const r = gambarRef.current!.getBoundingClientRect();
     const p = "touches" in e ? e.touches[0] : (e as React.MouseEvent);
     return { x: p.clientX - r.left, y: p.clientY - r.top };
   };
 
+  /**
+   * Satu gerakan seret melayani tiga hal sekaligus: membuat kotak baru,
+   * memindahkan yang sudah ada, dan mengubah ukurannya lewat pegangan di
+   * sudutnya.
+   *
+   * Yang menentukan bukan tombol terpisah melainkan tempat jari mendarat —
+   * pada pegangan, di dalam kotak, atau di luar keduanya. Menyediakan tombol
+   * "ubah ukuran" berarti satu ketukan tambahan pada layar yang justru sedang
+   * dipakai satu tangan sambil memegang kartunya.
+   */
+  const aksi = useRef<
+    { mode: string; dari: { x: number; y: number }; awal: Kotak } | null>(null);
+
+  const batas = () => {
+    const img = gambarRef.current;
+    return { l: img?.clientWidth ?? 0, t: img?.clientHeight ?? 0 };
+  };
+
   const mulaiSeret = (e: React.MouseEvent | React.TouchEvent) => {
     e.preventDefault();
-    seretDari.current = titik(e);
+    const dari = titik(e);
+    const arah = (e.target as HTMLElement)?.dataset?.arah;
+
+    if (arah && kotak) {
+      aksi.current = { mode: arah, dari, awal: kotak };
+      return;
+    }
+    if (kotak && dari.x >= kotak.x && dari.x <= kotak.x + kotak.w &&
+        dari.y >= kotak.y && dari.y <= kotak.y + kotak.h) {
+      aksi.current = { mode: "geser", dari, awal: kotak };
+      return;
+    }
+    // Di luar kotak: menggambar kotak baru, seperti sebelumnya.
+    aksi.current = { mode: "baru", dari, awal: { x: dari.x, y: dari.y, w: 0, h: 0 } };
     setKotak(null);
     setOtomatis(false);
     setKetemu(false);
   };
 
   const seret = (e: React.MouseEvent | React.TouchEvent) => {
-    if (!seretDari.current) return;
+    const a = aksi.current;
+    if (!a) return;
     e.preventDefault();
-    const a = seretDari.current, b = titik(e);
-    setKotak({ x: Math.min(a.x, b.x), y: Math.min(a.y, b.y),
-               w: Math.abs(b.x - a.x), h: Math.abs(b.y - a.y) });
+    const p = titik(e);
+    const { l, t } = batas();
+    const dx = p.x - a.dari.x, dy = p.y - a.dari.y;
+    const MIN = 16;
+
+    if (a.mode === "baru") {
+      setKotak({ x: Math.min(a.dari.x, p.x), y: Math.min(a.dari.y, p.y),
+                 w: Math.abs(p.x - a.dari.x), h: Math.abs(p.y - a.dari.y) });
+      return;
+    }
+
+    if (a.mode === "geser") {
+      // Kotak yang digeser tidak boleh keluar dari gambar: yang di luar tidak
+      // dapat dipotong, dan kotaknya menghilang tanpa penjelasan.
+      setKotak({
+        ...a.awal,
+        x: Math.min(Math.max(0, a.awal.x + dx), l - a.awal.w),
+        y: Math.min(Math.max(0, a.awal.y + dy), t - a.awal.h),
+      });
+      return;
+    }
+
+    // Pegangan sudut: tepi yang dipegang bergerak, tepi seberangnya diam.
+    let { x, y, w, h } = a.awal;
+    if (a.mode.includes("kiri")) {
+      const kanan = a.awal.x + a.awal.w;
+      x = Math.min(Math.max(0, a.awal.x + dx), kanan - MIN);
+      w = kanan - x;
+    }
+    if (a.mode.includes("kanan")) {
+      w = Math.min(Math.max(MIN, a.awal.w + dx), l - a.awal.x);
+    }
+    if (a.mode.includes("atas")) {
+      const bawah = a.awal.y + a.awal.h;
+      y = Math.min(Math.max(0, a.awal.y + dy), bawah - MIN);
+      h = bawah - y;
+    }
+    if (a.mode.includes("bawah")) {
+      h = Math.min(Math.max(MIN, a.awal.h + dy), t - a.awal.y);
+    }
+    setKotak({ x, y, w, h });
   };
 
-  const selesaiSeret = () => { seretDari.current = null; };
+  const selesaiSeret = () => { aksi.current = null; };
 
   /**
    * Potong bagian yang ditandai dari gambar aslinya.
@@ -638,7 +708,12 @@ export default function DaftarTtdPage() {
                 {kotak && (
                   <div className="kotak-tandai"
                        style={{ left: kotak.x, top: kotak.y,
-                                width: kotak.w, height: kotak.h }} />
+                                width: kotak.w, height: kotak.h }}>
+                    {["atas-kiri", "atas-kanan", "bawah-kiri", "bawah-kanan"]
+                      .map((a) => (
+                        <span key={a} data-arah={a} className={`pegangan ${a}`} />
+                      ))}
+                  </div>
                 )}
               </div>
               <p style={{ fontSize: 11.5, color: "var(--mut)", textAlign: "center",
@@ -647,11 +722,11 @@ export default function DaftarTtdPage() {
                   ? "Pada e-KTP, tanda tangan tercetak kecil di bawah foto, " +
                     "sebelah kanan bawah kartu."
                   : ketemu
-                  ? "Kotak merah ditandai otomatis. Bila tanda tangannya tidak " +
-                    "berada persis di dalamnya, tarik kotak baru dengan jari."
+                  ? "Kotak merah ditandai otomatis. Geser dari tengahnya, tarik " +
+                    "titik putih di sudutnya untuk mengubah ukuran."
                   : "Tanda tangannya tidak terbaca pada foto ini, jadi kotaknya " +
-                    "ditaruh pada letak yang biasanya. Tarik kotak baru dengan " +
-                    "jari tepat di atas tanda tangannya."}
+                    "ditaruh pada letak yang biasanya. Geser dari tengahnya, " +
+                    "tarik titik putih di sudutnya untuk mengubah ukuran."}
               </p>
             </>
           )}

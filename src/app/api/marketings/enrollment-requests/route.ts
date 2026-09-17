@@ -1,4 +1,4 @@
-import { handler, requireRole, body } from "@/lib/api";
+import { handler, requireRole, body, projectAktif } from "@/lib/api";
 import { revisiMassal } from "@/lib/spesimen";
 
 /**
@@ -12,5 +12,6 @@ import { revisiMassal } from "@/lib/spesimen";
 export const POST = handler(async (req) => {
   const user = await requireRole(req, "admin_sales", "admin_system");
   const p = await body(req);
-  return revisiMassal(user.username, String(p.alasan ?? ""));
+  return revisiMassal(user.username, String(p.alasan ?? ""),
+                      await projectAktif(req));
 });

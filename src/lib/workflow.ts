@@ -172,13 +172,20 @@ export async function createClaim(params: {
   notes?: string | null;
   // Tujuan transfer sebagaimana diketik pada formulir pengajuan.
   transfer?: Transfer | null;
+  // Project yang sedang dikerjakan. Unit dan marketing harus benar-benar milik
+  // project itu — id keduanya datang dari layar, dan layar dapat keliru atau
+  // dikelabui.
+  projectId?: string | null;
   actor?: string;
 }) {
   return tx(async (c) => {
-    const unit = await one("SELECT * FROM units WHERE id=$1", [params.unitId], c);
+    const unit = await one(
+      "SELECT * FROM units WHERE id=$1 AND ($2::uuid IS NULL OR project_id=$2)",
+      [params.unitId, params.projectId ?? null], c);
     if (!unit) throw new WorkflowError("Unit tidak ditemukan.", "not_found", 404);
-    const mkt = await one("SELECT * FROM marketings WHERE id=$1",
-                          [params.marketingId], c);
+    const mkt = await one(
+      "SELECT * FROM marketings WHERE id=$1 AND ($2::uuid IS NULL OR project_id=$2)",
+      [params.marketingId, params.projectId ?? null], c);
     if (!mkt) throw new WorkflowError("Marketing tidak ditemukan.", "not_found", 404);
     if (mkt.status !== "active") {
       throw new WorkflowError(
@@ -231,14 +238,15 @@ export async function createClaim(params: {
         `INSERT INTO claims (claim_number, claim_type, recipient_role, unit_id,
            marketing_id, bank_account_id, status, gross_amount, vat,
            withholding_tax, withholding_tax_type, net_amount, amount_in_words,
-           total_payment, payment_percent, snapshot, notes)
-         VALUES ($1,$2,$3,$4,$5,$6,'draft',$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+           total_payment, payment_percent, snapshot, notes, project_id)
+         VALUES ($1,$2,$3,$4,$5,$6,'draft',$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
          RETURNING *`,
         [number, params.claimType, params.recipientRole, params.unitId,
          params.marketingId, bank?.id ?? null, r.gross_amount, r.vat,
          r.withholding_tax, r.withholding_tax_type, r.net_amount,
          r.amount_in_words, r.total_payment, r.payment_percent,
-         JSON.stringify(r.snapshot), params.notes?.trim() || null], c);
+         JSON.stringify(r.snapshot), params.notes?.trim() || null,
+         unit.project_id], c);
 
       await audit({
         entityType: "claim", entityId: claim!.id, action: "create",
