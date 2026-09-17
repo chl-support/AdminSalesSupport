@@ -184,7 +184,9 @@ td.sel-ket, th.sel-ket { width: 205px; }
 td.sel-skema, th.sel-skema { min-width: 135px; }
 /* Judul kolomnya seukuran isinya. Judul yang lebih kecil daripada datanya
    membuat baris kepala terbaca sebagai catatan kaki, bukan nama kolom. */
-.tabel-penjualan th { font-size: inherit; }
+/* Judul kolom rata tengah, seukuran isinya. */
+.tabel-penjualan th { font-size: inherit; text-align: center; }
+.tabel-penjualan th .satuan { font-weight: 400; color: var(--mut); }
 /* Delapan kolom pada satu baris: jarak dalam selnya dirapatkan supaya
    seluruhnya muat tanpa tabel ini harus digeser mendatar. */
 .tabel-penjualan th, .tabel-penjualan td { padding: 5px 6px; }

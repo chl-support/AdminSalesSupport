@@ -32,7 +32,14 @@ import { JENIS, namaJenis, type Jenis } from "./jenis";
  */
 const AMBANG = 0.20;
 
-const rp = (n?: number | null) => `Rp ${(n ?? 0).toLocaleString("id-ID")}`;
+/**
+ * Angka rupiah tanpa lambangnya.
+ *
+ * "Rp" disebut sekali di kepala kolom, bukan diulang pada tiap baris. Lambang
+ * yang berulang di setiap sel membuat mata harus melewatinya puluhan kali untuk
+ * membandingkan dua angka yang sebenarnya berdampingan.
+ */
+const rp = (n?: number | null) => (n ?? 0).toLocaleString("id-ID");
 
 /**
  * Sebab yang melekat pada unitnya, bukan pada jenis fee-nya.
@@ -75,8 +82,8 @@ const KATA = {
     yangBelum: "yang belum dapat diklaim sama sekali",
     dataPenjualan: "Data penjualan",
     barisDitampilkan: (n: number) => `${n} baris ditampilkan`,
-    thUnit: "Unit", thPembeli: "Pembeli", thPenerima: "Sales/Agent",
-    thSkema: "Skema Cara Bayar", thNilai: "Nilai kontrak",
+    thUnit: "Unit", thPembeli: "Konsumen", thPenerima: "Sales/Agent",
+    thSkema: "Skema Cara Bayar", thNilai: "Nilai Kontrak",
     thPenerimaan: "Penerimaan", thKlaim: "Klaim", thKeterangan: "Keterangan",
     belumTercatat: "belum tercatat",
     dariKontrak: (p: string) => `${p}% dari kontrak`,
@@ -109,7 +116,7 @@ const KATA = {
     yangBelum: "with nothing claimable yet",
     dataPenjualan: "Sales data",
     barisDitampilkan: (n: number) => `${n} rows shown`,
-    thUnit: "Unit", thPembeli: "Buyer", thPenerima: "Sales/Agent",
+    thUnit: "Unit", thPembeli: "Customer", thPenerima: "Sales/Agent",
     thSkema: "Payment Scheme", thNilai: "Contract value",
     thPenerimaan: "Received", thKlaim: "Claim", thKeterangan: "Notes",
     belumTercatat: "not recorded yet",
@@ -259,8 +266,13 @@ export default function PengajuanFeePage() {
                 <th>{k.thPembeli}</th>
                 <th className="sel-penerima">{k.thPenerima}</th>
                 <th className="sel-skema">{k.thSkema}</th>
-                <th style={{ textAlign: "right" }}>{k.thNilai}</th>
-                <th style={{ textAlign: "right" }}>{k.thPenerimaan}</th>
+                {/* Satuannya di kepala kolom, pada barisnya sendiri, supaya
+                    "(Rp.)" tetap terbaca sebagai keterangan satuan dan bukan
+                    bagian dari nama kolomnya. */}
+                <th>{k.thNilai}<br /><span className="satuan">(Rp.)</span></th>
+                <th>
+                  {k.thPenerimaan}<br /><span className="satuan">(Rp.)</span>
+                </th>
                 <th className="sel-fee">{k.thKlaim}</th>
                 <th className="sel-ket">{k.thKeterangan}</th>
               </tr>
