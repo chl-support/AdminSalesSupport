@@ -870,39 +870,39 @@ ul.syarat-foto { margin: 8px 0 0 16px; padding: 0; font-size: 11.5px;
                  min-height: 100dvh; display: flex; flex-direction: column;
                  justify-content: center; }
 
-/* Siluet keenam project menempel di kaki halaman.
+/* Latar project di kaki layar, untuk seluruh halaman sesudah masuk.
    
-   Ia menutup ruang kosong di bawah kisi tanpa menambah satu pun benda yang
-   harus dibaca — dan yang digambarnya persis isi halaman ini. Kepekatannya
-   dipatok sangat rendah: pada tingkat yang cukup untuk dikenali sebagai
-   gambar, ia mulai bersaing dengan lambang project di atasnya, dan yang
-   dicari orang di layar ini lambang itu.
-
-   Dipasang selebar tampilan, bukan selebar kisinya: deret bangunan yang
-   berhenti tepat di tepi kartu terbaca sebagai gambar yang terpotong, bukan
-   sebagai pemandangan di kejauhan. Karena itu ia menembus batas .pilih-project
-   lewat inset mendatar negatif sebesar 50vw.
-
-   pointer-events:none supaya ia tidak pernah menangkap klik yang dituju
-   kartu; z-index -1 supaya ia tetap di belakang kartu putihnya. */
-.pilih-project::after {
-  content: ""; position: absolute; z-index: -1; pointer-events: none;
-  left: 50%; right: 50%; margin-left: -50vw; margin-right: -50vw;
-  width: 100vw; bottom: 0; height: min(230px, 26vh);
-  background: url("/siluet-proyek.svg") no-repeat bottom center;
-  /* contain, bukan `auto 100%`: dipatok pada tingginya, deret selebar 1600
-     piksel itu jauh melampaui layar ponsel dan yang tersisa di sana hanya
-     potongan tengahnya — beberapa batang kolom tanpa bangunan. Dipatok pada
-     yang lebih dulu penuh, keenamnya selalu utuh, hanya mengecil. */
-  background-size: contain;
-  opacity: .05;
+   Berkasnya foto kawasan yang diunggah sendiri, bukan gambar yang digambar di
+   sini: rumahnya rumah yang benar-benar dibangun. Latar putihnya dijadikan
+   bening — kepekatan tiap pikselnya menjadi alfa — sehingga ia menumpang di
+   atas warna halaman, bukan menutupinya dengan kotak putih.
+   
+   Dipatok pada tampilan, bukan pada halaman: ia tinggal di kaki layar dan
+   tidak ikut tergulir. Yang tergulir isinya, dan latar yang ikut naik-turun
+   bersama isi justru menarik mata ke gerakannya.
+   
+   aspect-ratio memberi tingginya dari lebarnya sendiri, mengikuti perbandingan
+   berkasnya. Dipatok pada satu angka, gambarnya terpotong di layar sempit dan
+   menyisakan bidang kosong di layar lebar.
+   
+   pointer-events:none supaya ia tidak pernah menangkap klik; z-index -1 supaya
+   ia tetap di belakang isi halaman. */
+.konsol::before,
+.pilih-project::before {
+  content: ""; position: fixed; left: 0; right: 0; bottom: 0;
+  aspect-ratio: 1600 / 271;
+  background: url("/latar-projek.webp") no-repeat bottom center;
+  background-size: 100% auto;
+  /* Kepekatannya ditahan di bawah setengah. Kolom menu dan sebagian keterangan
+     duduk langsung di atas warna halaman, tanpa panel putih yang menaunginya —
+     dan di layar pendek keduanya bisa jatuh tepat di atas bagian gambar yang
+     paling gelap. */
+  opacity: .45; pointer-events: none; z-index: -1;
 }
 
-/* Yang meminta gerakan dikurangi tidak terpengaruh — siluetnya memang diam.
-   Tetapi pada layar yang sangat pendek ia memakan tempat kisi, jadi di sana
-   ia dilepas. */
+/* Pada layar yang sangat pendek ia dilepas: di sana ia memakan tempat isi. */
 @media (max-height: 560px) {
-  .pilih-project::after { display: none; }
+  .konsol::before, .pilih-project::before { display: none; }
 }
 /* Lambang di atas, bukan di samping. Lambang penuh membawa tulisan "CIPTA
    HARMONI LESTARI" di bawahnya, dan tulisan itu hanya sepersembilan tinggi
