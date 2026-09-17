@@ -15,8 +15,106 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useKata } from "../bahasa";
 import { Kerangka, MemeriksaSesi } from "../kerangka";
 import { useSesi } from "../session";
+
+const KATA = {
+  id: {
+    judul: "Jejak audit",
+    pengantar:
+      "Append-only: basis data menolak UPDATE dan DELETE lewat RULE, yang " +
+      "berlaku bahkan bagi pemilik tabel. Entri yang keliru diperbaiki dengan " +
+      "entri baru, tidak pernah dengan menyuntingnya.",
+    peranBisa: (peran: string) =>
+      `Peran ${peran}: dapat membaca dan membubuhkan koreksi`,
+    peranBaca: (peran: string) => `Peran ${peran}: hanya dapat membaca`,
+    kabarBisa:
+      "Koreksi tidak menyunting entri lama. Ia ditambahkan sebagai entri baru " +
+      "yang menunjuk entri yang dikoreksi, sehingga riwayat koreksinya pun " +
+      "ikut terekam.",
+    kabarBaca:
+      "Jejak audit tidak dapat diubah dari peran ini. Pembubuhan koreksi hanya " +
+      "dapat dilakukan Finance (Pajak), Finance Manager, dan Head Finance.",
+    saring: "Saring",
+    entriCocok: (n: number, tersaring: boolean) =>
+      `${n} entri cocok${tersaring ? " dari filter ini" : ""}`,
+    cari: "Cari (aksi, alasan, aktor, entitas)",
+    contohCari: "mis. tax_verification",
+    aktor: "Aktor", aksi: "Aksi", jenisEntitas: "Jenis entitas",
+    sejak: "Sejak", sampai: "Sampai", semua: "semua",
+    tersaringJudul: "Tersaring pada satu entitas",
+    tersaringIsi: "— hanya peristiwa milik entitas ini yang ditampilkan.",
+    tampilkanSemua: "Tampilkan semua",
+    bersihkan: "Bersihkan filter",
+    galatBaca: "Jejak audit tidak dapat dibaca",
+    entri: "Entri",
+    dariDitampilkan: (n: number, total: number) => `${n} dari ${total} ditampilkan`,
+    thWaktu: "Waktu", thAktor: "Aktor", thAksi: "Aksi", thEntitas: "Entitas",
+    thAlasan: "Alasan",
+    pillKoreksi: "koreksi",
+    thBidang: "Bidang", thDari: "Dari", thMenjadi: "Menjadi",
+    takBerubah: "Tidak ada bidang yang berubah pada entri ini.",
+    tutup: "Tutup", rincian: "Rincian", koreksi: "Koreksi",
+    belumAda: "Belum ada entri audit.",
+    takCocok: "Tidak ada entri yang cocok dengan filter ini.",
+    memuat: "Memuat…",
+    muatBerikutnya: (n: number) => `Muat ${n} berikutnya`,
+    muatUlang: "Muat ulang",
+    tanyaKoreksi:
+      "Alasan koreksi atas entri ini.\n\n" +
+      "Entri asli tidak akan berubah maupun hilang — koreksi tercatat sebagai " +
+      "entri baru yang menunjuk entri lama.",
+    alasanKosong: "Alasan koreksi tidak boleh kosong.",
+  },
+  en: {
+    judul: "Audit trail",
+    pengantar:
+      "Append-only: the database refuses UPDATE and DELETE through a RULE, " +
+      "which applies even to the table owner. A mistaken entry is corrected " +
+      "with a new entry, never by editing it.",
+    peranBisa: (peran: string) =>
+      `Role ${peran}: can read and append corrections`,
+    peranBaca: (peran: string) => `Role ${peran}: read-only`,
+    kabarBisa:
+      "A correction does not edit the old entry. It is appended as a new entry " +
+      "pointing at the one being corrected, so the correction history is " +
+      "recorded too.",
+    kabarBaca:
+      "The audit trail cannot be changed from this role. Corrections can only " +
+      "be appended by Finance (Tax), Finance Manager, and Head Finance.",
+    saring: "Filter",
+    entriCocok: (n: number, tersaring: boolean) =>
+      `${n} entries match${tersaring ? " this filter" : ""}`,
+    cari: "Search (action, reason, actor, entity)",
+    contohCari: "e.g. tax_verification",
+    aktor: "Actor", aksi: "Action", jenisEntitas: "Entity type",
+    sejak: "From", sampai: "To", semua: "all",
+    tersaringJudul: "Filtered to a single entity",
+    tersaringIsi: "— only events belonging to this entity are shown.",
+    tampilkanSemua: "Show all",
+    bersihkan: "Clear filters",
+    galatBaca: "The audit trail could not be read",
+    entri: "Entries",
+    dariDitampilkan: (n: number, total: number) => `${n} of ${total} shown`,
+    thWaktu: "Time", thAktor: "Actor", thAksi: "Action", thEntitas: "Entity",
+    thAlasan: "Reason",
+    pillKoreksi: "correction",
+    thBidang: "Field", thDari: "From", thMenjadi: "To",
+    takBerubah: "No field changed in this entry.",
+    tutup: "Close", rincian: "Details", koreksi: "Correct",
+    belumAda: "No audit entries yet.",
+    takCocok: "No entries match this filter.",
+    memuat: "Loading…",
+    muatBerikutnya: (n: number) => `Load ${n} more`,
+    muatUlang: "Reload",
+    tanyaKoreksi:
+      "Reason for correcting this entry.\n\n" +
+      "The original entry will neither change nor disappear — the correction " +
+      "is recorded as a new entry pointing at the old one.",
+    alasanKosong: "The correction reason cannot be empty.",
+  },
+};
 
 const HALAMAN = 50;
 
@@ -67,6 +165,7 @@ function perubahan(before: Record<string, any> | null, after: Record<string, any
 
 export default function AuditPage() {
   const { sesi, memuat } = useSesi();
+  const k = useKata(KATA);
   const [viewer, setViewer] = useState<Viewer | null>(null);
   const [filter, setFilter] = useState<Filter>(KOSONG);
   // Filter disimpan juga di ref agar pemuatan ulang saat pengguna berganti
@@ -135,12 +234,9 @@ export default function AuditPage() {
    * ada yang mengira entri keliru akan hilang setelahnya.
    */
   const koreksi = async (entryId: string) => {
-    const alasan = window.prompt(
-      "Alasan koreksi atas entri ini.\n\n" +
-      "Entri asli tidak akan berubah maupun hilang — koreksi tercatat sebagai " +
-      "entri baru yang menunjuk entri lama.");
+    const alasan = window.prompt(k.tanyaKoreksi);
     if (alasan === null) return;
-    if (!alasan.trim()) { setGalat("Alasan koreksi tidak boleh kosong."); return; }
+    if (!alasan.trim()) { setGalat(k.alasanKosong); return; }
     setBusy(true);
     try {
       const res = await fetch("/api/audit", {
@@ -168,12 +264,8 @@ export default function AuditPage() {
   return (
     <Kerangka sesi={sesi} judul={
       <div>
-        <h1>Jejak audit</h1>
-        <p>
-          Append-only: basis data menolak UPDATE dan DELETE lewat RULE, yang
-          berlaku bahkan bagi pemilik tabel. Entri yang keliru diperbaiki dengan
-          entri baru, tidak pernah dengan menyuntingnya.
-        </p>
+        <h1>{k.judul}</h1>
+        <p>{k.pengantar}</p>
       </div>
     }>
 
@@ -181,62 +273,53 @@ export default function AuditPage() {
         <div className={`banner ${viewer.can_annotate ? "info" : "warn"} sp`}>
           <b>
             {viewer.can_annotate
-              ? `Peran ${viewer.role}: dapat membaca dan membubuhkan koreksi`
-              : `Peran ${viewer.role}: hanya dapat membaca`}
+              ? k.peranBisa(viewer.role) : k.peranBaca(viewer.role)}
           </b>
-          {viewer.can_annotate
-            ? "Koreksi tidak menyunting entri lama. Ia ditambahkan sebagai entri " +
-              "baru yang menunjuk entri yang dikoreksi, sehingga riwayat koreksinya " +
-              "pun ikut terekam."
-            : "Jejak audit tidak dapat diubah dari peran ini. Pembubuhan koreksi " +
-              "hanya dapat dilakukan Finance (Pajak), Finance Manager, dan Head " +
-              "Finance."}
+          {viewer.can_annotate ? k.kabarBisa : k.kabarBaca}
         </div>
       )}
 
       <div className="panel sp">
         <h2>
-          Saring
-          <span className="pill">
-            {total} entri cocok{bersih ? "" : " dari filter ini"}
-          </span>
+          {k.saring}
+          <span className="pill">{k.entriCocok(total, !bersih)}</span>
         </h2>
 
         <div className="filters">
           <div>
-            <div className="lbl">Cari (aksi, alasan, aktor, entitas)</div>
-            <input value={filter.q} placeholder="mis. tax_verification"
+            <div className="lbl">{k.cari}</div>
+            <input value={filter.q} placeholder={k.contohCari}
                    onChange={(e) => ubah("q", e.target.value)} />
           </div>
           <div>
-            <div className="lbl">Aktor</div>
+            <div className="lbl">{k.aktor}</div>
             <select value={filter.actor} onChange={(e) => ubah("actor", e.target.value)}>
-              <option value="">semua</option>
+              <option value="">{k.semua}</option>
               {facets.actors.map((a) => <option key={a} value={a}>{a}</option>)}
             </select>
           </div>
           <div>
-            <div className="lbl">Aksi</div>
+            <div className="lbl">{k.aksi}</div>
             <select value={filter.action} onChange={(e) => ubah("action", e.target.value)}>
-              <option value="">semua</option>
+              <option value="">{k.semua}</option>
               {facets.actions.map((a) => <option key={a} value={a}>{a}</option>)}
             </select>
           </div>
           <div>
-            <div className="lbl">Jenis entitas</div>
+            <div className="lbl">{k.jenisEntitas}</div>
             <select value={filter.entity_type}
                     onChange={(e) => ubah("entity_type", e.target.value)}>
-              <option value="">semua</option>
+              <option value="">{k.semua}</option>
               {facets.entity_types.map((a) => <option key={a} value={a}>{a}</option>)}
             </select>
           </div>
           <div>
-            <div className="lbl">Sejak</div>
+            <div className="lbl">{k.sejak}</div>
             <input type="date" value={filter.since}
                    onChange={(e) => ubah("since", e.target.value)} />
           </div>
           <div>
-            <div className="lbl">Sampai</div>
+            <div className="lbl">{k.sampai}</div>
             <input type="date" value={filter.until}
                    onChange={(e) => ubah("until", e.target.value)} />
           </div>
@@ -244,11 +327,10 @@ export default function AuditPage() {
 
         {filter.entity_id && (
           <div className="banner info" style={{ marginTop: 12, marginBottom: 0 }}>
-            <b>Tersaring pada satu entitas</b>
-            <code>{filter.entity_id}</code> — hanya peristiwa milik entitas ini yang
-            ditampilkan.{" "}
+            <b>{k.tersaringJudul}</b>
+            <code>{filter.entity_id}</code> {k.tersaringIsi}{" "}
             <a href="#" onClick={(e) => { e.preventDefault(); ubah("entity_id", ""); }}>
-              Tampilkan semua
+              {k.tampilkanSemua}
             </a>
           </div>
         )}
@@ -256,7 +338,7 @@ export default function AuditPage() {
         {!bersih && (
           <div className="row" style={{ marginTop: 12, marginBottom: 0 }}>
             <button onClick={() => { setFilter(KOSONG); void muat(KOSONG, 0); }}>
-              Bersihkan filter
+              {k.bersihkan}
             </button>
           </div>
         )}
@@ -264,28 +346,26 @@ export default function AuditPage() {
 
       {galat && (
         <div className="banner stop">
-          <b>Jejak audit tidak dapat dibaca</b>
+          <b>{k.galatBaca}</b>
           {galat}
         </div>
       )}
 
       <div className="panel">
         <h2>
-          Entri
-          <span className="pill">
-            {rows.length} dari {total} ditampilkan
-          </span>
+          {k.entri}
+          <span className="pill">{k.dariDitampilkan(rows.length, total)}</span>
         </h2>
 
         <div className="tscroll">
         <table>
           <tbody>
             <tr>
-              <th style={{ width: 150 }}>Waktu</th>
-              <th style={{ width: 110 }}>Aktor</th>
-              <th>Aksi</th>
-              <th style={{ width: 150 }}>Entitas</th>
-              <th>Alasan</th>
+              <th style={{ width: 150 }}>{k.thWaktu}</th>
+              <th style={{ width: 110 }}>{k.thAktor}</th>
+              <th>{k.thAksi}</th>
+              <th style={{ width: 150 }}>{k.thEntitas}</th>
+              <th>{k.thAlasan}</th>
               <th style={{ width: 1 }}></th>
             </tr>
             {rows.map((e) => {
@@ -301,7 +381,7 @@ export default function AuditPage() {
                     {e.action === "audit_correction" && (
                       <>
                         {" "}
-                        <span className="pill warn">koreksi</span>
+                        <span className="pill warn">{k.pillKoreksi}</span>
                       </>
                     )}
                   </td>
@@ -324,7 +404,8 @@ export default function AuditPage() {
                         {diff.length > 0 ? (
                           <table>
                             <tbody>
-                              <tr><th>Bidang</th><th>Dari</th><th>Menjadi</th></tr>
+                              <tr><th>{k.thBidang}</th><th>{k.thDari}</th>
+                                  <th>{k.thMenjadi}</th></tr>
                               {diff.map((d) => (
                                 <tr key={d.k}>
                                   <td><code>{d.k}</code></td>
@@ -336,7 +417,7 @@ export default function AuditPage() {
                           </table>
                         ) : (
                           <p style={{ margin: 0, color: "var(--mut)" }}>
-                            Tidak ada bidang yang berubah pada entri ini.
+                            {k.takBerubah}
                           </p>
                         )}
                         {e.ip_address && (
@@ -351,14 +432,14 @@ export default function AuditPage() {
                     {adaRincian && (
                       <button style={{ padding: "2px 7px", fontSize: 11 }}
                               onClick={() => setBuka(terbuka ? null : e.id)}>
-                        {terbuka ? "Tutup" : "Rincian"}
+                        {terbuka ? k.tutup : k.rincian}
                       </button>
                     )}
                     {/* Tombol ini hanya kenyamanan; penolakannya tetap di server. */}
                     {viewer?.can_annotate && e.action !== "audit_correction" && (
                       <button style={{ padding: "2px 7px", fontSize: 11, marginLeft: 4 }}
                               disabled={busy} onClick={() => void koreksi(e.id)}>
-                        Koreksi
+                        {k.koreksi}
                       </button>
                     )}
                   </td>
@@ -368,9 +449,7 @@ export default function AuditPage() {
             {!rows.length && !busy && (
               <tr>
                 <td colSpan={6} style={{ color: "var(--mut)" }}>
-                  {bersih
-                    ? "Belum ada entri audit."
-                    : "Tidak ada entri yang cocok dengan filter ini."}
+                  {bersih ? k.belumAda : k.takCocok}
                 </td>
               </tr>
             )}
@@ -381,10 +460,13 @@ export default function AuditPage() {
         <div className="row" style={{ marginTop: 12, marginBottom: 0 }}>
           {hasMore && (
             <button onClick={() => void muat(filter, rows.length)} disabled={busy}>
-              {busy ? "Memuat…" : `Muat ${Math.min(HALAMAN, total - rows.length)} berikutnya`}
+              {busy ? k.memuat
+                    : k.muatBerikutnya(Math.min(HALAMAN, total - rows.length))}
             </button>
           )}
-          <button onClick={() => void muat(filter, 0)} disabled={busy}>Muat ulang</button>
+          <button onClick={() => void muat(filter, 0)} disabled={busy}>
+            {k.muatUlang}
+          </button>
         </div>
       </div>
     </Kerangka>

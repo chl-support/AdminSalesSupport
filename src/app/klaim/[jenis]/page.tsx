@@ -19,22 +19,160 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 
+import { useBahasa, useKata } from "../../bahasa";
 import { Kerangka, MemeriksaSesi } from "../../kerangka";
 import { useSesi } from "../../session";
-import { jenisDari } from "../jenis";
+import { NAMA_EN, PRASYARAT_EN, jenisDari } from "../jenis";
 
 const rp = (n?: number | null) => `Rp ${(n ?? 0).toLocaleString("id-ID")}`;
 
 /** Prasyarat pencairan, sama urutannya dengan yang dicatat di basis data. */
 const PRASYARAT = [
-  ["spu_signed", "SPU sudah ditandatangani pemesan",
-   "Syarat Closing Fee, Komisi, dan Cash Reward."],
-  ["ppjb_signed", "PPJB sudah ditandatangani pemesan",
-   "Syarat Komisi dan Cash Reward."],
-  ["dp_received", "DP / angsuran pertama sudah diterima",
-   "Syarat Cash Reward."],
-  ["sign_p3u", "Unit sudah Sign P3U", "Syarat Overriding."],
+  { kolom: "spu_signed",
+    id: ["SPU sudah ditandatangani pemesan",
+         "Syarat Closing Fee, Komisi, dan Cash Reward."],
+    en: ["The SPU has been signed by the buyer",
+         "Required for Closing Fee, Commission, and Cash Reward."] },
+  { kolom: "ppjb_signed",
+    id: ["PPJB sudah ditandatangani pemesan",
+         "Syarat Komisi dan Cash Reward."],
+    en: ["The PPJB has been signed by the buyer",
+         "Required for Commission and Cash Reward."] },
+  { kolom: "dp_received",
+    id: ["DP / angsuran pertama sudah diterima", "Syarat Cash Reward."],
+    en: ["The down payment or first instalment has been received",
+         "Required for Cash Reward."] },
+  { kolom: "sign_p3u",
+    id: ["Unit sudah Sign P3U", "Syarat Overriding."],
+    en: ["The unit has been Sign P3U", "Required for Overriding."] },
 ] as const;
+
+/**
+ * Sebab unit belum dapat diklaim, dari kode yang dikirim server.
+ *
+ * Nomor BR-nya mengikuti jenis klaim yang sedang dibuka, sama seperti saat
+ * kalimatnya masih dirakit di server — aturan yang sama, ditulis sekali.
+ */
+const BR: Record<string, string> = {
+  closing_fee: "BR-01", commission: "BR-02",
+  cash_reward: "BR-03", overriding: "BR-04",
+};
+
+const SEBAB = {
+  id: {
+    unit_cancelled: () => "Unit sudah dibatalkan.",
+    unit_moved: () => "Unit sudah dipindahkan ke unit lain.",
+    unit_management: () => "Unit management — tidak menghasilkan insentif.",
+    spu_unsigned: (br: string) => `SPU belum ditandatangani pemesan (${br}).`,
+    ppjb_unsigned: (br: string) => `PPJB belum ditandatangani pemesan (${br}).`,
+    dp_not_received: (br: string) => `DP / angsuran 1 belum diterima (${br}).`,
+    not_sign_p3u: (br: string) => `Unit belum Sign P3U (${br}).`,
+  } as Record<string, (br: string) => string>,
+  en: {
+    unit_cancelled: () => "The unit has been cancelled.",
+    unit_moved: () => "The unit has been moved to another unit.",
+    unit_management: () => "Management unit — it earns no incentive.",
+    spu_unsigned: (br: string) => `The SPU has not been signed by the buyer (${br}).`,
+    ppjb_unsigned: (br: string) => `The PPJB has not been signed by the buyer (${br}).`,
+    dp_not_received: (br: string) =>
+      `The down payment or first instalment has not been received (${br}).`,
+    not_sign_p3u: (br: string) => `The unit has not been Sign P3U (${br}).`,
+  } as Record<string, (br: string) => string>,
+};
+
+const KATA = {
+  id: {
+    pengantarJudul: "Penjualan yang memenuhi syarat dan belum diklaim dapat " +
+                    "diajukan lewat kolom paling kanan.",
+    takDikenal: "Jenis klaim tidak dikenal",
+    kembali: "Kembali ke pilihan jenis",
+    dapatDiklaim: (n: number) => `${n} dapat diklaim`,
+    penjualan: (n: number) => `${n} penjualan`,
+    galatBaca: "Data penjualan tidak dapat dibaca",
+    cari: "Cari (kode unit, pembeli, proyek, cluster)",
+    contohCari: "mis. BIOBA2",
+    tampilkan: "Tampilkan",
+    semuaPenjualan: "semua penjualan",
+    yangBisa: "yang dapat diklaim",
+    yangSudah: "yang sudah diklaim",
+    yangBelum: "yang belum dapat diklaim",
+    dataPenjualan: "Data penjualan",
+    barisDitampilkan: (n: number) => `${n} baris ditampilkan`,
+    thUnit: "Unit", thPembeli: "Pembeli", thPenerima: "Penerima fee",
+    thSkema: "Skema / tanggal", thNilai: "Nilai kontrak",
+    thPenerimaan: "Penerimaan", thKlaim: "Klaim",
+    belumTercatat: "belum tercatat",
+    dariKontrak: (p: string) => `${p}% dari kontrak`,
+    sudahDiklaim: "sudah diklaim",
+    tombolKlaim: "Klaim",
+    belumDapatDiklaim: "belum dapat diklaim",
+    catatDokumen: "Catat dokumen",
+    belumMenyebut: (sumber: string) => `Data penjualan belum menyebut ${sumber}.`,
+    belumAktif: (nama: string, status: string) =>
+      `${nama} berstatus ${status}, belum aktif.`,
+    takAdaCocok: "Tidak ada penjualan yang cocok dengan penyaringan ini.",
+    memuat: "Memuat…",
+    popupNama: "Catat dokumen unit",
+    dokumenUnit: (kode: string) => `Dokumen unit ${kode}`,
+    tutup: "Tutup",
+    popupPengantar:
+      "Tandai yang berkasnya sudah ada di tangan Anda. Penanda inilah yang " +
+      "membuka pengajuan atas unit ini, dan setiap perubahannya tercatat pada " +
+      "jejak audit beserta nama Anda.",
+    penerimaanHariIni: "Penerimaan sampai hari ini (Rp)",
+    nilaiKontrak: (v: string) => `Nilai kontrak ${v}.`,
+    melebihiJudul: "Penerimaan melebihi nilai kontrak",
+    melebihiIsi: "Periksa sekali lagi sebelum disimpan.",
+    menyimpan: "Menyimpan…", simpan: "Simpan", batal: "Batal",
+    tercatat: (kode: string) => `Dokumen unit ${kode} tercatat.`,
+  },
+  en: {
+    pengantarJudul: "Sales that meet the requirements and have not been " +
+                    "claimed can be submitted from the rightmost column.",
+    takDikenal: "Unknown claim type",
+    kembali: "Back to the type list",
+    dapatDiklaim: (n: number) => `${n} claimable`,
+    penjualan: (n: number) => `${n} sales`,
+    galatBaca: "Sales data could not be read",
+    cari: "Search (unit code, buyer, project, cluster)",
+    contohCari: "e.g. BIOBA2",
+    tampilkan: "Show",
+    semuaPenjualan: "all sales",
+    yangBisa: "claimable only",
+    yangSudah: "already claimed",
+    yangBelum: "not yet claimable",
+    dataPenjualan: "Sales data",
+    barisDitampilkan: (n: number) => `${n} rows shown`,
+    thUnit: "Unit", thPembeli: "Buyer", thPenerima: "Fee recipient",
+    thSkema: "Scheme / date", thNilai: "Contract value",
+    thPenerimaan: "Received", thKlaim: "Claim",
+    belumTercatat: "not recorded yet",
+    dariKontrak: (p: string) => `${p}% of contract`,
+    sudahDiklaim: "claimed",
+    tombolKlaim: "Claim",
+    belumDapatDiklaim: "not yet claimable",
+    catatDokumen: "Record documents",
+    belumMenyebut: (sumber: string) =>
+      `The sales data does not name a ${sumber} yet.`,
+    belumAktif: (nama: string, status: string) =>
+      `${nama} is ${status}, not active yet.`,
+    takAdaCocok: "No sales match this filter.",
+    memuat: "Loading…",
+    popupNama: "Record unit documents",
+    dokumenUnit: (kode: string) => `Documents for unit ${kode}`,
+    tutup: "Close",
+    popupPengantar:
+      "Tick the ones whose paperwork you already hold. These markers are what " +
+      "open up submission for this unit, and every change is written to the " +
+      "audit trail along with your name.",
+    penerimaanHariIni: "Received to date (Rp)",
+    nilaiKontrak: (v: string) => `Contract value ${v}.`,
+    melebihiJudul: "Received exceeds the contract value",
+    melebihiIsi: "Please check once more before saving.",
+    menyimpan: "Saving…", simpan: "Save", batal: "Cancel",
+    tercatat: (kode: string) => `Documents for unit ${kode} recorded.`,
+  },
+};
 
 type Unit = {
   spu_signed: boolean; ppjb_signed: boolean;
@@ -44,6 +182,7 @@ type Unit = {
   payment_scheme: string | null; contract_date: string | null;
   contract_value_incl_vat: number; received_amount: number; status: string;
   eligible: boolean; missing_requirements: string[];
+  missing_codes: string[];
   marketing_name: string | null; agency_name: string | null;
   recipient: { id: string | null; name: string | null;
                status: string | null; source: string };
@@ -57,6 +196,8 @@ type Saring = "semua" | "bisa" | "sudah" | "belum_syarat";
 
 export default function DaftarPenjualanPage() {
   const { sesi, memuat } = useSesi();
+  const { bahasa } = useBahasa();
+  const k = useKata(KATA);
   const params = useParams<{ jenis: string }>();
   const jenis = jenisDari(params.jenis);
 
@@ -112,8 +253,7 @@ export default function DaftarPenjualanPage() {
         }) });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body.detail ?? body.title ?? `HTTP ${res.status}`);
-      setKabar({ kind: "ok",
-                 teks: `Dokumen unit ${catat.code} tercatat.` });
+      setKabar({ kind: "ok", teks: k.tercatat(catat.code) });
       setCatat(null);
       await muat();
     } catch (e: any) {
@@ -129,8 +269,8 @@ export default function DaftarPenjualanPage() {
     return (
       <div className="wrap narrow">
         <div className="banner stop" style={{ marginTop: 30 }}>
-          <b>Jenis klaim tidak dikenal</b>
-          <Link href="/klaim">Kembali ke pilihan jenis</Link>
+          <b>{k.takDikenal}</b>
+          <Link href="/klaim">{k.kembali}</Link>
         </div>
       </div>
     );
@@ -154,18 +294,20 @@ export default function DaftarPenjualanPage() {
   return (
     <Kerangka sesi={sesi} judul={
       <div>
-        <h1>{jenis.nama}</h1>
+        <h1>{bahasa === "en" ? NAMA_EN[jenis.slug] : jenis.nama}</h1>
         <p>
-          {jenis.prasyarat} Penjualan yang memenuhi syarat dan belum diklaim
-          dapat diajukan lewat kolom paling kanan.
+          {bahasa === "en" ? PRASYARAT_EN[jenis.slug] : jenis.prasyarat}{" "}
+          {k.pengantarJudul}
         </p>
       </div>
     }>
 
+      {/* Tanpa "← Ganti jenis fee" di sini: kepala halaman sudah memuat
+          tautan kembali ke Pengajuan Fee, dan dua tautan ke tempat yang sama
+          dalam satu layar membuat orang mengira keduanya berbeda tujuan. */}
       <div className="row sp">
-        <Link href="/klaim">← Ganti jenis fee</Link>
-        <span className="pill">{bisa} dapat diklaim</span>
-        <span className="pill">{units.length} penjualan</span>
+        <span className="pill">{k.dapatDiklaim(bisa)}</span>
+        <span className="pill">{k.penjualan(units.length)}</span>
       </div>
 
       {kabar && (
@@ -174,7 +316,7 @@ export default function DaftarPenjualanPage() {
 
       {galat && (
         <div className="banner stop">
-          <b>Data penjualan tidak dapat dibaca</b>
+          <b>{k.galatBaca}</b>
           {galat}
         </div>
       )}
@@ -182,17 +324,17 @@ export default function DaftarPenjualanPage() {
       <div className="panel sp">
         <div className="filters">
           <div>
-            <div className="lbl">Cari (kode unit, pembeli, proyek, cluster)</div>
-            <input value={cari} placeholder="mis. BIOBA2"
+            <div className="lbl">{k.cari}</div>
+            <input value={cari} placeholder={k.contohCari}
                    onChange={(e) => setCari(e.target.value)} />
           </div>
           <div>
-            <div className="lbl">Tampilkan</div>
+            <div className="lbl">{k.tampilkan}</div>
             <select value={saring} onChange={(e) => setSaring(e.target.value as Saring)}>
-              <option value="semua">semua penjualan</option>
-              <option value="bisa">yang dapat diklaim</option>
-              <option value="sudah">yang sudah diklaim</option>
-              <option value="belum_syarat">yang belum dapat diklaim</option>
+              <option value="semua">{k.semuaPenjualan}</option>
+              <option value="bisa">{k.yangBisa}</option>
+              <option value="sudah">{k.yangSudah}</option>
+              <option value="belum_syarat">{k.yangBelum}</option>
             </select>
           </div>
         </div>
@@ -200,21 +342,21 @@ export default function DaftarPenjualanPage() {
 
       <div className="panel">
         <h2>
-          Data penjualan
-          <span className="pill">{terlihat.length} baris ditampilkan</span>
+          {k.dataPenjualan}
+          <span className="pill">{k.barisDitampilkan(terlihat.length)}</span>
         </h2>
 
         <div className="tscroll">
           <table>
             <tbody>
               <tr>
-                <th>Unit</th>
-                <th>Pembeli</th>
-                <th>Penerima fee</th>
-                <th>Skema / tanggal</th>
-                <th style={{ textAlign: "right" }}>Nilai kontrak</th>
-                <th style={{ textAlign: "right" }}>Penerimaan</th>
-                <th style={{ width: 230 }}>Klaim</th>
+                <th>{k.thUnit}</th>
+                <th>{k.thPembeli}</th>
+                <th>{k.thPenerima}</th>
+                <th>{k.thSkema}</th>
+                <th style={{ textAlign: "right" }}>{k.thNilai}</th>
+                <th style={{ textAlign: "right" }}>{k.thPenerimaan}</th>
+                <th style={{ width: 230 }}>{k.thKlaim}</th>
               </tr>
 
               {terlihat.map((u) => (
@@ -228,7 +370,7 @@ export default function DaftarPenjualanPage() {
                   <td>{u.buyer_name ?? "—"}</td>
                   <td>
                     {u.recipient.name ?? (
-                      <span style={{ color: "var(--mut)" }}>belum tercatat</span>
+                      <span style={{ color: "var(--mut)" }}>{k.belumTercatat}</span>
                     )}
                     <br />
                     <span style={{ color: "var(--mut)", fontSize: 11 }}>
@@ -252,15 +394,15 @@ export default function DaftarPenjualanPage() {
                     {rp(u.received_amount)}<br />
                     <span style={{ color: "var(--mut)", fontSize: 11 }}>
                       {u.contract_value_incl_vat
-                        ? `${((u.received_amount / u.contract_value_incl_vat) * 100)
-                             .toFixed(1)}% dari kontrak`
+                        ? k.dariKontrak(((u.received_amount /
+                             u.contract_value_incl_vat) * 100).toFixed(1))
                         : "—"}
                     </span>
                   </td>
                   <td>
                     {u.claim ? (
                       <>
-                        <span className="pill ok">sudah diklaim</span><br />
+                        <span className="pill ok">{k.sudahDiklaim}</span><br />
                         <span style={{ fontSize: 11 }}>
                           {u.claim.claim_number} · {u.claim.status}
                         </span>
@@ -268,29 +410,39 @@ export default function DaftarPenjualanPage() {
                     ) : u.claimable ? (
                       <Link className="tombol-klaim"
                             href={`/klaim/${jenis.slug}/baru?unit=${u.id}`}>
-                        Klaim
+                        {k.tombolKlaim}
                       </Link>
                     ) : (
                       <>
-                        <span className="pill warn">belum dapat diklaim</span>
+                        <span className="pill warn">{k.belumDapatDiklaim}</span>
                         {boleh && (
                           <button style={{ marginLeft: 6, padding: "2px 8px",
                                            fontSize: 11 }}
                                   onClick={() => bukaCatat(u)}>
-                            Catat dokumen
+                            {k.catatDokumen}
                           </button>
                         )}
                         <ul className="kurang">
-                          {u.missing_requirements.map((m) => <li key={m}>{m}</li>)}
+                          {/* Kalimat dari server dipakai sebagai cadangan: kode
+                              yang tidak dikenal — misalnya sebab baru yang
+                              ditambahkan di server sebelum layar ini menyusul —
+                              tetap terbaca, alih-alih hilang tanpa jejak. */}
+                          {u.missing_requirements.map((m, i) => {
+                            const kode = u.missing_codes?.[i];
+                            const buat = kode ? SEBAB[bahasa][kode] : undefined;
+                            return (
+                              <li key={kode ?? m}>
+                                {buat ? buat(BR[jenis.slug] ?? "") : m}
+                              </li>
+                            );
+                          })}
                           {u.marketing_missing && (
-                            <li>
-                              Data penjualan belum menyebut {u.recipient.source}.
-                            </li>
+                            <li>{k.belumMenyebut(u.recipient.source)}</li>
                           )}
                           {u.marketing_inactive && (
                             <li>
-                              {u.recipient.name} berstatus {u.recipient.status},
-                              belum aktif.
+                              {k.belumAktif(u.recipient.name ?? "—",
+                                            u.recipient.status ?? "—")}
                             </li>
                           )}
                         </ul>
@@ -303,12 +455,12 @@ export default function DaftarPenjualanPage() {
               {!terlihat.length && !busy && (
                 <tr>
                   <td colSpan={7} style={{ color: "var(--mut)" }}>
-                    Tidak ada penjualan yang cocok dengan penyaringan ini.
+                    {k.takAdaCocok}
                   </td>
                 </tr>
               )}
               {busy && (
-                <tr><td colSpan={7} style={{ color: "var(--mut)" }}>Memuat…</td></tr>
+                <tr><td colSpan={7} style={{ color: "var(--mut)" }}>{k.memuat}</td></tr>
               )}
             </tbody>
           </table>
@@ -325,46 +477,47 @@ export default function DaftarPenjualanPage() {
                if (e.target === e.currentTarget && !simpan) setCatat(null);
              }}>
           <div className="popup lebar" role="dialog" aria-modal="true"
-               aria-label="Catat dokumen unit" style={{ maxWidth: 520 }}>
+               aria-label={k.popupNama} style={{ maxWidth: 520 }}>
             <div className="popup-kepala">
               <h2>
-                Dokumen unit {catat.code}
+                {k.dokumenUnit(catat.code)}
                 <span className="pill">{catat.buyer_name ?? "—"}</span>
               </h2>
-              <button className="tautan" aria-label="Tutup"
+              <button className="tautan" aria-label={k.tutup}
                       onClick={() => setCatat(null)}>✕</button>
             </div>
 
             <div className="popup-isi">
               <p className="hint" style={{ textAlign: "left", margin: "0 0 12px" }}>
-                Tandai yang berkasnya sudah ada di tangan Anda. Penanda inilah
-                yang membuka pengajuan atas unit ini, dan setiap perubahannya
-                tercatat pada jejak audit beserta nama Anda.
+                {k.popupPengantar}
               </p>
 
-              {PRASYARAT.map(([kolom, label, ket]) => (
-                <label key={kolom} className="tandai-syarat">
-                  <input type="checkbox" checked={Boolean(isian[kolom])}
-                         onChange={(e) =>
-                           setIsian({ ...isian, [kolom]: e.target.checked })} />
-                  <span>
-                    {label}
-                    <span className="lbl" style={{ margin: 0 }}>{ket}</span>
-                  </span>
-                </label>
-              ))}
+              {PRASYARAT.map((pra) => {
+                const [label, ket] = pra[bahasa];
+                return (
+                  <label key={pra.kolom} className="tandai-syarat">
+                    <input type="checkbox" checked={Boolean(isian[pra.kolom])}
+                           onChange={(e) =>
+                             setIsian({ ...isian, [pra.kolom]: e.target.checked })} />
+                    <span>
+                      {label}
+                      <span className="lbl" style={{ margin: 0 }}>{ket}</span>
+                    </span>
+                  </label>
+                );
+              })}
 
               {/* Penerimaan ikut di sini: Komisi dihitung dari persentase
                   pembayaran, dan angkanya pun tidak ada di laporan penjualan. */}
               <div className="lbl" style={{ marginTop: 14 }}>
-                Penerimaan sampai hari ini (Rp)
+                {k.penerimaanHariIni}
               </div>
               <input value={isian.received_amount ?? ""} inputMode="numeric"
                      style={{ width: "100%" }}
                      onChange={(e) =>
                        setIsian({ ...isian, received_amount: e.target.value })} />
               <div className="lbl" style={{ marginTop: 4 }}>
-                Nilai kontrak {rp(catat.contract_value_incl_vat)}.
+                {k.nilaiKontrak(rp(catat.contract_value_incl_vat))}
               </div>
               {/* Diperingatkan, bukan ditolak: pembayaran melebihi nilai kontrak
                   memang terjadi (denda, penyesuaian), tetapi jauh lebih sering
@@ -373,8 +526,8 @@ export default function DaftarPenjualanPage() {
               {Number(String(isian.received_amount).replace(/[^\d]/g, "")) >
                  catat.contract_value_incl_vat && (
                 <div className="banner warn" style={{ marginTop: 8 }}>
-                  <b>Penerimaan melebihi nilai kontrak</b>
-                  Periksa sekali lagi sebelum disimpan.
+                  <b>{k.melebihiJudul}</b>
+                  {k.melebihiIsi}
                 </div>
               )}
             </div>
@@ -383,10 +536,10 @@ export default function DaftarPenjualanPage() {
               <div className="row">
                 <button className="pri" disabled={simpan}
                         onClick={() => void simpanCatat()}>
-                  {simpan ? "Menyimpan…" : "Simpan"}
+                  {simpan ? k.menyimpan : k.simpan}
                 </button>
                 <button disabled={simpan}
-                        onClick={() => setCatat(null)}>Batal</button>
+                        onClick={() => setCatat(null)}>{k.batal}</button>
               </div>
             </div>
           </div>

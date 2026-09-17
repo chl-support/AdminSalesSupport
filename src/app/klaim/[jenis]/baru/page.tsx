@@ -24,11 +24,13 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 
+import { useBahasa, useKata } from "../../../bahasa";
 import { Kerangka, MemeriksaSesi } from "../../../kerangka";
 import { useSesi } from "../../../session";
 import { FormPengajuan } from "../../form-pengajuan";
 import {
-  DOKUMEN, LABEL_PERAN, PERAN_PENERIMA, TINGKAT_OVERRIDING, jenisDari,
+  DOKUMEN, LABEL_PERAN, NAMA_EN, PERAN_PENERIMA, TINGKAT_EN,
+  TINGKAT_OVERRIDING, jenisDari,
 } from "../../jenis";
 
 /** Isian di dalam tabel formulir: selebar kolomnya, rata kanan seperti isinya. */
@@ -62,8 +64,182 @@ type Unit = {
   claim: { claim_number: string; status: string } | null;
 };
 
+/**
+ * Kata-kata layar ini.
+ *
+ * Nama dokumen pada checklist (FPU, SPU, PPJB, …) sengaja tidak ikut: itu nama
+ * berkas resmi yang tertulis pada formulir perusahaan, dan nilainya tersimpan
+ * sebagai checklist_item pada basis data. Menerjemahkannya membuat berkas yang
+ * dicari orang di lemari tidak lagi bernama sama dengan yang tertulis di layar.
+ */
+const KATA = {
+  id: {
+    judul: (jenis: string) => `Form Pengajuan ${jenis}`,
+    pengantar:
+      "PT. Serpong Bangun Lestari. Nominal dihitung sistem dari memo skema " +
+      "yang berlaku pada tanggal kontrak, tidak diisi tangan.",
+    kembali: "← Kembali ke data penjualan",
+    memuatUnit: "Memuat data unit…",
+    takAdaUnitJudul: "Unit tidak ditemukan",
+    takAdaUnitIsi: "Unit yang diminta tidak ada pada daftar penjualan.",
+    sudahAdaJudul: (jenis: string) =>
+      `Unit ini sudah punya klaim ${jenis} yang aktif`,
+    sudahAdaIsi:
+      "Satu unit hanya boleh punya satu klaim aktif per jenis dan peran " +
+      "penerima (BR-05).",
+    takAdaPenerimaJudul: (sumber: string) =>
+      `Data penjualan ini belum menyebut ${sumber}`,
+    takAdaPenerimaIsi: (jenis: string, sumber: string) =>
+      `Penerima klaim ${jenis} diambil dari kolom ${sumber} pada data ` +
+      `penjualan, jadi klaim tidak dapat dibuat sebelum unit ini dikaitkan ` +
+      `dengan orangnya.`,
+    belumAktifJudul: "Penerima pada penjualan ini belum aktif",
+    belumAktifIsi: (nama: string, status: string) =>
+      `${nama} berstatus ${status}. Pendaftaran dan perekaman spesimen tanda ` +
+      `tangan harus selesai lebih dulu sebelum ia dapat menerima pembayaran.`,
+    prasyaratJudul: "Prasyarat pencairan belum terpenuhi",
+    blokMarketing: "INFORMASI DATA MARKETING",
+    namaMarketing: "Nama Marketing", status: "Status",
+    namaKantor: "Nama Kantor Marketing", alamatKantor: "Alamat Kantor",
+    npwp: "NPWP", telepon: "No. Telepon / HP", email: "Email",
+    catatanOverriding: (sumber: string) =>
+      `Overriding dibayarkan kepada ${sumber}, bukan kepada Sales yang ` +
+      `menutup penjualannya.`,
+    blokPemesanan: "INFORMASI DATA PEMESANAN",
+    project: "Project", namaPemesan: "Nama Pemesan", kluster: "Kluster",
+    noUnit: "No. Unit", tipe: "Tipe", luasTanah: "Luas Tanah",
+    luasBangunan: "Luas Bangunan", noKontrak: "No. Kontrak",
+    tanggalPenjualan: "Tanggal Penjualan", skemaBayar: "Skema Cara Bayar",
+    hargaTransaksi: "Harga Transaksi",
+    blokPeran: "PERAN PENERIMA",
+    diterimaDalamPeran: "Diterima dalam peran",
+    pilihPeran: "— pilih peran —",
+    catatanPeran: "Menentukan tarif mana yang dipakai pada memo skema.",
+    tingkatOverriding: "Tingkat overriding",
+    pilihTingkat: "— pilih tingkat —",
+    blokTransfer: "TUJUAN TRANSFER",
+    namaPenerima: "Nama Penerima", bank: "BANK", noRekening: "No. Rekening",
+    kantorCabang: "Kantor Cabang", atasNama: "Atas nama",
+    phNamaPenerima: "nama sesuai buku tabungan", phBank: "mis. BCA",
+    phRekening: "tanpa spasi", phCabang: "mis. Gading Serpong",
+    badanUsaha: "Badan Usaha (PT)", pribadi: "Pribadi (Perorangan)",
+    catatanPphAwal: "Rekening tujuan inilah yang menentukan jenis PPh: " +
+                    "ditransfer ke badan usaha dipotong ",
+    catatanPphTengah: ", ke perorangan dipotong ",
+    catatanPphPilihan: "Pilihan sekarang ",
+    pilihanBadan: "Badan Usaha (PT), jadi dipotong PPh 23",
+    pilihanPribadi: "Pribadi (Perorangan), jadi dipotong PPh 21",
+    rekBelumVerifJudul: "Rekening ini belum pernah diverifikasi",
+    rekBelumVerifIsi:
+      "Klaim tetap dapat diajukan, tetapi pembayarannya menunggu Finance " +
+      "memverifikasi rekening tujuannya.",
+    blokPenjelasan: (jenis: string) => `PENJELASAN PENGAJUAN ${jenis}`,
+    phPenjelasan: "mis. Full Payment. Pembayaran sudah mencapai 20%.",
+    catatanPenjelasan:
+      "Ikut tercetak pada paket dokumen yang diedarkan untuk persetujuan — " +
+      "bukan catatan internal.",
+    blokDokumen: (jenis: string) => `SYARAT / DOKUMEN PENGAJUAN ${jenis}`,
+    dokumenBelumLengkap:
+      "Seluruh dokumen harus dicentang sebelum klaim dapat diajukan.",
+    menyimpan: "Menyimpan…", ajukan: "Ajukan klaim",
+    catatanDraft:
+      "Klaim tersimpan sebagai draft. Nominalnya dihitung saat itu juga dan " +
+      "baru dikunci setelah Finance (Pajak) memverifikasinya.",
+    galatJudul: "Klaim tidak dapat dibuat",
+    tersimpanJudul: (nomor: string) =>
+      `Klaim ${nomor} tersimpan sebagai draft`,
+    tersimpanIsi:
+      "Berikut Form Pengajuan yang terisi. Nominalnya dihitung sistem dan " +
+      "belum dikunci — Finance (Pajak) yang memverifikasinya.",
+    cetak: "Cetak formulir", ajukanLain: "Ajukan klaim lain",
+    bukaKonsol: "Buka konsol klaim",
+  },
+  en: {
+    judul: (jenis: string) => `${jenis} Submission Form`,
+    pengantar:
+      "PT. Serpong Bangun Lestari. The amount is computed by the system from " +
+      "the scheme memo in force on the contract date; it is not typed in.",
+    kembali: "← Back to sales data",
+    memuatUnit: "Loading unit data…",
+    takAdaUnitJudul: "Unit not found",
+    takAdaUnitIsi: "The requested unit is not in the sales list.",
+    sudahAdaJudul: (jenis: string) =>
+      `This unit already has an active ${jenis} claim`,
+    sudahAdaIsi:
+      "A unit may hold only one active claim per type and recipient role " +
+      "(BR-05).",
+    takAdaPenerimaJudul: (sumber: string) =>
+      `This sales record does not name a ${sumber} yet`,
+    takAdaPenerimaIsi: (jenis: string, sumber: string) =>
+      `The ${jenis} recipient is taken from the ${sumber} column in the sales ` +
+      `data, so the claim cannot be created until this unit is linked to that ` +
+      `person.`,
+    belumAktifJudul: "The recipient on this sale is not active yet",
+    belumAktifIsi: (nama: string, status: string) =>
+      `${nama} is ${status}. Registration and signature specimen capture must ` +
+      `be completed before they can receive a payment.`,
+    prasyaratJudul: "Payout prerequisites are not met",
+    blokMarketing: "MARKETING DATA",
+    namaMarketing: "Marketing name", status: "Status",
+    namaKantor: "Marketing office name", alamatKantor: "Office address",
+    npwp: "NPWP", telepon: "Phone / mobile", email: "Email",
+    catatanOverriding: (sumber: string) =>
+      `Overriding is paid to the ${sumber}, not to the Sales who closed the ` +
+      `sale.`,
+    blokPemesanan: "BOOKING DATA",
+    project: "Project", namaPemesan: "Buyer name", kluster: "Cluster",
+    noUnit: "Unit no.", tipe: "Type", luasTanah: "Land area",
+    luasBangunan: "Building area", noKontrak: "Contract no.",
+    tanggalPenjualan: "Sale date", skemaBayar: "Payment scheme",
+    hargaTransaksi: "Transaction price",
+    blokPeran: "RECIPIENT ROLE",
+    diterimaDalamPeran: "Received in the role of",
+    pilihPeran: "— pick a role —",
+    catatanPeran: "This decides which rate the scheme memo applies.",
+    tingkatOverriding: "Overriding tier",
+    pilihTingkat: "— pick a tier —",
+    blokTransfer: "TRANSFER DESTINATION",
+    namaPenerima: "Account holder", bank: "BANK", noRekening: "Account no.",
+    kantorCabang: "Branch office", atasNama: "Held by",
+    phNamaPenerima: "name as printed in the passbook", phBank: "e.g. BCA",
+    phRekening: "no spaces", phCabang: "e.g. Gading Serpong",
+    badanUsaha: "Company (PT)", pribadi: "Individual",
+    catatanPphAwal: "The destination account decides the withholding type: " +
+                    "transferred to a company it is withheld as ",
+    catatanPphTengah: ", to an individual it is withheld as ",
+    catatanPphPilihan: "Currently ",
+    pilihanBadan: "Company (PT), so PPh 23 is withheld",
+    pilihanPribadi: "Individual, so PPh 21 is withheld",
+    rekBelumVerifJudul: "This account has never been verified",
+    rekBelumVerifIsi:
+      "The claim can still be submitted, but its payment waits for Finance to " +
+      "verify the destination account.",
+    blokPenjelasan: (jenis: string) => `${jenis} SUBMISSION NOTES`,
+    phPenjelasan: "e.g. Full Payment. Payment has reached 20%.",
+    catatanPenjelasan:
+      "This is printed on the document package circulated for approval — it " +
+      "is not an internal note.",
+    blokDokumen: (jenis: string) => `${jenis} SUBMISSION REQUIREMENTS`,
+    dokumenBelumLengkap:
+      "Every document must be ticked before the claim can be submitted.",
+    menyimpan: "Saving…", ajukan: "Submit claim",
+    catatanDraft:
+      "The claim is saved as a draft. Its amount is computed right away and is " +
+      "locked only after Finance (Tax) verifies it.",
+    galatJudul: "The claim could not be created",
+    tersimpanJudul: (nomor: string) => `Claim ${nomor} saved as a draft`,
+    tersimpanIsi:
+      "Here is the filled-in Submission Form. The amount is computed by the " +
+      "system and is not locked yet — Finance (Tax) verifies it.",
+    cetak: "Print the form", ajukanLain: "Submit another claim",
+    bukaKonsol: "Open the claim console",
+  },
+};
+
 export default function FormKlaimPage() {
   const { sesi, memuat } = useSesi();
+  const { bahasa } = useBahasa();
+  const k = useKata(KATA);
   const params = useParams<{ jenis: string }>();
   const search = useSearchParams();
   const jenis = jenisDari(params.jenis);
@@ -174,6 +350,9 @@ export default function FormKlaimPage() {
     );
   }
 
+  // Nama jenisnya dipakai di lima tempat pada layar ini; dihitung sekali di
+  // sini supaya kelimanya tidak bisa berbeda.
+  const namaJenis = bahasa === "en" ? NAMA_EN[jenis.slug] : jenis.nama;
   const dokumen = DOKUMEN[jenis.slug];
   const dokumenLengkap = dokumen.every((d) => ceklis[d]);
   const siap = Boolean(unit?.claimable && peran && dokumenLengkap &&
@@ -182,24 +361,21 @@ export default function FormKlaimPage() {
   return (
     <Kerangka sesi={sesi} judul={
       <div>
-        <h1>Form Pengajuan {jenis.nama}</h1>
-        <p>
-          PT. Serpong Bangun Lestari. Nominal dihitung sistem
-          dari memo skema yang berlaku pada tanggal kontrak, tidak diisi tangan.
-        </p>
+        <h1>{k.judul(namaJenis)}</h1>
+        <p>{k.pengantar}</p>
       </div>
     }>
 
       <div className="row sp">
-        <Link href={`/klaim/${jenis.slug}`}>← Kembali ke data penjualan</Link>
+        <Link href={`/klaim/${jenis.slug}`}>{k.kembali}</Link>
       </div>
 
-      {busy && <p className="hint">Memuat data unit…</p>}
+      {busy && <p className="hint">{k.memuatUnit}</p>}
 
       {!busy && !unit && (
         <div className="banner stop">
-          <b>Unit tidak ditemukan</b>
-          Unit yang diminta tidak ada pada daftar penjualan.
+          <b>{k.takAdaUnitJudul}</b>
+          {k.takAdaUnitIsi}
         </div>
       )}
 
@@ -207,33 +383,29 @@ export default function FormKlaimPage() {
         <>
           {unit.claim && (
             <div className="banner warn sp">
-              <b>Unit ini sudah punya klaim {jenis.nama} yang aktif</b>
-              {unit.claim.claim_number} · {unit.claim.status}. Satu unit hanya boleh
-              punya satu klaim aktif per jenis dan peran penerima (BR-05).
+              <b>{k.sudahAdaJudul(namaJenis)}</b>
+              {unit.claim.claim_number} · {unit.claim.status}. {k.sudahAdaIsi}
             </div>
           )}
 
           {unit.marketing_missing && (
             <div className="banner stop sp">
-              <b>Data penjualan ini belum menyebut {unit.recipient.source}</b>
-              Penerima klaim {jenis.nama} diambil dari kolom {unit.recipient.source}{" "}
-              pada data penjualan, jadi klaim tidak dapat dibuat sebelum unit ini
-              dikaitkan dengan orangnya.
+              <b>{k.takAdaPenerimaJudul(unit.recipient.source)}</b>
+              {k.takAdaPenerimaIsi(namaJenis, unit.recipient.source)}
             </div>
           )}
 
           {unit.marketing_inactive && (
             <div className="banner stop sp">
-              <b>Penerima pada penjualan ini belum aktif</b>
-              {unit.recipient.name} berstatus {unit.recipient.status}. Pendaftaran
-              dan perekaman spesimen tanda tangan harus selesai lebih dulu sebelum
-              ia dapat menerima pembayaran.
+              <b>{k.belumAktifJudul}</b>
+              {k.belumAktifIsi(unit.recipient.name ?? "—",
+                               unit.recipient.status ?? "—")}
             </div>
           )}
 
           {!unit.eligible && (
             <div className="banner stop sp">
-              <b>Prasyarat pencairan belum terpenuhi</b>
+              <b>{k.prasyaratJudul}</b>
               <ul style={{ margin: "4px 0 0 16px" }}>
                 {unit.missing_requirements.map((m) => <li key={m}>{m}</li>)}
               </ul>
@@ -247,26 +419,25 @@ export default function FormKlaimPage() {
           <div className="grid sp">
             <div className="panel">
               <div className="form-blok">
-                <h3>INFORMASI DATA MARKETING</h3>
+                <h3>{k.blokMarketing}</h3>
                 <table><tbody>
-                  <tr><td>Nama Marketing</td>
+                  <tr><td>{k.namaMarketing}</td>
                       <td>{unit.recipient.name ?? "—"}</td></tr>
-                  <tr><td>Status</td>
+                  <tr><td>{k.status}</td>
                       <td>{unit.recipient.type === "agent" ? "Agent" :
                            unit.recipient.type === "inhouse" ? "Inhouse" : "—"}</td></tr>
-                  <tr><td>Nama Kantor Marketing</td>
+                  <tr><td>{k.namaKantor}</td>
                       <td>{unit.recipient.office ?? "PT. Serpong Bangun Lestari"}</td></tr>
-                  <tr><td>Alamat Kantor</td>
+                  <tr><td>{k.alamatKantor}</td>
                       <td>{unit.recipient.office_address ?? "—"}</td></tr>
-                  <tr><td>NPWP</td><td>{unit.recipient.npwp || "—"}</td></tr>
-                  <tr><td>No. Telepon / HP</td>
+                  <tr><td>{k.npwp}</td><td>{unit.recipient.npwp || "—"}</td></tr>
+                  <tr><td>{k.telepon}</td>
                       <td>{unit.recipient.phone || "—"}</td></tr>
-                  <tr><td>Email</td><td>{unit.recipient.email || "—"}</td></tr>
+                  <tr><td>{k.email}</td><td>{unit.recipient.email || "—"}</td></tr>
                 </tbody></table>
                 {jenis.slug === "overriding" && (
                   <p className="hint" style={{ textAlign: "left" }}>
-                    Overriding dibayarkan kepada {unit.recipient.source}, bukan
-                    kepada Sales yang menutup penjualannya.
+                    {k.catatanOverriding(unit.recipient.source)}
                   </p>
                 )}
               </div>
@@ -274,22 +445,22 @@ export default function FormKlaimPage() {
 
             <div className="panel">
               <div className="form-blok">
-                <h3>INFORMASI DATA PEMESANAN</h3>
+                <h3>{k.blokPemesanan}</h3>
                 <table><tbody>
-                  <tr><td>Project</td><td>{unit.project_name}</td></tr>
-                  <tr><td>Nama Pemesan</td><td>{unit.buyer_name ?? "—"}</td></tr>
-                  <tr><td>Kluster</td><td>{unit.cluster_code}</td></tr>
-                  <tr><td>No. Unit</td><td><b>{unit.code}</b></td></tr>
-                  <tr><td>Tipe</td><td>{unit.unit_type ?? "—"}</td></tr>
-                  <tr><td>Luas Tanah</td>
+                  <tr><td>{k.project}</td><td>{unit.project_name}</td></tr>
+                  <tr><td>{k.namaPemesan}</td><td>{unit.buyer_name ?? "—"}</td></tr>
+                  <tr><td>{k.kluster}</td><td>{unit.cluster_code}</td></tr>
+                  <tr><td>{k.noUnit}</td><td><b>{unit.code}</b></td></tr>
+                  <tr><td>{k.tipe}</td><td>{unit.unit_type ?? "—"}</td></tr>
+                  <tr><td>{k.luasTanah}</td>
                       <td>{unit.land_area ? `${unit.land_area} m²` : "—"}</td></tr>
-                  <tr><td>Luas Bangunan</td>
+                  <tr><td>{k.luasBangunan}</td>
                       <td>{unit.building_area ? `${unit.building_area} m²` : "—"}</td></tr>
-                  <tr><td>No. Kontrak</td><td>{unit.contract_number ?? "—"}</td></tr>
-                  <tr><td>Tanggal Penjualan</td><td>{tgl(unit.contract_date)}</td></tr>
-                  <tr><td>Skema Cara Bayar</td>
+                  <tr><td>{k.noKontrak}</td><td>{unit.contract_number ?? "—"}</td></tr>
+                  <tr><td>{k.tanggalPenjualan}</td><td>{tgl(unit.contract_date)}</td></tr>
+                  <tr><td>{k.skemaBayar}</td>
                       <td>{unit.payment_scheme ?? "—"}</td></tr>
-                  <tr><td>Harga Transaksi</td>
+                  <tr><td>{k.hargaTransaksi}</td>
                       <td>{rp(unit.contract_value_incl_vat)}</td></tr>
                 </tbody></table>
               </div>
@@ -301,29 +472,31 @@ export default function FormKlaimPage() {
             <>
               <div className="panel sp">
                 <div className="form-blok">
-                  <h3>PERAN PENERIMA</h3>
-                  <div className="lbl">Diterima dalam peran</div>
+                  <h3>{k.blokPeran}</h3>
+                  <div className="lbl">{k.diterimaDalamPeran}</div>
                   <select value={peran} style={{ width: "100%" }}
                           onChange={(e) => setPeran(e.target.value)}>
-                    <option value="">— pilih peran —</option>
+                    <option value="">{k.pilihPeran}</option>
                     {PERAN_PENERIMA[jenis.slug].map((r) => (
                       <option key={r} value={r}>{LABEL_PERAN[r] ?? r}</option>
                     ))}
                   </select>
                   <p className="hint" style={{ textAlign: "left", marginTop: 4 }}>
-                    Menentukan tarif mana yang dipakai pada memo skema.
+                    {k.catatanPeran}
                   </p>
 
                   {jenis.slug === "overriding" && (
                     <>
                       <div className="lbl" style={{ marginTop: 12 }}>
-                        Tingkat overriding
+                        {k.tingkatOverriding}
                       </div>
                       <select value={tingkat} style={{ width: "100%" }}
                               onChange={(e) => setTingkat(e.target.value)}>
-                        <option value="">— pilih tingkat —</option>
+                        <option value="">{k.pilihTingkat}</option>
                         {TINGKAT_OVERRIDING.map(([v, l]) => (
-                          <option key={v} value={v}>{l}</option>
+                          <option key={v} value={v}>
+                            {bahasa === "en" ? (TINGKAT_EN[v] ?? l) : l}
+                          </option>
                         ))}
                       </select>
                     </>
@@ -331,7 +504,7 @@ export default function FormKlaimPage() {
                 </div>
 
                 <div className="form-blok">
-                  <h3>TUJUAN TRANSFER</h3>
+                  <h3>{k.blokTransfer}</h3>
                   {/* Diketik, bukan diambil dari data marketing. Orang yang
                       sama dapat minta dibayar ke rekening pribadinya kali ini
                       dan ke rekening agensinya lain kali, dan yang menentukan
@@ -339,61 +512,59 @@ export default function FormKlaimPage() {
                       ada rekening tercatat, ia dipakai sebagai isian awal. */}
                   <table><tbody>
                     <tr>
-                      <td>Nama Penerima</td>
+                      <td>{k.namaPenerima}</td>
                       <td>
                         <input value={tf.holder_name} style={ISIAN}
-                               placeholder="nama sesuai buku tabungan"
+                               placeholder={k.phNamaPenerima}
                                onChange={(e) =>
                                  setTf({ ...tf, holder_name: e.target.value })} />
                       </td>
                     </tr>
                     <tr>
-                      <td>BANK</td>
+                      <td>{k.bank}</td>
                       <td>
                         <input value={tf.bank_name} style={ISIAN}
-                               placeholder="mis. BCA"
+                               placeholder={k.phBank}
                                onChange={(e) =>
                                  setTf({ ...tf, bank_name: e.target.value })} />
                       </td>
                     </tr>
                     <tr>
-                      <td>No. Rekening</td>
+                      <td>{k.noRekening}</td>
                       <td>
                         <input value={tf.account_number} style={ISIAN}
-                               inputMode="numeric" placeholder="tanpa spasi"
+                               inputMode="numeric" placeholder={k.phRekening}
                                onChange={(e) =>
                                  setTf({ ...tf, account_number: e.target.value })} />
                       </td>
                     </tr>
                     <tr>
-                      <td>Kantor Cabang</td>
+                      <td>{k.kantorCabang}</td>
                       <td>
                         <input value={tf.branch} style={ISIAN}
-                               placeholder="mis. Gading Serpong"
+                               placeholder={k.phCabang}
                                onChange={(e) =>
                                  setTf({ ...tf, branch: e.target.value })} />
                       </td>
                     </tr>
                     <tr>
-                      <td>Atas nama</td>
+                      <td>{k.atasNama}</td>
                       <td>
                         <select value={tf.holder_type} style={ISIAN}
                                 onChange={(e) =>
                                   setTf({ ...tf, holder_type: e.target.value })}>
-                          <option value="company">Badan Usaha (PT)</option>
-                          <option value="individual">Pribadi (Perorangan)</option>
+                          <option value="company">{k.badanUsaha}</option>
+                          <option value="individual">{k.pribadi}</option>
                         </select>
                       </td>
                     </tr>
                   </tbody></table>
 
                   <p className="hint" style={{ textAlign: "left", marginTop: 6 }}>
-                    Rekening tujuan inilah yang menentukan jenis PPh: ditransfer
-                    ke badan usaha dipotong <b>PPh 23</b>, ke perorangan dipotong{" "}
-                    <b>PPh 21</b>. Pilihan sekarang{" "}
+                    {k.catatanPphAwal}<b>PPh 23</b>{k.catatanPphTengah}
+                    <b>PPh 21</b>. {k.catatanPphPilihan}
                     <b>{tf.holder_type === "company"
-                          ? "Badan Usaha (PT), jadi dipotong PPh 23"
-                          : "Pribadi (Perorangan), jadi dipotong PPh 21"}</b>.
+                          ? k.pilihanBadan : k.pilihanPribadi}</b>.
                   </p>
 
                   {/* Rekening yang baru diketik masuk sebagai belum
@@ -401,27 +572,25 @@ export default function FormKlaimPage() {
                       pada formulir pengajuan bukan verifikasi. */}
                   {!unit.recipient.bank && (
                     <div className="banner warn" style={{ marginBottom: 0 }}>
-                      <b>Rekening ini belum pernah diverifikasi</b>
-                      Klaim tetap dapat diajukan, tetapi pembayarannya menunggu
-                      Finance memverifikasi rekening tujuannya.
+                      <b>{k.rekBelumVerifJudul}</b>
+                      {k.rekBelumVerifIsi}
                     </div>
                   )}
                 </div>
 
                 <div className="form-blok">
-                  <h3>PENJELASAN PENGAJUAN {jenis.nama.toUpperCase()}</h3>
+                  <h3>{k.blokPenjelasan(namaJenis.toUpperCase())}</h3>
                   <textarea className="reason" value={penjelasan}
-                            placeholder="mis. Full Payment. Pembayaran sudah mencapai 20%."
+                            placeholder={k.phPenjelasan}
                             onChange={(e) => setPenjelasan(e.target.value)} />
                   <p className="hint" style={{ textAlign: "left" }}>
-                    Ikut tercetak pada paket dokumen yang diedarkan untuk
-                    persetujuan — bukan catatan internal.
+                    {k.catatanPenjelasan}
                   </p>
                 </div>
 
                 {dokumen.length > 0 && (
                   <div className="form-blok">
-                    <h3>SYARAT / DOKUMEN PENGAJUAN {jenis.nama.toUpperCase()}</h3>
+                    <h3>{k.blokDokumen(namaJenis.toUpperCase())}</h3>
                     <ul className="ceklis">
                       {dokumen.map((d, i) => (
                         <li key={d}>
@@ -436,7 +605,7 @@ export default function FormKlaimPage() {
                     </ul>
                     {!dokumenLengkap && (
                       <p className="hint" style={{ textAlign: "left", marginTop: 6 }}>
-                        Seluruh dokumen harus dicentang sebelum klaim dapat diajukan.
+                        {k.dokumenBelumLengkap}
                       </p>
                     )}
                   </div>
@@ -445,12 +614,11 @@ export default function FormKlaimPage() {
                 <div className="row" style={{ marginTop: 4, marginBottom: 0 }}>
                   <button className="pri" disabled={!siap || kirim}
                           onClick={() => void ajukan()}>
-                    {kirim ? "Menyimpan…" : "Ajukan klaim"}
+                    {kirim ? k.menyimpan : k.ajukan}
                   </button>
                 </div>
                 <p className="hint" style={{ textAlign: "left", marginTop: 8 }}>
-                  Klaim tersimpan sebagai draft. Nominalnya dihitung saat itu juga
-                  dan baru dikunci setelah Finance (Pajak) memverifikasinya.
+                  {k.catatanDraft}
                 </p>
               </div>
             </>
@@ -458,7 +626,7 @@ export default function FormKlaimPage() {
 
           {galat && (
             <div className="banner stop">
-              <b>Klaim tidak dapat dibuat</b>
+              <b>{k.galatJudul}</b>
               {galat}
               {kurang.length > 0 && (
                 <ul style={{ margin: "4px 0 0 16px" }}>
@@ -471,19 +639,20 @@ export default function FormKlaimPage() {
           {hasil && (
             <>
               <div className="banner ok sp">
-                <b>Klaim {hasil.claim_number} tersimpan sebagai draft</b>
-                Berikut Form Pengajuan yang terisi. Nominalnya dihitung sistem dan
-                belum dikunci — Finance (Pajak) yang memverifikasinya.
+                <b>{k.tersimpanJudul(hasil.claim_number)}</b>
+                {k.tersimpanIsi}
               </div>
 
               <FormPengajuan klaim={hasil} />
 
               <div className="row" style={{ marginTop: 14, marginBottom: 0 }}>
-                <button onClick={() => window.print()}>Cetak formulir</button>
+                <button onClick={() => window.print()}>{k.cetak}</button>
                 <Link href={`/klaim/${jenis.slug}`}>
-                  <button>Ajukan klaim lain</button>
+                  <button>{k.ajukanLain}</button>
                 </Link>
-                <Link href="/konsol"><button className="pri">Buka konsol klaim</button></Link>
+                <Link href="/konsol">
+                  <button className="pri">{k.bukaKonsol}</button>
+                </Link>
               </div>
             </>
           )}

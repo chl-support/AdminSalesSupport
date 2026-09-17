@@ -12,14 +12,21 @@
  * sengaja tidak memakai kerangka ini.
  */
 
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+
+import { useBahasa } from "./bahasa";
 import { Logo } from "./logo";
-import { Nav } from "./nav";
+import { Nav, indukDari } from "./nav";
 import { BilahPengguna, type Sesi } from "./session";
 
 export function Kerangka(
   { sesi, judul, children }:
   { sesi: Sesi; judul: React.ReactNode; children: React.ReactNode },
 ) {
+  const induk = indukDari(usePathname());
+  const { bahasa } = useBahasa();
+
   return (
     <div className="konsol">
       {/* Satu bilah atas selebar halaman: merek di kolom kiri, judul dan
@@ -29,26 +36,48 @@ export function Kerangka(
           sebagai dua bagian yang tidak sejajar. */}
       <header className="pita">
         <div className="merek">
-          <Logo tinggi={44} hanyaLambang />
+          <Logo tinggi={38} hanyaLambang />
           <div>
-            CHL Admin Sales
-            <span>KLAIM INSENTIF MARKETING</span>
+            {/* Pemenggalannya ditentukan di sini, sama seperti di halaman
+                masuk. Dibiarkan membungkus sendiri pada kolom 194px, namanya
+                patah menjadi "CHL Sales Admin / System" — satu kata sendirian
+                di baris kedua. */}
+            CHL Sales<br />Admin System
           </div>
         </div>
 
         <div className="kepala">
-          {judul}
+          <div className="judul">
+            {/* Halaman yang merupakan anak dari menu lain menyebut induknya di
+                atas judulnya, sekaligus sebagai jalan kembali. "Closing Fee"
+                sendirian tidak memberi tahu bahwa ia salah satu dari empat
+                jenis di bawah Pengajuan Fee. Halaman yang bukan anak siapa pun
+                tidak menampilkan baris ini sama sekali. */}
+            {induk && (
+              <Link className="induk" href={induk.href}>{induk.label[bahasa]}</Link>
+            )}
+            {judul}
+          </div>
+
           {/* Nama project di kepala tiap halaman, bukan hanya di pemilihnya:
               seluruh angka pada layar ini milik satu project, dan yang lupa
               project mana yang sedang dibuka akan membaca angka yang benar
-              sebagai angka yang salah. */}
+              sebagai angka yang salah.
+
+              Di luar bungkus .judul, bukan di dalamnya: bungkus itu menumpuk
+              isinya ke bawah, dan lencana project di bawah keterangan halaman
+              akan terbaca sebagai bagian dari keterangan itu. */}
           {sesi.project_name && (
             <span className="pill proyek" title={sesi.project_company ?? ""}>
               {sesi.project_name}
             </span>
           )}
           {/* Identitas di kanan atas: di sanalah orang mencarinya, dan di kaki
-              kolom menu ia justru tenggelam di bawah menu terakhir. */}
+              kolom menu ia justru tenggelam di bawah menu terakhir.
+
+              Tanpa tombol bahasa di sebelahnya: pilihannya dibuat di halaman
+              masuk, sekali, sebelum orangnya masuk. Konsekuensinya disadari —
+              yang salah pilih harus keluar dulu untuk membetulkannya. */}
           <BilahPengguna sesi={sesi} />
         </div>
       </header>
