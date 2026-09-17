@@ -177,7 +177,13 @@ export default function SetupPage() {
   const [shape, setShape] = useState<SecretShape | null>(null);
   const [disabled, setDisabled] = useState(false);
   const [secret, setSecret] = useState("");
-  const [seed, setSeed] = useState(true);
+  // Mati secara bawaan, lalu dinyalakan sendiri hanya bila basis datanya memang
+  // masih kosong. Seed mengosongkan seluruh tabel sebelum mengisi contohnya, dan
+  // penjagaan di server hanya menghitung klaim — pemasangan yang sudah berisi
+  // data marketing dan unit tetapi belum ada klaimnya lolos begitu saja. Kotak
+  // yang sudah tercentang saat halaman dibuka membuat migrasi biasa berubah
+  // menjadi penghapusan data tanpa ada yang memilihnya.
+  const [seed, setSeed] = useState(false);
   const [force, setForce] = useState(false);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<
@@ -201,6 +207,13 @@ export default function SetupPage() {
   }, []);
 
   useEffect(() => { void loadStatus(); }, [loadStatus]);
+
+  // Belum ada pengguna sama sekali berarti pemasangan baru: tanpa seed, konsolnya
+  // tidak dapat dimasuki siapa pun. Begitu penggunanya ada, kotak ini kembali
+  // mati dan harus dicentang dengan sengaja.
+  useEffect(() => {
+    if (status) setSeed(status.users === 0);
+  }, [status]);
 
   const run = async () => {
     if (!secret) { setResult({ cls: "stop", title: "Rahasia belum diisi", lines: [] }); return; }
@@ -320,6 +333,14 @@ export default function SetupPage() {
         <p className="hint" style={{ textAlign: "left", marginTop: 4 }}>
           Data contoh juga membuat tujuh pengguna dan konfigurasi skema insentif.
           Tanpa itu konsol tidak dapat dipakai karena belum ada pengguna yang dikenali.
+          {status && status.users > 0 && (
+            <>
+              {" "}
+              <b>Seluruh tabel dikosongkan lebih dulu</b> — termasuk data
+              marketing dan unit yang sudah diunggah. Untuk sekadar menambahkan
+              tabel baru, biarkan kotak ini tidak tercentang.
+            </>
+          )}
         </p>
 
         {status?.seeded && (

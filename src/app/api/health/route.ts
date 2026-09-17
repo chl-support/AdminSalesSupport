@@ -1,5 +1,33 @@
 import { handler } from "@/lib/api";
-import { configReport, explainDbError, one, setting } from "@/lib/db";
+import { configReport, explainDbError, one, query, setting } from "@/lib/db";
+
+/**
+ * Tabel yang harus ada setelah migrasi terakhir.
+ *
+ * Didaftar di sini, bukan dihitung, karena yang perlu dijawab bukan "ada berapa
+ * tabel" melainkan "yang mana yang belum ada". Jumlah tabel yang bertambah satu
+ * tidak memberi tahu apa pun kepada orang yang hanya dapat membuka peramban;
+ * nama tabel yang hilang langsung menunjuk migrasi mana yang belum dijalankan.
+ */
+const TABEL_WAJIB = [
+  "accounting_periods", "agencies", "audit_log", "bank_accounts",
+  "claim_documents", "claims", "enrollment_sessions", "handoffs",
+  "idempotency_keys", "incentive_schemes", "login_attempts", "marketings",
+  "memos", "non_cash_incentives", "overriding_batches", "overriding_rows",
+  "payment_instructions", "print_packages", "projects", "sessions", "settings",
+  "settlement_lines", "settlements", "signature_attempts",
+  "signature_specimens", "signing_sessions", "tax_rates", "units", "users",
+];
+
+/** Tabel wajib yang belum ada di basis data ini. */
+async function tabelHilang(): Promise<string[]> {
+  const ada = await query<{ table_name: string }>(
+    `SELECT table_name FROM information_schema.tables
+      WHERE table_schema = 'public' AND table_name = ANY($1)`,
+    [TABEL_WAJIB]);
+  const punya = new Set(ada.map((r) => r.table_name));
+  return TABEL_WAJIB.filter((t) => !punya.has(t));
+}
 
 /**
  * Pemeriksaan kesehatan yang benar-benar menyentuh basis data.
@@ -17,9 +45,22 @@ export const GET = handler(async () => {
     const dikalibrasi = await setting("signature_calibrated_at");
     const row = await one<{ count: number }>(
       "SELECT COUNT(*)::int AS count FROM claims");
+    const hilang = await tabelHilang();
     return {
-      status: "ok",
+      // Skema yang kurang satu tabel bukan "ok": layar yang memakainya akan
+      // gagal, dan kegagalan itu baru terlihat oleh orang yang kebetulan
+      // membuka layarnya. Disebut di sini supaya terbaca sebelum itu.
+      status: hilang.length ? "migration_required" : "ok",
       database: "connected",
+      schema: {
+        tables_expected: TABEL_WAJIB.length,
+        tables_present: TABEL_WAJIB.length - hilang.length,
+        missing: hilang,
+        ...(hilang.length
+          ? { detail: `Migrasi terakhir belum dijalankan pada basis data ini. ` +
+                      `Jalankan penyiapan sekali lewat /setup.` }
+          : {}),
+      },
       claims: row?.count ?? 0,
       signature_threshold: await setting("signature_threshold_claim"),
       config,
