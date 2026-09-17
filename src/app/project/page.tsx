@@ -67,7 +67,12 @@ export default function PilihProjectPage() {
   return (
     <div className="pilih-project">
       <header>
-        <Logo tinggi={52} hanyaLambang />
+        {/* Lambang penuh, bersama tulisan "CIPTA HARMONI LESTARI" di bawahnya.
+            Di kolom menu yang sempit tulisan itu mengecil menjadi coretan yang
+            tidak terbaca, jadi di sana dipakai lambangnya saja — tetapi di sini
+            ruangnya lapang, dan ini layar pertama sesudah masuk: tempat yang
+            tepat untuk lambang perusahaan tampil utuh. */}
+        <Logo tinggi={132} />
         <div>
           <h1>Pilih project</h1>
           <p>
