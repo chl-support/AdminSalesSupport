@@ -863,9 +863,45 @@ ul.syarat-foto { margin: 8px 0 0 16px; padding: 0; font-size: 11.5px;
 /* ── Pemilih project ─────────────────────────────────────────────────────── */
 /* Dipusatkan tegak: halaman ini hanya berisi satu kisi kartu, dan ditempel di
    tepi atas layar lebar ia meninggalkan setengah layar kosong di bawahnya. */
-.pilih-project { max-width: 1000px; margin: 0 auto; padding: 40px 22px 56px;
+.pilih-project { position: relative; z-index: 0;
+                 max-width: 1000px; margin: 0 auto; padding: 40px 22px 56px;
                  min-height: 100dvh; display: flex; flex-direction: column;
                  justify-content: center; }
+
+/* Siluet keenam project menempel di kaki halaman.
+   
+   Ia menutup ruang kosong di bawah kisi tanpa menambah satu pun benda yang
+   harus dibaca — dan yang digambarnya persis isi halaman ini. Kepekatannya
+   dipatok sangat rendah: pada tingkat yang cukup untuk dikenali sebagai
+   gambar, ia mulai bersaing dengan lambang project di atasnya, dan yang
+   dicari orang di layar ini lambang itu.
+
+   Dipasang selebar tampilan, bukan selebar kisinya: deret bangunan yang
+   berhenti tepat di tepi kartu terbaca sebagai gambar yang terpotong, bukan
+   sebagai pemandangan di kejauhan. Karena itu ia menembus batas .pilih-project
+   lewat inset mendatar negatif sebesar 50vw.
+
+   pointer-events:none supaya ia tidak pernah menangkap klik yang dituju
+   kartu; z-index -1 supaya ia tetap di belakang kartu putihnya. */
+.pilih-project::after {
+  content: ""; position: absolute; z-index: -1; pointer-events: none;
+  left: 50%; right: 50%; margin-left: -50vw; margin-right: -50vw;
+  width: 100vw; bottom: 0; height: min(230px, 26vh);
+  background: url("/siluet-proyek.svg") no-repeat bottom center;
+  /* contain, bukan `auto 100%`: dipatok pada tingginya, deret selebar 1600
+     piksel itu jauh melampaui layar ponsel dan yang tersisa di sana hanya
+     potongan tengahnya — beberapa batang kolom tanpa bangunan. Dipatok pada
+     yang lebih dulu penuh, keenamnya selalu utuh, hanya mengecil. */
+  background-size: contain;
+  opacity: .05;
+}
+
+/* Yang meminta gerakan dikurangi tidak terpengaruh — siluetnya memang diam.
+   Tetapi pada layar yang sangat pendek ia memakan tempat kisi, jadi di sana
+   ia dilepas. */
+@media (max-height: 560px) {
+  .pilih-project::after { display: none; }
+}
 /* Lambang di atas, bukan di samping. Lambang penuh membawa tulisan "CIPTA
    HARMONI LESTARI" di bawahnya, dan tulisan itu hanya sepersembilan tinggi
    berkasnya: disandingkan sebaris dengan judul, tingginya terikat tinggi
