@@ -72,6 +72,16 @@ const MENU: Butir[] = [
     label: { id: "Approval / Persetujuan", en: "Approval Status" } },
   { href: "/laporan",
     label: { id: "Report / Laporan", en: "Marketing Report" } },
+  // Administrasi sempat hilang dari menu saat susunannya ditata ulang, padahal
+  // layarnya tetap ada: unggah Laporan Penjualan, Laporan Penerimaan, dan
+  // Report Agent semuanya di sana. Butir yang hilang membuat satu-satunya jalan
+  // ke sana adalah mengetik alamatnya, dan itu bukan jalan yang dapat diingat
+  // orang.
+  //
+  // Hanya Admin IT: di dalamnya ada pengosongan data dan penggantian sandi
+  // pengguna lain.
+  { href: "/admin", label: { id: "Administrasi", en: "Administration" },
+    peran: ["admin_system"] },
 ];
 
 const boleh = (b: Butir, peran?: string) =>
