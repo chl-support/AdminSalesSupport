@@ -135,16 +135,41 @@ async function main() {
     assert(Number(vat2026.rate) === 0.11, "kontrak 2026 seharusnya PPN 11%");
   });
 
-  await check("prasyarat pencairan menahan unit yang belum layak", async () => {
-    const u = await one("SELECT * FROM units WHERE code='BIOBA7-021'");
-    const a = calc.eligibility(u, "overriding");
-    assert(!a.ok && a.missing.some((m) => m.includes("Sign P3U")),
-           JSON.stringify(a.missing));
-    const u2 = await one("SELECT * FROM units WHERE code='BIOBB-07'");
-    const b = calc.eligibility(u2, "commission");
-    assert(!b.ok && b.missing.some((m) => m.toLowerCase().includes("management")),
-           JSON.stringify(b.missing));
-  });
+  await check("penerimaan di bawah ambang menahan unit yang belum layak",
+    async () => {
+      // Syaratnya satu dan sama untuk keempat jenis fee: penerimaan sudah
+      // mencapai 20% dari nilai kontrak.
+      const u: any = await one("SELECT * FROM units WHERE code='BIOBA7-021'");
+      const kurang = calc.eligibility(
+        { ...u, contract_value_incl_vat: 1_000_000_000,
+          received_amount: 150_000_000 }, "overriding");
+      assert(!kurang.ok &&
+             kurang.codes.includes("penerimaan_kurang"),
+             JSON.stringify(kurang.missing));
+
+      // Tepat di ambangnya sudah layak: "mencapai 20%" termasuk 20% itu
+      // sendiri, bukan hanya yang melewatinya.
+      const pas = calc.eligibility(
+        { ...u, status: "booked", contract_value_incl_vat: 1_000_000_000,
+          received_amount: 200_000_000 }, "closing_fee");
+      assert(pas.ok, JSON.stringify(pas.missing));
+
+      // Nilai kontrak nol tidak boleh lolos hanya karena persentasenya tidak
+      // dapat dihitung.
+      const nol = calc.eligibility(
+        { ...u, status: "booked", contract_value_incl_vat: 0,
+          received_amount: 0 }, "closing_fee");
+      assert(!nol.ok && nol.codes.includes("nilai_kontrak_nol"),
+             JSON.stringify(nol.missing));
+
+      // Keadaan unit tetap menahan, berapa pun penerimaannya.
+      const u2: any = await one("SELECT * FROM units WHERE code='BIOBB-07'");
+      const b = calc.eligibility(
+        { ...u2, contract_value_incl_vat: 1_000_000_000,
+          received_amount: 1_000_000_000 }, "commission");
+      assert(!b.ok && b.missing.some((m) => m.toLowerCase().includes("management")),
+             JSON.stringify(b.missing));
+    });
 
   // ─────────── Kardinalitas ───────────
   console.log("\n=== Kardinalitas klaim (PRD 7.B.2) ===");

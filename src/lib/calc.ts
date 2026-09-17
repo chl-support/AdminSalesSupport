@@ -306,7 +306,23 @@ export async function calculate(
  */
 export type SebabTakLayak =
   | "unit_cancelled" | "unit_moved" | "unit_management"
-  | "spu_unsigned" | "ppjb_unsigned" | "dp_not_received" | "not_sign_p3u";
+  | "penerimaan_kurang" | "nilai_kontrak_nol";
+
+/**
+ * Ambang penerimaan yang membuka pengajuan fee: 20% dari nilai kontrak.
+ *
+ * Satu angka untuk keempat jenis fee dan seluruh cara bayar. Sebelumnya
+ * prasyaratnya berupa empat penanda dokumen (SPU, PPJB, DP, Sign P3U) yang
+ * dicentang tangan, berbeda-beda per jenis fee. Penanda itu tidak ada di satu
+ * pun laporan yang diunggah, sehingga harus dicatat satu per satu untuk tiap
+ * unit — dan selama belum dicatat, setiap unit hasil impor berhenti pada
+ * "belum dapat diklaim" tanpa ada yang tahu kenapa.
+ *
+ * Penerimaan sebaliknya datang sendiri dari Laporan Penerimaan Customer yang
+ * memang diunggah tiap bulan. Syarat yang terisi sendiri dari laporan resmi
+ * tidak bisa lupa dicentang, dan tidak bisa dicentang lebih awal.
+ */
+export const AMBANG_PENERIMAAN = 0.20;
 
 export function eligibility(unit: any, claimType: ClaimType): {
   ok: boolean; missing: string[]; codes: SebabTakLayak[];
@@ -325,24 +341,30 @@ export function eligibility(unit: any, claimType: ClaimType): {
   if (unit.status === "management")
     tambah("unit_management", "Unit management — tidak menghasilkan insentif.");
 
-  if (claimType === "closing_fee") {
-    if (!unit.spu_signed)
-      tambah("spu_unsigned", "SPU belum ditandatangani pemesan (BR-01).");
-  } else if (claimType === "commission") {
-    if (!unit.spu_signed)
-      tambah("spu_unsigned", "SPU belum ditandatangani pemesan (BR-02).");
-    if (!unit.ppjb_signed)
-      tambah("ppjb_unsigned", "PPJB belum ditandatangani pemesan (BR-02).");
-  } else if (claimType === "cash_reward") {
-    if (!unit.dp_received)
-      tambah("dp_not_received", "DP / angsuran 1 belum diterima (BR-03).");
-    if (!unit.spu_signed)
-      tambah("spu_unsigned", "SPU belum ditandatangani pemesan (BR-03).");
-    if (!unit.ppjb_signed)
-      tambah("ppjb_unsigned", "PPJB belum ditandatangani pemesan (BR-03).");
-  } else if (claimType === "overriding") {
-    if (!unit.sign_p3u) tambah("not_sign_p3u", "Unit belum Sign P3U (BR-04).");
+  // Satu syarat, sama untuk keempat jenis fee dan seluruh cara bayar:
+  // penerimaan sudah mencapai 20% dari nilai kontrak.
+  //
+  // `claimType` sengaja tidak lagi dipakai di sini. Parameternya dipertahankan
+  // karena seluruh pemanggilnya menyebut jenis klaim yang sedang diperiksa, dan
+  // membuangnya berarti menyentuh belasan tempat demi perbedaan yang mungkin
+  // kembali besok.
+  const nilai = Number(unit.contract_value_incl_vat ?? 0);
+  const terima = Number(unit.received_amount ?? 0);
+
+  if (nilai <= 0) {
+    // Tanpa nilai kontrak, persentasenya tidak dapat dihitung sama sekali.
+    // Membiarkannya lolos berarti unit yang nilainya belum terisi tampak
+    // memenuhi syarat justru karena datanya kurang.
+    tambah("nilai_kontrak_nol",
+           "Nilai kontrak belum tercatat, persentase penerimaan tidak dapat " +
+           "dihitung.");
+  } else if (terima < nilai * AMBANG_PENERIMAAN) {
+    const persen = ((terima / nilai) * 100).toFixed(1);
+    tambah("penerimaan_kurang",
+           `Penerimaan baru ${persen}% dari nilai kontrak, belum mencapai ` +
+           `${AMBANG_PENERIMAAN * 100}%.`);
   }
+
   return { ok: missing.length === 0, missing, codes };
 }
 
