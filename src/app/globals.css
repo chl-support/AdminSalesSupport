@@ -434,8 +434,27 @@ ul.cetak-ceklis .kotak { border: 1px solid var(--ink); width: 14px; height: 14px
           flex-wrap: wrap; }
 .kepala .judul { flex: 1; min-width: 0; }
 .kepala h1 { margin: 0; }
-.kepala p { margin: 5px 0 0; color: var(--sub); font-size: 13.5px;
-            max-width: 62ch; }
+.kepala p { margin: 13px 0 0; color: var(--sub); font-size: 13px;
+            line-height: 1.62; max-width: 58ch; }
+
+/* Garis emas pendek yang memudar, di antara judul dan keterangannya.
+   
+   Sebelumnya keduanya hanya berjarak lima piksel, dan keterangan yang menempel
+   begitu pada judul terbaca sebagai baris kedua judul itu — bukan sebagai
+   keterangan atasnya. Garis ini memisahkan keduanya tanpa menambah satu kata
+   pun yang harus dibaca.
+   
+   Perangkatnya sama persis dengan yang menutup blok merek di halaman masuk:
+   lebar yang sama, memudar ke arah yang sama. Dua layar yang memakai satu
+   perangkat terbaca sebagai satu sistem.
+   
+   Dipasang pada keterangannya, bukan pada judulnya. Ada layar yang judulnya
+   berdiri tanpa keterangan — layar yang belum dibuat isinya — dan garis yang
+   melekat pada judul akan menggantung di sana tanpa apa pun di bawahnya. */
+.kepala .judul p::before {
+  content: ""; display: block; width: 54px; height: 3px; margin-bottom: 13px;
+  background: linear-gradient(90deg, var(--emas), rgba(214, 164, 25, 0));
+}
 
 /* Nama menu induk di atas judul, sekaligus jalan kembali ke sana. Ukurannya
    jauh di bawah judul dan berhuruf kapital: ia keterangan tempat, bukan judul
