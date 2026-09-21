@@ -24,8 +24,8 @@ const KATA = {
   id: {
     judul: "Report / Laporan",
     pengantar: (p: string) =>
-      `Unduhan dan rekap atas data klaim project ${p}. Laporan hanya membaca ` +
-      "— yang keliru diperbaiki pada klaimnya, bukan di sini.",
+      `Rekap dan unduhan data klaim Project ${p}. Laporan bersifat read-only ` +
+      "dan tidak dapat diedit; setiap koreksi dilakukan pada data klaim.",
     galat: "Laporan tidak dapat dibaca",
     masterJudul: "LAPORAN MASTER",
     masterIsi: "Seluruh klaim beserta unit, penerima, perhitungan, dan " +
@@ -58,8 +58,9 @@ const KATA = {
   en: {
     judul: "Marketing Report",
     pengantar: (p: string) =>
-      `Downloads and summaries over project ${p}'s claim data. Reports only ` +
-      "read — anything wrong is corrected on the claim itself, not here.",
+      `Summaries and downloads of Project ${p}'s claim data. Reports are ` +
+      "read-only and cannot be edited; every correction is made on the " +
+      "claim data.",
     galat: "The report could not be read",
     masterJudul: "MASTER REPORT",
     masterIsi: "Every claim with its unit, recipient, calculation and status " +

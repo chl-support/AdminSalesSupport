@@ -24,9 +24,8 @@ import { useSesi } from "../session";
 const KATA = {
   id: {
     judul: "Sirkulasi Dokumen",
-    pengantar: "Formulir yang sudah dicetak dan sedang beredar untuk " +
-               "ditandatangani. Umurnya dihitung sejak berpindah tangan " +
-               "terakhir kali.",
+    pengantar: "Dokumen yang sedang beredar untuk ditandatangani. Durasi " +
+               "dihitung sejak perpindahan terakhir.",
     galat: "Data tidak dapat dibaca",
     beredar: (n: number) => `${n} dokumen beredar`,
     duaMinggu: (n: number) => ` · ${n} lebih dari dua minggu`,
@@ -46,7 +45,7 @@ const KATA = {
   },
   en: {
     judul: "Document Workflow",
-    pengantar: "Printed forms currently circulating for signature. Age is " +
+    pengantar: "Documents currently circulating for signature. Duration is " +
                "counted from the last hand-over.",
     galat: "The data could not be read",
     beredar: (n: number) => `${n} documents circulating`,
