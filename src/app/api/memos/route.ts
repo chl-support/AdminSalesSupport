@@ -1,10 +1,18 @@
 import { handler, currentUser, projectAktif } from "@/lib/api";
 import { WorkflowError } from "@/lib/workflow";
-import { daftarMemo, simpanMemo } from "@/lib/memo";
+import { daftarMemo, lampiranProject, simpanMemo } from "@/lib/memo";
 
 /** Memo pada project yang sedang dikerjakan. */
-export const GET = handler(async (req) =>
-  ({ memos: await daftarMemo(await projectAktif(req)) }));
+export const GET = handler(async (req) => {
+  const projectId = await projectAktif(req);
+  // Lampirannya ikut, sekali ambil. Layar rekapitulasi menampilkan semuanya
+  // sekaligus; satu permintaan per memo berarti sepuluh perjalanan bolak-balik
+  // untuk sesuatu yang sudah diketahui seluruhnya di sini.
+  return {
+    memos: await daftarMemo(projectId),
+    lampiran: await lampiranProject(projectId),
+  };
+});
 
 /**
  * Unggah memo.

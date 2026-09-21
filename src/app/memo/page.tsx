@@ -56,10 +56,22 @@ const KATA = {
     kPerihal: "Perihal / Program", kNilai: "Nilai / Skema Fee",
     kPeriode: "Periode Program", kDokumen: "Dokumen Pendukung Wajib",
     kPihak: "Diajukan / Diketahui / Disetujui Oleh",
-    kBerkas: "Berkas", kTindakan: "Tindakan",
+    kBerkas: "Berkas", kLampiran: "Lampiran", kTindakan: "Tindakan",
     lDiajukan: "Diajukan:", lDiketahui: "Diketahui:", lDisetujui: "Disetujui:",
     seterusnya: "seterusnya", hapus: "Hapus",
     kosong: "Belum ada memo pada project ini.",
+    unduhRekap: "Unduh rekap (.xlsx)",
+    nLampiran: (n: number) => `${n} lampiran`,
+    takAdaLampiran: "Belum ada lampiran",
+    tambahLampiran: "Tambah lampiran",
+    tutupLampiran: "Tutup",
+    fLabel: "Keterangan lampiran (boleh kosong)",
+    cLabel: "mis. Kwitansi, Form Referensi, Dokumen transaksi sewa",
+    fLampiran: "Berkas lampiran (PDF, gambar, Excel, atau Word — maksimal 10 MB)",
+    lampirkan: "Lampirkan", melampirkan: "Melampirkan…",
+    lampiranTersimpan: (f: string) => `Lampiran "${f}" tersimpan.`,
+    lampiranDihapus: (f: string) =>
+      `Lampiran "${f}" dihapus. Namanya tetap tercatat pada jejak audit.`,
   },
   en: {
     judul: "Approval Memo",
@@ -95,10 +107,22 @@ const KATA = {
     kPerihal: "Subject / programme", kNilai: "Value / fee scheme",
     kPeriode: "Programme period", kDokumen: "Required supporting documents",
     kPihak: "Submitted / noted / approved by",
-    kBerkas: "File", kTindakan: "Action",
+    kBerkas: "File", kLampiran: "Attachments", kTindakan: "Action",
     lDiajukan: "Submitted:", lDiketahui: "Noted:", lDisetujui: "Approved:",
     seterusnya: "onwards", hapus: "Delete",
     kosong: "No memos on this project yet.",
+    unduhRekap: "Download recap (.xlsx)",
+    nLampiran: (n: number) => `${n} attachments`,
+    takAdaLampiran: "No attachments yet",
+    tambahLampiran: "Add attachment",
+    tutupLampiran: "Close",
+    fLabel: "Attachment label (optional)",
+    cLabel: "e.g. Receipt, Referral form, Lease transaction document",
+    fLampiran: "Attachment file (PDF, image, Excel, or Word — 10 MB maximum)",
+    lampirkan: "Attach", melampirkan: "Attaching…",
+    lampiranTersimpan: (f: string) => `Attachment "${f}" saved.`,
+    lampiranDihapus: (f: string) =>
+      `Attachment "${f}" deleted. Its name remains in the audit trail.`,
   },
 };
 
@@ -110,6 +134,12 @@ type Memo = {
   diajukan_oleh: string | null; diketahui_oleh: string | null;
   disetujui_oleh: string | null;
   file_name: string; content_type: string; size_bytes: number;
+  uploaded_by: string; uploaded_at: string;
+};
+
+type Lampiran = {
+  id: string; memo_id: string; label: string | null; file_name: string;
+  content_type: string; size_bytes: number;
   uploaded_by: string; uploaded_at: string;
 };
 
@@ -182,6 +212,12 @@ export default function MemoPage() {
   const [diketahui, setDiketahui] = useState("");
   const [disetujui, setDisetujui] = useState("");
 
+  // Lampiran: daftarnya, baris mana yang sedang terbuka, dan isian unggahnya.
+  const [lampiran, setLampiran] = useState<Lampiran[]>([]);
+  const [terbuka, setTerbuka] = useState<string | null>(null);
+  const [lBerkas, setLBerkas] = useState<File | null>(null);
+  const [lLabel, setLLabel] = useState("");
+
   const muat = useCallback(async () => {
     try {
       const res = await fetch("/api/memos");
@@ -189,6 +225,7 @@ export default function MemoPage() {
       const b = await res.json().catch(() => ({}));
       if (!res.ok) { setGalat(b.detail ?? `HTTP ${res.status}`); return; }
       setDaftar(b.memos ?? []);
+      setLampiran(b.lampiran ?? []);
       setGalat(null);
     } catch (e: any) { setGalat(String(e?.message ?? e)); }
   }, []);
@@ -245,9 +282,47 @@ export default function MemoPage() {
     } finally { setBusy(false); }
   };
 
+  /** Lampirkan satu berkas pada memo yang barisnya sedang terbuka. */
+  const lampirkan = async (memoId: string) => {
+    if (!lBerkas) return;
+    setBusy(true); setGalat(null); setKabar(null);
+    try {
+      const fd = new FormData();
+      fd.append("file", lBerkas);
+      fd.append("label", lLabel);
+      const res = await fetch(`/api/memos/${memoId}/lampiran`,
+                              { method: "POST", body: fd });
+      if (res.status === 401) { location.href = "/login"; return; }
+      const b = await res.json().catch(() => ({}));
+      if (!res.ok) { setGalat(b.detail ?? `HTTP ${res.status}`); return; }
+      setKabar(k.lampiranTersimpan(b.file_name ?? lBerkas.name));
+      setLBerkas(null); setLLabel("");
+      await muat();
+    } catch (e: any) {
+      setGalat(String(e?.message ?? e));
+    } finally { setBusy(false); }
+  };
+
+  const hapusLampiran = async (f: Lampiran) => {
+    setBusy(true); setGalat(null); setKabar(null);
+    try {
+      const res = await fetch(`/api/memos/lampiran/${f.id}`,
+                              { method: "DELETE" });
+      if (res.status === 401) { location.href = "/login"; return; }
+      const b = await res.json().catch(() => ({}));
+      if (!res.ok) { setGalat(b.detail ?? `HTTP ${res.status}`); return; }
+      setKabar(k.lampiranDihapus(f.file_name));
+      await muat();
+    } catch (e: any) {
+      setGalat(String(e?.message ?? e));
+    } finally { setBusy(false); }
+  };
+
   if (memuat || !sesi) return <MemeriksaSesi />;
 
   const bolehHapus = sesi.role === "admin_sales" || sesi.role === "admin_system";
+  const lampiranDari = (memoId: string) =>
+    lampiran.filter((f) => f.memo_id === memoId);
 
   return (
     <Kerangka sesi={sesi} judul={
@@ -362,7 +437,17 @@ export default function MemoPage() {
       <div className="panel">
         <h2>
           {k.daftar}
-          <span className="pill">{k.berkasN(daftar.length)}</span>
+          <span>
+            {/* Unduhan, bukan tombol: berkasnya dibangkitkan server dan
+                langsung disimpan peramban, tanpa layar perantara. */}
+            {daftar.length > 0 && (
+              <a className="tautan-klaim" href="/api/memos/rekap"
+                 style={{ marginRight: 8 }}>
+                {k.unduhRekap}
+              </a>
+            )}
+            <span className="pill">{k.berkasN(daftar.length)}</span>
+          </span>
         </h2>
 
         {/* Rekapitulasi ke samping, mengikuti bentuk cetakannya: satu memo
@@ -376,6 +461,7 @@ export default function MemoPage() {
               <th>{k.kDari}</th><th>{k.kKepada}</th><th>{k.kPerihal}</th>
               <th>{k.kNilai}</th><th>{k.kPeriode}</th><th>{k.kDokumen}</th>
               <th>{k.kPihak}</th><th>{k.kBerkas}</th>
+              <th>{k.kLampiran}</th>
               {bolehHapus && <th>{k.kTindakan}</th>}
             </tr>
 
@@ -427,6 +513,24 @@ export default function MemoPage() {
                     {kb(m.size_bytes)} · {tgl(m.uploaded_at)} · {m.uploaded_by}
                   </span>
                 </td>
+                <td>
+                  {/* Jumlahnya yang ditampilkan, bukan daftarnya: nama berkas
+                      pendukung panjang-panjang, dan tiga di antaranya akan
+                      menenggelamkan sembilan kolom lain di sebelahnya. Yang
+                      ingin melihatnya membuka barisnya. */}
+                  <button className="tombol-lampiran"
+                          onClick={() => {
+                            setTerbuka(terbuka === m.id ? null : m.id);
+                            setLBerkas(null); setLLabel("");
+                          }}>
+                    {lampiranDari(m.id).length
+                      ? k.nLampiran(lampiranDari(m.id).length)
+                      : k.takAdaLampiran}
+                    <span className="anak-panah">
+                      {terbuka === m.id ? "▾" : "▸"}
+                    </span>
+                  </button>
+                </td>
                 {bolehHapus && (
                   <td>
                     <button disabled={busy} onClick={() => void hapus(m)}>
@@ -437,9 +541,64 @@ export default function MemoPage() {
               </tr>
             ))}
 
+            {/* Baris lampiran menyisip tepat di bawah memonya, selebar
+                tabel. Ditaruh di kolomnya sendiri, ia akan memaksa kolom itu
+                selebar daftar berkasnya pada seluruh baris lain. */}
+            {daftar.map((m) => terbuka === m.id && (
+              <tr key={`${m.id}-lampiran`} className="terbuka">
+                <td colSpan={bolehHapus ? 13 : 12}>
+                  <div className="rincian lampiran-memo">
+                    <b>{m.nomor ?? m.judul}</b>
+
+                    {lampiranDari(m.id).length > 0 && (
+                      <ul className="berkas-lampiran">
+                        {lampiranDari(m.id).map((f) => (
+                          <li key={f.id}>
+                            <a href={`/api/memos/lampiran/${f.id}`}
+                               target="_blank" rel="noreferrer">
+                              {f.label ? `${f.label} — ` : ""}{f.file_name}
+                            </a>
+                            <span className="sisip">
+                              {kb(f.size_bytes)} · {tgl(f.uploaded_at)} ·{" "}
+                              {f.uploaded_by}
+                            </span>
+                            {bolehHapus && (
+                              <button disabled={busy}
+                                      onClick={() => void hapusLampiran(f)}>
+                                {k.hapus}
+                              </button>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+
+                    <div className="unggah-lampiran">
+                      <div>
+                        <div className="lbl">{k.fLabel}</div>
+                        <input value={lLabel} placeholder={k.cLabel}
+                               onChange={(e) => setLLabel(e.target.value)} />
+                      </div>
+                      <div>
+                        <div className="lbl">{k.fLampiran}</div>
+                        <input type="file"
+                               accept=".pdf,.jpg,.jpeg,.png,.webp,.xls,.xlsx,.doc,.docx"
+                               onChange={(e) =>
+                                 setLBerkas(e.target.files?.[0] ?? null)} />
+                      </div>
+                      <button className="pri" disabled={!lBerkas || busy}
+                              onClick={() => void lampirkan(m.id)}>
+                        {busy ? k.melampirkan : k.lampirkan}
+                      </button>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            ))}
+
             {!daftar.length && (
               <tr>
-                <td colSpan={bolehHapus ? 12 : 11} style={{ color: "var(--mut)" }}>
+                <td colSpan={bolehHapus ? 13 : 12} style={{ color: "var(--mut)" }}>
                   {k.kosong}
                 </td>
               </tr>

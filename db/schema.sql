@@ -770,4 +770,29 @@ ALTER TABLE memos ADD COLUMN IF NOT EXISTS diajukan_oleh  TEXT;
 ALTER TABLE memos ADD COLUMN IF NOT EXISTS diketahui_oleh TEXT;
 ALTER TABLE memos ADD COLUMN IF NOT EXISTS disetujui_oleh TEXT;
 
+-- Lampiran memo: berkas pendukung, berapa pun banyaknya.
+--
+-- Satu memo membawa lebih dari satu berkas. Kolom "Dokumen Pendukung Wajib"
+-- pada rekapitulasi sudah menyebut tiga sekaligus — Form Referensi, Kwitansi,
+-- dokumen transaksi sewa — dan satu kolom berkas pada tabel memos hanya
+-- memuat satu. Sisanya selama ini tinggal di surel atau map bersama, terpisah
+-- dari memo yang mendasarinya.
+--
+-- ON DELETE CASCADE: lampiran tanpa memonya tidak berarti apa pun. Yang
+-- dijaga dari penghapusan adalah jejak auditnya, bukan barisnya.
+CREATE TABLE IF NOT EXISTS memo_files (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  memo_id      UUID NOT NULL REFERENCES memos(id) ON DELETE CASCADE,
+  label        TEXT,
+  file_name    TEXT NOT NULL,
+  content_type TEXT NOT NULL,
+  size_bytes   INT NOT NULL CHECK (size_bytes > 0 AND size_bytes <= 10485760),
+  content      BYTEA NOT NULL,
+  uploaded_by  TEXT NOT NULL,
+  uploaded_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_memo_files_memo
+  ON memo_files(memo_id, uploaded_at);
+
 COMMIT;

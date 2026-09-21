@@ -1120,8 +1120,9 @@ a.tautan-klaim:hover { border-color: var(--ink); }
    
    Lebar minimumnya dipatok supaya kolom tidak saling menghimpit sampai tak
    terbaca; .tscroll di sekelilingnya yang menyediakan gulirannya. */
-.rekap-memo { min-width: 1500px; table-layout: fixed; }
+.rekap-memo { min-width: 1640px; table-layout: fixed; }
 .rekap-memo th, .rekap-memo td { vertical-align: top; }
+.rekap-memo tr.terbuka > td { background: #FBFBFA; }
 .rekap-memo th { text-align: center; }
 
 /* Lebar tiap kolom dipatok, bukan dibiarkan mengikuti isi: dibiarkan bebas,
@@ -1138,7 +1139,8 @@ a.tautan-klaim:hover { border-color: var(--ink); }
 .rekap-memo th:nth-child(9)  { width: 150px; }
 .rekap-memo th:nth-child(10) { width: 212px; }
 .rekap-memo th:nth-child(11) { width: 150px; }
-.rekap-memo th:nth-child(12) { width: 84px; }
+.rekap-memo th:nth-child(12) { width: 136px; }
+.rekap-memo th:nth-child(13) { width: 84px; }
 
 .rekap-memo td.no { text-align: center; font-weight: 650; color: var(--ink); }
 /* Nomor memo panjang dan tidak pernah dibaca sebagai kalimat: dikecilkan dan
@@ -1159,3 +1161,37 @@ a.tautan-klaim:hover { border-color: var(--ink); }
 /* Keterangan tambahan di bawah isi utama sebuah sel. */
 .rekap-memo .sisip { display: block; margin-top: 4px; font-size: 11px;
                      color: var(--mut); }
+
+/* Pembuka daftar lampiran pada tiap baris rekap. Ditulis sebagai tombol, bukan
+   tautan: ia membuka bagian halaman yang sama, tidak pergi ke mana pun. */
+.tombol-lampiran { border: 1px solid var(--line); background: #fff;
+                   padding: 4px 8px; font-size: 11px; font-weight: 600;
+                   color: var(--sub); cursor: pointer; white-space: nowrap; }
+.tombol-lampiran:hover { border-color: var(--ink); color: var(--ink); }
+.tombol-lampiran .anak-panah { margin-left: 6px; color: var(--mut); }
+
+/* Baris lampiran yang menyisip di bawah memonya, selebar tabel.
+   
+   Isinya ditempelkan pada tepi kiri bidang pandang, bukan pada tepi kiri
+   tabel. Tabel rekap lebih lebar daripada layar mana pun dan hampir selalu
+   dalam keadaan tergulir ke samping; panel yang duduk di tepi kiri tabel akan
+   terbuka di tempat yang sedang tidak terlihat, dan yang tampak hanya bidang
+   kosong yang tiba-tiba muncul. */
+.lampiran-memo { position: sticky; left: 0; max-width: 920px; }
+.lampiran-memo > b { display: block; margin-bottom: 9px; }
+.lampiran-memo ul.berkas-lampiran { margin: 0 0 12px; padding-left: 17px;
+                                    font-size: 12.5px; }
+.lampiran-memo ul.berkas-lampiran li { margin-bottom: 7px; }
+/* Ukuran, tanggal, dan tombol hapusnya sebaris dengan nama berkasnya — turun
+   ke barisnya sendiri, tiga lampiran menjadi sembilan baris. */
+.lampiran-memo ul.berkas-lampiran .sisip { display: inline; margin: 0 0 0 8px; }
+.lampiran-memo ul.berkas-lampiran button { margin-left: 9px; padding: 2px 8px;
+                                           font-size: 11px; }
+
+/* Kotak unggah lampiran: keterangan, berkas, dan tombolnya sebaris selama
+   muat — di layar sempit ketiganya menumpuk sendiri. */
+.lampiran-memo .unggah-lampiran { display: flex; gap: 10px; flex-wrap: wrap;
+                                  align-items: flex-end; }
+.lampiran-memo .unggah-lampiran > div { flex: 1 1 240px; min-width: 0; }
+.lampiran-memo .unggah-lampiran input { width: 100%; }
+.lampiran-memo .unggah-lampiran button { flex: none; }

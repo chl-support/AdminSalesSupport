@@ -19,6 +19,33 @@ import { WorkflowError } from "./workflow";
  *  skema kerap berupa pindaian beberapa halaman. */
 export const BATAS = 10 * 1024 * 1024;
 
+/**
+ * Satu aturan berkas untuk memo dan lampirannya.
+ *
+ * Dipisah ke fungsinya sendiri supaya keduanya tidak punya dua salinan aturan
+ * yang cepat atau lambat berbeda — dan yang berbeda itu akan berupa berkas
+ * yang diterima di satu tempat lalu ditolak di tempat lain.
+ */
+export function jenisBerkas(contentType: string) {
+  return String(contentType ?? "").toLowerCase().split(";")[0].trim();
+}
+
+export function periksaBerkas(buf: Buffer, contentType: string) {
+  if (!buf?.length) {
+    throw new WorkflowError("Berkas belum dipilih.", "file_required", 422);
+  }
+  if (buf.length > BATAS) {
+    throw new WorkflowError(
+      `Berkas ${(buf.length / 1024 / 1024).toFixed(1)} MB melebihi batas ` +
+      `${BATAS / 1024 / 1024} MB.`, "file_too_large", 413);
+  }
+  if (!JENIS_DITERIMA.includes(jenisBerkas(contentType))) {
+    throw new WorkflowError(
+      "Jenis berkas tidak diterima. Unggah PDF, gambar, Excel, atau Word.",
+      "file_type_rejected", 415);
+  }
+}
+
 const JENIS_DITERIMA = [
   "application/pdf",
   "image/jpeg", "image/png", "image/webp",
@@ -52,6 +79,21 @@ export function ensureKolomMemo(): Promise<void> {
     for (const k of KOLOM_REKAP) {
       await query(`ALTER TABLE memos ADD COLUMN IF NOT EXISTS ${k}`);
     }
+    await query(
+      `CREATE TABLE IF NOT EXISTS memo_files (
+         id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+         memo_id      UUID NOT NULL REFERENCES memos(id) ON DELETE CASCADE,
+         label        TEXT,
+         file_name    TEXT NOT NULL,
+         content_type TEXT NOT NULL,
+         size_bytes   INT NOT NULL
+                      CHECK (size_bytes > 0 AND size_bytes <= 10485760),
+         content      BYTEA NOT NULL,
+         uploaded_by  TEXT NOT NULL,
+         uploaded_at  TIMESTAMPTZ NOT NULL DEFAULT now())`);
+    await query(
+      `CREATE INDEX IF NOT EXISTS idx_memo_files_memo
+         ON memo_files(memo_id, uploaded_at)`);
   })().catch(() => { sekali = null; });
   return sekali;
 }
@@ -67,6 +109,88 @@ export async function daftarMemo(projectId: string) {
       ORDER BY COALESCE(tanggal_memo, berlaku_dari, uploaded_at::date) DESC,
                uploaded_at DESC`,
     [projectId]);
+}
+
+/**
+ * Lampiran seluruh memo pada satu project, sekali ambil.
+ *
+ * Diambil bersama daftarnya, bukan satu permintaan per memo: layar
+ * rekapitulasi menampilkan semuanya sekaligus, dan sepuluh memo berarti
+ * sepuluh perjalanan bolak-balik yang tidak perlu. Isi berkasnya sendiri tidak
+ * ikut — yang dibutuhkan daftar ini hanya namanya.
+ */
+export async function lampiranProject(projectId: string) {
+  await ensureKolomMemo();
+  return query(
+    `SELECT f.id, f.memo_id, f.label, f.file_name, f.content_type,
+            f.size_bytes, f.uploaded_by, f.uploaded_at
+       FROM memo_files f JOIN memos m ON m.id = f.memo_id
+      WHERE m.project_id = $1
+      ORDER BY f.uploaded_at`,
+    [projectId]);
+}
+
+/** Satu lampiran, untuk dibuka atau diunduh. */
+export async function berkasLampiran(id: string, projectId: string) {
+  const f = await one<{
+    file_name: string; content_type: string; content: Buffer;
+  }>(`SELECT f.file_name, f.content_type, f.content
+        FROM memo_files f JOIN memos m ON m.id = f.memo_id
+       WHERE f.id = $1 AND m.project_id = $2`, [id, projectId]);
+  if (!f) throw new WorkflowError("Lampiran tidak ditemukan.", "not_found", 404);
+  return f;
+}
+
+/** Simpan satu lampiran pada sebuah memo. */
+export async function simpanLampiran(
+  memoId: string, projectId: string, aktor: string,
+  p: { label?: string | null; file_name: string; content_type: string;
+       buf: Buffer },
+) {
+  await ensureKolomMemo();
+  const m = await one<{ judul: string }>(
+    "SELECT judul FROM memos WHERE id=$1 AND project_id=$2", [memoId, projectId]);
+  if (!m) throw new WorkflowError("Memo tidak ditemukan.", "not_found", 404);
+
+  periksaBerkas(p.buf, p.content_type);
+  const tipe = jenisBerkas(p.content_type);
+
+  const f = await one<{ id: string }>(
+    `INSERT INTO memo_files (memo_id, label, file_name, content_type,
+       size_bytes, content, uploaded_by)
+     VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`,
+    [memoId, p.label?.trim() || null, p.file_name, tipe, p.buf.length,
+     p.buf, aktor]);
+
+  await audit({
+    entityType: "memo", entityId: memoId, action: "memo_file_attached",
+    actor: aktor,
+    after: { memo: m.judul, label: p.label ?? null, file: p.file_name,
+             size_bytes: p.buf.length },
+  });
+  return { id: f!.id, file_name: p.file_name };
+}
+
+/**
+ * Hapus satu lampiran.
+ *
+ * Nama berkasnya ikut tercatat pada jejak audit sebelum hilang, sama seperti
+ * memonya: lampiran yang dihapus tetap pernah menjadi pendukung angka yang
+ * sudah dibayarkan.
+ */
+export async function hapusLampiran(id: string, projectId: string, aktor: string) {
+  const f = await one<{ memo_id: string; file_name: string; label: string | null }>(
+    `SELECT f.memo_id, f.file_name, f.label
+       FROM memo_files f JOIN memos m ON m.id = f.memo_id
+      WHERE f.id = $1 AND m.project_id = $2`, [id, projectId]);
+  if (!f) throw new WorkflowError("Lampiran tidak ditemukan.", "not_found", 404);
+
+  await query("DELETE FROM memo_files WHERE id=$1", [id]);
+  await audit({
+    entityType: "memo", entityId: f.memo_id, action: "memo_file_deleted",
+    actor: aktor, before: { file: f.file_name, label: f.label },
+  });
+  return { ok: true };
 }
 
 export type RekapMemo = {
@@ -89,20 +213,8 @@ export async function simpanMemo(
   if (!judul) {
     throw new WorkflowError("Judul memo wajib diisi.", "validation", 422);
   }
-  if (!p.buf?.length) {
-    throw new WorkflowError("Berkas memo belum dipilih.", "file_required", 422);
-  }
-  if (p.buf.length > BATAS) {
-    throw new WorkflowError(
-      `Berkas ${(p.buf.length / 1024 / 1024).toFixed(1)} MB melebihi batas ` +
-      `${BATAS / 1024 / 1024} MB.`, "file_too_large", 413);
-  }
-  const tipe = String(p.content_type ?? "").toLowerCase().split(";")[0].trim();
-  if (!JENIS_DITERIMA.includes(tipe)) {
-    throw new WorkflowError(
-      "Jenis berkas tidak diterima. Unggah PDF, gambar, Excel, atau Word.",
-      "file_type_rejected", 415);
-  }
+  periksaBerkas(p.buf, p.content_type);
+  const tipe = jenisBerkas(p.content_type);
 
   const bersih = (v?: string | null) => (v?.trim() ? v.trim() : null);
 
