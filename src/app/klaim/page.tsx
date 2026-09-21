@@ -16,7 +16,6 @@
  * unitnya, bukan pada jenis fee-nya.
  */
 
-import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
 import { useBahasa, useKata } from "../bahasa";
@@ -40,6 +39,28 @@ const AMBANG = 0.20;
  * membandingkan dua angka yang sebenarnya berdampingan.
  */
 const rp = (n?: number | null) => (n ?? 0).toLocaleString("id-ID");
+
+/**
+ * Nilai kontrak tanpa PPN.
+ *
+ * Tarifnya berganti 1 April 2022: penjualan sebelum tanggal itu memakai 10%,
+ * sejak tanggal itu 11%. Yang menentukan tarifnya adalah tanggal kontraknya,
+ * bukan tanggal layar ini dibuka — nilai exclude sebuah kontrak 2021 tidak
+ * berubah hanya karena dilihat hari ini.
+ *
+ * Tanggal kontrak yang kosong dianggap sesudah peralihan: seluruh penjualan
+ * yang berjalan sekarang memang di atas 2022, dan memakai 10% untuk baris yang
+ * tanggalnya belum terisi akan melebihkan nilai exclude-nya.
+ */
+const PERALIHAN_PPN = "2022-04-01";
+
+function tanpaPpn(incl?: number | null, tglKontrak?: string | null): number {
+  const nilai = Number(incl ?? 0);
+  if (!nilai) return 0;
+  const tgl = tglKontrak ? String(tglKontrak).slice(0, 10) : "";
+  const tarif = tgl && tgl < PERALIHAN_PPN ? 1.10 : 1.11;
+  return Math.round(nilai / tarif);
+}
 
 /**
  * Sebab yang melekat pada unitnya, bukan pada jenis fee-nya.
@@ -82,12 +103,19 @@ const KATA = {
     yangBelum: "yang belum dapat diklaim sama sekali",
     dataPenjualan: "Data penjualan",
     barisDitampilkan: (n: number) => `${n} baris ditampilkan`,
-    thUnit: "Unit", thPembeli: "Konsumen", thPenerima: "Sales/Agent",
-    thSkema: "Skema Cara Bayar", thNilai: "Nilai Kontrak",
-    thPenerimaan: "Penerimaan", thKlaim: "Klaim", thKeterangan: "Keterangan",
+    thUnit: "Unit", thPembeli: "Konsumen", thPenerima: "Sales",
+    thKoordinator: "Sales Koordinator",
+    thSkema: "Skema Cara Bayar",
+    thNilai: "Nilai Kontrak", thInclude: "(Include PPN)",
+    thNilaiExcl: "Nilai Kontrak", thExclude: "(Exclude PPN)",
+    thPenerimaan: "Penerimaan s/d Bulan Ini", thPersen: "Persentase Lunas",
+    thKlaim: "Klaim", thKeterangan: "Keterangan",
+    ajukanTerpilih: (n: number) => `Ajukan ${n} fee`,
+    ajukanKosong: "Klaim",
+    mengajukan: "Mengajukan…",
+    gagalAjukan: "Sebagian pengajuan tidak dapat dibuat",
     belumTercatat: "belum tercatat",
     dariKontrak: (p: string) => `${p}% dari kontrak`,
-    tombolKlaim: "Klaim",
     belum: "belum",
     syaratLengkap: "Syarat terpenuhi",
     penerimaanKurang: (p: number) =>
@@ -116,12 +144,19 @@ const KATA = {
     yangBelum: "with nothing claimable yet",
     dataPenjualan: "Sales data",
     barisDitampilkan: (n: number) => `${n} rows shown`,
-    thUnit: "Unit", thPembeli: "Customer", thPenerima: "Sales/Agent",
-    thSkema: "Payment Scheme", thNilai: "Contract value",
-    thPenerimaan: "Received", thKlaim: "Claim", thKeterangan: "Notes",
+    thUnit: "Unit", thPembeli: "Customer", thPenerima: "Sales",
+    thKoordinator: "Sales Coordinator",
+    thSkema: "Payment Scheme",
+    thNilai: "Contract Value", thInclude: "(VAT included)",
+    thNilaiExcl: "Contract Value", thExclude: "(VAT excluded)",
+    thPenerimaan: "Received to Date", thPersen: "Paid Percentage",
+    thKlaim: "Claim", thKeterangan: "Notes",
+    ajukanTerpilih: (n: number) => `Submit ${n} fees`,
+    ajukanKosong: "Claim",
+    mengajukan: "Submitting…",
+    gagalAjukan: "Some submissions could not be created",
     belumTercatat: "not recorded yet",
     dariKontrak: (p: string) => `${p}% of contract`,
-    tombolKlaim: "Claim",
     belum: "not yet",
     syaratLengkap: "Requirement met",
     penerimaanKurang: (p: number) =>
@@ -141,7 +176,7 @@ type Fee = {
   missing_requirements: string[];
   missing_codes: string[];
   recipient: { id: string | null; name: string | null;
-               status: string | null; source: string };
+               status: string | null; source: string; type: string | null };
   marketing_missing: boolean; marketing_inactive: boolean;
   claimable: boolean;
   claim: { id: string; claim_number: string; status: string;
@@ -169,6 +204,26 @@ export default function PengajuanFeePage() {
   const [galat, setGalat] = useState<string | null>(null);
   const [cari, setCari] = useState("");
   const [saring, setSaring] = useState<Saring>("semua");
+  /**
+   * Fee yang dicentang, sebagai kunci "<unit>:<jenis>".
+   *
+   * Disimpan datar, bukan bertingkat per unit: yang dibaca selalu "apakah
+   * kotak ini tercentang", dan peta bertingkat memaksa tiap pembacaan
+   * memeriksa dulu apakah unitnya sudah punya entri.
+   */
+  const [pilih, setPilih] = useState<Record<string, boolean>>({});
+  const [mengajukan, setMengajukan] = useState<string | null>(null);
+
+  const toggle = (unitId: string, jenis: Jenis) =>
+    setPilih((lama) => {
+      const kunci = `${unitId}:${jenis}`;
+      const baru = { ...lama };
+      if (baru[kunci]) delete baru[kunci]; else baru[kunci] = true;
+      return baru;
+    });
+
+  const terpilihPada = (unitId: string) =>
+    JENIS.filter((j) => pilih[`${unitId}:${j.slug}`]).map((j) => j.slug);
 
   const muat = useCallback(async () => {
     setBusy(true);
@@ -190,6 +245,76 @@ export default function PengajuanFeePage() {
   }, []);
 
   useEffect(() => { if (sesi) void muat(); }, [sesi, muat]);
+
+  /**
+   * Ajukan seluruh fee yang dicentang pada satu unit, lalu buka pratinjaunya.
+   *
+   * Jendelanya dibuka lebih dulu, sebelum satu pun permintaan dikirim: peramban
+   * hanya mengizinkan window.open yang lahir langsung dari tekanan jari. Dibuka
+   * sesudah pengajuan selesai, ia akan diblokir sebagai pop-up.
+   *
+   * Pengajuannya berurutan, bukan serentak. Keempatnya menyentuh unit yang
+   * sama, dan mengirim empat permintaan sekaligus membuat pemeriksaan
+   * anti-duplikat saling berlomba.
+   */
+  const ajukan = async (u: Unit) => {
+    const jenisTerpilih = terpilihPada(u.id);
+    if (!jenisTerpilih.length) return;
+
+    const jendela = window.open("", "_blank");
+    setMengajukan(u.id);
+    setGalat(null);
+
+    const dibuat: string[] = [];
+    const gagal: string[] = [];
+    try {
+      for (const slug of jenisTerpilih) {
+        const f = u.fees[slug];
+        const res = await fetch("/api/claims", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            unit_id: u.id,
+            marketing_id: f?.recipient?.id,
+            claim_type: slug,
+            // Peran bawaannya mengikuti jenis penerima fee ini — bukan jenis
+            // marketing unitnya, karena Overriding dibayarkan kepada orang
+            // lain yang jenisnya dapat berbeda. Aturan yang sama dipakai
+            // sebagai isian awal pada formulir pengajuan satuan.
+            recipient_role: slug === "overriding"
+              ? "sales_manager_inhouse"
+              : f?.recipient?.type === "agent" ? "agent" : "sales_inhouse",
+            overriding_level: slug === "overriding"
+              ? "sales_manager_inhouse" : null,
+          }),
+        });
+        if (res.status === 401) { location.href = "/login"; return; }
+        const b = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          gagal.push(`${namaJenis(slug, bahasa)}: ${b.detail ?? b.title ?? res.status}`);
+          continue;
+        }
+        dibuat.push(b.id);
+      }
+
+      if (gagal.length) setGalat(`${k.gagalAjukan} — ${gagal.join(" · ")}`);
+
+      if (dibuat.length && jendela) {
+        jendela.location.href = `/klaim/pratinjau?ids=${dibuat.join(",")}`;
+      } else if (jendela) {
+        jendela.close();
+      }
+
+      setPilih((lama) => {
+        const baru = { ...lama };
+        for (const slug of jenisTerpilih) delete baru[`${u.id}:${slug}`];
+        return baru;
+      });
+      await muat();
+    } catch (e: any) {
+      jendela?.close();
+      setGalat(String(e?.message ?? e));
+    } finally { setMengajukan(null); }
+  };
 
   if (memuat || !sesi) return <MemeriksaSesi />;
 
@@ -213,7 +338,7 @@ export default function PengajuanFeePage() {
     (n, u) => n + JENIS.filter((j) => u.fees[j.slug]?.claimable).length, 0);
 
   return (
-    <Kerangka sesi={sesi} judul={
+    <Kerangka sesi={sesi} lebar judul={
       <div>
         <h1>{k.judul}</h1>
         <p>{k.pengantar}</p>
@@ -265,14 +390,17 @@ export default function PengajuanFeePage() {
                 <th className="sel-unit">{k.thUnit}</th>
                 <th>{k.thPembeli}</th>
                 <th className="sel-penerima">{k.thPenerima}</th>
+                <th className="sel-penerima">{k.thKoordinator}</th>
                 <th className="sel-skema">{k.thSkema}</th>
-                {/* Satuannya di kepala kolom, pada barisnya sendiri, supaya
-                    "(Rp.)" tetap terbaca sebagai keterangan satuan dan bukan
-                    bagian dari nama kolomnya. */}
-                <th>{k.thNilai}<br /><span className="satuan">(Rp.)</span></th>
+                {/* Keterangan PPN di kepala kolom, pada barisnya sendiri:
+                    dua kolom bernama "Nilai Kontrak" berdampingan hanya dapat
+                    dibedakan dari baris keduanya. */}
+                <th>{k.thNilai}<br /><span className="satuan">{k.thInclude}</span></th>
                 <th>
-                  {k.thPenerimaan}<br /><span className="satuan">(Rp.)</span>
+                  {k.thNilaiExcl}<br /><span className="satuan">{k.thExclude}</span>
                 </th>
+                <th>{k.thPenerimaan}</th>
+                <th>{k.thPersen}</th>
                 <th className="sel-fee">{k.thKlaim}</th>
                 <th className="sel-ket">{k.thKeterangan}</th>
               </tr>
@@ -299,32 +427,33 @@ export default function PengajuanFeePage() {
                   <tr key={u.id}>
                     <td className="sel-unit"><b>{u.code}</b></td>
                     <td>{u.buyer_name ?? "—"}</td>
-                    {/* Nama saja. Peran dan nama kantornya dibuang atas
-                        permintaan: keduanya sudah diketahui orang yang
-                        mengerjakan berkasnya, dan tiga baris keterangan per
-                        orang membuat satu baris tabel setinggi lima baris. */}
+                    {/* Sales dan koordinatornya berdiri di kolom masing-masing.
+                        Dua nama bertumpuk dalam satu kolom tidak menyebut siapa
+                        yang mana, dan yang membacanya harus hafal urutannya. */}
                     <td className="sel-penerima">
                       {sales?.name ?? (
                         <span style={{ color: "var(--mut)" }}>{k.belumTercatat}</span>
                       )}
-                      {atas?.name && atas.id !== sales?.id && (
-                        <><br />{atas.name}</>
+                    </td>
+                    <td className="sel-penerima">
+                      {atas?.name && atas.id !== sales?.id ? atas.name : (
+                        <span style={{ color: "var(--mut)" }}>—</span>
                       )}
                     </td>
                     <td className="sel-skema">{u.payment_scheme ?? "—"}</td>
                     <td className="n">{rp(u.contract_value_incl_vat)}</td>
-                    {/* Penerimaan bersama persentasenya terhadap nilai kontrak:
-                        Komisi dihitung dari persentase pembayaran, jadi angka
-                        rupiahnya sendiri belum menjawab pertanyaan yang dibawa
-                        orang ke layar ini. */}
                     <td className="n">
-                      {rp(u.received_amount)}<br />
-                      <span style={{ color: "var(--mut)" }}>
-                        {u.contract_value_incl_vat
-                          ? k.dariKontrak(((u.received_amount /
-                               u.contract_value_incl_vat) * 100).toFixed(1))
-                          : "—"}
-                      </span>
+                      {rp(tanpaPpn(u.contract_value_incl_vat, u.contract_date))}
+                    </td>
+                    <td className="n">{rp(u.received_amount)}</td>
+                    {/* Persentase lunas berdiri sebagai kolom tersendiri:
+                        Komisi dihitung dari persentase pembayaran, jadi ia
+                        angka yang dibaca, bukan keterangan di bawah angka
+                        lain. */}
+                    <td className="n">
+                      {u.contract_value_incl_vat
+                        ? `${persen.toFixed(1)}%`
+                        : <span style={{ color: "var(--mut)" }}>—</span>}
                     </td>
 
                     {/* Keempat jenis fee, masing-masing dengan keadaannya. */}
@@ -332,11 +461,22 @@ export default function PengajuanFeePage() {
                       <div className="fee-kolom">
                         {JENIS.map((j) => {
                           const f = u.fees[j.slug];
+                          const kunci = `${u.id}:${j.slug}`;
                           return (
                             <div key={j.slug} className="fee-baris">
-                              <span className="fee-nama">
-                                {namaJenis(j.slug, bahasa)}
-                              </span>
+                              {/* Kotak centang hanya untuk yang memang dapat
+                                  diajukan. Kotak yang dapat dicentang tetapi
+                                  tidak menghasilkan apa-apa saat tombolnya
+                                  ditekan adalah janji yang tidak ditepati. */}
+                              <label className="fee-pilih">
+                                <input type="checkbox"
+                                       disabled={!f?.claimable}
+                                       checked={Boolean(pilih[kunci])}
+                                       onChange={() => toggle(u.id, j.slug)} />
+                                <span className="fee-nama">
+                                  {namaJenis(j.slug, bahasa)}
+                                </span>
+                              </label>
                               {f?.claim ? (
                                 <span className="fee-keadaan">
                                   <span className="pill ok">
@@ -346,17 +486,27 @@ export default function PengajuanFeePage() {
                                     {f.claim.status}
                                   </span>
                                 </span>
-                              ) : f?.claimable ? (
-                                <Link className="tombol-klaim kecil"
-                                      href={`/klaim/${j.slug}/baru?unit=${u.id}`}>
-                                  {k.tombolKlaim}
-                                </Link>
-                              ) : (
+                              ) : f?.claimable ? null : (
                                 <span className="fee-belum">{k.belum}</span>
                               )}
                             </div>
                           );
                         })}
+
+                        {/* Satu tombol untuk seluruh yang dicentang. Tombol per
+                            fee memaksa empat kali bolak-balik untuk satu unit,
+                            padahal keempatnya diajukan bersamaan. */}
+                        <div className="fee-kaki">
+                          <button className="pri"
+                                  disabled={!terpilihPada(u.id).length ||
+                                            mengajukan !== null}
+                                  onClick={() => void ajukan(u)}>
+                            {mengajukan === u.id ? k.mengajukan
+                              : terpilihPada(u.id).length
+                                ? k.ajukanTerpilih(terpilihPada(u.id).length)
+                                : k.ajukanKosong}
+                          </button>
+                        </div>
                       </div>
                     </td>
 
@@ -410,14 +560,14 @@ export default function PengajuanFeePage() {
 
               {!terlihat.length && !busy && (
                 <tr>
-                  <td colSpan={8} style={{ color: "var(--mut)" }}>
+                  <td colSpan={11} style={{ color: "var(--mut)" }}>
                     {k.takAdaCocok}
                   </td>
                 </tr>
               )}
               {busy && (
                 <tr>
-                  <td colSpan={8} style={{ color: "var(--mut)" }}>{k.memuat}</td>
+                  <td colSpan={11} style={{ color: "var(--mut)" }}>{k.memuat}</td>
                 </tr>
               )}
             </tbody>
