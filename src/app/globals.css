@@ -1228,3 +1228,12 @@ td.sel-keadaan .menunggu {
 .daftar-menunggu li { margin-bottom: 5px; }
 .daftar-menunggu li:last-child { margin-bottom: 0; }
 .daftar-menunggu b { color: var(--ink); }
+
+/* Pemilih berkas pada tiap baris syarat di jendela pratinjau. Tidak ikut
+   tercetak — pada kertas ia hanya kotak kosong yang membingungkan. */
+.lampir-pilih { display: block; margin: 3px 0 0 26px; font-size: 11px; }
+.lampir-pilih input { font-size: 11px; }
+.lampir-pilih b { display: inline-block; margin-left: 6px; color: var(--ink); }
+
+/* Tautan unduh di sebelah nama lampiran, pada daftar lampiran di konsol. */
+.lampiran .unduh { margin-left: 8px; }

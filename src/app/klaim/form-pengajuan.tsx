@@ -32,7 +32,7 @@ const JENIS_NAMA: Record<string, string> = {
 };
 
 export function FormPengajuan(
-  { klaim, ttdPemohon, ceklis, onCeklis }: {
+  { klaim, ttdPemohon, ceklis, onCeklis, berkas, onBerkas }: {
     klaim: any; ttdPemohon?: string | null;
     /**
      * Centang dokumen yang sedang berjalan, bila layar pemanggilnya memang
@@ -41,6 +41,16 @@ export function FormPengajuan(
      */
     ceklis?: Record<string, boolean>;
     onCeklis?: (item: string, dicentang: boolean) => void;
+    /**
+     * Berkas yang dilampirkan untuk tiap baris syarat, bila layar pemanggilnya
+     * memang mengumpulkannya. Nilainya nama berkas yang sudah dipilih — yang
+     * dipegang layar pemanggil adalah File-nya sendiri.
+     *
+     * Tanpa berkas, centang hanyalah pernyataan bahwa dokumennya ada di tangan
+     * Admin Sales, dan tim pajak tidak punya apa pun untuk diperiksa.
+     */
+    berkas?: Record<string, string>;
+    onBerkas?: (item: string, berkas: File | null) => void;
   },
 ) {
   const jenis = klaim.claim_type as Jenis;
@@ -187,6 +197,19 @@ export function FormPengajuan(
                 ) : (
                   <><span className="kotak">✓</span> {i + 1}. {d}</>
                 )}
+                {/* Berkasnya dilampirkan di baris syaratnya sendiri, bukan pada
+                    satu kotak unggah terpisah di bawah: yang mengumpulkan
+                    sepuluh dokumen perlu tahu berkas mana milik baris mana, dan
+                    daftar unggahan terpisah memaksanya mencocokkan sendiri.
+                    Tidak ikut tercetak — pada kertas ia hanya kotak kosong. */}
+                {onBerkas && (
+                  <span className="lampir-pilih jangan-cetak">
+                    <input type="file" accept=".pdf,image/*"
+                           onChange={(e) => onBerkas(
+                             d, e.target.files?.[0] ?? null)} />
+                    {berkas?.[d] && <b>{berkas[d]}</b>}
+                  </span>
+                )}
               </li>
             ))}
           </ul>
@@ -237,7 +260,14 @@ export function FormPengajuan(
               <tr key={l.id}>
                 <td>{l.checklist_item}</td>
                 <td>
-                  {l.file_name}
+                  {/* Berkas yang isinya tersimpan dapat dibuka langsung dari
+                      sini — itulah yang diperiksa tim pajak. Yang hanya berupa
+                      catatan nama tetap ditulis apa adanya, tanpa tautan yang
+                      akan berakhir pada galat. */}
+                  {l.has_content ? (
+                    <a href={`/api/claims/${klaim.id}/documents/${l.id}?pratinjau=1`}
+                       target="_blank" rel="noreferrer">{l.file_name}</a>
+                  ) : l.file_name}
                   {l.size_bytes
                     ? ` · ${Math.max(1, Math.round(l.size_bytes / 1024))} KB` : ""}
                 </td>

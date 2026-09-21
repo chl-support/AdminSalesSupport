@@ -97,6 +97,7 @@ const KATA = {
     crosscheck: "Crosscheck",
     lampiranAgent: "Lampiran dari Agent",
     isiTakTersimpan: "isi tidak tersimpan",
+    unduh: "unduh",
     dariAgent: " · agent", dariKonsol: " · konsol",
     belumAdaLampiran:
       "Belum ada lampiran. Agent mengunggahnya saat membuka tautan tanda tangan.",
@@ -182,6 +183,7 @@ const KATA = {
     crosscheck: "Crosscheck",
     lampiranAgent: "Attachments from the Agent",
     isiTakTersimpan: "contents not stored",
+    unduh: "download",
     dariAgent: " · agent", dariKonsol: " · console",
     belumAdaLampiran:
       "No attachments yet. The Agent uploads them when opening the signing link.",
@@ -351,7 +353,10 @@ export default function Console() {
         reason: "Penerima tidak memiliki NPWP aktif, tarif PPh menyesuaikan.",
       })}>{k.aksiSetujuiKoreksi}</button>);
     }
-    if (s === "tax_verified")
+    // Tautan ke Sales/Agent hanya dikirim Admin Sales. Tombolnya ikut hilang
+    // bagi peran lain: tombol yang selalu berakhir 403 bukan pembatasan, itu
+    // jebakan — yang menekannya mengira pekerjaannya sudah dilakukan.
+    if (s === "tax_verified" && sesi?.role === "admin_sales")
       actions.push(<button key="lk" className="pri" onClick={issueLink}>{k.aksiKirimTautan}</button>);
     if (s === "signature_review_required")
       actions.push(<button key="sr" className="pri" onClick={() => act("signature-review", {
@@ -476,10 +481,22 @@ export default function Console() {
                   current.documents.filter((d: any) => d.file_name).map((d: any) => (
                     <li key={d.id}>
                       <span>
+                        {/* Dibuka di tab tersendiri, bukan diunduh: tim pajak
+                            memeriksa sepuluh lampiran per klaim, dan sepuluh
+                            berkas yang mendarat di folder Download lalu dibuka
+                            satu per satu dari sana bukan pemeriksaan. Unduhannya
+                            tetap ada, di sebelahnya. */}
                         {d.has_content ? (
-                          <a href={`/api/claims/${current.id}/documents/${d.id}`}>
-                            {d.file_name}
-                          </a>
+                          <>
+                            <a href={`/api/claims/${current.id}/documents/${d.id}?pratinjau=1`}
+                               target="_blank" rel="noreferrer">
+                              {d.file_name}
+                            </a>
+                            <a className="meta unduh"
+                               href={`/api/claims/${current.id}/documents/${d.id}`}>
+                              {k.unduh}
+                            </a>
+                          </>
                         ) : d.file_name}
                         <br />
                         <span className="meta">{d.checklist_item}</span>
