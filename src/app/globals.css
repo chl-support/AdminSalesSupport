@@ -204,6 +204,10 @@ ul.kurang {
 .jendela-pratinjau .lembar { page-break-after: always; }
 .jendela-pratinjau .lembar:last-child { page-break-after: auto; }
 @media print { .jangan-cetak { display: none !important; } }
+
+/* Centang dokumen pada pratinjau: kotak dan namanya satu sasaran tekan. */
+.ceklis-pilih { display: inline-flex; align-items: center; gap: 7px; cursor: pointer; }
+.ceklis-pilih input { width: auto; margin: 0; cursor: pointer; }
 td.sel-fee, th.sel-fee { width: 175px; }
 td.sel-ket, th.sel-ket { width: 195px; }
 /* Tombolnya tidak dipatahkan menjadi dua baris: "Catat dokumen" yang terbelah
