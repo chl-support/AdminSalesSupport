@@ -16,6 +16,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { useBahasa } from "./bahasa";
+import { KabarMenunggu } from "./kabar-menunggu";
 import { Logo } from "./logo";
 import { Nav, indukDari } from "./nav";
 import { BilahPengguna, type Sesi } from "./session";
@@ -97,6 +98,11 @@ export function Kerangka(
         </aside>
         <main className="isi">{children}</main>
       </div>
+
+      {/* Pemberitahuan sekali-per-masuk tentang dokumen yang menunggu orang
+          ini. Dipasang di kerangka, bukan di satu layar: yang masuk mendarat
+          di layar yang berbeda-beda menurut apa yang tadi dituju. */}
+      <KabarMenunggu sesi={sesi} />
     </div>
   );
 }
