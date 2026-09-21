@@ -32,8 +32,7 @@ const KATA = {
   id: {
     judul: "Konsol Klaim Insentif",
     pengantar:
-      "Pengajuan yang sedang dalam proses verifikasi dan persetujuan oleh " +
-      "pihak terkait sebelum dapat dilanjutkan ke proses berikutnya.",
+      "Pengajuan dalam proses verifikasi dan persetujuan pihak terkait",
     alurJudul: "Alur pengajuan",
     alurIsi:
       "Admin mengajukan klaim → Form Pengajuan terbentuk → tim pajak memeriksa " +
@@ -118,7 +117,7 @@ const KATA = {
     judul: "Incentive Claim Console",
     pengantar:
       "Submissions undergoing verification and approval by the parties " +
-      "concerned before they can move on to the next step.",
+      "concerned",
     alurJudul: "Submission flow",
     alurIsi:
       "Admin submits a claim → the Submission Form is created → the tax team " +
