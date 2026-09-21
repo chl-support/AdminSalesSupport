@@ -17,6 +17,8 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { useBahasa, useKata } from "../bahasa";
+import { tebakKolom } from "@/lib/memo-tebak";
+import { bacaPindaian, type Kemajuan } from "./ocr";
 import { Kerangka, MemeriksaSesi } from "../kerangka";
 import { useSesi } from "../session";
 
@@ -61,6 +63,14 @@ const KATA = {
     seterusnya: "seterusnya", hapus: "Hapus",
     kosong: "Belum ada memo pada project ini.",
     membaca: "Membaca berkas…",
+    ocrSiap: "Menyiapkan pembaca tulisan…",
+    ocrGambar: (h: number, n: number) => `Menggambar halaman ${h} dari ${n}…`,
+    ocrBaca: (persen: number) => `Membaca tulisan pada pindaian… ${persen}%`,
+    ocrHasil: (n: number) =>
+      `${n} kolom lagi terisi dari tulisan di dalam pindaiannya. Hasil ` +
+      `pembacaan gambar tidak selalu tepat — periksa sebelum menyimpan.`,
+    ocrKosong:
+      "Tulisan pada pindaian ini tidak terbaca. Kolom sisanya diisi manual.",
     terbacaIsi: (n: number) =>
       `${n} kolom terisi dari isi memo. Periksa sebelum menyimpan.`,
     terbacaNama: (n: number) =>
@@ -121,6 +131,15 @@ const KATA = {
     seterusnya: "onwards", hapus: "Delete",
     kosong: "No memos on this project yet.",
     membaca: "Reading the file…",
+    ocrSiap: "Preparing the text reader…",
+    ocrGambar: (h: number, n: number) => `Rendering page ${h} of ${n}…`,
+    ocrBaca: (persen: number) => `Reading the scan… ${persen}%`,
+    ocrHasil: (n: number) =>
+      `${n} more fields filled from the text inside the scan. Reading an ` +
+      `image is never exact — check before saving.`,
+    ocrKosong:
+      "No text could be read from this scan. The remaining fields are filled " +
+      "by hand.",
     terbacaIsi: (n: number) =>
       `${n} fields filled from the memo's contents. Check before saving.`,
     terbacaNama: (n: number) =>
@@ -236,6 +255,7 @@ export default function MemoPage() {
   const [lBerkas, setLBerkas] = useState<File | null>(null);
   const [lLabel, setLLabel] = useState("");
   const [membaca, setMembaca] = useState(false);
+  const [kemajuan, setKemajuan] = useState<string | null>(null);
 
   const muat = useCallback(async () => {
     try {
@@ -318,30 +338,71 @@ export default function MemoPage() {
       if (!res.ok) { setGalat(b.detail ?? `HTTP ${res.status}`); return; }
 
       const kolom = b.kolom ?? {};
-      const isi = (nilai: string | undefined, kini: string,
+
+      // Apa yang sudah terisi dicatat di sini, bukan dibaca ulang dari state
+      // React: setState belum tercermin pada variabel yang sedang dipakai di
+      // dalam fungsi ini, jadi tahap OCR akan mengira seluruh kolom masih
+      // kosong dan menimpa yang baru saja diisi dari nama berkasnya.
+      const sudah = new Set<string>();
+      const isi = (kunci: string, nilai: string | undefined, kini: string,
                    pasang: (v: string) => void) => {
-        if (nilai && !kini.trim()) { pasang(nilai); return true; }
-        return false;
+        // Penandanya ditulis apa adanya, bukan diambil dari nama fungsinya:
+        // nama fungsi hilang begitu berkasnya diminifikasi, dan seluruh kolom
+        // akan berbagi satu penanda kosong yang sama.
+        if (!nilai || kini.trim() || sudah.has(kunci)) return false;
+        pasang(nilai); sudah.add(kunci); return true;
       };
       let n = 0;
-      n += +isi(kolom.judul, judul, setJudul);
-      n += +isi(kolom.nomor, nomor, setNomor);
-      n += +isi(kolom.tanggal_memo, tanggalMemo, setTanggalMemo);
-      n += +isi(kolom.berlaku_dari, dari, setDari);
-      n += +isi(kolom.berlaku_sampai, sampai, setSampai);
-      n += +isi(kolom.dari, dariSiapa, setDariSiapa);
-      n += +isi(kolom.kepada, kepada, setKepada);
-      n += +isi(kolom.nilai_skema, nilai, setNilai);
-      n += +isi(kolom.dokumen_wajib, dokumen, setDokumen);
-      n += +isi(kolom.diajukan_oleh, diajukan, setDiajukan);
-      n += +isi(kolom.diketahui_oleh, diketahui, setDiketahui);
-      n += +isi(kolom.disetujui_oleh, disetujui, setDisetujui);
+      n += +isi("judul", kolom.judul, judul, setJudul);
+      n += +isi("nomor", kolom.nomor, nomor, setNomor);
+      n += +isi("tanggal_memo", kolom.tanggal_memo, tanggalMemo, setTanggalMemo);
+      n += +isi("berlaku_dari", kolom.berlaku_dari, dari, setDari);
+      n += +isi("berlaku_sampai", kolom.berlaku_sampai, sampai, setSampai);
+      n += +isi("dari", kolom.dari, dariSiapa, setDariSiapa);
+      n += +isi("kepada", kolom.kepada, kepada, setKepada);
+      n += +isi("nilai_skema", kolom.nilai_skema, nilai, setNilai);
+      n += +isi("dokumen_wajib", kolom.dokumen_wajib, dokumen, setDokumen);
+      n += +isi("diajukan_oleh", kolom.diajukan_oleh, diajukan, setDiajukan);
+      n += +isi("diketahui_oleh", kolom.diketahui_oleh, diketahui, setDiketahui);
+      n += +isi("disetujui_oleh", kolom.disetujui_oleh, disetujui, setDisetujui);
 
-      if (!n) setKabar(k.takTerbaca);
-      else setKabar(b.sumber === "nama" ? k.terbacaNama(n) : k.terbacaIsi(n));
+      if (b.sumber === "isi") {
+        setKabar(k.terbacaIsi(n));
+        return;
+      }
+
+      // Berkasnya pindaian: nama berkas sudah memberi nomor, perihal, dan
+      // periodenya, tetapi delapan kolom sisanya hanya ada di dalam lembar
+      // memonya. Tulisannya dibaca di sini, di peramban — lihat ./ocr.
+      setKabar(b.sumber === "nama" ? k.terbacaNama(n) : k.takTerbaca);
+      const teks = await bacaPindaian(f, (m: Kemajuan) => {
+        if (m.tahap === "menyiapkan") setKemajuan(k.ocrSiap);
+        else if (m.tahap === "menggambar")
+          setKemajuan(k.ocrGambar(m.halaman ?? 1, m.dari ?? 1));
+        else if (m.tahap === "membaca")
+          setKemajuan(k.ocrBaca(m.persen ?? 0));
+        else setKemajuan(null);
+      });
+
+      const dariGambar = tebakKolom(teks);
+      let m = 0;
+      m += +isi("judul", dariGambar.judul, judul, setJudul);
+      m += +isi("nomor", dariGambar.nomor, nomor, setNomor);
+      m += +isi("tanggal_memo", dariGambar.tanggal_memo, tanggalMemo, setTanggalMemo);
+      m += +isi("berlaku_dari", dariGambar.berlaku_dari, dari, setDari);
+      m += +isi("berlaku_sampai", dariGambar.berlaku_sampai, sampai, setSampai);
+      m += +isi("dari", dariGambar.dari, dariSiapa, setDariSiapa);
+      m += +isi("kepada", dariGambar.kepada, kepada, setKepada);
+      m += +isi("nilai_skema", dariGambar.nilai_skema, nilai, setNilai);
+      m += +isi("dokumen_wajib", dariGambar.dokumen_wajib, dokumen, setDokumen);
+      m += +isi("diajukan_oleh", dariGambar.diajukan_oleh, diajukan, setDiajukan);
+      m += +isi("diketahui_oleh", dariGambar.diketahui_oleh, diketahui, setDiketahui);
+      m += +isi("disetujui_oleh", dariGambar.disetujui_oleh, disetujui, setDisetujui);
+
+      setKabar(m ? k.ocrHasil(m) : k.ocrKosong);
     } catch (e: any) {
       setGalat(String(e?.message ?? e));
-    } finally { setMembaca(false); }
+    } finally { setMembaca(false); setKemajuan(null); }
   };
 
   /** Lampirkan satu berkas pada memo yang barisnya sedang terbuka. */
@@ -482,7 +543,9 @@ export default function MemoPage() {
 
           <div className="lbl" style={{ marginTop: 12 }}>
             {k.fBerkas}
-            {membaca && <span className="sedang-baca">{k.membaca}</span>}
+            {membaca && (
+              <span className="sedang-baca">{kemajuan ?? k.membaca}</span>
+            )}
           </div>
           {/* Memilih berkas sekaligus membacanya: kolom di atas terisi sendiri
               sejauh yang dapat dibaca, dan yang tidak terbaca tetap kosong
