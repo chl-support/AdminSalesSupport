@@ -67,6 +67,34 @@ const KATA = {
   },
 };
 
+/**
+ * Kabari jendela yang membuka pratinjau ini, lalu jendela ini menutup diri.
+ *
+ * Setelah "Kirim ke Pajak" tidak ada lagi yang dapat dikerjakan di sini:
+ * formulirnya sudah berjalan, dan yang tertinggal hanyalah jendela berisi
+ * dokumen yang tidak lagi dapat diubah. Yang perlu tahu bahwa kirimannya
+ * berhasil adalah layar Approval / Persetujuan di baliknya — layar itu yang
+ * memuat ulang daftarnya dan memunculkan pemberitahuannya.
+ *
+ * Mengembalikan false bila pembukanya tidak ada (pratinjau dibuka langsung
+ * lewat alamatnya). Jendela itu tidak ditutup: menutupnya berarti kabar
+ * berhasilnya hilang tanpa pernah terbaca siapa pun.
+ */
+function kabarkanPembuka(jumlah: number): boolean {
+  try {
+    const pembuka = window.opener as Window | null;
+    if (!pembuka || pembuka.closed) return false;
+    pembuka.postMessage(
+      { dari: "pratinjau-klaim", terkirimKePajak: jumlah },
+      window.location.origin,
+    );
+    return true;
+  } catch {
+    // Pembuka dari asal lain — tidak dapat dijangkau, dan tidak perlu.
+    return false;
+  }
+}
+
 export default function PratinjauPage() {
   const { sesi, memuat } = useSesi();
   const k = useKata(KATA);
@@ -162,6 +190,9 @@ export default function PratinjauPage() {
       }
       if (gagal.length) setGalat(`${k.galatKirim} — ${gagal.join(" · ")}`);
       if (berhasil) setKabar(k.terkirim(berhasil));
+      // Seluruhnya berhasil: jendela ini selesai. Bila ada yang gagal ia tetap
+      // terbuka — daftar yang gagal ada di sini, dan hanya di sini.
+      if (berhasil && !gagal.length && kabarkanPembuka(berhasil)) window.close();
       await muat();
     } finally { setKirim(false); }
   };

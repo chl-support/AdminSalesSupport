@@ -46,6 +46,12 @@ const KATA = {
     pratinjau: "Lihat pratinjau",
     kosong: "Belum ada pengajuan pada project ini.",
     memuat: "Memuat…",
+    kabarJudul: "Dokumen sudah dikirim ke tim pajak",
+    kabarIsi: (n: number) =>
+      `${n} dokumen pengajuan sudah dikirim ke tim pajak untuk diverifikasi. ` +
+      "Bila sudah benar, dokumennya kembali ke Anda untuk dikirimkan " +
+      "tautannya kepada Sales/Agent lewat WhatsApp.",
+    kabarTutup: "Tutup",
   },
   en: {
     judul: "Approval Status",
@@ -63,6 +69,12 @@ const KATA = {
     pratinjau: "View preview",
     kosong: "No submissions on this project yet.",
     memuat: "Loading…",
+    kabarJudul: "Sent to the tax team",
+    kabarIsi: (n: number) =>
+      `${n} submission documents were sent to the tax team for verification. ` +
+      "Once correct, they come back to you so the link can be sent to the " +
+      "Sales/Agent over WhatsApp.",
+    kabarTutup: "Close",
   },
 };
 
@@ -194,6 +206,8 @@ export default function PersetujuanPage() {
   const [busy, setBusy] = useState(true);
   const [galat, setGalat] = useState<string | null>(null);
   const [saring, setSaring] = useState<Saring>("semua");
+  /** Jumlah klaim yang baru saja dikirim ke pajak dari jendela pratinjau. */
+  const [terkirim, setTerkirim] = useState<number | null>(null);
 
   const muat = useCallback(async () => {
     setBusy(true);
@@ -210,6 +224,31 @@ export default function PersetujuanPage() {
   }, []);
 
   useEffect(() => { if (sesi) void muat(); }, [sesi, muat]);
+
+  /**
+   * Kabar dari jendela pratinjau.
+   *
+   * Jendela itu menutup diri begitu kirimannya berhasil, dan kabarnya ikut
+   * tertutup bersamanya. Layar ini yang menampungnya: daftarnya dimuat ulang
+   * supaya kolom Status menunjukkan keadaan barunya, dan pemberitahuannya
+   * muncul di sini.
+   *
+   * Asal pesannya diperiksa. Tanpa itu, halaman mana pun yang sempat membuka
+   * layar ini dapat mengirim pesan serupa dan memunculkan pemberitahuan palsu.
+   */
+  useEffect(() => {
+    const dengar = (e: MessageEvent) => {
+      if (e.origin !== window.location.origin) return;
+      const pesan = e.data as { dari?: string; terkirimKePajak?: number } | null;
+      if (!pesan || pesan.dari !== "pratinjau-klaim") return;
+      const n = Number(pesan.terkirimKePajak);
+      if (!Number.isFinite(n) || n <= 0) return;
+      setTerkirim(n);
+      void muat();
+    };
+    window.addEventListener("message", dengar);
+    return () => window.removeEventListener("message", dengar);
+  }, [muat]);
 
   if (memuat || !sesi) return <MemeriksaSesi />;
 
@@ -314,6 +353,26 @@ export default function PersetujuanPage() {
           </tbody></table>
         </div>
       </div>
+
+      {/* Pemberitahuan setelah jendela pratinjau menutup diri. Dibuat sebagai
+          pop-up, bukan banner: jendela yang tiba-tiba hilang dari layar adalah
+          perubahan besar, dan yang menekan "Kirim ke Pajak" perlu tahu bahwa
+          hilangnya itu memang karena kirimannya berhasil. */}
+      {terkirim !== null && (
+        <div className="tirai"
+             onMouseDown={(e) => {
+               if (e.target === e.currentTarget) setTerkirim(null);
+             }}>
+          <div className="popup" role="dialog" aria-modal="true"
+               aria-label={k.kabarJudul}>
+            <h2 style={{ margin: "0 0 10px" }}>{k.kabarJudul}</h2>
+            <p className="pengantar">{k.kabarIsi(terkirim)}</p>
+            <button className="pri" onClick={() => setTerkirim(null)}>
+              {k.kabarTutup}
+            </button>
+          </div>
+        </div>
+      )}
     </Kerangka>
   );
 }
