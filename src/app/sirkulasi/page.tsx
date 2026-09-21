@@ -24,8 +24,8 @@ import { useSesi } from "../session";
 const KATA = {
   id: {
     judul: "Sirkulasi Dokumen",
-    pengantar: "Dokumen yang sedang beredar untuk ditandatangani. Durasi " +
-               "dihitung sejak perpindahan terakhir.",
+    pengantar: "Dokumen Yang Sedang Beredar Untuk Ditandatangani. Durasi " +
+               "Dihitung Sejak Perpindahan Terakhir.",
     galat: "Data tidak dapat dibaca",
     beredar: (n: number) => `${n} dokumen beredar`,
     duaMinggu: (n: number) => ` · ${n} lebih dari dua minggu`,

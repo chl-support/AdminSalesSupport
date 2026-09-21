@@ -41,9 +41,9 @@ const KATA = {
   id: {
     judul: "Spesimen Tanda Tangan",
     pengantar:
-      "Spesimen tanda tangan didaftarkan satu kali dan menjadi acuan " +
-      "seterusnya. Tautan pendaftaran hanya tersedia bagi yang belum " +
-      "terdaftar atau memerlukan pembaruan.",
+      "Spesimen Tanda Tangan Didaftarkan Satu Kali Dan Menjadi Acuan " +
+      "Seterusnya. Tautan Pendaftaran Hanya Tersedia Bagi Yang Belum " +
+      "Terdaftar Atau Memerlukan Pembaruan.",
     takBerwenangJudul: "Peran Anda tidak berwenang atas pendaftaran tanda tangan",
     takBerwenangIsi:
       "Hanya Admin Sales dan Admin IT yang dapat menerbitkan tautan dan " +

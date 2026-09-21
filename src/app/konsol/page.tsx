@@ -32,7 +32,8 @@ const KATA = {
   id: {
     judul: "Konsol Klaim Insentif",
     pengantar:
-      "Pengajuan dalam proses verifikasi dan persetujuan pihak terkait",
+      "Pengajuan Yang Sedang Dalam Proses Verifikasi Dan Persetujuan Oleh " +
+      "Pihak Terkait Sebelum Dapat Dilanjutkan Ke Proses Berikutnya.",
     alurJudul: "Alur pengajuan",
     alurIsi:
       "Admin mengajukan klaim → Form Pengajuan terbentuk → tim pajak memeriksa " +

@@ -87,9 +87,9 @@ const KODE_UNIT = ["unit_cancelled", "unit_moved", "unit_management"];
 const KATA = {
   id: {
     judul: "Pengajuan Fee",
-    pengantar: "Proses Pengajuan Fee dapat dilakukan setelah penerimaan " +
-               "mencapai minimal 20% dari nilai kontrak. Fee yang memenuhi " +
-               "syarat dapat langsung diajukan.",
+    pengantar: "Proses Pengajuan Fee Dapat Dilakukan Setelah Penerimaan " +
+               "Mencapai Minimal 20% Dari Nilai Kontrak. Fee Yang Memenuhi " +
+               "Syarat Dapat Langsung Diajukan.",
     dapatDiklaim: (n: number) => `${n} dapat diklaim`,
     penjualan: (n: number) => `${n} penjualan`,
     galatBaca: "Data penjualan tidak dapat dibaca",

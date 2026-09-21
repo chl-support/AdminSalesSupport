@@ -24,8 +24,8 @@ const KATA = {
   id: {
     judul: "Report / Laporan",
     pengantar: (p: string) =>
-      `Rekap dan unduhan data klaim Project ${p}. Laporan bersifat read-only ` +
-      "dan tidak dapat diedit; setiap koreksi dilakukan pada data klaim.",
+      `Rekap Dan Unduhan Data Klaim Project ${p}. Laporan Bersifat Read-Only ` +
+      "Dan Tidak Dapat Diedit; Setiap Koreksi Dilakukan Pada Data Klaim.",
     galat: "Laporan tidak dapat dibaca",
     masterJudul: "LAPORAN MASTER",
     masterIsi: "Seluruh klaim beserta unit, penerima, perhitungan, dan " +
