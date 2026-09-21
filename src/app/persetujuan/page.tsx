@@ -43,7 +43,7 @@ const KATA = {
     daftar: "Dokumen pengajuan",
     thNomor: "Nomor", thJenis: "Jenis fee", thUnit: "Unit",
     thPenerima: "Penerima", thBruto: "Bruto", thPph: "PPh",
-    thBersih: "Bersih", thStatus: "Keadaan", thDokumen: "Dokumen",
+    thBersih: "Bersih", thStatus: "Status", thDokumen: "Dokumen",
     pratinjau: "Lihat pratinjau",
     kosong: "Belum ada pengajuan pada project ini.",
     memuat: "Memuat…",
@@ -61,13 +61,127 @@ const KATA = {
     daftar: "Submission documents",
     thNomor: "Number", thJenis: "Fee type", thUnit: "Unit",
     thPenerima: "Recipient", thBruto: "Gross", thPph: "Withholding",
-    thBersih: "Net", thStatus: "State", thDokumen: "Document",
+    thBersih: "Net", thStatus: "Status", thDokumen: "Document",
     pratinjau: "View preview",
     kosong: "No submissions on this project yet.",
     memuat: "Loading…",
     keKonsol: "Open in console",
   },
 };
+
+/**
+ * Di mana dokumennya, dan menunggu apa.
+ *
+ * Nama status di basis data ditulis untuk mesin — 'pending_tax_verification'
+ * tidak memberi tahu siapa pun bahwa berkasnya ada di tim pajak dan yang
+ * ditunggu adalah verifikasinya. Yang ditanyakan orang saat membuka layar ini
+ * selalu dua hal itu, jadi dua hal itu yang ditulis.
+ *
+ * Status yang tidak dikenal (misalnya status baru yang belum ditambahkan di
+ * sini) jatuh ke namanya sendiri, bukan ke kalimat karangan.
+ */
+const KEADAAN: Record<string, { id: [string, string]; en: [string, string] }> = {
+  draft: {
+    id: ["Di Admin Sales", "Menunggu diperiksa lalu dikirim ke tim pajak"],
+    en: ["With Sales Admin", "Awaiting review, then sending to the tax team"],
+  },
+  submitted: {
+    id: ["Di Admin Sales", "Menunggu diteruskan ke tim pajak"],
+    en: ["With Sales Admin", "Awaiting forwarding to the tax team"],
+  },
+  pending_admin_review: {
+    id: ["Di Admin Sales", "Menunggu diperiksa Admin Sales"],
+    en: ["With Sales Admin", "Awaiting the Sales Admin's review"],
+  },
+  pending_tax_verification: {
+    id: ["Di tim pajak", "Menunggu verifikasi tim pajak"],
+    en: ["With the tax team", "Awaiting tax verification"],
+  },
+  tax_verified: {
+    id: ["Kembali di Admin Sales", "Menunggu tautan tanda tangan dikirim ke Sales/Agent"],
+    en: ["Back with Sales Admin", "Awaiting the signature link being sent to Sales/Agent"],
+  },
+  signature_link_sent: {
+    id: ["Di Sales/Agent", "Menunggu tautan tanda tangan dibuka"],
+    en: ["With Sales/Agent", "Awaiting the signature link being opened"],
+  },
+  awaiting_signature: {
+    id: ["Di Sales/Agent", "Menunggu tanda tangan"],
+    en: ["With Sales/Agent", "Awaiting the signature"],
+  },
+  signature_review_required: {
+    id: ["Di Admin Sales", "Menunggu tanda tangan diperiksa manual"],
+    en: ["With Sales Admin", "Awaiting a manual check of the signature"],
+  },
+  signed: {
+    id: ["Di Admin Sales", "Menunggu pemeriksaan silang"],
+    en: ["With Sales Admin", "Awaiting the cross-check"],
+  },
+  crosscheck_in_progress: {
+    id: ["Di Admin Sales", "Menunggu pemeriksaan silang selesai"],
+    en: ["With Sales Admin", "Awaiting the cross-check to finish"],
+  },
+  ready_to_print: {
+    id: ["Di Admin Sales", "Menunggu dicetak"],
+    en: ["With Sales Admin", "Awaiting printing"],
+  },
+  printed: {
+    id: ["Di Admin Sales", "Menunggu diedarkan ke Head Finance"],
+    en: ["With Sales Admin", "Awaiting circulation to the Head of Finance"],
+  },
+  circulating_head_finance: {
+    id: ["Di Head Finance", "Menunggu tanda tangan Head Finance"],
+    en: ["With the Head of Finance", "Awaiting the Head of Finance's signature"],
+  },
+  circulating_management: {
+    id: ["Di Manajemen", "Menunggu tanda tangan manajemen"],
+    en: ["With Management", "Awaiting management's signature"],
+  },
+  awaiting_scan_upload: {
+    id: ["Di Admin Sales", "Menunggu unggahan pindaian dokumen bertanda tangan"],
+    en: ["With Sales Admin", "Awaiting the scan of the signed document"],
+  },
+  approved: {
+    id: ["Di Finance", "Menunggu penetapan tanggal pembayaran"],
+    en: ["With Finance", "Awaiting a payment date"],
+  },
+  awaiting_settlement_date: {
+    id: ["Di Finance", "Menunggu tanggal pembayaran"],
+    en: ["With Finance", "Awaiting the payment date"],
+  },
+  partially_paid: {
+    id: ["Di Finance", "Dibayar sebagian, menunggu pelunasan"],
+    en: ["With Finance", "Partly paid, awaiting settlement"],
+  },
+  paid: {
+    id: ["Di Finance", "Sudah dibayar, menunggu ditutup"],
+    en: ["With Finance", "Paid, awaiting closing"],
+  },
+  completed: {
+    id: ["Selesai", "Tidak menunggu apa pun"],
+    en: ["Completed", "Nothing outstanding"],
+  },
+  returned: {
+    id: ["Kembali ke Admin Sales", "Menunggu diperbaiki lalu diajukan ulang"],
+    en: ["Back with Sales Admin", "Awaiting correction and resubmission"],
+  },
+  rejected: {
+    id: ["Ditolak", "Tidak berjalan lagi"],
+    en: ["Rejected", "No longer moving"],
+  },
+  cancelled: {
+    id: ["Dibatalkan", "Tidak berjalan lagi"],
+    en: ["Cancelled", "No longer moving"],
+  },
+  clawback: {
+    id: ["Penarikan kembali", "Menunggu penyelesaian penarikan dana"],
+    en: ["Clawback", "Awaiting the clawback to be settled"],
+  },
+};
+
+function keadaan(status: string, bahasa: "id" | "en"): [string, string] {
+  return KEADAAN[status]?.[bahasa] ?? [status, ""];
+}
 
 /** Keadaan yang dianggap belum bergerak ke mana pun. */
 const DIAM = ["draft", "submitted", "pending_admin_review"];
@@ -152,7 +266,7 @@ export default function PersetujuanPage() {
               <th>{k.thBruto}</th>
               <th>{k.thPph}</th>
               <th>{k.thBersih}</th>
-              <th>{k.thStatus}</th>
+              <th className="sel-keadaan">{k.thStatus}</th>
               <th style={{ width: 190 }}>{k.thDokumen}</th>
             </tr>
 
@@ -170,11 +284,12 @@ export default function PersetujuanPage() {
                 <td className="n">{rp(c.gross_amount)}</td>
                 <td className="n">{rp(c.withholding_tax)}</td>
                 <td className="n"><b>{rp(c.net_amount)}</b></td>
-                <td>
+                <td className="sel-keadaan">
                   <span className={`pill ${SELESAI.includes(c.status) ? "ok"
                                    : DIAM.includes(c.status) ? "warn" : ""}`}>
-                    {c.status}
+                    {keadaan(c.status, bahasa)[0]}
                   </span>
+                  <div className="menunggu">{keadaan(c.status, bahasa)[1]}</div>
                 </td>
                 {/* Pratinjau dibuka di jendela tersendiri, sama seperti dari
                     layar Pengajuan Fee: yang dibuka adalah dokumen untuk
