@@ -60,6 +60,15 @@ const KATA = {
     lDiajukan: "Diajukan:", lDiketahui: "Diketahui:", lDisetujui: "Disetujui:",
     seterusnya: "seterusnya", hapus: "Hapus",
     kosong: "Belum ada memo pada project ini.",
+    membaca: "Membaca berkas…",
+    terbacaIsi: (n: number) =>
+      `${n} kolom terisi dari isi memo. Periksa sebelum menyimpan.`,
+    terbacaNama: (n: number) =>
+      `Memo ini berupa pindaian — tidak ada teks yang dapat dibaca di ` +
+      `dalamnya. ${n} kolom terisi dari nama berkasnya. Sisanya, termasuk ` +
+      `nama pengaju dan penyetuju, perlu diketik.`,
+    takTerbaca:
+      "Tidak ada yang dapat dibaca dari berkas ini. Kolomnya diisi manual.",
     unduhRekap: "Unduh rekap (.xlsx)",
     nLampiran: (n: number) => `${n} lampiran`,
     takAdaLampiran: "Belum ada lampiran",
@@ -111,6 +120,15 @@ const KATA = {
     lDiajukan: "Submitted:", lDiketahui: "Noted:", lDisetujui: "Approved:",
     seterusnya: "onwards", hapus: "Delete",
     kosong: "No memos on this project yet.",
+    membaca: "Reading the file…",
+    terbacaIsi: (n: number) =>
+      `${n} fields filled from the memo's contents. Check before saving.`,
+    terbacaNama: (n: number) =>
+      `This memo is a scan — there is no readable text inside it. ${n} ` +
+      `fields were filled from the file name. The rest, including the ` +
+      `submitter and approver names, must be typed.`,
+    takTerbaca:
+      "Nothing could be read from this file. The fields are filled by hand.",
     unduhRekap: "Download recap (.xlsx)",
     nLampiran: (n: number) => `${n} attachments`,
     takAdaLampiran: "No attachments yet",
@@ -217,6 +235,7 @@ export default function MemoPage() {
   const [terbuka, setTerbuka] = useState<string | null>(null);
   const [lBerkas, setLBerkas] = useState<File | null>(null);
   const [lLabel, setLLabel] = useState("");
+  const [membaca, setMembaca] = useState(false);
 
   const muat = useCallback(async () => {
     try {
@@ -280,6 +299,49 @@ export default function MemoPage() {
     } catch (e: any) {
       setGalat(String(e?.message ?? e));
     } finally { setBusy(false); }
+  };
+
+  /**
+   * Berkas yang baru dipilih dibaca, lalu kolom yang masih kosong diisi.
+   *
+   * Hanya yang kosong. Yang sudah diketik orangnya tidak ditimpa: ia sudah
+   * membaca memonya dan memutuskan, dan tebakan mesin tidak lebih tahu.
+   */
+  const bacaBerkas = async (f: File) => {
+    setMembaca(true); setGalat(null); setKabar(null);
+    try {
+      const fd = new FormData();
+      fd.append("file", f);
+      const res = await fetch("/api/memos/baca", { method: "POST", body: fd });
+      if (res.status === 401) { location.href = "/login"; return; }
+      const b = await res.json().catch(() => ({}));
+      if (!res.ok) { setGalat(b.detail ?? `HTTP ${res.status}`); return; }
+
+      const kolom = b.kolom ?? {};
+      const isi = (nilai: string | undefined, kini: string,
+                   pasang: (v: string) => void) => {
+        if (nilai && !kini.trim()) { pasang(nilai); return true; }
+        return false;
+      };
+      let n = 0;
+      n += +isi(kolom.judul, judul, setJudul);
+      n += +isi(kolom.nomor, nomor, setNomor);
+      n += +isi(kolom.tanggal_memo, tanggalMemo, setTanggalMemo);
+      n += +isi(kolom.berlaku_dari, dari, setDari);
+      n += +isi(kolom.berlaku_sampai, sampai, setSampai);
+      n += +isi(kolom.dari, dariSiapa, setDariSiapa);
+      n += +isi(kolom.kepada, kepada, setKepada);
+      n += +isi(kolom.nilai_skema, nilai, setNilai);
+      n += +isi(kolom.dokumen_wajib, dokumen, setDokumen);
+      n += +isi(kolom.diajukan_oleh, diajukan, setDiajukan);
+      n += +isi(kolom.diketahui_oleh, diketahui, setDiketahui);
+      n += +isi(kolom.disetujui_oleh, disetujui, setDisetujui);
+
+      if (!n) setKabar(k.takTerbaca);
+      else setKabar(b.sumber === "nama" ? k.terbacaNama(n) : k.terbacaIsi(n));
+    } catch (e: any) {
+      setGalat(String(e?.message ?? e));
+    } finally { setMembaca(false); }
   };
 
   /** Lampirkan satu berkas pada memo yang barisnya sedang terbuka. */
@@ -420,13 +482,21 @@ export default function MemoPage() {
 
           <div className="lbl" style={{ marginTop: 12 }}>
             {k.fBerkas}
+            {membaca && <span className="sedang-baca">{k.membaca}</span>}
           </div>
+          {/* Memilih berkas sekaligus membacanya: kolom di atas terisi sendiri
+              sejauh yang dapat dibaca, dan yang tidak terbaca tetap kosong
+              menunggu diketik. */}
           <input type="file" style={{ width: "100%" }}
                  accept=".pdf,.jpg,.jpeg,.png,.webp,.xls,.xlsx,.doc,.docx"
-                 onChange={(e) => setBerkas(e.target.files?.[0] ?? null)} />
+                 onChange={(e) => {
+                   const f = e.target.files?.[0] ?? null;
+                   setBerkas(f);
+                   if (f) void bacaBerkas(f);
+                 }} />
 
           <div className="row" style={{ marginTop: 12, marginBottom: 0 }}>
-            <button className="pri" disabled={!berkas || busy}
+            <button className="pri" disabled={!berkas || busy || membaca}
                     onClick={() => void unggah()}>
               {busy ? k.mengunggah : k.unggah}
             </button>

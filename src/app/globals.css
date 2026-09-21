@@ -1195,3 +1195,8 @@ a.tautan-klaim:hover { border-color: var(--ink); }
 .lampiran-memo .unggah-lampiran > div { flex: 1 1 240px; min-width: 0; }
 .lampiran-memo .unggah-lampiran input { width: 100%; }
 .lampiran-memo .unggah-lampiran button { flex: none; }
+
+/* Penanda "sedang membaca" di sebelah label berkas — di sana, bukan di dekat
+   tombol simpan: yang sedang terjadi adalah pembacaan berkasnya, dan kolom
+   yang akan berubah ada tepat di atasnya. */
+.sedang-baca { margin-left: 10px; font-style: italic; color: var(--emas-tua); }
