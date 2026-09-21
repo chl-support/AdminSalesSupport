@@ -1216,3 +1216,10 @@ td.sel-keadaan .pill {
 td.sel-keadaan .menunggu {
   margin-top: 3px; color: var(--mut); font-size: 11.5px; line-height: 1.4;
 }
+
+/* Rincian dokumen yang menunggu, pada pemberitahuan saat masuk. */
+.daftar-menunggu { margin: 0; padding-left: 18px; font-size: 12.5px;
+                   color: var(--sub); line-height: 1.5; }
+.daftar-menunggu li { margin-bottom: 5px; }
+.daftar-menunggu li:last-child { margin-bottom: 0; }
+.daftar-menunggu b { color: var(--ink); }
