@@ -114,6 +114,16 @@ const KATA = {
     ajukanKosong: "Klaim",
     mengajukan: "Mengajukan…",
     gagalAjukan: "Sebagian pengajuan tidak dapat dibuat",
+    dialogNama: "Penjelasan pengajuan",
+    dialogJudul: (kode: string) => `Ajukan fee untuk unit ${kode}`,
+    dialogPengantar:
+      "Penjelasan ini tercetak pada Form Pengajuan masing-masing fee, jadi ia " +
+      "dibaca yang menandatangani — bukan catatan internal. Boleh dikosongkan.",
+    dialogContoh: "mis. Full Payment. Pembayaran sudah mencapai 20%.",
+    dialogSamakan: "Samakan untuk semua",
+    dialogAjukan: "Ajukan",
+    dialogBatal: "Batal",
+    dialogTutup: "Tutup",
     belumTercatat: "belum tercatat",
     dariKontrak: (p: string) => `${p}% dari kontrak`,
     belum: "belum",
@@ -155,6 +165,17 @@ const KATA = {
     ajukanKosong: "Claim",
     mengajukan: "Submitting…",
     gagalAjukan: "Some submissions could not be created",
+    dialogNama: "Submission notes",
+    dialogJudul: (kode: string) => `Submit fees for unit ${kode}`,
+    dialogPengantar:
+      "These notes are printed on each fee's submission form, so whoever " +
+      "signs it will read them — they are not internal remarks. May be left " +
+      "blank.",
+    dialogContoh: "e.g. Full payment. Payments have reached 20%.",
+    dialogSamakan: "Use for all",
+    dialogAjukan: "Submit",
+    dialogBatal: "Cancel",
+    dialogTutup: "Close",
     belumTercatat: "not recorded yet",
     dariKontrak: (p: string) => `${p}% of contract`,
     belum: "not yet",
@@ -213,6 +234,16 @@ export default function PengajuanFeePage() {
    */
   const [pilih, setPilih] = useState<Record<string, boolean>>({});
   const [mengajukan, setMengajukan] = useState<string | null>(null);
+  /**
+   * Unit yang sedang disiapkan pengajuannya, beserta penjelasan tiap fee.
+   *
+   * Penjelasannya per fee, bukan satu untuk semua: pada formulir aslinya ia
+   * berjudul "PENJELASAN PENGAJUAN <jenis>", dan alasan Komisi dapat diajukan
+   * memang tidak sama dengan alasan Closing Fee.
+   */
+  const [siapkan, setSiapkan] =
+    useState<{ unit: Unit; jenis: Jenis[] } | null>(null);
+  const [penjelasan, setPenjelasan] = useState<Record<string, string>>({});
 
   const toggle = (unitId: string, jenis: Jenis) =>
     setPilih((lama) => {
@@ -257,8 +288,8 @@ export default function PengajuanFeePage() {
    * sama, dan mengirim empat permintaan sekaligus membuat pemeriksaan
    * anti-duplikat saling berlomba.
    */
-  const ajukan = async (u: Unit) => {
-    const jenisTerpilih = terpilihPada(u.id);
+  const ajukan = async (u: Unit, jenisTerpilih: Jenis[],
+                        catatan: Record<string, string>) => {
     if (!jenisTerpilih.length) return;
 
     const jendela = window.open("", "_blank");
@@ -285,6 +316,7 @@ export default function PengajuanFeePage() {
               : f?.recipient?.type === "agent" ? "agent" : "sales_inhouse",
             overriding_level: slug === "overriding"
               ? "sales_manager_inhouse" : null,
+            notes: (catatan[slug] ?? "").trim() || null,
           }),
         });
         if (res.status === 401) { location.href = "/login"; return; }
@@ -309,6 +341,8 @@ export default function PengajuanFeePage() {
         for (const slug of jenisTerpilih) delete baru[`${u.id}:${slug}`];
         return baru;
       });
+      setSiapkan(null);
+      setPenjelasan({});
       await muat();
     } catch (e: any) {
       jendela?.close();
@@ -500,7 +534,11 @@ export default function PengajuanFeePage() {
                           <button className="pri"
                                   disabled={!terpilihPada(u.id).length ||
                                             mengajukan !== null}
-                                  onClick={() => void ajukan(u)}>
+                                  onClick={() => {
+                                    setPenjelasan({});
+                                    setSiapkan({ unit: u,
+                                                 jenis: terpilihPada(u.id) });
+                                  }}>
                             {mengajukan === u.id ? k.mengajukan
                               : terpilihPada(u.id).length
                                 ? k.ajukanTerpilih(terpilihPada(u.id).length)
@@ -575,6 +613,76 @@ export default function PengajuanFeePage() {
         </div>
       </div>
 
+
+      {/* Penjelasan pengajuan diisi sebelum jendela pratinjau terbuka.
+          Jendelanya dibuka dari tombol di dalam dialog ini — tekanan jari itu
+          yang mengizinkan window.open; dibuka dari proses yang berjalan
+          sesudahnya, ia diblokir sebagai pop-up. */}
+      {siapkan && (
+        <div className="tirai"
+             onMouseDown={(e) => {
+               if (e.target === e.currentTarget && !mengajukan) setSiapkan(null);
+             }}>
+          <div className="popup lebar" role="dialog" aria-modal="true"
+               aria-label={k.dialogNama} style={{ maxWidth: 560 }}>
+            <div className="popup-kepala">
+              <h2>
+                {k.dialogJudul(siapkan.unit.code)}
+                <span className="pill">
+                  {k.ajukanTerpilih(siapkan.jenis.length)}
+                </span>
+              </h2>
+              <button className="tautan" aria-label={k.dialogTutup}
+                      disabled={Boolean(mengajukan)}
+                      onClick={() => setSiapkan(null)}>✕</button>
+            </div>
+
+            <div className="popup-isi">
+              <p className="hint" style={{ textAlign: "left", margin: "0 0 12px" }}>
+                {k.dialogPengantar}
+              </p>
+
+              {siapkan.jenis.map((slug, i) => (
+                <div key={slug} style={{ marginBottom: 12 }}>
+                  <div className="lbl">
+                    {k.dialogNama} — {namaJenis(slug, bahasa)}
+                  </div>
+                  <textarea value={penjelasan[slug] ?? ""}
+                            placeholder={k.dialogContoh}
+                            style={{ width: "100%", minHeight: 52 }}
+                            onChange={(e) => setPenjelasan(
+                              { ...penjelasan, [slug]: e.target.value })} />
+                  {/* Menyalin isian pertama ke sisanya. Keempat penjelasan
+                      sering sama persis, dan mengetiknya empat kali membuat
+                      orang menyingkatnya sampai tidak lagi menjelaskan apa
+                      pun. */}
+                  {i === 0 && siapkan.jenis.length > 1 && (
+                    <button style={{ marginTop: 6, padding: "2px 8px" }}
+                            disabled={!(penjelasan[slug] ?? "").trim()}
+                            onClick={() => setPenjelasan(
+                              Object.fromEntries(siapkan.jenis.map(
+                                (j) => [j, penjelasan[slug] ?? ""])))}>
+                      {k.dialogSamakan}
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <div className="popup-kaki">
+              <div className="row">
+                <button className="pri" disabled={Boolean(mengajukan)}
+                        onClick={() => void ajukan(siapkan.unit, siapkan.jenis,
+                                                   penjelasan)}>
+                  {mengajukan ? k.mengajukan : k.dialogAjukan}
+                </button>
+                <button disabled={Boolean(mengajukan)}
+                        onClick={() => setSiapkan(null)}>{k.dialogBatal}</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </Kerangka>
   );
 }
