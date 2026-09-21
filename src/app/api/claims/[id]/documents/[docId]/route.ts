@@ -1,14 +1,25 @@
 /**
- * Unduh satu lampiran klaim.
+ * Unduh — atau lihat — satu lampiran klaim.
  *
- * Berkasnya dikirim apa adanya dengan Content-Disposition attachment, bukan
- * ditampilkan inline: pindaian yang diunggah orang luar tidak dijalankan di
- * origin yang sama dengan konsol. Nama berkas ikut dibersihkan karena ia berasal
- * dari peramban pengunggahnya.
+ * Bawaannya tetap unduhan: Content-Disposition attachment, karena pindaian yang
+ * diunggah orang luar tidak dijalankan di origin yang sama dengan konsol. Nama
+ * berkas ikut dibersihkan karena ia berasal dari peramban pengunggahnya.
+ *
+ * Dengan `?pratinjau=1` berkasnya ditampilkan inline. Tim pajak memeriksa
+ * sepuluh lampiran per klaim; mengunduh sepuluh berkas ke folder Download lalu
+ * membukanya satu per satu dari sana bukan pemeriksaan, itu pekerjaan rumah
+ * tangga. Yang boleh tampil inline hanya jenis yang memang diterima
+ * (lihat JENIS_DITERIMA): PDF dan gambar. HTML dan SVG — dua jenis yang dapat
+ * menjalankan skrip di origin ini — tidak pernah masuk ke sini, dan bila suatu
+ * saat masuk, ia tetap diunduh, bukan ditampilkan.
+ *
+ * Ditambah sandbox CSP dan nosniff: seandainya ada berkas yang lolos dengan
+ * content-type keliru, peramban tetap tidak menjalankan apa pun darinya.
  */
 
 import { handler, currentUser } from "@/lib/api";
 import { one } from "@/lib/db";
+import { JENIS_DITERIMA } from "@/lib/lampiran";
 import { WorkflowError } from "@/lib/workflow";
 
 export const GET = handler(async (req, { params }) => {
@@ -24,12 +35,17 @@ export const GET = handler(async (req, { params }) => {
       "content_missing", 410);
   }
   const nama = String(doc.file_name ?? "lampiran").replace(/[^\w.\- ]+/g, "_");
+  const jenis = doc.content_type ?? "application/octet-stream";
+  const inline = new URL(req.url).searchParams.get("pratinjau") === "1" &&
+                 Object.prototype.hasOwnProperty.call(JENIS_DITERIMA, jenis);
   return new Response(new Uint8Array(doc.content), {
     headers: {
-      "content-type": doc.content_type ?? "application/octet-stream",
-      "content-disposition": `attachment; filename="${nama}"`,
+      "content-type": jenis,
+      "content-disposition":
+        `${inline ? "inline" : "attachment"}; filename="${nama}"`,
       "content-length": String(doc.content.length),
       "x-content-type-options": "nosniff",
+      "content-security-policy": "sandbox; default-src 'none'",
     },
   });
 });
