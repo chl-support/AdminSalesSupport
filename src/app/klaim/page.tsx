@@ -429,11 +429,12 @@ export default function PengajuanFeePage() {
   };
 
   /**
-   * Ajukan seluruh fee yang dicentang pada satu unit, lalu buka pratinjaunya.
+   * Ajukan seluruh fee yang dicentang pada satu unit.
    *
-   * Jendelanya dibuka lebih dulu, sebelum satu pun permintaan dikirim: peramban
-   * hanya mengizinkan window.open yang lahir langsung dari tekanan jari. Dibuka
-   * sesudah pengajuan selesai, ia akan diblokir sebagai pop-up.
+   * Setelah jadi, layar berpindah ke Approval / Persetujuan — bukan membuka
+   * jendela pratinjau. Yang mengajukan empat fee sekaligus lebih dulu perlu
+   * melihat apa yang barusan ia buat sebagai daftar; pratinjau formulirnya
+   * dibuka dari sana, per dokumen, saat memang mau diperiksa.
    *
    * Pengajuannya berurutan, bukan serentak. Keempatnya menyentuh unit yang
    * sama, dan mengirim empat permintaan sekaligus membuat pemeriksaan
@@ -444,7 +445,6 @@ export default function PengajuanFeePage() {
                         tujuan: Record<string, any>) => {
     if (!jenisTerpilih.length) return;
 
-    const jendela = window.open("", "_blank");
     setMengajukan(u.id);
     setGalat(null);
 
@@ -483,12 +483,6 @@ export default function PengajuanFeePage() {
 
       if (gagal.length) setGalat(`${k.gagalAjukan} — ${gagal.join(" · ")}`);
 
-      if (dibuat.length && jendela) {
-        jendela.location.href = `/klaim/pratinjau?ids=${dibuat.join(",")}`;
-      } else if (jendela) {
-        jendela.close();
-      }
-
       setPilih((lama) => {
         const baru = { ...lama };
         for (const slug of jenisTerpilih) delete baru[`${u.id}:${slug}`];
@@ -497,9 +491,13 @@ export default function PengajuanFeePage() {
       setSiapkan(null);
       setPenjelasan({});
       setTransfer({});
+
+      // Berpindah hanya bila memang ada yang jadi. Kalau seluruhnya gagal,
+      // yang perlu dibaca adalah pesan galatnya di layar ini — bukan daftar
+      // kosong di layar lain.
+      if (dibuat.length && !gagal.length) { location.href = "/persetujuan"; return; }
       await muat();
     } catch (e: any) {
-      jendela?.close();
       setGalat(String(e?.message ?? e));
     } finally { setMengajukan(null); }
   };
