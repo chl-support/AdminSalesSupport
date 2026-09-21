@@ -32,7 +32,16 @@ const JENIS_NAMA: Record<string, string> = {
 };
 
 export function FormPengajuan(
-  { klaim, ttdPemohon }: { klaim: any; ttdPemohon?: string | null },
+  { klaim, ttdPemohon, ceklis, onCeklis }: {
+    klaim: any; ttdPemohon?: string | null;
+    /**
+     * Centang dokumen yang sedang berjalan, bila layar pemanggilnya memang
+     * meminta Admin Sales mencentangnya. Tanpa keduanya, daftar syaratnya
+     * digambar apa adanya seperti pada cetakan.
+     */
+    ceklis?: Record<string, boolean>;
+    onCeklis?: (item: string, dicentang: boolean) => void;
+  },
 ) {
   const jenis = klaim.claim_type as Jenis;
   const nama = JENIS_NAMA[jenis] ?? jenis;
@@ -164,7 +173,21 @@ export function FormPengajuan(
           </h3>
           <ul className="ceklis cetak-ceklis">
             {dokumen.map((d, i) => (
-              <li key={d}><span className="kotak">✓</span> {i + 1}. {d}</li>
+              <li key={d}>
+                {onCeklis ? (
+                  /* Kotak yang benar-benar dicentang, bukan gambar centang.
+                     Yang menekan "Kirim ke Pajak" menyatakan berkasnya ada di
+                     tangannya, dan pernyataan itu tersimpan sebagai baris
+                     dokumen pada klaimnya. */
+                  <label className="ceklis-pilih">
+                    <input type="checkbox" checked={Boolean(ceklis?.[d])}
+                           onChange={(e) => onCeklis(d, e.target.checked)} />
+                    <span>{i + 1}. {d}</span>
+                  </label>
+                ) : (
+                  <><span className="kotak">✓</span> {i + 1}. {d}</>
+                )}
+              </li>
             ))}
           </ul>
         </div>

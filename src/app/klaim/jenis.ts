@@ -214,3 +214,30 @@ export const KOP = [
   "Paramount Gading Serpong, Tangerang Banten 15312",
   "Telp. +62 21 2222 0080 Fax. +62 21 2222 0081",
 ];
+
+
+/**
+ * Kode dokumen yang diwakili tiap baris checklist, urut sama dengan DOKUMEN.
+ *
+ * Yang tampil pada formulir adalah kalimat cetakannya, sedangkan yang ditagih
+ * server adalah kode (lihat REQUIRED_DOCS pada src/lib/calc.ts). Keduanya tidak
+ * satu-lawan-satu: satu baris "Kelengkapan Data (KTP, NPWP & Bukti Bayar BF)"
+ * mewakili tiga kode sekaligus, persis seperti pada kertasnya.
+ *
+ * Dipetakan lewat urutan, bukan lewat kalimatnya. Kalimat yang disalin sebagai
+ * kunci akan diam-diam tidak cocok lagi begitu satu kata pada DOKUMEN diubah,
+ * dan akibatnya baru terasa sebagai "Checklist dokumen belum lengkap" yang
+ * menyebut kode yang tidak pernah muncul di layar mana pun.
+ */
+export const DOKUMEN_KODE: Record<Jenis, string[][]> = {
+  closing_fee: [["fpu"], ["spu"], ["ktp", "npwp", "booking_fee_proof"]],
+  cash_reward: [["fpu"], ["spu"], ["ktp", "npwp", "booking_fee_proof"]],
+  // Baris terakhir Komisi memuat Faktur Pajak bagi yang PKP dan Surat
+  // Pernyataan bagi yang bukan — sama seperti kalimatnya pada cetakan.
+  // Keduanya dicatat sekaligus: yang tidak ditagih server tidak menghalangi,
+  // sedangkan menebak status PKP-nya dari layar ini akan sering keliru.
+  commission: [["fpu"], ["spu"], ["ppjb"],
+               ["kwitansi", "invoice", "ktp", "npwp", "bank_account",
+                "tax_invoice", "non_pkp_statement"]],
+  overriding: [],
+};

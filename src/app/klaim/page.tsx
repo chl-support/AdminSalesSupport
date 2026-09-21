@@ -41,6 +41,20 @@ const AMBANG = 0.20;
 const rp = (n?: number | null) => (n ?? 0).toLocaleString("id-ID");
 
 /**
+ * Nomor untuk tautan wa.me, yang hanya menerima bentuk internasional.
+ *
+ * "08121234800" dikirim apa adanya akan membuka percakapan ke nomor yang tidak
+ * ada. Awalan 0 diganti 62; yang sudah berawalan 62 atau +62 dibiarkan.
+ */
+function nomorWa(hp?: string | null): string {
+  const angka = String(hp ?? "").replace(/[^0-9]/g, "");
+  if (!angka) return "";
+  if (angka.startsWith("62")) return angka;
+  if (angka.startsWith("0")) return `62${angka.slice(1)}`;
+  return angka;
+}
+
+/**
  * Nilai kontrak tanpa PPN.
  *
  * Tarifnya berganti 1 April 2022: penjualan sebelum tanggal itu memakai 10%,
@@ -145,6 +159,28 @@ const KATA = {
       `${nama} berstatus ${status}, belum aktif.`,
     takAdaCocok: "Tidak ada penjualan yang cocok dengan penyaringan ini.",
     memuat: "Memuat…",
+    waJudul: "Menunggu tautan dikirim ke Sales/Agent",
+    waPengantar:
+      "Klaim di bawah sudah lolos verifikasi pajak. Kirim tautan tanda " +
+      "tangannya lewat WhatsApp; Sales/Agent membukanya, memasukkan kode, " +
+      "lalu menandatangani formulirnya.",
+    waJumlah: (n: number) => `${n} klaim`,
+    waKlaim: "Klaim", waUnit: "Unit", waPenerima: "Penerima", waHp: "No. HP",
+    waTindakan: "Tindakan",
+    waKirim: "Kirim tautan WA", waMengirim: "Mengirim…",
+    // Tautannya berlaku terbatas, jadi menerbitkan ulang memang perlu —
+    // bukan tanda ada yang salah.
+    waUlang: "Kirim ulang tautan",
+    waSudahKirim: "tautan sudah dikirim",
+    waTanpaHp: "No. HP belum tercatat",
+    waTerbit: (hp: string) => `Tautan terbit untuk ${hp}.`,
+    waBukaWa: "Buka WhatsApp",
+    waSalin: "Salin tautan", waTersalin: "Tautan tersalin.",
+    waKode: "Kode verifikasi:",
+    waKodeCatatan:
+      "Sampaikan kode ini lewat jalur terpisah dari tautannya — bukan pada " +
+      "pesan WhatsApp yang sama.",
+    waGagal: "Tautan tidak dapat diterbitkan",
   },
   en: {
     judul: "Fee Submission",
@@ -205,6 +241,25 @@ const KATA = {
       `${nama} is ${status}, not active yet.`,
     takAdaCocok: "No sales match this filter.",
     memuat: "Loading…",
+    waJudul: "Waiting for the link to be sent to the Sales/Agent",
+    waPengantar:
+      "These claims have passed tax verification. Send the signing link over " +
+      "WhatsApp; the Sales/Agent opens it, enters the code, then signs the form.",
+    waJumlah: (n: number) => `${n} claims`,
+    waKlaim: "Claim", waUnit: "Unit", waPenerima: "Recipient",
+    waHp: "Phone", waTindakan: "Action",
+    waKirim: "Send WhatsApp link", waMengirim: "Sending…",
+    waUlang: "Re-send link",
+    waSudahKirim: "link already sent",
+    waTanpaHp: "No phone number on record",
+    waTerbit: (hp: string) => `Link issued for ${hp}.`,
+    waBukaWa: "Open WhatsApp",
+    waSalin: "Copy link", waTersalin: "Link copied.",
+    waKode: "Verification code:",
+    waKodeCatatan:
+      "Pass this code through a channel separate from the link — not in the " +
+      "same WhatsApp message.",
+    waGagal: "The link could not be issued",
   },
 };
 
@@ -273,6 +328,19 @@ export default function PengajuanFeePage() {
    */
   const [transfer, setTransfer] = useState<Record<string, any>>({});
 
+  /**
+   * Klaim yang sudah lolos verifikasi pajak dan menunggu tautannya dikirim.
+   *
+   * Dibaca terpisah dari daftar penjualan: yang ditunggu di sini bukan unit
+   * melainkan klaim, dan satu unit dapat menyumbang empat klaim yang tidak
+   * lolos pajak pada saat yang sama.
+   */
+  const [menunggu, setMenunggu] = useState<any[]>([]);
+  const [mengirimWa, setMengirimWa] = useState<string | null>(null);
+  /** Tautan yang sudah terbit, berkunci id klaim. */
+  const [tautan, setTautan] = useState<Record<string, any>>({});
+  const [kabarWa, setKabarWa] = useState<string | null>(null);
+
   /** Isian awal tujuan transfer: rekening penerima yang sudah tercatat. */
   const bawaanTransfer = (u: Unit, daftar: Jenis[]) =>
     Object.fromEntries(daftar.map((slug) => {
@@ -316,14 +384,57 @@ export default function PengajuanFeePage() {
     }
   }, []);
 
-  useEffect(() => { if (sesi) void muat(); }, [sesi, muat]);
+  const muatMenunggu = useCallback(async () => {
+    try {
+      // Yang sudah terkirim ikut ditarik, bukan hanya yang belum. Tautannya
+      // berlaku terbatas dan tidak tersimpan di mana pun setelah layar ditutup;
+      // baris yang hilang begitu tombolnya ditekan membawa serta tautan yang
+      // baru saja terbit, sebelum sempat dibuka atau disalin.
+      const res = await fetch(
+        "/api/claims?status=tax_verified,signature_link_sent");
+      if (res.status === 401) { location.href = "/login"; return; }
+      const b = await res.json().catch(() => []);
+      setMenunggu(Array.isArray(b) ? b : []);
+    } catch { /* panel ini pelengkap; galatnya tidak menutup daftar penjualan */ }
+  }, []);
+
+  useEffect(() => { if (sesi) { void muat(); void muatMenunggu(); } },
+            [sesi, muat, muatMenunggu]);
 
   /**
-   * Ajukan seluruh fee yang dicentang pada satu unit, lalu buka pratinjaunya.
+   * Terbitkan tautan tanda tangan, lalu siapkan pesan WhatsApp-nya.
    *
-   * Jendelanya dibuka lebih dulu, sebelum satu pun permintaan dikirim: peramban
-   * hanya mengizinkan window.open yang lahir langsung dari tekanan jari. Dibuka
-   * sesudah pengajuan selesai, ia akan diblokir sebagai pop-up.
+   * Yang dibuka bukan WhatsApp-nya langsung: tautannya ditampilkan lebih dulu
+   * supaya Admin Sales melihat ke nomor mana ia akan terkirim. Kodenya sengaja
+   * tidak ikut ke dalam pesan — kode dan tautan pada satu pesan yang sama
+   * membuat siapa pun yang meneruskan pesan itu ikut membawa keduanya.
+   */
+  const kirimTautan = async (c: any) => {
+    setMengirimWa(c.id); setGalat(null);
+    try {
+      const res = await fetch(`/api/claims/${c.id}/signature-requests`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: "{}" });
+      if (res.status === 401) { location.href = "/login"; return; }
+      const b = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setGalat(`${k.waGagal} — ${b.detail ?? b.title ?? res.status}`);
+        return;
+      }
+      setTautan({ ...tautan, [c.id]: b });
+      await muatMenunggu();
+    } catch (e: any) {
+      setGalat(String(e?.message ?? e));
+    } finally { setMengirimWa(null); }
+  };
+
+  /**
+   * Ajukan seluruh fee yang dicentang pada satu unit.
+   *
+   * Setelah jadi, layar berpindah ke Approval / Persetujuan — bukan membuka
+   * jendela pratinjau. Yang mengajukan empat fee sekaligus lebih dulu perlu
+   * melihat apa yang barusan ia buat sebagai daftar; pratinjau formulirnya
+   * dibuka dari sana, per dokumen, saat memang mau diperiksa.
    *
    * Pengajuannya berurutan, bukan serentak. Keempatnya menyentuh unit yang
    * sama, dan mengirim empat permintaan sekaligus membuat pemeriksaan
@@ -334,7 +445,6 @@ export default function PengajuanFeePage() {
                         tujuan: Record<string, any>) => {
     if (!jenisTerpilih.length) return;
 
-    const jendela = window.open("", "_blank");
     setMengajukan(u.id);
     setGalat(null);
 
@@ -373,12 +483,6 @@ export default function PengajuanFeePage() {
 
       if (gagal.length) setGalat(`${k.gagalAjukan} — ${gagal.join(" · ")}`);
 
-      if (dibuat.length && jendela) {
-        jendela.location.href = `/klaim/pratinjau?ids=${dibuat.join(",")}`;
-      } else if (jendela) {
-        jendela.close();
-      }
-
       setPilih((lama) => {
         const baru = { ...lama };
         for (const slug of jenisTerpilih) delete baru[`${u.id}:${slug}`];
@@ -387,9 +491,13 @@ export default function PengajuanFeePage() {
       setSiapkan(null);
       setPenjelasan({});
       setTransfer({});
+
+      // Berpindah hanya bila memang ada yang jadi. Kalau seluruhnya gagal,
+      // yang perlu dibaca adalah pesan galatnya di layar ini — bukan daftar
+      // kosong di layar lain.
+      if (dibuat.length && !gagal.length) { location.href = "/persetujuan"; return; }
       await muat();
     } catch (e: any) {
-      jendela?.close();
       setGalat(String(e?.message ?? e));
     } finally { setMengajukan(null); }
   };
@@ -446,6 +554,93 @@ export default function PengajuanFeePage() {
         <div className="banner stop">
           <b>{k.galatBaca}</b>
           {galat}
+        </div>
+      )}
+
+      {/* Klaim yang sudah lolos pajak dan menunggu tautannya dikirim.
+          Diletakkan di atas daftar penjualan, bukan pada layar tersendiri:
+          ia pekerjaan yang harus selesai hari itu juga — masa berlaku
+          verifikasi pajaknya habis — sedangkan layar tersendiri hanya dibuka
+          oleh yang ingat bahwa layar itu ada. Panelnya hilang sendiri begitu
+          tidak ada lagi yang menunggu. */}
+      {menunggu.length > 0 && (
+        <div className="panel sp">
+          <h2>
+            {k.waJudul}
+            <span className="pill warn">{k.waJumlah(menunggu.length)}</span>
+          </h2>
+          <p className="hint" style={{ textAlign: "left", marginTop: 0 }}>
+            {k.waPengantar}
+          </p>
+
+          <div className="tscroll">
+            <table><tbody>
+              <tr>
+                <th>{k.waKlaim}</th><th>{k.waUnit}</th>
+                <th>{k.waPenerima}</th><th>{k.waHp}</th>
+                <th style={{ width: 320 }}>{k.waTindakan}</th>
+              </tr>
+              {menunggu.map((c) => {
+                const t = tautan[c.id];
+                const hp = c.marketing?.phone ?? "";
+                const alamat = typeof window !== "undefined"
+                  ? `${window.location.origin}/sign/${t?.token ?? ""}` : "";
+                return (
+                  <tr key={c.id}>
+                    <td>
+                      <b>{c.claim_number}</b><br />
+                      <span style={{ color: "var(--mut)" }}>
+                        {namaJenis(c.claim_type, bahasa)}
+                      </span>
+                      {c.status === "signature_link_sent" && (
+                        <><br /><span className="pill ok">{k.waSudahKirim}</span></>
+                      )}
+                    </td>
+                    <td>{c.unit?.code ?? "—"}</td>
+                    <td>{c.marketing?.full_name ?? "—"}</td>
+                    <td>{hp || (
+                      <span style={{ color: "var(--stop)" }}>{k.waTanpaHp}</span>
+                    )}</td>
+                    <td>
+                      {!t ? (
+                        <button className="pri"
+                                disabled={!hp || mengirimWa !== null}
+                                onClick={() => void kirimTautan(c)}>
+                          {mengirimWa === c.id ? k.waMengirim
+                            : c.status === "signature_link_sent" ? k.waUlang
+                            : k.waKirim}
+                        </button>
+                      ) : (
+                        <div className="tautan-terbit">
+                          <div>{k.waTerbit(t.masked_phone)}</div>
+                          <div className="row" style={{ margin: "6px 0" }}>
+                            <a className="tombol-klaim kecil"
+                               href={`https://wa.me/${nomorWa(hp)}` +
+                                     `?text=${encodeURIComponent(
+                                       `${t.message}\n${alamat}`)}`}
+                               target="_blank" rel="noreferrer">
+                              {k.waBukaWa}
+                            </a>
+                            <button onClick={() => {
+                              navigator.clipboard?.writeText(alamat);
+                              setKabarWa(k.waTersalin);
+                            }}>{k.waSalin}</button>
+                          </div>
+                          <div>
+                            {k.waKode} <b>{t.otp_demo}</b>
+                          </div>
+                          <div className="hint" style={{ textAlign: "left" }}>
+                            {k.waKodeCatatan}
+                          </div>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody></table>
+          </div>
+          {kabarWa && <div className="banner ok">{kabarWa}</div>}
         </div>
       )}
 
