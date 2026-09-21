@@ -184,6 +184,20 @@ ul.kurang {
 .fee-kaki { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line); }
 .fee-kaki button { width: 100%; }
 
+/* Satu blok per fee di dalam dialog pengajuan: penjelasan dan tujuan
+   transfernya berdampingan di bawah nama fee-nya, supaya tidak tertukar saat
+   empat fee diajukan sekaligus. */
+.blok-fee {
+  border: 1px solid var(--line); padding: 10px 12px; margin-bottom: 12px;
+  background: #FCFCFB;
+}
+.blok-fee > h4 {
+  margin: 0 0 8px; font-size: 12px; font-weight: 700; letter-spacing: .03em;
+  display: flex; align-items: center; gap: 8px;
+}
+.filters.rapat { gap: 8px; }
+.filters.rapat .lbl { margin-bottom: 2px; }
+
 /* Jendela pratinjau: satu formulir per lembar, dan bilah tombolnya tidak ikut
    tercetak. */
 .jendela-pratinjau { padding-top: 18px; }

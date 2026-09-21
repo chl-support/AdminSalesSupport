@@ -121,6 +121,14 @@ const KATA = {
       "dibaca yang menandatangani — bukan catatan internal. Boleh dikosongkan.",
     dialogContoh: "mis. Full Payment. Pembayaran sudah mencapai 20%.",
     dialogSamakan: "Samakan untuk semua",
+    tfJudul: "Tujuan transfer",
+    tfNama: "Nama penerima", tfJenis: "Atas nama",
+    tfBadan: "Badan Usaha (PT)", tfPribadi: "Pribadi (Perorangan)",
+    tfBank: "Bank", tfRekening: "No. rekening", tfCabang: "Kantor cabang",
+    tfCatatan:
+      "Atas nama siapa rekeningnya menentukan PPh 23 atau PPh 21, jadi " +
+      "periksa sebelum diajukan.",
+    untukSiapa: (nama: string, peran: string) => `${peran}: ${nama}`,
     dialogAjukan: "Ajukan",
     dialogBatal: "Batal",
     dialogTutup: "Tutup",
@@ -173,6 +181,14 @@ const KATA = {
       "blank.",
     dialogContoh: "e.g. Full payment. Payments have reached 20%.",
     dialogSamakan: "Use for all",
+    tfJudul: "Transfer destination",
+    tfNama: "Recipient name", tfJenis: "Held by",
+    tfBadan: "Company (PT)", tfPribadi: "Individual",
+    tfBank: "Bank", tfRekening: "Account number", tfCabang: "Branch",
+    tfCatatan:
+      "Whether the account is held by a company or an individual decides " +
+      "PPh 23 or PPh 21, so check it before submitting.",
+    untukSiapa: (nama: string, peran: string) => `${peran}: ${nama}`,
     dialogAjukan: "Submit",
     dialogBatal: "Cancel",
     dialogTutup: "Close",
@@ -197,7 +213,10 @@ type Fee = {
   missing_requirements: string[];
   missing_codes: string[];
   recipient: { id: string | null; name: string | null;
-               status: string | null; source: string; type: string | null };
+               status: string | null; source: string; type: string | null;
+               bank?: { holder_name: string | null; holder_type: string | null;
+                        bank_name: string | null; account_number: string | null;
+                        branch: string | null } | null };
   marketing_missing: boolean; marketing_inactive: boolean;
   claimable: boolean;
   claim: { id: string; claim_number: string; status: string;
@@ -244,6 +263,27 @@ export default function PengajuanFeePage() {
   const [siapkan, setSiapkan] =
     useState<{ unit: Unit; jenis: Jenis[] } | null>(null);
   const [penjelasan, setPenjelasan] = useState<Record<string, string>>({});
+  /**
+   * Tujuan transfer per fee, bukan satu untuk seluruh unit.
+   *
+   * Overriding dibayarkan kepada tingkat di atas yang menjual — orang lain,
+   * dengan rekening lain. Satu isian untuk seluruh unit akan mengirim
+   * Overriding ke rekening Sales-nya.
+   */
+  const [transfer, setTransfer] = useState<Record<string, any>>({});
+
+  /** Isian awal tujuan transfer: rekening penerima yang sudah tercatat. */
+  const bawaanTransfer = (u: Unit, daftar: Jenis[]) =>
+    Object.fromEntries(daftar.map((slug) => {
+      const b = u.fees[slug]?.recipient?.bank;
+      return [slug, {
+        holder_name: b?.holder_name ?? u.fees[slug]?.recipient?.name ?? "",
+        bank_name: b?.bank_name ?? "",
+        account_number: b?.account_number ?? "",
+        branch: b?.branch ?? "",
+        holder_type: b?.holder_type === "company" ? "company" : "individual",
+      }];
+    }));
 
   const toggle = (unitId: string, jenis: Jenis) =>
     setPilih((lama) => {
@@ -289,7 +329,8 @@ export default function PengajuanFeePage() {
    * anti-duplikat saling berlomba.
    */
   const ajukan = async (u: Unit, jenisTerpilih: Jenis[],
-                        catatan: Record<string, string>) => {
+                        catatan: Record<string, string>,
+                        tujuan: Record<string, any>) => {
     if (!jenisTerpilih.length) return;
 
     const jendela = window.open("", "_blank");
@@ -317,6 +358,7 @@ export default function PengajuanFeePage() {
             overriding_level: slug === "overriding"
               ? "sales_manager_inhouse" : null,
             notes: (catatan[slug] ?? "").trim() || null,
+            transfer: tujuan[slug] ?? null,
           }),
         });
         if (res.status === 401) { location.href = "/login"; return; }
@@ -343,6 +385,7 @@ export default function PengajuanFeePage() {
       });
       setSiapkan(null);
       setPenjelasan({});
+      setTransfer({});
       await muat();
     } catch (e: any) {
       jendela?.close();
@@ -535,9 +578,10 @@ export default function PengajuanFeePage() {
                                   disabled={!terpilihPada(u.id).length ||
                                             mengajukan !== null}
                                   onClick={() => {
+                                    const daftar = terpilihPada(u.id);
                                     setPenjelasan({});
-                                    setSiapkan({ unit: u,
-                                                 jenis: terpilihPada(u.id) });
+                                    setTransfer(bawaanTransfer(u, daftar));
+                                    setSiapkan({ unit: u, jenis: daftar });
                                   }}>
                             {mengajukan === u.id ? k.mengajukan
                               : terpilihPada(u.id).length
@@ -642,38 +686,91 @@ export default function PengajuanFeePage() {
                 {k.dialogPengantar}
               </p>
 
-              {siapkan.jenis.map((slug, i) => (
-                <div key={slug} style={{ marginBottom: 12 }}>
-                  <div className="lbl">
-                    {k.dialogNama} — {namaJenis(slug, bahasa)}
+              {siapkan.jenis.map((slug, i) => {
+                const pen = siapkan.unit.fees[slug]?.recipient;
+                const tf = transfer[slug] ?? {};
+                const ubah = (kolom: string, nilai: string) =>
+                  setTransfer({ ...transfer,
+                                [slug]: { ...tf, [kolom]: nilai } });
+                return (
+                  <div key={slug} className="blok-fee">
+                    <h4>
+                      {namaJenis(slug, bahasa)}
+                      {pen?.name && (
+                        <span className="pill">
+                          {k.untukSiapa(pen.name, pen.source)}
+                        </span>
+                      )}
+                    </h4>
+
+                    <div className="lbl">{k.dialogNama}</div>
+                    <textarea value={penjelasan[slug] ?? ""}
+                              placeholder={k.dialogContoh}
+                              style={{ width: "100%", minHeight: 52 }}
+                              onChange={(e) => setPenjelasan(
+                                { ...penjelasan, [slug]: e.target.value })} />
+                    {/* Menyalin penjelasan pertama ke sisanya. Keempatnya
+                        sering sama persis, dan mengetiknya empat kali membuat
+                        orang menyingkatnya sampai tidak lagi menjelaskan apa
+                        pun. Tujuan transfer sengaja tidak ikut disalin:
+                        penerimanya memang berbeda orang. */}
+                    {i === 0 && siapkan.jenis.length > 1 && (
+                      <button style={{ marginTop: 6, padding: "2px 8px" }}
+                              disabled={!(penjelasan[slug] ?? "").trim()}
+                              onClick={() => setPenjelasan(
+                                Object.fromEntries(siapkan.jenis.map(
+                                  (j) => [j, penjelasan[slug] ?? ""])))}>
+                        {k.dialogSamakan}
+                      </button>
+                    )}
+
+                    <div className="lbl" style={{ marginTop: 12 }}>
+                      {k.tfJudul}
+                    </div>
+                    <div className="filters rapat">
+                      <div>
+                        <div className="lbl">{k.tfNama}</div>
+                        <input value={tf.holder_name ?? ""}
+                               onChange={(e) => ubah("holder_name", e.target.value)} />
+                      </div>
+                      <div>
+                        <div className="lbl">{k.tfJenis}</div>
+                        <select value={tf.holder_type ?? "individual"}
+                                onChange={(e) => ubah("holder_type", e.target.value)}>
+                          <option value="company">{k.tfBadan}</option>
+                          <option value="individual">{k.tfPribadi}</option>
+                        </select>
+                      </div>
+                      <div>
+                        <div className="lbl">{k.tfBank}</div>
+                        <input value={tf.bank_name ?? ""}
+                               onChange={(e) => ubah("bank_name", e.target.value)} />
+                      </div>
+                      <div>
+                        <div className="lbl">{k.tfRekening}</div>
+                        <input value={tf.account_number ?? ""} inputMode="numeric"
+                               onChange={(e) => ubah("account_number", e.target.value)} />
+                      </div>
+                      <div>
+                        <div className="lbl">{k.tfCabang}</div>
+                        <input value={tf.branch ?? ""}
+                               onChange={(e) => ubah("branch", e.target.value)} />
+                      </div>
+                    </div>
                   </div>
-                  <textarea value={penjelasan[slug] ?? ""}
-                            placeholder={k.dialogContoh}
-                            style={{ width: "100%", minHeight: 52 }}
-                            onChange={(e) => setPenjelasan(
-                              { ...penjelasan, [slug]: e.target.value })} />
-                  {/* Menyalin isian pertama ke sisanya. Keempat penjelasan
-                      sering sama persis, dan mengetiknya empat kali membuat
-                      orang menyingkatnya sampai tidak lagi menjelaskan apa
-                      pun. */}
-                  {i === 0 && siapkan.jenis.length > 1 && (
-                    <button style={{ marginTop: 6, padding: "2px 8px" }}
-                            disabled={!(penjelasan[slug] ?? "").trim()}
-                            onClick={() => setPenjelasan(
-                              Object.fromEntries(siapkan.jenis.map(
-                                (j) => [j, penjelasan[slug] ?? ""])))}>
-                      {k.dialogSamakan}
-                    </button>
-                  )}
-                </div>
-              ))}
+                );
+              })}
+
+              <p className="hint" style={{ textAlign: "left" }}>
+                {k.tfCatatan}
+              </p>
             </div>
 
             <div className="popup-kaki">
               <div className="row">
                 <button className="pri" disabled={Boolean(mengajukan)}
                         onClick={() => void ajukan(siapkan.unit, siapkan.jenis,
-                                                   penjelasan)}>
+                                                   penjelasan, transfer)}>
                   {mengajukan ? k.mengajukan : k.dialogAjukan}
                 </button>
                 <button disabled={Boolean(mengajukan)}
