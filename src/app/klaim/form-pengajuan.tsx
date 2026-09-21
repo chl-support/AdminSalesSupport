@@ -64,7 +64,6 @@ export function FormPengajuan(
   const ttd = !sumber ? null
     : sumber.startsWith("data:") ? sumber
     : `data:image/png;base64,${sumber}`;
-  const ttdTgl = ttdPemohon ? null : klaim.signed_display_at;
 
   return (
     <div className="cetak">
@@ -244,10 +243,7 @@ export function FormPengajuan(
             {/* Keterangan di bawah kotak ditulis tetap "Konsumen", bukan nama
                 penandatangannya. Namanya sendiri tetap tersimpan pada klaim —
                 yang berubah hanya apa yang tercetak di bawah garis. */}
-            <span>
-              Konsumen
-              {ttd && ttdTgl ? <><br />{tgl(ttdTgl)}</> : null}
-            </span>
+            <span>Konsumen</span>
           </div>
 
           <div className="sah-kanan">
