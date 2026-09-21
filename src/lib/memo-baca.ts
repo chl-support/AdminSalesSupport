@@ -350,22 +350,34 @@ export function tebakDariNama(namaBerkas: string): Tebakan {
   if (!nama) return {};
   const t: Tebakan = {};
 
-  const [kepala, ...sisa] = nama.split("_");
-  const bagian = kepala.split("-").filter(Boolean);
-  const iRomawi = bagian.findIndex((b) => ROMAWI[b.toLowerCase()] !== undefined);
-  const iTahun = bagian.findIndex((b) => /^(19|20)\d{2}$/.test(b));
+  // Nomor dikenali dari ekornya — angka Romawi lalu tahun — bukan dari
+  // pemisahnya.
+  //
+  // Pemisah antara nomor dan perihal berbeda-beda: berkas yang ditulis
+  // langsung memakai spasi, yang pernah melewati jalur unggahan memakai garis
+  // bawah, dan keduanya bercampur di satu map yang sama. Mencocokkan pemisah
+  // berarti separuh berkas tidak terbaca hanya karena cara namanya diketik.
+  //
+  // Bagian sebelum angka Romawi diambil sependek mungkin, supaya perihal yang
+  // kebetulan memuat tahun — "… Jan - Mar 2026" — tidak ikut tertelan.
+  const m = /^(.*?)[-_\s]+([ivx]{1,4})[-_\s]+((?:19|20)\d{2})(?:[-_\s]+(.*))?$/i
+    .exec(nama);
 
-  // Nomor disusun ulang ke bentuk aslinya: garis miring yang tidak boleh ada
-  // pada nama berkas dikembalikan ke tempatnya.
-  if (iRomawi > 0 && iTahun === iRomawi + 1 && bagian.length >= 4) {
-    const urut = bagian[0];
-    const kode = bagian.slice(1, iRomawi).join("-");
-    if (/^\d+$/.test(urut) && kode) {
-      t.nomor = `${urut}/${kode}/${bagian[iRomawi].toUpperCase()}/${bagian[iTahun]}`;
+  let perihal = nama;
+  if (m && ROMAWI[m[2].toLowerCase()] !== undefined) {
+    const depan = m[1].split(/[-_\s]+/).filter(Boolean);
+    const urut = depan[0];
+    const kode = depan.slice(1).join("-");
+    // Garis miring yang tidak boleh ada pada nama berkas dikembalikan ke
+    // tempatnya.
+    if (urut && /^\d+$/.test(urut) && kode) {
+      t.nomor = `${urut}/${kode}/${m[2].toUpperCase()}/${m[3]}`;
+      perihal = m[4] ?? "";
     }
   }
 
-  const judul = sisa.join(" ").replace(/\s*-\s*/g, " – ").replace(/\s+/g, " ").trim();
+  const judul = perihal.replace(/[_]+/g, " ")
+    .replace(/\s*-\s*/g, " – ").replace(/\s+/g, " ").trim();
   if (judul.length > 3) t.judul = judul;
 
   const rentang = rentangBulan(judul);
