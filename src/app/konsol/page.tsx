@@ -30,7 +30,7 @@ const NEXT_HANDOFF: Record<string, string> = {
  */
 const KATA = {
   id: {
-    judul: "Konsol Klaim Insentif",
+    judul: "Approval / Persetujuan",
     pengantar:
       "Pengajuan Yang Sedang Dalam Proses Verifikasi Dan Persetujuan Oleh " +
       "Pihak Terkait Sebelum Dapat Dilanjutkan Ke Proses Berikutnya.",
@@ -115,7 +115,7 @@ const KATA = {
     semuaDikonfirmasi: "Semua instruksi sudah dikonfirmasi tanggalnya.",
   },
   en: {
-    judul: "Incentive Claim Console",
+    judul: "Approval Status",
     pengantar:
       "Submissions undergoing verification and approval by the parties " +
       "concerned",
