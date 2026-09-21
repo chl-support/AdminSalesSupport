@@ -71,8 +71,10 @@ const KATA = {
     l4: "Menandatangani pada kolom Pemohon, lalu mengirim.",
     sesudah: "Sesudah itu dokumennya tersegel: nilainya tidak dapat diubah " +
              "lagi tanpa membatalkan tanda tangannya.",
-    layarContoh: "Layar itu hanya terbuka dengan tautan yang berlaku. " +
-                 "Terbitkan tautan di atas untuk membukanya.",
+    layarContoh: "Yang terbuka adalah layar contoh: isinya karangan, tidak " +
+                 "ada yang tersimpan, dan kode apa pun diterima. Terbitkan " +
+                 "tautan di atas untuk membuka klaim yang sungguhan.",
+    bukaContoh: "Buka layar contoh Sales/Agent",
     galat: "Tautan tidak dapat diterbitkan",
     hpKosong: "Data penerima belum mencantumkan nomor HP.",
     waKe: "WhatsApp ke",
@@ -109,8 +111,10 @@ const KATA = {
     l4: "Sign in the applicant box, then send.",
     sesudah: "After that the document is sealed: its amounts cannot change " +
              "without voiding the signature.",
-    layarContoh: "That screen only opens with a valid link. Issue one above " +
-                 "to open it.",
+    layarContoh: "What opens is a sample screen: made-up contents, nothing " +
+                 "stored, any code accepted. Issue a link above to open a " +
+                 "real claim.",
+    bukaContoh: "Open the sample Sales/Agent screen",
     galat: "The link could not be issued",
     hpKosong: "The recipient has no phone number on record.",
     waKe: "WhatsApp to",
@@ -178,8 +182,11 @@ export default function ContohPage() {
     ? terbit.message
     : `Dokumen klaim ${CONTOH.klaim} siap ditandatangani. Buka tautan ` +
       "berikut dan masukkan kode yang kami kirim.";
-  const tautanTampil = terbit ? alamat
-    : `${typeof window !== "undefined" ? window.location.origin : ""}/sign/contoh`;
+  // Tautan contohnya benar-benar dapat dibuka — /sign/contoh menampilkan layar
+  // Sales/Agent dengan klaim karangan. Tautan yang tampak seperti tautan tetapi
+  // menolak dibuka adalah yang membuat orang mengira sistemnya rusak.
+  const asal = typeof window !== "undefined" ? window.location.origin : "";
+  const tautanTampil = terbit ? alamat : `${asal}/sign/contoh`;
   const kode = terbit ? terbit.otp_demo : CONTOH.kode;
 
   return (
@@ -243,7 +250,7 @@ export default function ContohPage() {
             <div className="wa-isi">
               <div className="wa-balon">
                 {pesan}
-                <a className="wa-tautan" href={terbit ? alamat : undefined}
+                <a className="wa-tautan" href={terbit ? alamat : "/sign/contoh"}
                    target="_blank" rel="noreferrer">{tautanTampil}</a>
                 <span className="wa-jam">09:41 ✓✓</span>
               </div>
@@ -289,7 +296,13 @@ export default function ContohPage() {
                  target="_blank" rel="noreferrer">{k.bukaLayar}</a>
             </div>
           ) : (
-            <p className="hint" style={{ textAlign: "left" }}>{k.layarContoh}</p>
+            <>
+              <div className="row" style={{ marginBottom: 6 }}>
+                <a className="tombol-klaim kecil" href="/sign/contoh"
+                   target="_blank" rel="noreferrer">{k.bukaContoh}</a>
+              </div>
+              <p className="hint" style={{ textAlign: "left" }}>{k.layarContoh}</p>
+            </>
           )}
         </div>
       </div>
