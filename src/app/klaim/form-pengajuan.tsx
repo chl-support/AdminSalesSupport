@@ -42,7 +42,6 @@ export function FormPengajuan(
   // Nama PT mengikuti project klaimnya, bukan tulisan tetap: beberapa project
   // berjalan di pemasangan yang sama dan tidak semuanya di bawah PT yang sama.
   const pt = klaim.project?.company_name ?? "PT. Serpong Bangun Lestari";
-  const s = klaim.snapshot ?? {};
   const dokumen = DOKUMEN[jenis] ?? [];
   // Hanya berkas yang benar-benar diunggah. Baris checklist tanpa berkas juga
   // tersimpan di tabel yang sama — itu centang syarat pengajuan, bukan lampiran,
@@ -75,10 +74,6 @@ export function FormPengajuan(
       </div>
 
       <h2 className="judul-form">FORM PENGAJUAN {nama.toUpperCase()}</h2>
-      <p className="nomor-form">
-        {klaim.claim_number} · status {klaim.status}
-        {klaim.created_at ? ` · dibuat ${tgl(klaim.created_at)}` : ""}
-      </p>
 
       <div className="form-blok">
         <h3>INFORMASI DATA MARKETING</h3>
@@ -153,24 +148,6 @@ export function FormPengajuan(
           )}
         </tbody></table>
 
-        {/* Dasar perhitungan ikut tercetak: angka tanpa rujukan memonya tidak
-            dapat diperiksa ulang oleh siapa pun yang menandatanganinya. */}
-        {(s.scheme_memo || s.withholding_basis) && (
-          <p className="dasar">
-            {s.scheme_memo && (
-              <>Dasar: memo {String(s.scheme_memo)},{" "}
-                {s.flat_amount
-                  ? `${rp(Number(s.flat_amount))} per unit` +
-                    (s.flat_amount_is_net ? " (exclude PPh — nilai bersih)" : "")
-                  : `tarif ${(Number(s.percentage ?? 0) * 100).toFixed(3)}%` +
-                    (s.tier_unit_count
-                      ? ` (jenjang dari ${s.tier_unit_count} unit pada bulan kontrak)`
-                      : "")}.{" "}
-              </>
-            )}
-            {s.withholding_basis && <>Jenis PPh: {String(s.withholding_basis)}.</>}
-          </p>
-        )}
       </div>
 
       <div className="form-blok">
@@ -191,13 +168,6 @@ export function FormPengajuan(
               <li key={d}><span className="kotak">✓</span> {i + 1}. {d}</li>
             ))}
           </ul>
-          {/* Sistem tidak menyimpan centang per dokumen; yang dapat dipastikan
-              adalah pengajuan lewat konsol tidak mungkin lolos tanpa seluruhnya
-              dicentang. Itu yang dinyatakan, bukan lebih. */}
-          <p className="hint" style={{ textAlign: "left" }}>
-            Pengajuan lewat konsol tidak dapat dikirim sebelum seluruh dokumen di
-            atas dicentang pemohonnya.
-          </p>
         </div>
       )}
 
@@ -228,14 +198,6 @@ export function FormPengajuan(
               )}
               <tr><td>Kantor Cabang</td><td>{bank.branch ?? "—"}</td></tr>
             </tbody></table>
-            {/* Atas nama siapa rekeningnya menentukan PPh 21 atau PPh 23, jadi
-                tetap dicetak — tetapi di luar tabel, karena cetakan aslinya
-                hanya memuat empat baris di atas. */}
-            <p className="dasar">
-              Rekening atas nama{" "}
-              {bank.holder_type === "company"
-                ? "badan usaha (PT)" : "pribadi (perorangan)"}.
-            </p>
           </>
         ) : (
           <p className="hint" style={{ textAlign: "left" }}>
@@ -308,10 +270,6 @@ export function FormPengajuan(
         </div>
       )}
 
-      <p className="hint" style={{ textAlign: "left" }}>
-        Nilai pada dokumen ini diambil dari klaim yang tersimpan, bukan dihitung
-        ulang saat dibuka — angkanya tetap sama sekalipun memo skema berganti.
-      </p>
     </div>
   );
 }
