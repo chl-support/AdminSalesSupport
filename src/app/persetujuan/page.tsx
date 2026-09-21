@@ -19,7 +19,6 @@
  * tidak di layar lain.
  */
 
-import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
 import { useBahasa, useKata } from "../bahasa";
@@ -47,7 +46,6 @@ const KATA = {
     pratinjau: "Lihat pratinjau",
     kosong: "Belum ada pengajuan pada project ini.",
     memuat: "Memuat…",
-    keKonsol: "Buka di konsol",
   },
   en: {
     judul: "Approval Status",
@@ -65,7 +63,6 @@ const KATA = {
     pratinjau: "View preview",
     kosong: "No submissions on this project yet.",
     memuat: "Loading…",
-    keKonsol: "Open in console",
   },
 };
 
@@ -267,7 +264,7 @@ export default function PersetujuanPage() {
               <th>{k.thPph}</th>
               <th>{k.thBersih}</th>
               <th className="sel-keadaan">{k.thStatus}</th>
-              <th style={{ width: 190 }}>{k.thDokumen}</th>
+              <th style={{ width: 140 }}>{k.thDokumen}</th>
             </tr>
 
             {terlihat.map((c) => (
@@ -296,15 +293,10 @@ export default function PersetujuanPage() {
                     diperiksa dan dicetak, dan mencetaknya dari dalam layar ini
                     berarti ikut mencetak menu dan seluruh tabelnya. */}
                 <td>
-                  <div className="row" style={{ margin: 0, gap: 6 }}>
-                    <button onClick={() => window.open(
-                              `/klaim/pratinjau?ids=${c.id}`, "_blank")}>
-                      {k.pratinjau}
-                    </button>
-                    <Link className="tautan-klaim" href={`/konsol?klaim=${c.id}`}>
-                      {k.keKonsol}
-                    </Link>
-                  </div>
+                  <button onClick={() => window.open(
+                            `/klaim/pratinjau?ids=${c.id}`, "_blank")}>
+                    {k.pratinjau}
+                  </button>
                 </td>
               </tr>
             ))}
