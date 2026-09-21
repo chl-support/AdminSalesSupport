@@ -208,6 +208,10 @@ ul.kurang {
 /* Centang dokumen pada pratinjau: kotak dan namanya satu sasaran tekan. */
 .ceklis-pilih { display: inline-flex; align-items: center; gap: 7px; cursor: pointer; }
 .ceklis-pilih input { width: auto; margin: 0; cursor: pointer; }
+
+/* Tautan yang sudah terbit, di dalam sel tabelnya. */
+.tautan-terbit { font-size: 11.5px; line-height: 1.5; }
+.tautan-terbit .hint { margin: 2px 0 0; font-size: 10.5px; }
 td.sel-fee, th.sel-fee { width: 175px; }
 td.sel-ket, th.sel-ket { width: 195px; }
 /* Tombolnya tidak dipatahkan menjadi dua baris: "Catat dokumen" yang terbelah
