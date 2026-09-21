@@ -71,6 +71,9 @@ const KATA = {
       `pembacaan gambar tidak selalu tepat — periksa sebelum menyimpan.`,
     ocrKosong:
       "Tulisan pada pindaian ini tidak terbaca. Kolom sisanya diisi manual.",
+    dariMemoLalu: (n: number, nomor: string) =>
+      ` ${n} kolom lagi disalin dari memo sebelumnya (${nomor}) — bukan ` +
+      `dibaca dari berkas ini. Ubah bila memang berbeda.`,
     terbacaIsi: (n: number) =>
       `${n} kolom terisi dari isi memo. Periksa sebelum menyimpan.`,
     terbacaNama: (n: number) =>
@@ -140,6 +143,9 @@ const KATA = {
     ocrKosong:
       "No text could be read from this scan. The remaining fields are filled " +
       "by hand.",
+    dariMemoLalu: (n: number, nomor: string) =>
+      ` ${n} more fields were copied from the previous memo (${nomor}) — not ` +
+      `read from this file. Change them if they differ.`,
     terbacaIsi: (n: number) =>
       `${n} fields filled from the memo's contents. Check before saving.`,
     terbacaNama: (n: number) =>
@@ -366,26 +372,30 @@ export default function MemoPage() {
       n += +isi("diketahui_oleh", kolom.diketahui_oleh, diketahui, setDiketahui);
       n += +isi("disetujui_oleh", kolom.disetujui_oleh, disetujui, setDisetujui);
 
-      if (b.sumber === "isi") {
-        setKabar(k.terbacaIsi(n));
-        return;
+      // Memo berteks sudah memberikan seluruh kolomnya; OCR pada berkas yang
+      // hurufnya sudah terbaca hanya membuang sepuluh detik. Penyalinan dari
+      // memo sebelumnya tetap dijalankan di bawah, untuk kolom yang memang
+      // tidak disebut memonya.
+      const berteks = b.sumber === "isi";
+      let m = 0;
+      let teks = "";
+
+      if (!berteks) {
+        // Berkasnya pindaian: nama berkas sudah memberi nomor, perihal, dan
+        // periodenya, tetapi kolom sisanya hanya ada di dalam lembar memonya.
+        // Tulisannya dibaca di sini, di peramban — lihat ./ocr.
+        setKabar(b.sumber === "nama" ? k.terbacaNama(n) : k.takTerbaca);
+        teks = await bacaPindaian(f, (m: Kemajuan) => {
+          if (m.tahap === "menyiapkan") setKemajuan(k.ocrSiap);
+          else if (m.tahap === "menggambar")
+            setKemajuan(k.ocrGambar(m.halaman ?? 1, m.dari ?? 1));
+          else if (m.tahap === "membaca")
+            setKemajuan(k.ocrBaca(m.persen ?? 0));
+          else setKemajuan(null);
+        });
       }
 
-      // Berkasnya pindaian: nama berkas sudah memberi nomor, perihal, dan
-      // periodenya, tetapi delapan kolom sisanya hanya ada di dalam lembar
-      // memonya. Tulisannya dibaca di sini, di peramban — lihat ./ocr.
-      setKabar(b.sumber === "nama" ? k.terbacaNama(n) : k.takTerbaca);
-      const teks = await bacaPindaian(f, (m: Kemajuan) => {
-        if (m.tahap === "menyiapkan") setKemajuan(k.ocrSiap);
-        else if (m.tahap === "menggambar")
-          setKemajuan(k.ocrGambar(m.halaman ?? 1, m.dari ?? 1));
-        else if (m.tahap === "membaca")
-          setKemajuan(k.ocrBaca(m.persen ?? 0));
-        else setKemajuan(null);
-      });
-
       const dariGambar = tebakKolom(teks);
-      let m = 0;
       m += +isi("judul", dariGambar.judul, judul, setJudul);
       m += +isi("nomor", dariGambar.nomor, nomor, setNomor);
       m += +isi("tanggal_memo", dariGambar.tanggal_memo, tanggalMemo, setTanggalMemo);
@@ -399,7 +409,38 @@ export default function MemoPage() {
       m += +isi("diketahui_oleh", dariGambar.diketahui_oleh, diketahui, setDiketahui);
       m += +isi("disetujui_oleh", dariGambar.disetujui_oleh, disetujui, setDisetujui);
 
-      setKabar(m ? k.ocrHasil(m) : k.ocrKosong);
+      // Yang tetap kosong disalin dari memo terakhir project ini.
+      //
+      // Nama pengaju, yang mengetahui, dan yang menyetujui berulang dari memo
+      // ke memo, begitu pula nilai skema dan daftar dokumen pendukungnya —
+      // dan pada memo sebelumnya ketiganya sudah pernah diketik benar oleh
+      // orang. Menyalinnya bukan menebak: sumbernya data yang sudah
+      // dikonfirmasi manusia, bukan gambar yang ditafsirkan mesin.
+      //
+      // Yang disalin hanya kolom yang memang berulang. Nomor, judul, tanggal,
+      // dan periode justru khas tiap memo; menyalinnya berarti memo baru
+      // menyandang nomor memo lama.
+      const lalu = daftar[0];
+      let q = 0;
+      if (lalu) {
+        q += +isi("dari", lalu.dari ?? undefined, dariSiapa, setDariSiapa);
+        q += +isi("kepada", lalu.kepada ?? undefined, kepada, setKepada);
+        q += +isi("nilai_skema", lalu.nilai_skema ?? undefined, nilai, setNilai);
+        q += +isi("dokumen_wajib", lalu.dokumen_wajib ?? undefined, dokumen,
+                  setDokumen);
+        q += +isi("diajukan_oleh", lalu.diajukan_oleh ?? undefined, diajukan,
+                  setDiajukan);
+        q += +isi("diketahui_oleh", lalu.diketahui_oleh ?? undefined, diketahui,
+                  setDiketahui);
+        q += +isi("disetujui_oleh", lalu.disetujui_oleh ?? undefined, disetujui,
+                  setDisetujui);
+      }
+
+      const pokok = berteks ? k.terbacaIsi(n)
+                            : (m ? k.ocrHasil(m) : k.ocrKosong);
+      setKabar(q
+        ? pokok + k.dariMemoLalu(q, lalu!.nomor ?? lalu!.judul)
+        : pokok);
     } catch (e: any) {
       setGalat(String(e?.message ?? e));
     } finally { setMembaca(false); setKemajuan(null); }
