@@ -24,8 +24,8 @@ const KATA = {
   id: {
     judul: "Memo Approval",
     pengantar:
-      "Memo Skema dan Persetujuan tersimpan sebagai dasar tertulis sesuai " +
-      "project terkait. Perhitungan tarif tetap mengacu pada Skema Insentif.",
+      "Dasar tertulis sesuai project terkait; tarif tetap mengacu Skema " +
+      "Insentif",
     galat: "Tidak dapat dikerjakan",
     unggahJudul: "UNGGAH MEMO",
     fJudul: "Judul", cJudul: "mis. Skema Komisi Triwulan I",
@@ -48,8 +48,8 @@ const KATA = {
   en: {
     judul: "Approval Memo",
     pengantar:
-      "Scheme and approval memos are stored as the written basis for the " +
-      "project concerned. Rate calculations still refer to the Incentive Scheme.",
+      "The written basis for the project concerned; rates still refer to the " +
+      "Incentive Scheme",
     galat: "Could not be completed",
     unggahJudul: "UPLOAD MEMO",
     fJudul: "Title", cJudul: "e.g. Commission Scheme Q1",
