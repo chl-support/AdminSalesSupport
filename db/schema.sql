@@ -751,4 +751,23 @@ CREATE TABLE IF NOT EXISTS memos (
 CREATE INDEX IF NOT EXISTS idx_memos_project
   ON memos(project_id, uploaded_at DESC);
 
+-- Kolom rekapitulasi memo.
+--
+-- Sebelumnya satu memo hanya dicatat judul, nomor, dan masa berlakunya —
+-- cukup untuk menemukan berkasnya, tidak cukup untuk dibaca sebagai
+-- rekapitulasi. Yang ditanyakan orang ketika membuka daftar ini bukan "mana
+-- berkasnya" melainkan "siapa mengajukan apa kepada siapa, dengan nilai
+-- berapa, dan siapa yang menyetujui".
+--
+-- Semuanya boleh kosong. Memo yang sudah terlanjur diunggah sebelum kolom ini
+-- ada tetap sah; yang kosong tampil sebagai tanda pisah, bukan sebagai galat.
+ALTER TABLE memos ADD COLUMN IF NOT EXISTS tanggal_memo   DATE;
+ALTER TABLE memos ADD COLUMN IF NOT EXISTS dari           TEXT;
+ALTER TABLE memos ADD COLUMN IF NOT EXISTS kepada         TEXT;
+ALTER TABLE memos ADD COLUMN IF NOT EXISTS nilai_skema    TEXT;
+ALTER TABLE memos ADD COLUMN IF NOT EXISTS dokumen_wajib  TEXT;
+ALTER TABLE memos ADD COLUMN IF NOT EXISTS diajukan_oleh  TEXT;
+ALTER TABLE memos ADD COLUMN IF NOT EXISTS diketahui_oleh TEXT;
+ALTER TABLE memos ADD COLUMN IF NOT EXISTS disetujui_oleh TEXT;
+
 COMMIT;

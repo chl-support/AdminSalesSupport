@@ -28,23 +28,63 @@ const JENIS_DITERIMA = [
   "application/msword",
 ];
 
+/**
+ * Kolom rekapitulasi dipastikan ada, sekali per proses.
+ *
+ * Alasannya sama dengan daftar project: kolom yang hanya ditambahkan lewat
+ * db/schema.sql baru sampai ke basis data ketika migrasi dijalankan ulang, dan
+ * setelah SETUP_SECRET dicabut — sebagaimana dianjurkan — tidak ada lagi jalan
+ * menjalankannya dari luar terminal. Satu deploy sudah cukup dengan cara ini.
+ *
+ * ADD COLUMN IF NOT EXISTS aman diulang: pemanggilan kedua tidak mengubah apa
+ * pun. Kegagalannya sengaja ditelan — bila basis datanya memang belum ada,
+ * galat yang terbaca sebaiknya galat aslinya, bukan galat ALTER TABLE.
+ */
+const KOLOM_REKAP = [
+  "tanggal_memo DATE", "dari TEXT", "kepada TEXT", "nilai_skema TEXT",
+  "dokumen_wajib TEXT", "diajukan_oleh TEXT", "diketahui_oleh TEXT",
+  "disetujui_oleh TEXT",
+];
+
+let sekali: Promise<void> | null = null;
+export function ensureKolomMemo(): Promise<void> {
+  sekali ??= (async () => {
+    for (const k of KOLOM_REKAP) {
+      await query(`ALTER TABLE memos ADD COLUMN IF NOT EXISTS ${k}`);
+    }
+  })().catch(() => { sekali = null; });
+  return sekali;
+}
+
 export async function daftarMemo(projectId: string) {
+  await ensureKolomMemo();
   return query(
     `SELECT id, nomor, judul, keterangan, berlaku_dari, berlaku_sampai,
+            tanggal_memo, dari, kepada, nilai_skema, dokumen_wajib,
+            diajukan_oleh, diketahui_oleh, disetujui_oleh,
             file_name, content_type, size_bytes, uploaded_by, uploaded_at
        FROM memos WHERE project_id = $1
-      ORDER BY COALESCE(berlaku_dari, uploaded_at::date) DESC, uploaded_at DESC`,
+      ORDER BY COALESCE(tanggal_memo, berlaku_dari, uploaded_at::date) DESC,
+               uploaded_at DESC`,
     [projectId]);
 }
 
+export type RekapMemo = {
+  tanggal_memo?: string | null; dari?: string | null; kepada?: string | null;
+  nilai_skema?: string | null; dokumen_wajib?: string | null;
+  diajukan_oleh?: string | null; diketahui_oleh?: string | null;
+  disetujui_oleh?: string | null;
+};
+
 export async function simpanMemo(
   projectId: string, aktor: string,
-  p: {
+  p: RekapMemo & {
     judul: string; nomor?: string | null; keterangan?: string | null;
     berlaku_dari?: string | null; berlaku_sampai?: string | null;
     file_name: string; content_type: string; buf: Buffer;
   },
 ) {
+  await ensureKolomMemo();
   const judul = String(p.judul ?? "").trim();
   if (!judul) {
     throw new WorkflowError("Judul memo wajib diisi.", "validation", 422);
@@ -64,12 +104,20 @@ export async function simpanMemo(
       "file_type_rejected", 415);
   }
 
+  const bersih = (v?: string | null) => (v?.trim() ? v.trim() : null);
+
   const m = await one<{ id: string }>(
     `INSERT INTO memos (project_id, nomor, judul, keterangan, berlaku_dari,
-       berlaku_sampai, file_name, content_type, size_bytes, content, uploaded_by)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id`,
-    [projectId, p.nomor?.trim() || null, judul, p.keterangan?.trim() || null,
+       berlaku_sampai, tanggal_memo, dari, kepada, nilai_skema, dokumen_wajib,
+       diajukan_oleh, diketahui_oleh, disetujui_oleh,
+       file_name, content_type, size_bytes, content, uploaded_by)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
+     RETURNING id`,
+    [projectId, bersih(p.nomor), judul, bersih(p.keterangan),
      p.berlaku_dari || null, p.berlaku_sampai || null,
+     p.tanggal_memo || null, bersih(p.dari), bersih(p.kepada),
+     bersih(p.nilai_skema), bersih(p.dokumen_wajib), bersih(p.diajukan_oleh),
+     bersih(p.diketahui_oleh), bersih(p.disetujui_oleh),
      p.file_name, tipe, p.buf.length, p.buf, aktor]);
 
   await audit({

@@ -16,7 +16,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import { useKata } from "../bahasa";
+import { useBahasa, useKata } from "../bahasa";
 import { Kerangka, MemeriksaSesi } from "../kerangka";
 import { useSesi } from "../session";
 
@@ -40,8 +40,24 @@ const KATA = {
       `Memo "${j}" dihapus. Judulnya tetap tercatat pada jejak audit.`,
     daftar: "Memo tersimpan",
     berkasN: (n: number) => `${n} berkas`,
-    kMemo: "Memo", kNomor: "Nomor", kBerlaku: "Masa berlaku",
-    kBerkas: "Berkas", kDiunggah: "Diunggah", kTindakan: "Tindakan",
+    fTanggal: "Tanggal memo",
+    fDariSiapa: "Pengajuan (Dari)", cDariSiapa: "mis. Ir. Hendry Sulaiman",
+    fKepada: "Kepada (Yth)",
+    cKepada: "mis. Bpk. Johannes Tanuwijaya, Bpk. Setia Iskandar & Bpk. Al Imron",
+    fNilai: "Nilai / Skema Fee",
+    cNilai: "mis. 2,5% dari harga sewa unit (setelah dikurangi biaya operasional)",
+    fDokumen: "Dokumen pendukung wajib",
+    cDokumen: "Satu baris satu dokumen — mis. Form Referensi / Kwitansi / " +
+              "Dokumen transaksi sewa",
+    fDiajukan: "Diajukan oleh", fDiketahui: "Diketahui oleh",
+    fDisetujui: "Disetujui oleh",
+    kNo: "No", kNomor: "Nomor Memo", kTanggal: "Tanggal Memo",
+    kDari: "Pengajuan (Dari)", kKepada: "Kepada (Yth)",
+    kPerihal: "Perihal / Program", kNilai: "Nilai / Skema Fee",
+    kPeriode: "Periode Program", kDokumen: "Dokumen Pendukung Wajib",
+    kPihak: "Diajukan / Diketahui / Disetujui Oleh",
+    kBerkas: "Berkas", kTindakan: "Tindakan",
+    lDiajukan: "Diajukan:", lDiketahui: "Diketahui:", lDisetujui: "Disetujui:",
     seterusnya: "seterusnya", hapus: "Hapus",
     kosong: "Belum ada memo pada project ini.",
   },
@@ -64,8 +80,23 @@ const KATA = {
       `Memo "${j}" deleted. Its title remains in the audit trail.`,
     daftar: "Stored memos",
     berkasN: (n: number) => `${n} files`,
-    kMemo: "Memo", kNomor: "Number", kBerlaku: "Validity",
-    kBerkas: "File", kDiunggah: "Uploaded", kTindakan: "Action",
+    fTanggal: "Memo date",
+    fDariSiapa: "Submitted by", cDariSiapa: "e.g. Ir. Hendry Sulaiman",
+    fKepada: "Addressed to",
+    cKepada: "e.g. Mr Johannes Tanuwijaya, Mr Setia Iskandar & Mr Al Imron",
+    fNilai: "Value / fee scheme",
+    cNilai: "e.g. 2.5% of the unit rent (net of operating costs)",
+    fDokumen: "Required supporting documents",
+    cDokumen: "One document per line — e.g. Referral form / Receipt / " +
+              "Lease transaction document",
+    fDiajukan: "Submitted by", fDiketahui: "Noted by", fDisetujui: "Approved by",
+    kNo: "No", kNomor: "Memo number", kTanggal: "Memo date",
+    kDari: "Submitted by", kKepada: "Addressed to",
+    kPerihal: "Subject / programme", kNilai: "Value / fee scheme",
+    kPeriode: "Programme period", kDokumen: "Required supporting documents",
+    kPihak: "Submitted / noted / approved by",
+    kBerkas: "File", kTindakan: "Action",
+    lDiajukan: "Submitted:", lDiketahui: "Noted:", lDisetujui: "Approved:",
     seterusnya: "onwards", hapus: "Delete",
     kosong: "No memos on this project yet.",
   },
@@ -74,6 +105,10 @@ const KATA = {
 type Memo = {
   id: string; nomor: string | null; judul: string; keterangan: string | null;
   berlaku_dari: string | null; berlaku_sampai: string | null;
+  tanggal_memo: string | null; dari: string | null; kepada: string | null;
+  nilai_skema: string | null; dokumen_wajib: string | null;
+  diajukan_oleh: string | null; diketahui_oleh: string | null;
+  disetujui_oleh: string | null;
   file_name: string; content_type: string; size_bytes: number;
   uploaded_by: string; uploaded_at: string;
 };
@@ -81,9 +116,52 @@ type Memo = {
 const tgl = (v?: string | null) => (v ? String(v).slice(0, 10) : "—");
 const kb = (n: number) => `${Math.max(1, Math.round(n / 1024))} KB`;
 
+const BULAN = {
+  id: ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli",
+       "Agustus", "September", "Oktober", "November", "Desember"],
+  en: ["January", "February", "March", "April", "May", "June", "July",
+       "August", "September", "October", "November", "December"],
+};
+
+/** "30 Juli 2026" — bukan "2026-07-30". Rekapitulasi ini dibaca orang, bukan
+ *  mesin, dan tanggal berformat mesin memaksa pembacanya menerjemahkan. */
+function tglPanjang(v: string | null, b: "id" | "en") {
+  if (!v) return null;
+  const [y, m, d] = String(v).slice(0, 10).split("-").map(Number);
+  if (!y || !m || !d) return null;
+  return b === "id" ? `${d} ${BULAN.id[m - 1]} ${y}`
+                    : `${d} ${BULAN.en[m - 1]} ${y}`;
+}
+
+/**
+ * "Agustus s.d. Desember 2026" — tahunnya ditulis sekali bila sama.
+ *
+ * Periode program dibaca sebagai rentang bulan, bukan sebagai dua tanggal.
+ * Tanggal awal dan akhir yang persis jarang menjadi pertanyaan; yang
+ * ditanyakan "berlaku bulan apa sampai bulan apa".
+ */
+function periode(dari: string | null, sampai: string | null, b: "id" | "en",
+                 seterusnya: string) {
+  if (!dari && !sampai) return null;
+  const pecah = (v: string | null) => {
+    if (!v) return null;
+    const [y, m] = String(v).slice(0, 10).split("-").map(Number);
+    return y && m ? { y, nama: BULAN[b][m - 1] } : null;
+  };
+  const a = pecah(dari), z = pecah(sampai);
+  const sd = b === "id" ? "s.d." : "to";
+  if (a && z) {
+    return a.y === z.y ? `${a.nama} ${sd} ${z.nama} ${z.y}`
+                       : `${a.nama} ${a.y} ${sd} ${z.nama} ${z.y}`;
+  }
+  if (a) return `${a.nama} ${a.y} ${sd} ${seterusnya}`;
+  return `${sd} ${z!.nama} ${z!.y}`;
+}
+
 export default function MemoPage() {
   const { sesi, memuat } = useSesi();
   const k = useKata(KATA);
+  const { bahasa } = useBahasa();
   const [daftar, setDaftar] = useState<Memo[]>([]);
   const [busy, setBusy] = useState(false);
   const [galat, setGalat] = useState<string | null>(null);
@@ -95,6 +173,14 @@ export default function MemoPage() {
   const [keterangan, setKeterangan] = useState("");
   const [dari, setDari] = useState("");
   const [sampai, setSampai] = useState("");
+  const [tanggalMemo, setTanggalMemo] = useState("");
+  const [dariSiapa, setDariSiapa] = useState("");
+  const [kepada, setKepada] = useState("");
+  const [nilai, setNilai] = useState("");
+  const [dokumen, setDokumen] = useState("");
+  const [diajukan, setDiajukan] = useState("");
+  const [diketahui, setDiketahui] = useState("");
+  const [disetujui, setDisetujui] = useState("");
 
   const muat = useCallback(async () => {
     try {
@@ -122,13 +208,23 @@ export default function MemoPage() {
       fd.append("keterangan", keterangan);
       fd.append("berlaku_dari", dari);
       fd.append("berlaku_sampai", sampai);
+      fd.append("tanggal_memo", tanggalMemo);
+      fd.append("dari", dariSiapa);
+      fd.append("kepada", kepada);
+      fd.append("nilai_skema", nilai);
+      fd.append("dokumen_wajib", dokumen);
+      fd.append("diajukan_oleh", diajukan);
+      fd.append("diketahui_oleh", diketahui);
+      fd.append("disetujui_oleh", disetujui);
       const res = await fetch("/api/memos", { method: "POST", body: fd });
       if (res.status === 401) { location.href = "/login"; return; }
       const b = await res.json().catch(() => ({}));
       if (!res.ok) { setGalat(b.detail ?? `HTTP ${res.status}`); return; }
       setKabar(k.tersimpan(b.judul));
       setBerkas(null); setJudul(""); setNomor(""); setKeterangan("");
-      setDari(""); setSampai("");
+      setDari(""); setSampai(""); setTanggalMemo(""); setDariSiapa("");
+      setKepada(""); setNilai(""); setDokumen(""); setDiajukan("");
+      setDiketahui(""); setDisetujui("");
       await muat();
     } catch (e: any) {
       setGalat(String(e?.message ?? e));
@@ -181,6 +277,11 @@ export default function MemoPage() {
                      onChange={(e) => setNomor(e.target.value)} />
             </div>
             <div>
+              <div className="lbl">{k.fTanggal}</div>
+              <input type="date" value={tanggalMemo}
+                     onChange={(e) => setTanggalMemo(e.target.value)} />
+            </div>
+            <div>
               <div className="lbl">{k.fDari}</div>
               <input type="date" value={dari}
                      onChange={(e) => setDari(e.target.value)} />
@@ -191,6 +292,51 @@ export default function MemoPage() {
                      onChange={(e) => setSampai(e.target.value)} />
             </div>
           </div>
+
+          {/* Pihak-pihaknya. Tiga baris terpisah, bukan satu kolom bebas:
+              rekapitulasinya membedakan yang mengajukan, yang mengetahui, dan
+              yang menyetujui — dan perbedaan itu yang ditanyakan orang ketika
+              sebuah angka dipersoalkan. */}
+          <div className="filters" style={{ marginTop: 12 }}>
+            <div>
+              <div className="lbl">{k.fDariSiapa}</div>
+              <input value={dariSiapa} placeholder={k.cDariSiapa}
+                     onChange={(e) => setDariSiapa(e.target.value)} />
+            </div>
+            <div>
+              <div className="lbl">{k.fKepada}</div>
+              <input value={kepada} placeholder={k.cKepada}
+                     onChange={(e) => setKepada(e.target.value)} />
+            </div>
+            <div>
+              <div className="lbl">{k.fNilai}</div>
+              <input value={nilai} placeholder={k.cNilai}
+                     onChange={(e) => setNilai(e.target.value)} />
+            </div>
+          </div>
+
+          <div className="filters" style={{ marginTop: 12 }}>
+            <div>
+              <div className="lbl">{k.fDiajukan}</div>
+              <input value={diajukan}
+                     onChange={(e) => setDiajukan(e.target.value)} />
+            </div>
+            <div>
+              <div className="lbl">{k.fDiketahui}</div>
+              <input value={diketahui}
+                     onChange={(e) => setDiketahui(e.target.value)} />
+            </div>
+            <div>
+              <div className="lbl">{k.fDisetujui}</div>
+              <input value={disetujui}
+                     onChange={(e) => setDisetujui(e.target.value)} />
+            </div>
+          </div>
+
+          <div className="lbl" style={{ marginTop: 12 }}>{k.fDokumen}</div>
+          <textarea value={dokumen} style={{ width: "100%", minHeight: 54 }}
+                    placeholder={k.cDokumen}
+                    onChange={(e) => setDokumen(e.target.value)} />
 
           <div className="lbl" style={{ marginTop: 12 }}>{k.fKeterangan}</div>
           <textarea value={keterangan} style={{ width: "100%", minHeight: 54 }}
@@ -219,48 +365,66 @@ export default function MemoPage() {
           <span className="pill">{k.berkasN(daftar.length)}</span>
         </h2>
 
+        {/* Rekapitulasi ke samping, mengikuti bentuk cetakannya: satu memo
+            satu baris, sepuluh kolom. Lebarnya melampaui layar mana pun, jadi
+            ia digulir di dalam bidangnya sendiri — bukan memaksa seluruh
+            halaman ikut melebar. */}
         <div className="tscroll">
-          <table><tbody>
+          <table className="rekap-memo"><tbody>
             <tr>
-              <th>{k.kMemo}</th><th>{k.kNomor}</th><th>{k.kBerlaku}</th>
-              <th>{k.kBerkas}</th><th>{k.kDiunggah}</th>
-              {bolehHapus && <th style={{ width: 90 }}>{k.kTindakan}</th>}
+              <th>{k.kNo}</th><th>{k.kNomor}</th><th>{k.kTanggal}</th>
+              <th>{k.kDari}</th><th>{k.kKepada}</th><th>{k.kPerihal}</th>
+              <th>{k.kNilai}</th><th>{k.kPeriode}</th><th>{k.kDokumen}</th>
+              <th>{k.kPihak}</th><th>{k.kBerkas}</th>
+              {bolehHapus && <th>{k.kTindakan}</th>}
             </tr>
 
-            {daftar.map((m) => (
+            {daftar.map((m, i) => (
               <tr key={m.id}>
+                <td className="no">{i + 1}</td>
+                <td className="nomor">{m.nomor ?? "—"}</td>
+                <td>{tglPanjang(m.tanggal_memo, bahasa) ?? "—"}</td>
+                <td>{m.dari ?? "—"}</td>
+                <td>{m.kepada ?? "—"}</td>
                 <td>
-                  <b>{m.judul}</b>
-                  {m.keterangan && (
-                    <>
-                      <br />
-                      <span style={{ fontSize: 11, color: "var(--mut)" }}>
-                        {m.keterangan}
-                      </span>
-                    </>
-                  )}
+                  {m.judul}
+                  {m.keterangan && <span className="sisip">{m.keterangan}</span>}
                 </td>
-                <td>{m.nomor ?? "—"}</td>
+                <td>{m.nilai_skema ?? "—"}</td>
                 <td>
-                  {m.berlaku_dari || m.berlaku_sampai
-                    ? `${tgl(m.berlaku_dari)} — ${m.berlaku_sampai
-                        ? tgl(m.berlaku_sampai) : k.seterusnya}`
+                  {periode(m.berlaku_dari, m.berlaku_sampai, bahasa,
+                           k.seterusnya) ?? "—"}
+                </td>
+                <td>
+                  {/* Satu baris satu dokumen, dinomori saat ditampilkan —
+                      bukan saat diketik. Yang mengetik cukup menulis
+                      daftarnya; penomorannya urusan layar. */}
+                  {m.dokumen_wajib
+                    ? <ol className="dok">
+                        {m.dokumen_wajib.split("\n")
+                          .map((d) => d.trim()).filter(Boolean)
+                          .map((d, j) => <li key={j}>{d}</li>)}
+                      </ol>
+                    : "—"}
+                </td>
+                <td>
+                  {m.diajukan_oleh || m.diketahui_oleh || m.disetujui_oleh
+                    ? <div className="pihak">
+                        {m.diajukan_oleh && (
+                          <div><b>{k.lDiajukan}</b> {m.diajukan_oleh}</div>)}
+                        {m.diketahui_oleh && (
+                          <div><b>{k.lDiketahui}</b> {m.diketahui_oleh}</div>)}
+                        {m.disetujui_oleh && (
+                          <div><b>{k.lDisetujui}</b> {m.disetujui_oleh}</div>)}
+                      </div>
                     : "—"}
                 </td>
                 <td>
                   <a href={`/api/memos/${m.id}`} target="_blank" rel="noreferrer">
                     {m.file_name}
                   </a>
-                  <br />
-                  <span style={{ fontSize: 11, color: "var(--mut)" }}>
-                    {kb(m.size_bytes)}
-                  </span>
-                </td>
-                <td>
-                  {String(m.uploaded_at).slice(0, 10)}
-                  <br />
-                  <span style={{ fontSize: 11, color: "var(--mut)" }}>
-                    {m.uploaded_by}
+                  <span className="sisip">
+                    {kb(m.size_bytes)} · {tgl(m.uploaded_at)} · {m.uploaded_by}
                   </span>
                 </td>
                 {bolehHapus && (
@@ -275,7 +439,7 @@ export default function MemoPage() {
 
             {!daftar.length && (
               <tr>
-                <td colSpan={bolehHapus ? 6 : 5} style={{ color: "var(--mut)" }}>
+                <td colSpan={bolehHapus ? 12 : 11} style={{ color: "var(--mut)" }}>
                   {k.kosong}
                 </td>
               </tr>
