@@ -94,8 +94,11 @@ const KATA = {
     dapatDiklaim: (n: number) => `${n} dapat diklaim`,
     penjualan: (n: number) => `${n} penjualan`,
     galatBaca: "Data penjualan tidak dapat dibaca",
-    cari: "Cari (kode unit, pembeli, proyek, cluster)",
-    contohCari: "mis. BIOBA2",
+    cari: "Cari (Unit, Konsumen, Sales)",
+    // Contohnya diambil dari unit pertama project ini, bukan kode tetap.
+    // "mis. BIOBA2" pada project Naraya menyuruh orang mencari kode yang tidak
+    // akan pernah ada di sana.
+    contohCari: (kode: string) => `mis. ${kode}`,
     tampilkan: "Tampilkan",
     semuaPenjualan: "semua penjualan",
     yangBisa: "yang ada fee dapat diklaim",
@@ -153,8 +156,8 @@ const KATA = {
     dapatDiklaim: (n: number) => `${n} claimable`,
     penjualan: (n: number) => `${n} sales`,
     galatBaca: "Sales data could not be read",
-    cari: "Search (unit code, buyer, project, cluster)",
-    contohCari: "e.g. BIOBA2",
+    cari: "Search (Unit, Customer, Sales)",
+    contohCari: (kode: string) => `e.g. ${kode}`,
     tampilkan: "Show",
     semuaPenjualan: "all sales",
     yangBisa: "with a claimable fee",
@@ -399,8 +402,22 @@ export default function PengajuanFeePage() {
   const adaKlaim = (u: Unit) => JENIS.some((j) => u.fees[j.slug]?.claim);
   const adaBisa = (u: Unit) => JENIS.some((j) => u.fees[j.slug]?.claimable);
 
+  /**
+   * Contoh pada kotak cari: kode unit pertama pada project ini.
+   *
+   * Diambil dari datanya sendiri supaya tidak pernah menyebut kode dari
+   * project lain. Saat daftarnya masih kosong, kotaknya dibiarkan tanpa
+   * contoh — menebak bentuk kodenya berarti mengarang.
+   */
+  const contoh = units[0]?.code ?? "";
+
   const terlihat = units.filter((u) => {
-    if (q && ![u.code, u.buyer_name, u.project_name, u.cluster_code]
+    // Yang dicari sama dengan yang disebut judul kotaknya: unit, konsumen,
+    // dan nama Sales beserta koordinatornya. Menyaring diam-diam atas kolom
+    // yang tidak disebut membuat hasil pencarian tidak dapat dijelaskan.
+    if (q && ![u.code, u.buyer_name,
+               u.fees.closing_fee?.recipient?.name,
+               u.fees.overriding?.recipient?.name]
                 .some((v) => v?.toLowerCase().includes(q))) return false;
     if (saring === "bisa") return adaBisa(u);
     if (saring === "sudah") return adaKlaim(u);
@@ -438,7 +455,8 @@ export default function PengajuanFeePage() {
         <div className="filters">
           <div>
             <div className="lbl">{k.cari}</div>
-            <input value={cari} placeholder={k.contohCari}
+            <input value={cari}
+                   placeholder={contoh ? k.contohCari(contoh) : ""}
                    onChange={(e) => setCari(e.target.value)} />
           </div>
           <div>
