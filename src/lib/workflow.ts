@@ -415,7 +415,27 @@ export async function invalidateTaxVerification(
 export async function issueSignatureLink(
   claimId: string, actor: string, channel = "whatsapp",
 ) {
-  const claim = await getClaim(claimId);
+  let claim = await getClaim(claimId);
+
+  /**
+   * Tautan yang sudah pernah dikirim boleh diterbitkan ulang.
+   *
+   * Masa berlakunya pendek — bawaannya 30 menit — sehingga yang tidak sempat
+   * dibuka Sales/Agent pasti mati sebelum dipakai. Tanpa jalan menerbitkan
+   * ulang, klaimnya tertahan di 'signature_link_sent' tanpa ada yang dapat
+   * menggerakkannya.
+   *
+   * Dikembalikan dulu ke 'tax_verified' alih-alih melompati mesin status:
+   * perpindahannya ikut tercatat pada jejak audit, sehingga "tautan diterbitkan
+   * tiga kali" tetap terbaca oleh yang memeriksanya. Gerbang pajak di bawah
+   * tetap diperiksa sesudahnya — verifikasi yang sudah kedaluwarsa tetap
+   * mengembalikan klaimnya ke antrean Finance.
+   */
+  if (claim.status === "signature_link_sent") {
+    claim = await transition(claimId, "tax_verified", actor,
+                             "Tautan tanda tangan diterbitkan ulang.");
+  }
+
   if (claim.status !== "tax_verified") {
     throw new WorkflowError(
       `Klaim belum melewati verifikasi pajak (status saat ini '${claim.status}'). ` +
