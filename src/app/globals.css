@@ -176,12 +176,40 @@ ul.kurang {
    mengecil sendiri. Beda ukuran antar kolom membuat mata membacanya sebagai
    dua tingkat kepentingan, padahal semuanya sama-sama perlu dibaca. */
 .fee-nama { color: var(--sub); white-space: nowrap; }
-td.sel-fee, th.sel-fee { width: 160px; }
-td.sel-ket, th.sel-ket { width: 205px; }
+/* Kotak centang dan nama fee menjadi satu sasaran tekan: kotak sekecil 13px
+   yang berdiri sendiri meleset terus pada layar sentuh. */
+.fee-pilih { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+.fee-pilih input { width: auto; margin: 0; cursor: pointer; }
+.fee-pilih input:disabled { cursor: default; opacity: .4; }
+.fee-kaki { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line); }
+.fee-kaki button { width: 100%; }
+
+/* Satu blok per fee di dalam dialog pengajuan: penjelasan dan tujuan
+   transfernya berdampingan di bawah nama fee-nya, supaya tidak tertukar saat
+   empat fee diajukan sekaligus. */
+.blok-fee {
+  border: 1px solid var(--line); padding: 10px 12px; margin-bottom: 12px;
+  background: #FCFCFB;
+}
+.blok-fee > h4 {
+  margin: 0 0 8px; font-size: 12px; font-weight: 700; letter-spacing: .03em;
+  display: flex; align-items: center; gap: 8px;
+}
+.filters.rapat { gap: 8px; }
+.filters.rapat .lbl { margin-bottom: 2px; }
+
+/* Jendela pratinjau: satu formulir per lembar, dan bilah tombolnya tidak ikut
+   tercetak. */
+.jendela-pratinjau { padding-top: 18px; }
+.jendela-pratinjau .lembar { page-break-after: always; }
+.jendela-pratinjau .lembar:last-child { page-break-after: auto; }
+@media print { .jangan-cetak { display: none !important; } }
+td.sel-fee, th.sel-fee { width: 175px; }
+td.sel-ket, th.sel-ket { width: 195px; }
 /* Tombolnya tidak dipatahkan menjadi dua baris: "Catat dokumen" yang terbelah
    terbaca sebagai dua tombol bertumpuk. */
 .tabel-penjualan button { white-space: nowrap; }
-td.sel-skema, th.sel-skema { min-width: 135px; }
+td.sel-skema, th.sel-skema { min-width: 120px; }
 /* Judul kolomnya seukuran isinya. Judul yang lebih kecil daripada datanya
    membuat baris kepala terbaca sebagai catatan kaki, bukan nama kolom. */
 /* Judul kolom rata tengah, seukuran isinya. */
@@ -208,7 +236,7 @@ a.tombol-klaim.kecil { padding: 3px 10px; font-size: inherit; }
    isinya nama orang beserta kantornya, dan kolom yang terlalu sempit
    menjatuhkan tiap katanya ke baris sendiri. */
 td.sel-unit, th.sel-unit { white-space: nowrap; }
-td.sel-penerima, th.sel-penerima { min-width: 120px; }
+td.sel-penerima, th.sel-penerima { min-width: 110px; }
 
 /* Kolom keterangan: keempat prasyarat unit, terpenuhi atau belum. */
 ul.syarat-daftar { margin: 6px 0 0; padding: 0; list-style: none; }
@@ -240,8 +268,19 @@ ul.ceklis input { width: auto; margin-top: 2px; }
               padding-bottom: 10px; margin-bottom: 16px; }
 .cetak .kop b { display: block; font-size: 15px; letter-spacing: .02em; }
 .cetak .kop span { display: block; font-size: 11.5px; color: var(--sub); }
-.judul-form { margin: 0; text-align: center; font-size: 14.5px; font-weight: 700;
-              letter-spacing: .05em; }
+/* Judul formulir rata tengah.
+   Ditulis sebagai `.cetak .judul-form` supaya menang atas `.panel h2`, yang
+   menjadikan setiap h2 di dalam panel sebuah flex row — dan baris flex
+   mengabaikan text-align, sehingga judulnya diam-diam kembali rata kiri
+   begitu formulirnya ditampilkan di dalam panel. */
+.cetak .judul-form {
+  display: block; text-align: center; font-size: 14.5px;
+  font-weight: 700; letter-spacing: .05em; border-bottom: none; padding-bottom: 0;
+  /* Jarak atas-bawah dipasang di sini karena baris nomor klaim yang dulu
+     memberi jaraknya sudah dibuang; tanpa itu judulnya menempel persis pada
+     bilah hitam blok pertama. */
+  margin: 16px 0 14px;
+}
 .nomor-form { margin: 2px 0 16px; text-align: center; font-size: 11.5px;
               color: var(--mut); }
 .cetak .dasar { margin: 8px 0 0; font-size: 11px; color: var(--mut); line-height: 1.5; }
@@ -251,6 +290,29 @@ ul.cetak-ceklis li { display: flex; gap: 8px; align-items: flex-start; }
 ul.cetak-ceklis .kotak { border: 1px solid var(--ink); width: 14px; height: 14px;
                          line-height: 13px; text-align: center; font-size: 10px;
                          flex: none; margin-top: 2px; }
+/* Blok pengesahan: Pemohon di kiri, dua tanda tangan Developer di kanan di
+   bawah satu judul — sebagaimana cetakan formulirnya. */
+.sah { display: grid; grid-template-columns: 1fr 2fr; gap: 16px; margin-top: 6px; }
+.sah-judul {
+  font-size: 11.5px; font-weight: 650; text-align: center; margin-bottom: 6px;
+}
+.sah-dua { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.sah .kotak-ttd { height: 62px; border: 1px solid var(--line);
+  display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.sah .kotak-ttd img { max-height: 58px; max-width: 100%; }
+.sah span {
+  display: block; text-align: center; font-size: 11px; color: var(--sub);
+  margin-top: 4px; line-height: 1.4;
+}
+
+/* Catatan kaki formulir, seperti pada cetakannya. */
+.catatan-form { margin-top: 14px; font-size: 11px; color: var(--sub); }
+.catatan-form ul { margin: 4px 0 0; padding-left: 14px; }
+.catatan-form li { margin-bottom: 2px; line-height: 1.45; }
+
+/* Nama project sebagai baris tebal tanpa label di blok data pemesanan. */
+.baris-project { font-size: 12.5px; letter-spacing: .02em; }
+
 .ttd { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 6px; }
 .ttd .kotak-ttd { height: 62px; border: 1px solid var(--line);
                   display: flex; align-items: center; justify-content: center;
@@ -318,6 +380,11 @@ ul.cetak-ceklis .kotak { border: 1px solid var(--ink); width: 14px; height: 14px
 
 /* ── Kerangka konsol: bilah atas menyeberang, menu di kiri, isi di kanan ── */
 .konsol { max-width: 1240px; margin: 0 auto; padding: 0 22px 60px; }
+/* Layar yang tabelnya memang lebar boleh memakai lebih banyak lebar jendela.
+   Daftar penjualan memuat sebelas kolom, dan dua yang paling menentukan —
+   Klaim dan Keterangan — justru yang paling kanan; dipaksa masuk 1240px,
+   keduanyalah yang hilang di balik geseran mendatar. */
+.konsol.lebar { max-width: 1680px; }
 
 /* Bilah atas. Garis bawahnya satu, menyambung dari kolom menu sampai ujung
    kanan isi — bukan dua potong pada ketinggian berbeda. */

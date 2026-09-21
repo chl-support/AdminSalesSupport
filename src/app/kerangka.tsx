@@ -21,14 +21,16 @@ import { Nav, indukDari } from "./nav";
 import { BilahPengguna, type Sesi } from "./session";
 
 export function Kerangka(
-  { sesi, judul, children }:
-  { sesi: Sesi; judul: React.ReactNode; children: React.ReactNode },
+  { sesi, judul, children, lebar }:
+  { sesi: Sesi; judul: React.ReactNode; children: React.ReactNode;
+    /** Layar yang tabelnya memang lebar; lihat `.konsol.lebar`. */
+    lebar?: boolean },
 ) {
   const induk = indukDari(usePathname());
   const { bahasa } = useBahasa();
 
   return (
-    <div className="konsol">
+    <div className={`konsol${lebar ? " lebar" : ""}`}>
       {/* Satu bilah atas selebar halaman: merek di kolom kiri, judul dan
           identitas di kanan, dan satu garis yang menyambung di bawah keduanya.
           Sebelumnya garisnya dua potong — satu di bawah merek, satu di bawah

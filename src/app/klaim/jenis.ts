@@ -152,8 +152,8 @@ export const DOKUMEN: Record<Jenis, string[]> = {
     "Formulir Pemesanan Unit (FPU)",
     "Surat Pemesanan Unit (SPU)",
     "Perjanjian Pengikatan Jual Beli (PPJB)",
-    "Kelengkapan Data (Kwitansi, Invoice, Surat Pernyataan PKP/Faktur Pajak " +
-      "PPN, KTP, NPWP & Rekening Bank)",
+    "Kelengkapan Data (Kwitansi, Invoice, Surat Pernyataan Non PKP/Faktur " +
+      "Pajak PPN, KTP, NPWP & Rekening BANK)",
   ],
   overriding: [],
 };
@@ -165,3 +165,52 @@ export const JUDUL_HITUNG: Record<Jenis, string> = {
   cash_reward: "PERHITUNGAN CASH REWARD",
   overriding: "PERHITUNGAN OVERRIDING",
 };
+
+
+/**
+ * Catatan kaki formulir, sebagaimana tertulis pada cetakan aslinya.
+ *
+ * Ikut dicetak karena ia bagian dari dokumen yang ditandatangani: yang
+ * menandatangani membaca syarat pada catatan ini, dan formulir tanpa catatannya
+ * bukan formulir yang sama.
+ */
+export const CATATAN: Record<Jenis, string[]> = {
+  closing_fee: [
+    "Form Pengajuan Closing Fee hanya berlaku untuk 1 (satu) unit.",
+    "Closing Fee hanya dapat di proses setelah Data-data Konsumen dilengkapi " +
+      "& Surat Pemesanan Unit (SPU) di tanda tangani oleh pemesan.",
+    "Nominal Closing Fee & Persyaratan pembayaran yang dikeluarkan sesuai " +
+      "dengan ketentuan yang berlaku(*).",
+  ],
+  cash_reward: [
+    "Form Pengajuan Cash Reward hanya berlaku untuk 1 (satu) unit.",
+    "Cash Reward hanya dapat di proses setelah Data-data Konsumen dilengkapi " +
+      "& Surat Pemesanan Unit (SPU) di tanda tangani oleh pemesan.",
+    "Nominal Cash Reward & Persyaratan pembayaran yang dikeluarkan sesuai " +
+      "dengan ketentuan yang berlaku(*).",
+  ],
+  commission: [
+    "Form Pengajuan Komisi hanya berlaku untuk 1 (satu) unit.",
+    "Komisi hanya dapat di proses setelah Data-data Konsumen dilengkapi, " +
+      "Surat Pemesanan Unit (SPU) & Perjanjian Pengikatan Jual Beli (PPJB) " +
+      "di tandatangani oleh pemesan.",
+    "Nominal Komisi & Persyaratan pembayaran yang dikeluarkan sesuai dengan " +
+      "ketentuan yang berlaku(*).",
+  ],
+  // Overriding tidak punya formulir pengajuan per unit — ia disusun sebagai
+  // lampiran perhitungan per periode, dan berkas aslinya pun berupa tabel
+  // periode, bukan formulir.
+  overriding: [],
+};
+
+/**
+ * Alamat kantor pada kop formulir.
+ *
+ * Disalin apa adanya dari cetakan aslinya. Nomor bloknya sempat tertulis
+ * "27–29" di sini, padahal formulir yang berlaku menulis "No. 11".
+ */
+export const KOP = [
+  "Jl. BSD Raya Utama Ruko Mendrisio III Blok B No. 11",
+  "Paramount Gading Serpong, Tangerang Banten 15312",
+  "Telp. +62 21 2222 0080 Fax. +62 21 2222 0081",
+];

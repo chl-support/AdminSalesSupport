@@ -75,9 +75,14 @@ type Unit = {
 const KATA = {
   id: {
     judul: (jenis: string) => `Form Pengajuan ${jenis}`,
-    pengantar:
-      "PT. Serpong Bangun Lestari. Nominal dihitung sistem dari memo skema " +
-      "yang berlaku pada tanggal kontrak, tidak diisi tangan.",
+    // Nama PT diambil dari project yang sedang dikerjakan, bukan ditulis tetap.
+    // Naraya, Banara, Marchand, dan Mazenta di bawah PT. Serpong Bangun Cipta,
+    // BIO District di bawah Serpong Bangun Lestari, Permai Indah di bawah Bumi
+    // Mahardika Makmur — satu nama tetap di sini membuat lima dari enam project
+    // mencetak nama perusahaan yang salah pada formulirnya.
+    pengantar: (pt: string) =>
+      `${pt}. Nominal dihitung sistem dari memo skema yang berlaku pada ` +
+      "tanggal kontrak, tidak diisi tangan.",
     kembali: "← Kembali ke data penjualan",
     memuatUnit: "Memuat data unit…",
     takAdaUnitJudul: "Unit tidak ditemukan",
@@ -156,8 +161,8 @@ const KATA = {
   },
   en: {
     judul: (jenis: string) => `${jenis} Submission Form`,
-    pengantar:
-      "PT. Serpong Bangun Lestari. The amount is computed by the system from " +
+    pengantar: (pt: string) =>
+      `${pt}. The amount is computed by the system from ` +
       "the scheme memo in force on the contract date; it is not typed in.",
     kembali: "← Back to sales data",
     memuatUnit: "Loading unit data…",
@@ -362,7 +367,7 @@ export default function FormKlaimPage() {
     <Kerangka sesi={sesi} judul={
       <div>
         <h1>{k.judul(namaJenis)}</h1>
-        <p>{k.pengantar}</p>
+        <p>{k.pengantar(sesi.project_company ?? "—")}</p>
       </div>
     }>
 
@@ -427,7 +432,7 @@ export default function FormKlaimPage() {
                       <td>{unit.recipient.type === "agent" ? "Agent" :
                            unit.recipient.type === "inhouse" ? "Inhouse" : "—"}</td></tr>
                   <tr><td>{k.namaKantor}</td>
-                      <td>{unit.recipient.office ?? "PT. Serpong Bangun Lestari"}</td></tr>
+                      <td>{unit.recipient.office ?? sesi.project_company ?? "—"}</td></tr>
                   <tr><td>{k.alamatKantor}</td>
                       <td>{unit.recipient.office_address ?? "—"}</td></tr>
                   <tr><td>{k.npwp}</td><td>{unit.recipient.npwp || "—"}</td></tr>
