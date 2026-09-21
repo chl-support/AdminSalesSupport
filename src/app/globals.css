@@ -240,8 +240,15 @@ ul.ceklis input { width: auto; margin-top: 2px; }
               padding-bottom: 10px; margin-bottom: 16px; }
 .cetak .kop b { display: block; font-size: 15px; letter-spacing: .02em; }
 .cetak .kop span { display: block; font-size: 11.5px; color: var(--sub); }
-.judul-form { margin: 0; text-align: center; font-size: 14.5px; font-weight: 700;
-              letter-spacing: .05em; }
+/* Judul formulir rata tengah.
+   Ditulis sebagai `.cetak .judul-form` supaya menang atas `.panel h2`, yang
+   menjadikan setiap h2 di dalam panel sebuah flex row — dan baris flex
+   mengabaikan text-align, sehingga judulnya diam-diam kembali rata kiri
+   begitu formulirnya ditampilkan di dalam panel. */
+.cetak .judul-form {
+  display: block; margin: 0; text-align: center; font-size: 14.5px;
+  font-weight: 700; letter-spacing: .05em; border-bottom: none; padding-bottom: 0;
+}
 .nomor-form { margin: 2px 0 16px; text-align: center; font-size: 11.5px;
               color: var(--mut); }
 .cetak .dasar { margin: 8px 0 0; font-size: 11px; color: var(--mut); line-height: 1.5; }

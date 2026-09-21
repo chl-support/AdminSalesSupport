@@ -241,8 +241,11 @@ export function FormPengajuan(
                 <img src={ttd} alt="Tanda tangan pemohon" />
               )}
             </div>
+            {/* Keterangan di bawah kotak ditulis tetap "Konsumen", bukan nama
+                penandatangannya. Namanya sendiri tetap tersimpan pada klaim —
+                yang berubah hanya apa yang tercetak di bawah garis. */}
             <span>
-              {m.full_name ?? ""}
+              Konsumen
               {ttd && ttdTgl ? <><br />{tgl(ttdTgl)}</> : null}
             </span>
           </div>
