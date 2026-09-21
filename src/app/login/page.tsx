@@ -11,6 +11,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { TombolBahasa, useBahasa, useKata } from "../bahasa";
+import { PENANDA_MASUK } from "../kabar-menunggu";
 import { Logo } from "../logo";
 
 /**
@@ -219,6 +220,11 @@ export default function LoginPage() {
         setSisa(typeof b.sisa_percobaan === "number" ? b.sisa_percobaan : null);
         return;
       }
+      // Penanda untuk pemberitahuan "berapa dokumen menunggu Anda", yang
+      // muncul sekali di layar pertama setelah masuk. Dipasang di sini karena
+      // hanya di sini yang diketahui bahwa ini benar-benar masuk baru, bukan
+      // sesi lama yang halamannya kebetulan dibuka ulang.
+      try { sessionStorage.setItem(PENANDA_MASUK, "1"); } catch { /* biar */ }
       location.href = tujuan();
     } catch (err: any) {
       setGalat(String(err?.message ?? err));

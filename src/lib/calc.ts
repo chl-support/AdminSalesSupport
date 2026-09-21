@@ -402,6 +402,43 @@ export function eligibility(unit: any, claimType: ClaimType): {
 }
 
 /**
+ * Siapa yang menerima fee jenis ini pada satu unit — identitas dan statusnya.
+ *
+ * Closing Fee, Komisi, dan Cash Reward dibayarkan kepada yang menjual.
+ * Overriding justru membayar tingkat di atasnya; memakai Sales untuk Overriding
+ * berarti membayar orang yang sama dua kali atas satu unit.
+ *
+ * Di sini, bukan di layar atau di endpoint yang memakainya: aturan yang ditulis
+ * dua kali akan berbeda pada salah satunya cepat atau lambat, dan bedanya
+ * berupa fee yang dibayarkan kepada orang yang salah.
+ */
+export function penerimaFee(unit: any, claimType: ClaimType): {
+  id: string | null; status: string | null;
+} {
+  return claimType === "overriding"
+    ? { id: unit.sub_coordinator_id ?? unit.coordinator_id ?? null,
+        status: unit.sub_coordinator_status ?? unit.coordinator_status ?? null }
+    : { id: unit.marketing_id ?? null, status: unit.marketing_status ?? null };
+}
+
+/**
+ * Unit ini dapat diklaim untuk jenis fee ini, dan klaimnya belum dibuat.
+ *
+ * Tiga syarat sekaligus: prasyarat pencairannya terpenuhi, belum ada klaim
+ * aktif, dan penerimanya ada serta berstatus aktif. Ketiganya digabung di satu
+ * tempat supaya tombol "Klaim" pada daftar penjualan, dan angka "sudah dapat
+ * diklaim tapi belum diajukan" pada pemberitahuan saat masuk, tidak pernah
+ * menyebut jumlah yang berbeda atas keadaan yang sama.
+ */
+export function dapatDiklaim(
+  unit: any, claimType: ClaimType, adaKlaimAktif: boolean,
+): boolean {
+  const p = penerimaFee(unit, claimType);
+  return eligibility(unit, claimType).ok && !adaKlaimAktif &&
+         Boolean(p.id) && p.status === "active";
+}
+
+/**
  * Dokumen wajib per jenis klaim, menurut checklist pada formulir pengajuannya.
  *
  * Cash Reward sebelumnya menuntut PPJB, kwitansi, dan rekening bank. Formulir

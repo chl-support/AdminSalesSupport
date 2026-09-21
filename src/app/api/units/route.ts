@@ -1,6 +1,6 @@
 import { handler, projectAktif } from "@/lib/api";
 import { query } from "@/lib/db";
-import { eligibility, type ClaimType } from "@/lib/calc";
+import { dapatDiklaim, eligibility, type ClaimType } from "@/lib/calc";
 
 /**
  * Data penjualan, dan — bila diminta untuk satu jenis klaim — keadaan klaimnya.
@@ -162,12 +162,10 @@ export const GET = handler(async (req) => {
         id: ada.id, claim_number: ada.claim_number, status: ada.status,
         net_amount: ada.net_amount, recipient_role: ada.recipient_role,
       },
-      // Dapat diklaim hanya bila prasyaratnya terpenuhi, belum ada klaim aktif,
-      // DAN data penjualannya menyebut marketing yang berstatus aktif. Ketiganya
-      // digabung di sini supaya layar memakai satu nilai, bukan menyusun ulang
-      // aturannya — dan supaya tombol tidak pernah muncul untuk permintaan yang
-      // sudah pasti ditolak createClaim.
-      claimable: ok && !ada && Boolean(p.id) && p.status === "active",
+      // Aturannya ada di lib/calc — dipakai juga oleh pemberitahuan saat masuk,
+      // yang menghitung berapa fee sudah dapat diklaim tapi belum diajukan.
+      // Ditulis dua kali, keduanya akan berbeda cepat atau lambat.
+      claimable: dapatDiklaim(u, jenis, Boolean(ada)),
     };
   };
 
