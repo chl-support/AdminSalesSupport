@@ -87,9 +87,9 @@ const KODE_UNIT = ["unit_cancelled", "unit_moved", "unit_management"];
 const KATA = {
   id: {
     judul: "Pengajuan Fee",
-    pengantar: "Proses Pengajuan Fee dapat dilakukan setelah penerimaan " +
-               "mencapai minimal 20% dari nilai kontrak. Fee yang memenuhi " +
-               "syarat dapat langsung diajukan.",
+    pengantar: "Hanya dapat dilakukan setelah penerimaan mencapai minimal " +
+               "20% dari Nilai Kontrak dan atau sesuai Kebijakan Management " +
+               "(Internal Memo Office) Approval",
     dapatDiklaim: (n: number) => `${n} dapat diklaim`,
     penjualan: (n: number) => `${n} penjualan`,
     galatBaca: "Data penjualan tidak dapat dibaca",
@@ -145,9 +145,9 @@ const KATA = {
   },
   en: {
     judul: "Fee Submission",
-    pengantar: "Fee submission can proceed once receipts reach at least 20% " +
-               "of the contract value. Fees that meet the requirement can be " +
-               "submitted directly.",
+    pengantar: "Only possible once receipts reach at least 20% of the " +
+               "Contract Value and/or in line with Management Policy " +
+               "(Internal Memo Office) Approval",
     dapatDiklaim: (n: number) => `${n} claimable`,
     penjualan: (n: number) => `${n} sales`,
     galatBaca: "Sales data could not be read",
