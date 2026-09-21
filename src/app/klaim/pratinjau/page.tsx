@@ -41,6 +41,14 @@ const KATA = {
       "di tangan Anda. Setelah dikirim, klaim berpindah ke tim pajak untuk " +
       "diverifikasi dan kembali ke Anda bila sudah benar.",
     belumLengkap: "Centang seluruh dokumen pada tiap formulir sebelum dikirim.",
+    lampirkan:
+      "Lampirkan berkasnya pada tiap baris syarat bila ada. Berkas yang " +
+      "dilampirkan dapat dibuka tim pajak langsung dari klaimnya; yang hanya " +
+      "dicentang tidak memberi mereka apa pun untuk diperiksa.",
+    bukanAdmin:
+      "Pengiriman ke tim pajak hanya dapat dilakukan Admin Sales. Formulir di " +
+      "bawah dapat diperiksa, tetapi tidak dapat dikirim dari sini.",
+    berkasGagal: "Berkas tidak dapat dibaca",
     terkirim: (n: number) =>
       `${n} klaim sudah dikirim ke tim pajak. Setelah diverifikasi, klaim ` +
       "kembali ke Pengajuan Fee untuk dikirimkan tautannya kepada Sales/Agent.",
@@ -60,6 +68,14 @@ const KATA = {
       "the claim moves to the tax team for verification and comes back to you " +
       "if everything is correct.",
     belumLengkap: "Tick every document on each form before sending.",
+    lampirkan:
+      "Attach the file on each requirement line where you have one. Attached " +
+      "files can be opened by the tax team straight from the claim; a tick " +
+      "alone gives them nothing to check.",
+    bukanAdmin:
+      "Only the Sales Admin can send claims to the tax team. The forms below " +
+      "can be reviewed, but not sent from here.",
+    berkasGagal: "The file could not be read",
     terkirim: (n: number) =>
       `${n} claims sent to the tax team. Once verified, they return to Fee ` +
       "Submission so the link can be sent to the Sales/Agent.",
@@ -80,6 +96,16 @@ const KATA = {
  * lewat alamatnya). Jendela itu tidak ditutup: menutupnya berarti kabar
  * berhasilnya hilang tanpa pernah terbaca siapa pun.
  */
+/** Isi berkas sebagai data URL, bentuk yang diterima /api/claims/:id/documents. */
+function keBase64(berkas: File): Promise<string> {
+  return new Promise((selesai, gagal) => {
+    const baca = new FileReader();
+    baca.onload = () => selesai(String(baca.result ?? ""));
+    baca.onerror = () => gagal(baca.error ?? new Error("gagal membaca berkas"));
+    baca.readAsDataURL(berkas);
+  });
+}
+
 function kabarkanPembuka(jumlah: number): boolean {
   try {
     const pembuka = window.opener as Window | null;
@@ -105,6 +131,11 @@ export default function PratinjauPage() {
   const [kirim, setKirim] = useState(false);
   /** Centang dokumen, berkunci "<klaim>:<nama dokumen>". */
   const [ceklis, setCeklis] = useState<Record<string, boolean>>({});
+  /** Berkas yang dilampirkan, berkunci sama dengan centangnya. */
+  const [berkas, setBerkas] = useState<Record<string, File>>({});
+
+  /** Hanya Admin Sales yang mengirim klaim ke tim pajak — lihat /api/.../submit. */
+  const bolehKirim = sesi?.role === "admin_sales";
 
   const muat = useCallback(async () => {
     const ids = (new URLSearchParams(window.location.search).get("ids") ?? "")
@@ -165,12 +196,27 @@ export default function PratinjauPage() {
             // lihat DOKUMEN_KODE. Yang dicatat adalah kodenya, karena itulah
             // yang ditagih server saat klaimnya diajukan.
             const kode = DOKUMEN_KODE[c.claim_type as Jenis]?.[i] ?? [daftar[i]];
-            for (const item of kode) {
+            const lampir = berkas[`${c.id}:${daftar[i]}`];
+            // Berkasnya menempel pada kode pertama baris itu. Satu baris
+            // checklist dapat mewakili tiga kode sekaligus; mengirim berkas
+            // yang sama tiga kali berarti tiga salinan isi yang sama di basis
+            // data, dan tiga baris lampiran untuk satu berkas.
+            for (let j = 0; j < kode.length; j++) {
+              const muatan: Record<string, string> = { checklist_item: kode[j] };
+              if (lampir && j === 0) {
+                muatan.file_name = lampir.name;
+                muatan.content_type = lampir.type || "application/octet-stream";
+                muatan.content_base64 = await keBase64(lampir);
+              }
               const r = await fetch(`/api/claims/${c.id}/documents`, {
                 method: "POST", headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ checklist_item: item }),
+                body: JSON.stringify(muatan),
               });
               if (r.status === 401) { location.href = "/login"; return; }
+              if (!r.ok) {
+                const b = await r.json().catch(() => ({}));
+                throw new Error(b.detail ?? b.title ?? `HTTP ${r.status}`);
+              }
             }
           }
           const s1 = await fetch(`/api/claims/${c.id}/submit`, { method: "POST" });
@@ -209,10 +255,12 @@ export default function PratinjauPage() {
         {/* Satu tombol saja. Jendela ini langkah pemeriksaan, dan tombol tutup
             di sebelah tombol kirim mengundang jendela ditutup sebelum
             klaimnya berjalan ke mana pun. */}
-        <button className="pri" disabled={!lengkap || kirim}
-                onClick={() => void kirimKePajak()}>
-          {kirim ? k.mengirim : k.kirim}
-        </button>
+        {bolehKirim && (
+          <button className="pri" disabled={!lengkap || kirim}
+                  onClick={() => void kirimKePajak()}>
+            {kirim ? k.mengirim : k.kirim}
+          </button>
+        )}
       </div>
 
       {galat && <div className="banner stop"><b>{k.galat}</b>{galat}</div>}
@@ -220,10 +268,15 @@ export default function PratinjauPage() {
       {busy && <p className="hint">{k.memuat}</p>}
       {!busy && !galat && !klaim.length && <p className="hint">{k.kosong}</p>}
 
-      {klaim.length > 0 && (
+      {klaim.length > 0 && !bolehKirim && (
+        <div className="banner warn jangan-cetak">{k.bukanAdmin}</div>
+      )}
+
+      {klaim.length > 0 && bolehKirim && (
         <div className="banner info jangan-cetak">
           <b>{k.pengantar}</b>
-          {!lengkap && masihDraft.length > 0 ? k.belumLengkap : ""}
+          {k.lampirkan}
+          {!lengkap && masihDraft.length > 0 ? ` ${k.belumLengkap}` : ""}
         </div>
       )}
 
@@ -238,13 +291,32 @@ export default function PratinjauPage() {
           )}
           <FormPengajuan
             klaim={c}
-            ceklis={c.status === "draft"
+            ceklis={c.status === "draft" && bolehKirim
               ? Object.fromEntries(wajib(c).map(
                   (d) => [d, Boolean(ceklis[`${c.id}:${d}`])]))
               : undefined}
-            onCeklis={c.status === "draft"
+            onCeklis={c.status === "draft" && bolehKirim
               ? (item, dicentang) => setCeklis((lama) => (
                   { ...lama, [`${c.id}:${item}`]: dicentang }))
+              : undefined}
+            berkas={Object.fromEntries(wajib(c).map(
+              (d) => [d, berkas[`${c.id}:${d}`]?.name ?? ""]))}
+            onBerkas={c.status === "draft" && bolehKirim
+              ? (item, pilihan) => {
+                  setBerkas((lama) => {
+                    const baru = { ...lama };
+                    if (pilihan) baru[`${c.id}:${item}`] = pilihan;
+                    else delete baru[`${c.id}:${item}`];
+                    return baru;
+                  });
+                  // Memilih berkas berarti berkasnya ada di tangan — centangnya
+                  // ikut, supaya tidak ada berkas terlampir pada baris yang
+                  // justru tidak ikut terkirim.
+                  if (pilihan) {
+                    setCeklis((lama) => (
+                      { ...lama, [`${c.id}:${item}`]: true }));
+                  }
+                }
               : undefined} />
         </div>
       ))}

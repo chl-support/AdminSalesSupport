@@ -563,7 +563,11 @@ export default function PengajuanFeePage() {
           verifikasi pajaknya habis — sedangkan layar tersendiri hanya dibuka
           oleh yang ingat bahwa layar itu ada. Panelnya hilang sendiri begitu
           tidak ada lagi yang menunggu. */}
-      {menunggu.length > 0 && (
+      {/* Hanya Admin Sales. Tautan tanda tangan dikirim dari panel ini, dan
+          sejak penerbitannya dibatasi pada Admin Sales, panel yang tetap
+          terlihat oleh peran lain hanya menawarkan tombol yang akan ditolak
+          server. */}
+      {menunggu.length > 0 && sesi.role === "admin_sales" && (
         <div className="panel sp">
           <h2>
             {k.waJudul}
