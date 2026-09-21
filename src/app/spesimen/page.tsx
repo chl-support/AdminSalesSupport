@@ -41,10 +41,9 @@ const KATA = {
   id: {
     judul: "Spesimen Tanda Tangan",
     pengantar:
-      "Spesimen tanda tangan didaftarkan sekali per orang dan dipakai " +
-      "seterusnya sebagai pembanding. Yang belum punya, kirimkan tautannya " +
-      "dari sini; yang sudah, tautannya tidak muncul lagi kecuali Anda " +
-      "meminta revisi.",
+      "Spesimen tanda tangan didaftarkan satu kali dan menjadi acuan " +
+      "seterusnya. Tautan pendaftaran hanya tersedia bagi yang belum " +
+      "terdaftar atau memerlukan pembaruan.",
     takBerwenangJudul: "Peran Anda tidak berwenang atas pendaftaran tanda tangan",
     takBerwenangIsi:
       "Hanya Admin Sales dan Admin IT yang dapat menerbitkan tautan dan " +
@@ -151,10 +150,9 @@ const KATA = {
   en: {
     judul: "Specimen Signature",
     pengantar:
-      "A signature specimen is registered once per person and used from then " +
-      "on as the reference. For those without one, send the link from here; " +
-      "for those who have one, the link no longer appears unless you request " +
-      "a revision.",
+      "A signature specimen is registered once and becomes the reference from " +
+      "then on. The registration link is only available to those not yet " +
+      "registered or needing an update.",
     takBerwenangJudul: "Your role is not authorised over signature registration",
     takBerwenangIsi:
       "Only Admin Sales and IT Admin can issue links and decide the baseline.",

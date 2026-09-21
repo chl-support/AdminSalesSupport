@@ -32,9 +32,8 @@ const KATA = {
   id: {
     judul: "Konsol Klaim Insentif",
     pengantar:
-      "Next.js + PostgreSQL. Empat gate ditegakkan di server, bukan di layar " +
-      "ini — menyembunyikan tombol tidak menghentikan siapa pun yang memanggil " +
-      "API langsung.",
+      "Pengajuan yang sedang dalam proses verifikasi dan persetujuan oleh " +
+      "pihak terkait sebelum dapat dilanjutkan ke proses berikutnya.",
     alurJudul: "Alur pengajuan",
     alurIsi:
       "Admin mengajukan klaim → Form Pengajuan terbentuk → tim pajak memeriksa " +
@@ -118,8 +117,8 @@ const KATA = {
   en: {
     judul: "Incentive Claim Console",
     pengantar:
-      "Next.js + PostgreSQL. Four gates are enforced on the server, not on " +
-      "this screen — hiding a button stops nobody who calls the API directly.",
+      "Submissions undergoing verification and approval by the parties " +
+      "concerned before they can move on to the next step.",
     alurJudul: "Submission flow",
     alurIsi:
       "Admin submits a claim → the Submission Form is created → the tax team " +

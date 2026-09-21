@@ -66,10 +66,9 @@ const KODE_UNIT = ["unit_cancelled", "unit_moved", "unit_management"];
 const KATA = {
   id: {
     judul: "Pengajuan Fee",
-    pengantar: "Keempat jenis fee berdiri pada baris yang sama. Syaratnya " +
-               "satu: penerimaan sudah mencapai 20% dari nilai kontrak. Yang " +
-               "sudah memenuhinya dapat langsung diajukan lewat tombolnya; " +
-               "yang belum, keadaannya ada di kolom Keterangan.",
+    pengantar: "Proses Pengajuan Fee dapat dilakukan setelah penerimaan " +
+               "mencapai minimal 20% dari nilai kontrak. Fee yang memenuhi " +
+               "syarat dapat langsung diajukan.",
     dapatDiklaim: (n: number) => `${n} dapat diklaim`,
     penjualan: (n: number) => `${n} penjualan`,
     galatBaca: "Data penjualan tidak dapat dibaca",
@@ -100,10 +99,9 @@ const KATA = {
   },
   en: {
     judul: "Fee Submission",
-    pengantar: "All four fee types sit on the same row. There is one " +
-               "requirement: receipts have reached 20% of the contract value. " +
-               "Those that meet it can be submitted straight from their " +
-               "button; for the rest, the state is in the Notes column.",
+    pengantar: "Fee submission can proceed once receipts reach at least 20% " +
+               "of the contract value. Fees that meet the requirement can be " +
+               "submitted directly.",
     dapatDiklaim: (n: number) => `${n} claimable`,
     penjualan: (n: number) => `${n} sales`,
     galatBaca: "Sales data could not be read",

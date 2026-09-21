@@ -23,10 +23,9 @@ import { useSesi } from "../session";
 const KATA = {
   id: {
     judul: "Memo Approval",
-    pengantar: (p: string) =>
-      `Berkas memo skema dan persetujuannya, tersimpan bersama project ${p}. ` +
-      "Isinya tidak dibaca sistem — tarif yang dipakai menghitung tetap " +
-      "berasal dari skema insentif; memo ini dasar tertulisnya.",
+    pengantar:
+      "Memo Skema dan Persetujuan tersimpan sebagai dasar tertulis sesuai " +
+      "project terkait. Perhitungan tarif tetap mengacu pada Skema Insentif.",
     galat: "Tidak dapat dikerjakan",
     unggahJudul: "UNGGAH MEMO",
     fJudul: "Judul", cJudul: "mis. Skema Komisi Triwulan I",
@@ -48,10 +47,9 @@ const KATA = {
   },
   en: {
     judul: "Approval Memo",
-    pengantar: (p: string) =>
-      `Scheme memos and their approvals, stored with project ${p}. The ` +
-      "contents are not read by the system — the rates used in calculations " +
-      "still come from the incentive schemes; these memos are the written basis.",
+    pengantar:
+      "Scheme and approval memos are stored as the written basis for the " +
+      "project concerned. Rate calculations still refer to the Incentive Scheme.",
     galat: "Could not be completed",
     unggahJudul: "UPLOAD MEMO",
     fJudul: "Title", cJudul: "e.g. Commission Scheme Q1",
@@ -159,7 +157,7 @@ export default function MemoPage() {
     <Kerangka sesi={sesi} judul={
       <div>
         <h1>{k.judul}</h1>
-        <p>{k.pengantar(sesi.project_name ?? "—")}</p>
+        <p>{k.pengantar}</p>
       </div>
     }>
 
