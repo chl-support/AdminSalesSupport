@@ -17,7 +17,7 @@ import { usePathname } from "next/navigation";
 
 import { useBahasa } from "./bahasa";
 import { KabarMenunggu } from "./kabar-menunggu";
-import { Logo } from "./logo";
+import { Logo, LogoProject } from "./logo";
 import { Nav, indukDari } from "./nav";
 import { BilahPengguna, type Sesi } from "./session";
 
@@ -78,8 +78,20 @@ export function Kerangka(
               isinya ke bawah, dan lencana project di bawah keterangan halaman
               akan terbaca sebagai bagian dari keterangan itu. */}
           {sesi.project_name && (
-            <span className="pill proyek" title={sesi.project_company ?? ""}>
-              {sesi.project_name}
+            <span className="pill proyek"
+                  title={[sesi.project_name, sesi.project_company]
+                           .filter(Boolean).join(" — ")}>
+              {/* Lambangnya, bukan namanya. Lambang tiap project sudah memuat
+                  namanya di dalamnya, dan dikenali lebih cepat daripada
+                  sebaris tulisan kecil. Namanya tetap ada sebagai judul
+                  sembul, untuk yang ragu maupun untuk pembaca layar.
+
+                  Berlaku bagi project mana pun: yang dipakai slug-nya, bukan
+                  daftar nama yang harus ditambah tiap ada project baru. Bila
+                  berkas lambangnya belum ada, namanya yang ditulis. */}
+              <LogoProject slug={sesi.project_slug ?? ""} tinggi={28}
+                           alt={sesi.project_name}
+                           gantiTeks={sesi.project_name} />
             </span>
           )}
           {/* Identitas di kanan atas: di sanalah orang mencarinya, dan di kaki
