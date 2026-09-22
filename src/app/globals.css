@@ -1213,7 +1213,7 @@ a.tautan-klaim:hover { border-color: var(--ink); }
    apa yang ditunggu (baris kecil di bawahnya). Kalimat tunggunya dibiarkan
    berganti baris — "Menunggu tautan tanda tangan dikirim ke Sales/Agent" dalam
    satu baris utuh melebarkan seluruh tabelnya. */
-td.sel-keadaan, th.sel-keadaan { width: 210px; }
+td.sel-keadaan, th.sel-keadaan { width: 252px; }
 td.sel-keadaan .pill {
   white-space: normal; max-width: 100%; text-align: left; line-height: 1.4;
   font-size: inherit;

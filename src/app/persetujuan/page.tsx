@@ -13,7 +13,13 @@
  * keadaannya. Pratinjau formulirnya ada di kolom paling kanan, dibuka sendiri
  * saat memang mau diperiksa.
  *
- * Tindakan atas klaim — meneruskan, menahan, menyetujui — tetap di konsol.
+ * Satu tindakan memang ada di sini: mengirim tautan tanda tangan ke
+ * Sales/Agent, di dalam kolom Status, hanya untuk Admin Sales. Tempatnya
+ * memang di sini — yang dikirim adalah dokumen yang barusan dibaca pada baris
+ * itu, dan sebelumnya tombolnya berada di layar Pengajuan Fee, satu layar
+ * sebelum dokumennya ada.
+ *
+ * Tindakan lain atas klaim — meneruskan, menahan, menyetujui — tetap di konsol.
  * Dua layar yang sama-sama dapat menggerakkan klaim akan berbeda perilaku cepat
  * atau lambat, dan bedanya berupa klaim yang disetujui di satu layar tetapi
  * tidak di layar lain.
@@ -52,6 +58,15 @@ const KATA = {
       "Bila sudah benar, dokumennya kembali ke Anda untuk dikirimkan " +
       "tautannya kepada Sales/Agent lewat WhatsApp.",
     kabarTutup: "Tutup",
+    waKirim: "Kirim tautan WA", waMengirim: "Mengirim…",
+    waUlang: "Kirim ulang tautan",
+    waTanpaHp: "No. HP penerima belum tercatat",
+    waTerbit: (hp: string) => `Tautan terbit untuk ${hp}.`,
+    waBukaWa: "Buka WhatsApp", waSalin: "Salin tautan",
+    waTersalin: "Tautan tersalin.",
+    waKode: "Kode verifikasi:",
+    waKodeCatatan: "Sampaikan kode lewat jalur terpisah dari tautannya.",
+    waGagal: "Tautan tidak dapat diterbitkan",
   },
   en: {
     judul: "Approval Status",
@@ -75,6 +90,15 @@ const KATA = {
       "Once correct, they come back to you so the link can be sent to the " +
       "Sales/Agent over WhatsApp.",
     kabarTutup: "Close",
+    waKirim: "Send WhatsApp link", waMengirim: "Sending…",
+    waUlang: "Re-send the link",
+    waTanpaHp: "The recipient has no phone number on record",
+    waTerbit: (hp: string) => `Link issued for ${hp}.`,
+    waBukaWa: "Open WhatsApp", waSalin: "Copy the link",
+    waTersalin: "Link copied.",
+    waKode: "Verification code:",
+    waKodeCatatan: "Give the code through a channel separate from the link.",
+    waGagal: "The link could not be issued",
   },
 };
 
@@ -192,6 +216,27 @@ function keadaan(status: string, bahasa: "id" | "en"): [string, string] {
   return KEADAAN[status]?.[bahasa] ?? [status, ""];
 }
 
+/**
+ * Nomor untuk tautan wa.me, yang hanya menerima bentuk internasional.
+ *
+ * "08121234800" dikirim apa adanya akan membuka percakapan ke nomor yang tidak
+ * ada. Awalan 0 diganti 62; yang sudah berawalan 62 atau +62 dibiarkan.
+ */
+function nomorWa(hp?: string | null): string {
+  const bersih = String(hp ?? "").replace(/[^\d+]/g, "").replace(/^\+/, "");
+  return bersih.startsWith("0") ? `62${bersih.slice(1)}` : bersih;
+}
+
+/**
+ * Keadaan yang menunggu tautan tanda tangan dikirim.
+ *
+ * Yang sudah terkirim ikut, bukan hanya yang belum: tautannya berlaku terbatas
+ * dan tidak tersimpan di mana pun setelah layar ditutup, jadi baris yang
+ * kehilangan tombolnya begitu ditekan membawa serta tautan yang baru terbit —
+ * sebelum sempat dibuka atau disalin.
+ */
+const MENUNGGU_TAUTAN = ["tax_verified", "signature_link_sent"];
+
 /** Keadaan yang dianggap belum bergerak ke mana pun. */
 const DIAM = ["draft", "submitted", "pending_admin_review"];
 const SELESAI = ["completed", "paid", "rejected", "cancelled", "clawback"];
@@ -205,9 +250,13 @@ export default function PersetujuanPage() {
   const [klaim, setKlaim] = useState<any[]>([]);
   const [busy, setBusy] = useState(true);
   const [galat, setGalat] = useState<string | null>(null);
+  const [kabar, setKabar] = useState<string | null>(null);
   const [saring, setSaring] = useState<Saring>("semua");
   /** Jumlah klaim yang baru saja dikirim ke pajak dari jendela pratinjau. */
   const [terkirim, setTerkirim] = useState<number | null>(null);
+  /** Tautan yang sudah terbit pada layar ini, berkunci id klaim. */
+  const [tautan, setTautan] = useState<Record<string, any>>({});
+  const [mengirim, setMengirim] = useState<string | null>(null);
 
   const muat = useCallback(async () => {
     setBusy(true);
@@ -250,6 +299,33 @@ export default function PersetujuanPage() {
     return () => window.removeEventListener("message", dengar);
   }, [muat]);
 
+  /**
+   * Terbitkan tautan tanda tangan, lalu siapkan pesan WhatsApp-nya.
+   *
+   * Yang dibuka bukan WhatsApp-nya langsung: tautannya ditampilkan lebih dulu
+   * supaya Admin Sales melihat ke nomor mana ia akan terkirim. Kodenya sengaja
+   * tidak ikut ke dalam pesan — kode dan tautan pada satu pesan yang sama
+   * membuat siapa pun yang meneruskan pesan itu ikut membawa keduanya.
+   */
+  const kirimTautan = async (c: any) => {
+    setMengirim(c.id); setGalat(null); setKabar(null);
+    try {
+      const res = await fetch(`/api/claims/${c.id}/signature-requests`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: "{}" });
+      if (res.status === 401) { location.href = "/login"; return; }
+      const b = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setGalat(`${k.waGagal} — ${b.detail ?? b.title ?? res.status}`);
+        return;
+      }
+      setTautan((lama) => ({ ...lama, [c.id]: b }));
+      await muat();
+    } catch (e: any) {
+      setGalat(String(e?.message ?? e));
+    } finally { setMengirim(null); }
+  };
+
   if (memuat || !sesi) return <MemeriksaSesi />;
 
   const terlihat = klaim.filter((c) => {
@@ -270,6 +346,7 @@ export default function PersetujuanPage() {
     }>
 
       {galat && <div className="banner stop"><b>{k.galat}</b>{galat}</div>}
+      {kabar && <div className="banner ok">{kabar}</div>}
 
       <div className="panel sp">
         <div className="filters">
@@ -326,6 +403,50 @@ export default function PersetujuanPage() {
                     {keadaan(c.status, bahasa)[0]}
                   </span>
                   <div className="menunggu">{keadaan(c.status, bahasa)[1]}</div>
+
+                  {/* Pengiriman tautan ke Sales/Agent, di dalam kolom Status
+                      dan hanya untuk Admin Sales — merekalah yang berhubungan
+                      dengan Sales/Agent, dan endpoint-nya pun menolak peran
+                      lain. Muncul hanya pada baris yang memang sedang menunggu
+                      tautannya; pada baris lain kolom ini tetap keterangan
+                      keadaan, bukan deretan tombol yang tak dapat ditekan. */}
+                  {sesi.role === "admin_sales" &&
+                   MENUNGGU_TAUTAN.includes(c.status) && (
+                    tautan[c.id] ? (
+                      <div className="tautan-terbit">
+                        <div>{k.waTerbit(tautan[c.id].masked_phone)}</div>
+                        <div className="row" style={{ margin: "5px 0" }}>
+                          <a className="tombol-klaim kecil"
+                             href={`https://wa.me/${nomorWa(c.marketing?.phone)}` +
+                                   `?text=${encodeURIComponent(
+                                     `${tautan[c.id].message}\n` +
+                                     `${window.location.origin}/sign/${tautan[c.id].token}`)}`}
+                             target="_blank" rel="noreferrer">{k.waBukaWa}</a>
+                          <button onClick={() => {
+                            navigator.clipboard?.writeText(
+                              `${window.location.origin}/sign/${tautan[c.id].token}`);
+                            setKabar(k.waTersalin);
+                          }}>{k.waSalin}</button>
+                        </div>
+                        <div>{k.waKode} <b>{tautan[c.id].otp_demo}</b></div>
+                        <div className="hint" style={{ textAlign: "left" }}>
+                          {k.waKodeCatatan}
+                        </div>
+                      </div>
+                    ) : c.marketing?.phone ? (
+                      <button style={{ marginTop: 6 }}
+                              disabled={mengirim !== null}
+                              onClick={() => void kirimTautan(c)}>
+                        {mengirim === c.id ? k.waMengirim
+                          : c.status === "signature_link_sent" ? k.waUlang
+                          : k.waKirim}
+                      </button>
+                    ) : (
+                      <div className="menunggu" style={{ color: "var(--stop)" }}>
+                        {k.waTanpaHp}
+                      </div>
+                    )
+                  )}
                 </td>
                 {/* Pratinjau dibuka di jendela tersendiri, sama seperti dari
                     layar Pengajuan Fee: yang dibuka adalah dokumen untuk
