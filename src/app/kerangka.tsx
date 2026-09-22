@@ -78,7 +78,7 @@ export function Kerangka(
               isinya ke bawah, dan lencana project di bawah keterangan halaman
               akan terbaca sebagai bagian dari keterangan itu. */}
           {sesi.project_name && (
-            <span className="pill proyek"
+            <span className="lencana-proyek"
                   title={[sesi.project_name, sesi.project_company]
                            .filter(Boolean).join(" — ")}>
               {/* Lambangnya, bukan namanya. Lambang tiap project sudah memuat
@@ -89,7 +89,7 @@ export function Kerangka(
                   Berlaku bagi project mana pun: yang dipakai slug-nya, bukan
                   daftar nama yang harus ditambah tiap ada project baru. Bila
                   berkas lambangnya belum ada, namanya yang ditulis. */}
-              <LogoProject slug={sesi.project_slug ?? ""} tinggi={28}
+              <LogoProject slug={sesi.project_slug ?? ""} tinggi={34}
                            alt={sesi.project_name}
                            gantiTeks={sesi.project_name} />
             </span>

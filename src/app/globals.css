@@ -1110,19 +1110,22 @@ ul.syarat-foto { margin: 8px 0 0 16px; padding: 0; font-size: 11.5px;
 /* Kotak bergaris, bukan kotak terisi — sama seperti lencana di sebelahnya.
    Yang perlu menonjol dari penanda ini namanya, dan nama hitam di atas terang
    sudah cukup menonjol tanpa blok hitam di belakangnya. */
-.kepala .pill.proyek { align-self: center; margin-left: auto; margin-right: 12px;
-                       font-size: 11.5px; border-color: var(--ink);
-                       background: #fff; color: var(--ink); font-weight: 600;
-                       display: inline-flex; align-items: center;
-                       padding: 4px 9px; }
-/* Lambang project di dalam pil kepala halaman. Tingginya dipatok supaya
-   keenam lambang sama besar di sini betapa pun berbeda ukuran berkasnya;
-   lebarnya dibatasi supaya lambang yang memanjang — yang membawa tulisan di
-   dalamnya — tidak mendorong identitas pengguna keluar layar. */
-.kepala .pill.proyek .logo-project { max-width: 150px; }
-/* Bila berkas lambangnya belum ada, namanya yang ditulis — tanpa gaya kartu
-   pemilih project yang jauh lebih besar. */
-.kepala .pill.proyek .ganti-lambang { font-size: 11.5px; font-weight: 600; }
+/* Lambang project yang sedang dibuka, di kepala tiap halaman.
+   Tanpa kotak maupun garis di sekelilingnya: lambangnya sendiri sudah
+   berbentuk, dan bingkai di sekitarnya hanya menambah satu benda lagi di
+   sudut yang sudah berisi lencana pengguna. Tingginya sedikit di bawah
+   bulatan pengguna di sebelahnya, supaya keduanya seimbang tanpa yang satu
+   menenggelamkan yang lain. */
+.kepala .lencana-proyek {
+  align-self: center; margin-left: auto; margin-right: 14px;
+  display: inline-flex; align-items: center;
+}
+/* Lebarnya dibatasi supaya lambang yang memanjang — yang membawa tulisan di
+   dalamnya — tidak mendorong lencana pengguna keluar layar. */
+.kepala .lencana-proyek .logo-project { max-width: 170px; }
+/* Bila berkas lambangnya belum ada, namanya yang ditulis. */
+.kepala .lencana-proyek .ganti-lambang { font-size: 12px; font-weight: 700;
+                                         color: var(--ink); }
 
 /* Bab yang hanya wadah: tidak dapat diklik, jadi tidak ditulis seperti tautan. */
 .nav .wadah { display: block; padding: 6px 13px; font-size: 12.5px;
