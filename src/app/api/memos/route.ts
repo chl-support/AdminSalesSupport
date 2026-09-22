@@ -1,6 +1,6 @@
 import { handler, currentUser, projectAktif } from "@/lib/api";
 import { WorkflowError } from "@/lib/workflow";
-import { daftarMemo, lampiranProject, namaDikenal, simpanMemo }
+import { daftarMemo, lampiranProject, namaDikenal, simpanMemo, skemaProject }
   from "@/lib/memo";
 
 /** Memo pada project yang sedang dikerjakan. */
@@ -15,6 +15,7 @@ export const GET = handler(async (req) => {
     // Acuan ejaan nama penanda tangan bagi pembacaan OCR di peramban. Tidak
     // disaring per project: penanda tangan memo berulang lintas project.
     nama: await namaDikenal(),
+    skema: await skemaProject(projectId),
   };
 });
 
@@ -39,7 +40,20 @@ export const POST = handler(async (req) => {
     return typeof v === "string" && v.trim() ? v.trim() : null;
   };
 
+  // Rincian skemanya dikirim sebagai JSON dalam satu medan formulir: jumlah
+  // barisnya berbeda tiap memo, dan medan bernomor akan memaksa kedua sisi
+  // menghitung hal yang sama dengan cara yang berbeda.
+  let skema = null;
+  const mentah = form?.get("skema");
+  if (typeof mentah === "string" && mentah.trim()) {
+    try {
+      const x = JSON.parse(mentah);
+      if (Array.isArray(x)) skema = x;
+    } catch { /* rinciannya hilang; memonya sendiri tetap tersimpan */ }
+  }
+
   return simpanMemo(projectId, user.username, {
+    skema,
     judul: teks("judul") ?? f.name,
     nomor: teks("nomor"),
     keterangan: teks("keterangan"),

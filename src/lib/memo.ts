@@ -14,6 +14,7 @@
 
 import { audit, one, query } from "./db";
 import { WorkflowError } from "./workflow";
+import type { BarisSkema } from "./memo-skema";
 
 /** Batas ukuran berkas memo. Lebih longgar daripada lampiran klaim: memo
  *  skema kerap berupa pindaian beberapa halaman. */
@@ -94,6 +95,22 @@ export function ensureKolomMemo(): Promise<void> {
     await query(
       `CREATE INDEX IF NOT EXISTS idx_memo_files_memo
          ON memo_files(memo_id, uploaded_at)`);
+    // Rincian kolom "Nilai / Skema Fee". Di dalam memonya ia bukan satu
+    // kalimat melainkan beberapa tabel berkategori, dan disimpan sebagai satu
+    // kalimat isinya tidak dapat dicari maupun dibandingkan antar memo.
+    await query(
+      `CREATE TABLE IF NOT EXISTS memo_skema (
+         id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+         memo_id    UUID NOT NULL REFERENCES memos(id) ON DELETE CASCADE,
+         kelompok   TEXT NOT NULL,
+         urutan     INT  NOT NULL,
+         kategori   TEXT,
+         nilai      TEXT,
+         keterangan TEXT,
+         baris      INT  NOT NULL)`);
+    await query(
+      `CREATE INDEX IF NOT EXISTS idx_memo_skema_memo
+         ON memo_skema(memo_id, baris)`);
   })().catch(() => { sekali = null; });
   return sekali;
 }
@@ -108,6 +125,24 @@ export async function daftarMemo(projectId: string) {
        FROM memos WHERE project_id = $1
       ORDER BY COALESCE(tanggal_memo, berlaku_dari, uploaded_at::date) DESC,
                uploaded_at DESC`,
+    [projectId]);
+}
+
+/**
+ * Rincian skema fee seluruh memo pada satu project, sekali ambil.
+ *
+ * Sejalan dengan lampiranProject(): layar rekapitulasi membuka rinciannya
+ * per baris, dan satu permintaan per memo berarti sepuluh perjalanan
+ * bolak-balik untuk sesuatu yang sudah diketahui seluruhnya di sini.
+ */
+export async function skemaProject(projectId: string) {
+  await ensureKolomMemo();
+  return query(
+    `SELECT s.id, s.memo_id, s.kelompok, s.urutan, s.kategori, s.nilai,
+            s.keterangan
+       FROM memo_skema s JOIN memos m ON m.id = s.memo_id
+      WHERE m.project_id = $1
+      ORDER BY s.memo_id, s.baris`,
     [projectId]);
 }
 
@@ -240,6 +275,7 @@ export async function simpanMemo(
     judul: string; nomor?: string | null; keterangan?: string | null;
     berlaku_dari?: string | null; berlaku_sampai?: string | null;
     file_name: string; content_type: string; buf: Buffer;
+    skema?: BarisSkema[] | null;
   },
 ) {
   await ensureKolomMemo();
@@ -265,6 +301,19 @@ export async function simpanMemo(
      bersih(p.nilai_skema), bersih(p.dokumen_wajib), bersih(p.diajukan_oleh),
      bersih(p.diketahui_oleh), bersih(p.disetujui_oleh),
      p.file_name, tipe, p.buf.length, p.buf, aktor]);
+
+  // Rincian skemanya ditulis apa adanya, termasuk barisnya yang kosong
+  // sebagiannya: yang mengunggah sudah sempat memeriksanya di layar, dan
+  // baris yang hilang lebih merepotkan daripada baris yang perlu dirapikan.
+  for (const [i, b] of (p.skema ?? []).entries()) {
+    if (!b.kategori?.trim() && !b.nilai?.trim() && !b.keterangan?.trim()) continue;
+    await query(
+      `INSERT INTO memo_skema
+         (memo_id, kelompok, urutan, kategori, nilai, keterangan, baris)
+       VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+      [m!.id, String(b.kelompok ?? "").trim() || "Skema", Number(b.urutan) || i + 1,
+       bersih(b.kategori), bersih(b.nilai), bersih(b.keterangan), i]);
+  }
 
   await audit({
     entityType: "memo", entityId: m!.id, action: "memo_uploaded", actor: aktor,

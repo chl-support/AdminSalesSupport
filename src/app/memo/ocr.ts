@@ -21,6 +21,8 @@
  * terlihat di layar hanya OCR yang tidak pernah selesai.
  */
 
+import type { KataOCR } from "@/lib/memo-skema";
+
 const JALUR = {
   worker: "/ocr/worker.min.js",
   core: "/ocr",
@@ -33,9 +35,22 @@ const JALUR = {
  *  menambah kolom yang terisi. */
 const BATAS_HALAMAN = 3;
 
-/** Perbesaran saat halaman PDF digambar ulang sebelum dibaca. Di bawah ini
- *  huruf pada pindaian 150 dpi pecah dan terbaca sebagai aksara lain. */
-const SKALA = 2;
+/**
+ * Lebar gambar yang dituju saat halaman PDF digambar ulang, dalam piksel.
+ *
+ * Bukan perbesaran tetap. Halaman A4 melintang berukuran 842 titik; dengan
+ * perbesaran 2 kali ia menjadi 1683 piksel — lebih kecil daripada pindaian
+ * 3507 piksel yang tertanam di dalamnya, sehingga yang terjadi justru
+ * pengecilan, dan angka setipis nomor baris tabel hilang bersamanya. Yang
+ * dituju karena itu lebarnya, bukan kelipatannya.
+ */
+const LEBAR_TUJU = 2600;
+
+/** Batas perbesaran. Bawahnya menjaga halaman yang memang kecil tetap
+ *  terbaca; atasnya menjaga peramban tidak kehabisan ingatan pada halaman
+ *  yang sudah besar. */
+const SKALA_MIN = 2;
+const SKALA_MAKS = 4;
 
 export type Kemajuan = {
   tahap: "menyiapkan" | "menggambar" | "membaca" | "selesai";
@@ -55,7 +70,10 @@ async function halamanPdf(berkas: File, lapor: (k: Kemajuan) => void) {
   for (let i = 1; i <= jumlah; i++) {
     lapor({ tahap: "menggambar", halaman: i, dari: jumlah });
     const halaman = await dok.getPage(i);
-    const ukuran = halaman.getViewport({ scale: SKALA });
+    const asli = halaman.getViewport({ scale: 1 });
+    const skala = Math.min(SKALA_MAKS,
+                           Math.max(SKALA_MIN, LEBAR_TUJU / asli.width));
+    const ukuran = halaman.getViewport({ scale: skala });
     const c = document.createElement("canvas");
     c.width = Math.ceil(ukuran.width);
     c.height = Math.ceil(ukuran.height);
@@ -68,8 +86,14 @@ async function halamanPdf(berkas: File, lapor: (k: Kemajuan) => void) {
   return kanvas;
 }
 
+export type HasilPindai = { teks: string; kata: KataOCR[] };
+
 /**
- * Teks seluruh halaman sebuah memo pindaian.
+ * Teks seluruh halaman sebuah memo pindaian, beserta kotak letak tiap kata.
+ *
+ * Koordinatnya dipakai untuk memulihkan kolom tabel skema fee — lihat
+ * bedahSkema() di @/lib/memo-skema. Pada teks datar kolom-kolom sebuah tabel
+ * berjalin menjadi satu baris dan tidak dapat dipisahkan lagi.
  *
  * Mengembalikan kosong bila jenis berkasnya memang bukan gambar maupun PDF —
  * bukan melempar galat. Yang memanggil sudah punya jalan lain (nama berkas),
@@ -77,12 +101,12 @@ async function halamanPdf(berkas: File, lapor: (k: Kemajuan) => void) {
  */
 export async function bacaPindaian(
   berkas: File, lapor: (k: Kemajuan) => void = () => {},
-): Promise<string> {
+): Promise<HasilPindai> {
   const nama = berkas.name.toLowerCase();
   const pdf = berkas.type.includes("pdf") || nama.endsWith(".pdf");
   const gambar = berkas.type.startsWith("image/") ||
                  /\.(jpe?g|png|webp)$/.test(nama);
-  if (!pdf && !gambar) return "";
+  if (!pdf && !gambar) return { teks: "", kata: [] };
 
   lapor({ tahap: "menyiapkan" });
   const { createWorker } = await import("tesseract.js");
@@ -108,13 +132,25 @@ export async function bacaPindaian(
 
   try {
     const bagian: string[] = [];
+    const kata: KataOCR[] = [];
     for (let i = 0; i < sumber.length; i++) {
       lapor({ tahap: "membaca", halaman: i + 1, dari: sumber.length });
-      const { data } = await pekerja.recognize(sumber[i] as any);
+      // blocks: true meminta pohon blok-paragraf-baris-kata beserta kotak
+      // letaknya; tanpa itu yang kembali hanya teks datar.
+      const { data } = await pekerja.recognize(
+        sumber[i] as any, {}, { text: true, blocks: true });
       bagian.push(data.text ?? "");
+      for (const b of (data as any).blocks ?? [])
+        for (const p of b.paragraphs ?? [])
+          for (const l of p.lines ?? [])
+            for (const w of l.words ?? [])
+              kata.push({
+                h: i, t: w.text,
+                x0: w.bbox.x0, y0: w.bbox.y0, x1: w.bbox.x1, y1: w.bbox.y1,
+              });
     }
     lapor({ tahap: "selesai" });
-    return bagian.join("\n");
+    return { teks: bagian.join("\n"), kata };
   } finally {
     await pekerja.terminate();
   }
