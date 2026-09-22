@@ -34,6 +34,20 @@ const KATA = {
     galatKirim: "Sebagian klaim tidak dapat dikirim",
     kosong: "Tidak ada formulir yang diminta.",
     kirim: "Kirim ke Pajak",
+    cetak: "Cetak Form",
+    cetakJudul: "Pilih yang akan dicetak",
+    cetakForm: "Form Pengajuan",
+    cetakSemua: "Pilih semua", cetakKosongkan: "Kosongkan",
+    cetakLampiran: "Lampiran",
+    cetakTakTersimpan: "isi tidak tersimpan — tidak dapat dicetak",
+    cetakTakAda: "Klaim ini tidak punya lampiran yang berkasnya tersimpan.",
+    cetakJalan: "Cetak",
+    cetakBatal: "Batal",
+    cetakCatatan:
+      "Formulir dicetak dari layar ini; lampiran yang dicentang digabung " +
+      "menjadi satu PDF dan dibuka di tab tersendiri untuk dicetak. Peramban " +
+      "tidak dapat mencetak halaman dan berkas PDF dalam satu perintah.",
+    cetakBelumAda: "Centang setidaknya satu yang akan dicetak.",
     mengirim: "Mengirim…",
     jumlah: (n: number) => `${n} formulir`,
     pengantar:
@@ -67,6 +81,20 @@ const KATA = {
     galatKirim: "Some claims could not be sent",
     kosong: "No forms were requested.",
     kirim: "Send to Tax",
+    cetak: "Print the form",
+    cetakJudul: "Choose what to print",
+    cetakForm: "Submission form",
+    cetakSemua: "Select all", cetakKosongkan: "Clear",
+    cetakLampiran: "Attachments",
+    cetakTakTersimpan: "contents not stored — cannot be printed",
+    cetakTakAda: "This claim has no attachments with stored files.",
+    cetakJalan: "Print",
+    cetakBatal: "Cancel",
+    cetakCatatan:
+      "The form prints from this screen; the ticked attachments are merged " +
+      "into one PDF and opened in their own tab to print. A browser cannot " +
+      "print a page and a PDF file in one command.",
+    cetakBelumAda: "Tick at least one thing to print.",
     mengirim: "Sending…",
     jumlah: (n: number) => `${n} forms`,
     pengantar:
@@ -133,6 +161,20 @@ function kabarkanPembuka(jumlah: number): boolean {
   }
 }
 
+/**
+ * Keadaan sesudah tanda tangan Sales/Agent diterima.
+ *
+ * Pada keadaan ini jendela ini bukan lagi langkah pengiriman: klaimnya sudah
+ * berjalan, dan yang dikerjakan Admin Sales adalah memeriksa ulang lalu
+ * mencetak formulirnya untuk diedarkan dan ditandatangani di atas kertas.
+ * "Kirim ke Pajak" di situ menawarkan pekerjaan yang sudah selesai dikerjakan.
+ */
+const SESUDAH_TTD = [
+  "signed", "crosscheck_in_progress", "ready_to_print", "printed",
+  "circulating_head_finance", "circulating_management", "awaiting_scan_upload",
+  "approved", "awaiting_settlement_date", "partially_paid", "paid", "completed",
+];
+
 export default function PratinjauPage() {
   const { sesi, memuat } = useSesi();
   const k = useKata(KATA);
@@ -145,6 +187,12 @@ export default function PratinjauPage() {
   const [ceklis, setCeklis] = useState<Record<string, boolean>>({});
   /** Berkas yang dilampirkan, berkunci sama dengan centangnya. */
   const [berkas, setBerkas] = useState<Record<string, File>>({});
+  /** Dialog cetak: klaim yang sedang disiapkan cetakannya. */
+  const [siapCetakDialog, setSiapCetakDialog] = useState<string | null>(null);
+  /** Pilihan dalam dialog cetak: formulirnya, dan lampiran mana saja. */
+  const [cetakForm, setCetakForm] = useState(true);
+  const [cetakDok, setCetakDok] = useState<Record<string, boolean>>({});
+
   /**
    * Klaim yang daftar lampirannya sedang dibuka.
    *
@@ -191,6 +239,9 @@ export default function PratinjauPage() {
 
   /** Klaim yang masih berupa draft — yang lain sudah berjalan, tidak dikirim lagi. */
   const masihDraft = klaim.filter((c) => c.status === "draft");
+
+  /** Ada klaim yang sudah lewat tanda tangan — formulirnya siap dicetak. */
+  const siapCetak = klaim.some((c) => SESUDAH_TTD.includes(c.status));
 
   const lengkap = masihDraft.length > 0 &&
     masihDraft.every((c) => wajib(c).every((d) => ceklis[`${c.id}:${d}`]));
@@ -273,13 +324,34 @@ export default function PratinjauPage() {
         {klaim.length > 0 && (
           <span className="pill">{k.jumlah(klaim.length)}</span>
         )}
-        {/* Satu tombol saja. Jendela ini langkah pemeriksaan, dan tombol tutup
-            di sebelah tombol kirim mengundang jendela ditutup sebelum
-            klaimnya berjalan ke mana pun. */}
-        {bolehKirim && (
+        {/* Satu tombol saja, dan tombolnya mengikuti keadaan klaimnya.
+            Selama masih draft, yang dikerjakan di jendela ini adalah
+            mengirimnya ke tim pajak. Sesudah tanda tangan Sales/Agent diterima
+            dan klaimnya kembali ke Admin Sales untuk pemeriksaan ulang, yang
+            dikerjakan adalah mencetak formulirnya — jadi itulah yang ditawarkan
+            tombolnya.
+
+            Tanpa tombol tutup di sebelahnya: tombol tutup mengundang jendela
+            ditutup sebelum klaimnya berjalan ke mana pun. */}
+        {bolehKirim && masihDraft.length > 0 && (
           <button className="pri" disabled={!lengkap || kirim}
                   onClick={() => void kirimKePajak()}>
             {kirim ? k.mengirim : k.kirim}
+          </button>
+        )}
+        {bolehKirim && !masihDraft.length && siapCetak && (
+          <button className="pri" onClick={() => {
+            // Satu klaim per jendela pratinjau pada alur cetak; yang pertama
+            // sudah lewat tanda tangan itulah yang disiapkan cetakannya.
+            const c = klaim.find((x) => SESUDAH_TTD.includes(x.status));
+            if (!c) return;
+            setCetakForm(true);
+            setCetakDok(Object.fromEntries((c.documents ?? [])
+              .filter((d: any) => d.has_content)
+              .map((d: any) => [d.id, true])));
+            setSiapCetakDialog(c.id);
+          }}>
+            {k.cetak}
           </button>
         )}
       </div>
@@ -350,6 +422,111 @@ export default function PratinjauPage() {
           </div>
         </div>
       ))}
+
+      {/* Dialog cetak. Yang dicetak dipilih lebih dulu — formulirnya, dan
+          lampiran mana saja — supaya sekali cetak dapat menghasilkan berkas
+          lengkap, bukan formulir saja yang lalu disusul delapan kali cetak
+          lampiran satu per satu. */}
+      {siapCetakDialog && (() => {
+        const c = klaim.find((x) => x.id === siapCetakDialog);
+        const daftar = (c?.documents ?? []).filter((d: any) => d.file_name);
+        const terpilih = Object.entries(cetakDok)
+          .filter(([, v]) => v).map(([id]) => id);
+        const adaPilihan = cetakForm || terpilih.length > 0;
+        return (
+          <div className="tirai"
+               onMouseDown={(e) => {
+                 if (e.target === e.currentTarget) setSiapCetakDialog(null);
+               }}>
+            <div className="popup" role="dialog" aria-modal="true"
+                 aria-label={k.cetakJudul} style={{ maxWidth: 520 }}>
+              <h2 style={{ margin: "0 0 4px" }}>{k.cetakJudul}</h2>
+              <p className="pengantar" style={{ margin: "0 0 10px" }}>
+                <b>{c?.claim_number}</b>
+              </p>
+
+              <ul className="pilih-cetak">
+                <li>
+                  <label className="ceklis-pilih">
+                    <input type="checkbox" checked={cetakForm}
+                           onChange={(e) => setCetakForm(e.target.checked)} />
+                    <span><b>{k.cetakForm}</b></span>
+                  </label>
+                </li>
+              </ul>
+
+              <div className="lbl" style={{ marginTop: 10 }}>
+                {k.cetakLampiran}
+              </div>
+              {daftar.length ? (
+                <>
+                  <div className="row" style={{ margin: "0 0 6px", gap: 6 }}>
+                    <button className="tautan" onClick={() => setCetakDok(
+                      Object.fromEntries(daftar
+                        .filter((d: any) => d.has_content)
+                        .map((d: any) => [d.id, true])))}>
+                      {k.cetakSemua}
+                    </button>
+                    <button className="tautan"
+                            onClick={() => setCetakDok({})}>
+                      {k.cetakKosongkan}
+                    </button>
+                  </div>
+                  <ul className="pilih-cetak">
+                    {daftar.map((d: any) => (
+                      <li key={d.id}>
+                        <label className="ceklis-pilih">
+                          <input type="checkbox" disabled={!d.has_content}
+                                 checked={Boolean(cetakDok[d.id])}
+                                 onChange={(e) => setCetakDok((lama) => (
+                                   { ...lama, [d.id]: e.target.checked }))} />
+                          <span>
+                            {d.file_name}
+                            <span className="meta"> · {d.checklist_item}</span>
+                            {!d.has_content && (
+                              <><br /><span className="meta">
+                                {k.cetakTakTersimpan}
+                              </span></>
+                            )}
+                          </span>
+                        </label>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              ) : (
+                <p className="hint" style={{ textAlign: "left" }}>
+                  {k.cetakTakAda}
+                </p>
+              )}
+
+              <p className="hint" style={{ textAlign: "left", margin: "10px 0 0" }}>
+                {adaPilihan ? k.cetakCatatan : k.cetakBelumAda}
+              </p>
+
+              <button className="pri" disabled={!adaPilihan}
+                      onClick={() => {
+                        setSiapCetakDialog(null);
+                        // Lampirannya lebih dulu: jendela barunya dibuka
+                        // langsung dari tekanan tombol ini, sementara
+                        // window.print() menahan jalannya halaman sampai
+                        // dialog cetak peramban ditutup.
+                        if (terpilih.length) {
+                          window.open(
+                            `/api/claims/${c!.id}/lampiran-gabungan` +
+                            `?ids=${terpilih.join(",")}`, "_blank");
+                        }
+                        if (cetakForm) setTimeout(() => window.print(), 200);
+                      }}>
+                {k.cetakJalan}
+              </button>
+              <button onClick={() => setSiapCetakDialog(null)}>
+                {k.cetakBatal}
+              </button>
+            </div>
+          </div>
+        );
+      })()}
 
       {lihatLampiran && (() => {
         const c = klaim.find((x) => x.id === lihatLampiran);
