@@ -73,7 +73,7 @@ export default function PilihProjectPage() {
         <Logo tinggi={132} />
         <div>
           <h1>Pilih Kategori Proyek</h1>
-          <p>Tentukan kategori proyek untuk melanjutkan proses pengajuan</p>
+          <p>Tentukan Proyek Terkait Untuk Melanjutkan Proses Pengajuan</p>
         </div>
       </header>
 
