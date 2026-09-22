@@ -40,8 +40,13 @@ export const TRANSITIONS: Record<string, string[]> = {
   pending_tax_verification: ["tax_verified", "draft", "rejected"],
   tax_verified: ["signature_link_sent", "pending_tax_verification"],
   signature_link_sent: ["awaiting_signature", "tax_verified"],
+  // tax_verified: penerbitan ulang tautan. Sales/Agent yang sudah membuka
+  // tautannya tetapi belum menandatangani — tautan hilang dari percakapan,
+  // ponsel berganti, masa berlaku habis — tidak punya jalan lain selain
+  // tautan baru, dan tanpa tepi ini klaimnya menggantung pada "menunggu
+  // tanda tangan" sampai seseorang membatalkannya.
   awaiting_signature: ["signed", "signature_review_required",
-                       "pending_tax_verification"],
+                       "pending_tax_verification", "tax_verified"],
   signature_review_required: ["signed", "rejected", "pending_tax_verification"],
   signed: ["crosscheck_in_progress"],
   crosscheck_in_progress: ["ready_to_print", "draft", "rejected",
@@ -431,7 +436,8 @@ export async function issueSignatureLink(
    * tetap diperiksa sesudahnya — verifikasi yang sudah kedaluwarsa tetap
    * mengembalikan klaimnya ke antrean Finance.
    */
-  if (claim.status === "signature_link_sent") {
+  if (claim.status === "signature_link_sent" ||
+      claim.status === "awaiting_signature") {
     claim = await transition(claimId, "tax_verified", actor,
                              "Tautan tanda tangan diterbitkan ulang.");
   }

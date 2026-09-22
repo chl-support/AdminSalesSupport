@@ -32,7 +32,7 @@ const JENIS_NAMA: Record<string, string> = {
 };
 
 export function FormPengajuan(
-  { klaim, ttdPemohon, ceklis, onCeklis, berkas, onBerkas, tanpaLampiran }: {
+  { klaim, ttdPemohon, ceklis, onCeklis, berkas, onBerkas }: {
     klaim: any; ttdPemohon?: string | null;
     /**
      * Centang dokumen yang sedang berjalan, bila layar pemanggilnya memang
@@ -51,16 +51,6 @@ export function FormPengajuan(
      */
     berkas?: Record<string, string>;
     onBerkas?: (item: string, berkas: File | null) => void;
-    /**
-     * Sembunyikan blok LAMPIRAN.
-     *
-     * Dipakai layar tanda tangan Sales/Agent: di sana daftar lampiran hanya
-     * memanjangkan formulir dengan sepuluh baris berisi nama berkas yang sama,
-     * dan yang mengunggahnya sudah melihat unggahannya sendiri satu langkah
-     * sebelumnya. Pada cetakan dan pada pemeriksaan internal blok itu tetap
-     * ada — di sanalah ia memang dibaca.
-     */
-    tanpaLampiran?: boolean;
   },
 ) {
   const jenis = klaim.claim_type as Jenis;
@@ -72,11 +62,6 @@ export function FormPengajuan(
   // berjalan di pemasangan yang sama dan tidak semuanya di bawah PT yang sama.
   const pt = klaim.project?.company_name ?? "PT. Serpong Bangun Lestari";
   const dokumen = DOKUMEN[jenis] ?? [];
-  // Hanya berkas yang benar-benar diunggah. Baris checklist tanpa berkas juga
-  // tersimpan di tabel yang sama — itu centang syarat pengajuan, bukan lampiran,
-  // dan mencantumkannya di sini membuat formulir mengaku memuat sembilan
-  // dokumen yang tidak ada satu pun berkasnya.
-  const lampiran: any[] = (klaim.documents ?? []).filter((d: any) => d.file_name);
 
   // Tanda tangan yang ditempel pada kolom Pemohon.
   //
@@ -261,31 +246,6 @@ export function FormPengajuan(
           </p>
         )}
       </div>
-
-      {!tanpaLampiran && lampiran.length > 0 && (
-        <div className="form-blok">
-          <h3>LAMPIRAN</h3>
-          <table><tbody>
-            {lampiran.map((l) => (
-              <tr key={l.id}>
-                <td>{l.checklist_item}</td>
-                <td>
-                  {/* Berkas yang isinya tersimpan dapat dibuka langsung dari
-                      sini — itulah yang diperiksa tim pajak. Yang hanya berupa
-                      catatan nama tetap ditulis apa adanya, tanpa tautan yang
-                      akan berakhir pada galat. */}
-                  {l.has_content ? (
-                    <a href={`/api/claims/${klaim.id}/documents/${l.id}?pratinjau=1`}
-                       target="_blank" rel="noreferrer">{l.file_name}</a>
-                  ) : l.file_name}
-                  {l.size_bytes
-                    ? ` · ${Math.max(1, Math.round(l.size_bytes / 1024))} KB` : ""}
-                </td>
-              </tr>
-            ))}
-          </tbody></table>
-        </div>
-      )}
 
       {/* Susunannya mengikuti cetakan: Pemohon berdiri sendiri di kiri,
           sedangkan Admin & Finance dan Management bernaung di bawah satu

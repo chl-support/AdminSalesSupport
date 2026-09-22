@@ -242,8 +242,14 @@ function nomorWa(hp?: string | null): string {
  * dan tidak tersimpan di mana pun setelah layar ditutup, jadi baris yang
  * kehilangan tombolnya begitu ditekan membawa serta tautan yang baru terbit —
  * sebelum sempat dibuka atau disalin.
+ *
+ * "Menunggu tanda tangan" pun ikut. Sales/Agent sudah membuka tautannya tetapi
+ * belum menandatangani, dan pada keadaan itu tombolnya dulu hilang: tautannya
+ * tidak dapat diperlihatkan lagi maupun diterbitkan ulang, sehingga klaimnya
+ * menggantung di situ tanpa satu pun jalan untuk menindaklanjuti.
  */
-const MENUNGGU_TAUTAN = ["tax_verified", "signature_link_sent"];
+const MENUNGGU_TAUTAN = ["tax_verified", "signature_link_sent",
+                         "awaiting_signature"];
 
 /** Keadaan yang dianggap belum bergerak ke mana pun. */
 const DIAM = ["draft", "submitted", "pending_admin_review"];
@@ -428,32 +434,43 @@ export default function PersetujuanPage() {
                       lain. Muncul hanya pada baris yang memang sedang menunggu
                       tautannya; pada baris lain kolom ini tetap keterangan
                       keadaan, bukan deretan tombol yang tak dapat ditekan. */}
+                  {/* Tautan yang sudah terbit pada layar ini tetap dapat
+                      dibuka, berapa pun statusnya sekarang — termasuk setelah
+                      Sales/Agent membukanya dan klaimnya berpindah ke
+                      "menunggu tanda tangan". Sebelumnya tombolnya ikut hilang
+                      pada perpindahan itu: tautannya masih berlaku, masih
+                      ditunggu tanda tangannya, tetapi tidak ada lagi yang
+                      dapat memperlihatkannya — statusnya menggantung tanpa
+                      satu pun jalan untuk menindaklanjuti.
+
+                      Dibuka kembali, bukan diterbitkan ulang: menerbitkan
+                      ulang menggugurkan tautan yang sudah ada di tangan
+                      Sales/Agent. */}
                   {sesi.role === "admin_sales" &&
-                   MENUNGGU_TAUTAN.includes(c.status) && (
-                    c.marketing?.phone ? (
-                      <div className="row" style={{ margin: "6px 0 0", gap: 6 }}>
-                        <button disabled={mengirim !== null}
-                                onClick={() => void kirimTautan(c)}>
-                          {mengirim === c.id ? k.waMengirim
-                            : c.status === "signature_link_sent" ? k.waUlang
-                            : k.waKirim}
-                        </button>
-                        {/* Tautan yang sudah terbit pada layar ini dapat dibuka
-                            kembali tanpa menerbitkan yang baru — menerbitkan
-                            ulang menggugurkan tautan yang mungkin sudah
-                            dikirim. */}
-                        {tautan[c.id] && (
-                          <button className="tautan"
-                                  onClick={() => setLihatTautan(c.id)}>
-                            {k.waLihat}
+                   (MENUNGGU_TAUTAN.includes(c.status) || tautan[c.id]) && (
+                    <div className="row" style={{ margin: "6px 0 0", gap: 6 }}>
+                      {MENUNGGU_TAUTAN.includes(c.status) && (
+                        c.marketing?.phone ? (
+                          <button disabled={mengirim !== null}
+                                  onClick={() => void kirimTautan(c)}>
+                            {mengirim === c.id ? k.waMengirim
+                              : c.status === "tax_verified" ? k.waKirim
+                              : k.waUlang}
                           </button>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="menunggu" style={{ color: "var(--stop)" }}>
-                        {k.waTanpaHp}
-                      </div>
-                    )
+                        ) : (
+                          <div className="menunggu"
+                               style={{ color: "var(--stop)" }}>
+                            {k.waTanpaHp}
+                          </div>
+                        )
+                      )}
+                      {tautan[c.id] && (
+                        <button className="tautan"
+                                onClick={() => setLihatTautan(c.id)}>
+                          {k.waLihat}
+                        </button>
+                      )}
+                    </div>
                   )}
                 </td>
                 {/* Pratinjau dibuka di jendela tersendiri, sama seperti dari

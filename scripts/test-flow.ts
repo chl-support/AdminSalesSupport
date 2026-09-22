@@ -279,6 +279,26 @@ async function main() {
     assert(r.ok, "OTP benar seharusnya diterima");
   });
 
+  await check("tautan dapat diterbitkan ulang walau sudah dibuka agent",
+              async () => {
+    // Sesudah OTP diverifikasi klaimnya berada pada 'awaiting_signature'.
+    // Sebelumnya penerbitan ulang ditolak di situ, sehingga tautan yang hilang
+    // dari percakapan WhatsApp membuat klaimnya menggantung tanpa jalan keluar.
+    const sebelum = await wf.getClaim(cid);
+    assert(sebelum.status === "awaiting_signature", sebelum.status);
+
+    const r = await wf.issueSignatureLink(cid, "admin");
+    assert(r.token !== token, "tautan baru seharusnya berbeda");
+    assert(r.otp_demo.length === 6, "OTP baru tidak wajar");
+
+    // Tautan lama gugur; yang menekannya tidak boleh masuk ke sesi yang sama.
+    await expectError("session_closed", () => wf.verifyOtp(token, otp));
+
+    token = r.token; otp = r.otp_demo;
+    const r2 = await wf.verifyOtp(token, otp);
+    assert(r2.ok, "OTP tautan baru seharusnya diterima");
+  });
+
   await check("tanda tangan tidak cocok meminta ulang, bukan menolak", async () => {
     const r = await wf.submitSignature({
       token, imagePng: wrongSignature(), inputMethod: "mouse" });

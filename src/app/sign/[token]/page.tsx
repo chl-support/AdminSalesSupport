@@ -272,7 +272,7 @@ export default function SignPage() {
 
           <div className="lbl">Form Pengajuan — hanya untuk dibaca</div>
           <div className="form-lihat">
-            <FormPengajuan klaim={claim} tanpaLampiran />
+            <FormPengajuan klaim={claim} />
           </div>
 
           {/* Tanpa ringkasan nominal di bawah formulirnya. Keempat angkanya —
@@ -390,7 +390,7 @@ export default function SignPage() {
           </div>
           <div className="form-lihat">
             <FormPengajuan klaim={{ ...claim, documents: dokumen }}
-                           ttdPemohon={pratinjauTtd} tanpaLampiran />
+                           ttdPemohon={pratinjauTtd} />
           </div>
           <button className="pri" onClick={submit} disabled={busy}
                   style={{ width: "100%", marginTop: 12, padding: 13 }}>
@@ -434,7 +434,7 @@ export default function SignPage() {
           {done.kind === "ok" && claim && (
             <div className="form-lihat" style={{ marginTop: 12 }}>
               <FormPengajuan klaim={{ ...claim, documents: dokumen }}
-                             ttdPemohon={pratinjauTtd} tanpaLampiran />
+                             ttdPemohon={pratinjauTtd} />
             </div>
           )}
         </section>

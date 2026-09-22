@@ -53,6 +53,12 @@ const KATA = {
       `${n} klaim sudah dikirim ke tim pajak. Setelah diverifikasi, klaim ` +
       "kembali ke Pengajuan Fee untuk dikirimkan tautannya kepada Sales/Agent.",
     sudahJalan: "sudah berjalan",
+    lampiranTombol: (n: number) => `Pratinjau lampiran (${n})`,
+    lampiranKosong: "Belum ada lampiran pada klaim ini.",
+    lampiranJudul: "Lampiran klaim",
+    lampiranLihat: "Lihat", lampiranUnduh: "Unduh",
+    lampiranTakTersimpan: "isi tidak tersimpan",
+    lampiranTutup: "Tutup",
   },
   en: {
     judul: "Submission form preview",
@@ -80,6 +86,12 @@ const KATA = {
       `${n} claims sent to the tax team. Once verified, they return to Fee ` +
       "Submission so the link can be sent to the Sales/Agent.",
     sudahJalan: "already under way",
+    lampiranTombol: (n: number) => `Preview attachments (${n})`,
+    lampiranKosong: "No attachments on this claim yet.",
+    lampiranJudul: "Claim attachments",
+    lampiranLihat: "View", lampiranUnduh: "Download",
+    lampiranTakTersimpan: "contents not stored",
+    lampiranTutup: "Close",
   },
 };
 
@@ -133,6 +145,15 @@ export default function PratinjauPage() {
   const [ceklis, setCeklis] = useState<Record<string, boolean>>({});
   /** Berkas yang dilampirkan, berkunci sama dengan centangnya. */
   const [berkas, setBerkas] = useState<Record<string, File>>({});
+  /**
+   * Klaim yang daftar lampirannya sedang dibuka.
+   *
+   * Daftarnya dulu digambar sebagai blok LAMPIRAN di dalam formulir. Formulir
+   * itu salinan dari cetakan yang dipakai kantor, dan cetakan itu tidak punya
+   * blok lampiran — sepuluh baris berisi nama berkas yang sama menumpang di
+   * dokumen yang akan ditandatangani, lalu ikut tercetak bersamanya.
+   */
+  const [lihatLampiran, setLihatLampiran] = useState<string | null>(null);
 
   /** Hanya Admin Sales yang mengirim klaim ke tim pajak — lihat /api/.../submit. */
   const bolehKirim = sesi?.role === "admin_sales";
@@ -318,8 +339,78 @@ export default function PratinjauPage() {
                   }
                 }
               : undefined} />
+
+          {/* Lampirannya diperiksa dari sini, di luar formulirnya, lewat
+              tombol yang tidak ikut tercetak. */}
+          <div className="row jangan-cetak" style={{ margin: "10px 0 0" }}>
+            <button onClick={() => setLihatLampiran(c.id)}>
+              {k.lampiranTombol(
+                (c.documents ?? []).filter((d: any) => d.file_name).length)}
+            </button>
+          </div>
         </div>
       ))}
+
+      {lihatLampiran && (() => {
+        const c = klaim.find((x) => x.id === lihatLampiran);
+        const daftar = (c?.documents ?? []).filter((d: any) => d.file_name);
+        return (
+          <div className="tirai"
+               onMouseDown={(e) => {
+                 if (e.target === e.currentTarget) setLihatLampiran(null);
+               }}>
+            <div className="popup" role="dialog" aria-modal="true"
+                 aria-label={k.lampiranJudul} style={{ maxWidth: 520 }}>
+              <h2 style={{ margin: "0 0 4px" }}>{k.lampiranJudul}</h2>
+              <p className="pengantar" style={{ margin: "0 0 10px" }}>
+                <b>{c?.claim_number}</b>
+              </p>
+
+              {daftar.length ? (
+                <ul className="lampiran">
+                  {daftar.map((d: any) => (
+                    <li key={d.id}>
+                      <span>
+                        {d.file_name}
+                        {d.size_bytes
+                          ? ` · ${Math.max(1, Math.round(d.size_bytes / 1024))} KB`
+                          : ""}
+                        <br />
+                        <span className="meta">{d.checklist_item}</span>
+                      </span>
+                      {/* Yang isinya tersimpan dapat dibuka; yang hanya berupa
+                          catatan nama ditulis apa adanya, tanpa tautan yang
+                          akan berakhir pada galat. */}
+                      <span className="meta">
+                        {d.has_content ? (
+                          <>
+                            <a href={`/api/claims/${c.id}/documents/${d.id}?pratinjau=1`}
+                               target="_blank" rel="noreferrer">
+                              {k.lampiranLihat}
+                            </a>
+                            <a className="unduh"
+                               href={`/api/claims/${c.id}/documents/${d.id}`}>
+                              {k.lampiranUnduh}
+                            </a>
+                          </>
+                        ) : k.lampiranTakTersimpan}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="hint" style={{ textAlign: "left" }}>
+                  {k.lampiranKosong}
+                </p>
+              )}
+
+              <button onClick={() => setLihatLampiran(null)}>
+                {k.lampiranTutup}
+              </button>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
