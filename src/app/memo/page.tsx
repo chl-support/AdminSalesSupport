@@ -45,10 +45,6 @@ const KATA = {
     daftar: "Memo tersimpan",
     berkasN: (n: number) => `${n} berkas`,
     fTanggal: "Tanggal memo",
-    fDariSiapa: "Pengajuan (Dari)", cDariSiapa: "mis. Ir. Hendry Sulaiman",
-    fKepada: "Kepada (Yth)",
-    cKepada: "mis. Bpk. Johannes Tanuwijaya, Bpk. Setia Iskandar & Bpk. Al Imron",
-    fNilai: "Nilai / Skema Fee",
     fSkema: "Rincian Nilai / Skema Fee",
     cSkema: "Dibedah dari tabel di dalam memo. Periksa dan betulkan bila " +
             "ada yang meleset — yang tersimpan adalah isi tabel ini.",
@@ -56,9 +52,6 @@ const KATA = {
     sKelompok: "Skema", sNo: "No", sKategori: "Kategori", sNilai: "Nilai",
     sKeterangan: "Keterangan", buangBaris: "Buang baris ini",
     tanpaSkema: "Memo ini tidak memuat tabel skema.",
-    cNilai: "mis. 2,5% dari harga sewa unit (setelah dikurangi biaya operasional)",
-    fDiajukan: "Diajukan oleh", fDiketahui: "Diketahui oleh",
-    fDisetujui: "Disetujui oleh",
     kNo: "No", kNomor: "Nomor Memo", kTanggal: "Tanggal Memo",
     kDari: "Pengajuan (Dari)", kKepada: "Kepada (Yth)",
     kPerihal: "Perihal / Program", kNilai: "Nilai / Skema Fee",
@@ -118,10 +111,6 @@ const KATA = {
     daftar: "Stored memos",
     berkasN: (n: number) => `${n} files`,
     fTanggal: "Memo date",
-    fDariSiapa: "Submitted by", cDariSiapa: "e.g. Ir. Hendry Sulaiman",
-    fKepada: "Addressed to",
-    cKepada: "e.g. Mr Johannes Tanuwijaya, Mr Setia Iskandar & Mr Al Imron",
-    fNilai: "Value / fee scheme",
     fSkema: "Value / fee scheme breakdown",
     cSkema: "Extracted from the tables inside the memo. Check and correct " +
             "anything that is off — what this table holds is what is saved.",
@@ -129,8 +118,6 @@ const KATA = {
     sKelompok: "Scheme", sNo: "No", sKategori: "Category", sNilai: "Value",
     sKeterangan: "Notes", buangBaris: "Remove this row",
     tanpaSkema: "This memo carries no scheme table.",
-    cNilai: "e.g. 2.5% of the unit rent (net of operating costs)",
-    fDiajukan: "Submitted by", fDiketahui: "Noted by", fDisetujui: "Approved by",
     kNo: "No", kNomor: "Memo number", kTanggal: "Memo date",
     kDari: "Submitted by", kKepada: "Addressed to",
     kPerihal: "Subject / programme", kNilai: "Value / fee scheme",
@@ -566,45 +553,12 @@ export default function MemoPage() {
             </div>
           </div>
 
-          {/* Pihak-pihaknya. Tiga baris terpisah, bukan satu kolom bebas:
-              rekapitulasinya membedakan yang mengajukan, yang mengetahui, dan
-              yang menyetujui — dan perbedaan itu yang ditanyakan orang ketika
-              sebuah angka dipersoalkan. */}
-          <div className="filters" style={{ marginTop: 12 }}>
-            <div>
-              <div className="lbl">{k.fDariSiapa}</div>
-              <input value={dariSiapa} placeholder={k.cDariSiapa}
-                     onChange={(e) => setDariSiapa(e.target.value)} />
-            </div>
-            <div>
-              <div className="lbl">{k.fKepada}</div>
-              <input value={kepada} placeholder={k.cKepada}
-                     onChange={(e) => setKepada(e.target.value)} />
-            </div>
-            <div>
-              <div className="lbl">{k.fNilai}</div>
-              <input value={nilai} placeholder={k.cNilai}
-                     onChange={(e) => setNilai(e.target.value)} />
-            </div>
-          </div>
-
-          <div className="filters" style={{ marginTop: 12 }}>
-            <div>
-              <div className="lbl">{k.fDiajukan}</div>
-              <input value={diajukan}
-                     onChange={(e) => setDiajukan(e.target.value)} />
-            </div>
-            <div>
-              <div className="lbl">{k.fDiketahui}</div>
-              <input value={diketahui}
-                     onChange={(e) => setDiketahui(e.target.value)} />
-            </div>
-            <div>
-              <div className="lbl">{k.fDisetujui}</div>
-              <input value={disetujui}
-                     onChange={(e) => setDisetujui(e.target.value)} />
-            </div>
-          </div>
+          {/* Pengajuan (Dari), Kepada (Yth), Nilai / Skema Fee, dan ketiga
+              nama penanda tangan tidak lagi punya kotak isian di sini.
+              Keenamnya dibaca dari memonya sendiri, bukan diketik; kotak yang
+              selalu terisi sendiri hanya memanjangkan formulir dan mengundang
+              orang mengubah apa yang seharusnya mengikuti memonya. Nilainya
+              tetap disimpan dan tetap tampil pada rekapitulasi. */}
 
           {/* Rincian kolom Nilai / Skema Fee.
               Ditampilkan hanya bila memonya memang memuat tabel skema. Dapat
