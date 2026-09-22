@@ -45,13 +45,8 @@ const KATA = {
     daftar: "Memo tersimpan",
     berkasN: (n: number) => `${n} berkas`,
     fTanggal: "Tanggal memo",
-    fSkema: "Rincian Nilai / Skema Fee",
-    cSkema: "Dibedah dari tabel di dalam memo. Periksa dan betulkan bila " +
-            "ada yang meleset — yang tersimpan adalah isi tabel ini.",
-    barisN: (n: number) => `${n} baris`,
     sKelompok: "Skema", sNo: "No", sKategori: "Kategori", sNilai: "Nilai",
-    sKeterangan: "Keterangan", buangBaris: "Buang baris ini",
-    tanpaSkema: "Memo ini tidak memuat tabel skema.",
+    sKeterangan: "Keterangan",
     kNo: "No", kNomor: "Nomor Memo", kTanggal: "Tanggal Memo",
     kDari: "Pengajuan (Dari)", kKepada: "Kepada (Yth)",
     kPerihal: "Perihal / Program", kNilai: "Nilai / Skema Fee",
@@ -69,15 +64,17 @@ const KATA = {
       `${n} kolom lagi terisi dari tulisan di dalam pindaiannya. Hasil ` +
       `pembacaan gambar tidak selalu tepat — periksa sebelum menyimpan.`,
     ocrKosong:
-      "Tulisan pada pindaian ini tidak terbaca. Kolom sisanya diisi manual.",
+      "Tulisan pada pindaian ini tidak terbaca. Kolom yang dibaca dari memo " +
+      "akan kosong pada rekapitulasi.",
     terbacaIsi: (n: number) =>
       `${n} kolom terisi dari isi memo. Periksa sebelum menyimpan.`,
     terbacaNama: (n: number) =>
       `Memo ini berupa pindaian — tidak ada teks yang dapat dibaca di ` +
-      `dalamnya. ${n} kolom terisi dari nama berkasnya. Sisanya, termasuk ` +
-      `nama pengaju dan penyetuju, perlu diketik.`,
+      `dalamnya. ${n} kolom terisi dari nama berkasnya; tulisan di dalam ` +
+      `lembarnya sedang dibaca.`,
     takTerbaca:
-      "Tidak ada yang dapat dibaca dari berkas ini. Kolomnya diisi manual.",
+      "Tidak ada yang dapat dibaca dari berkas ini. Memonya tetap dapat " +
+      "diunggah; kolom yang dibaca dari memo akan kosong.",
     unduhRekap: "Unduh rekap (.xlsx)",
     nLampiran: (n: number) => `${n} lampiran`,
     takAdaLampiran: "Belum ada lampiran",
@@ -111,13 +108,8 @@ const KATA = {
     daftar: "Stored memos",
     berkasN: (n: number) => `${n} files`,
     fTanggal: "Memo date",
-    fSkema: "Value / fee scheme breakdown",
-    cSkema: "Extracted from the tables inside the memo. Check and correct " +
-            "anything that is off — what this table holds is what is saved.",
-    barisN: (n: number) => `${n} rows`,
     sKelompok: "Scheme", sNo: "No", sKategori: "Category", sNilai: "Value",
-    sKeterangan: "Notes", buangBaris: "Remove this row",
-    tanpaSkema: "This memo carries no scheme table.",
+    sKeterangan: "Notes",
     kNo: "No", kNomor: "Memo number", kTanggal: "Memo date",
     kDari: "Submitted by", kKepada: "Addressed to",
     kPerihal: "Subject / programme", kNilai: "Value / fee scheme",
@@ -135,16 +127,17 @@ const KATA = {
       `${n} more fields filled from the text inside the scan. Reading an ` +
       `image is never exact — check before saving.`,
     ocrKosong:
-      "No text could be read from this scan. The remaining fields are filled " +
-      "by hand.",
+      "No text could be read from this scan. The fields read from the memo " +
+      "will be empty on the recap.",
     terbacaIsi: (n: number) =>
       `${n} fields filled from the memo's contents. Check before saving.`,
     terbacaNama: (n: number) =>
       `This memo is a scan — there is no readable text inside it. ${n} ` +
-      `fields were filled from the file name. The rest, including the ` +
-      `submitter and approver names, must be typed.`,
+      `fields were filled from the file name; the text inside the sheet is ` +
+      `being read now.`,
     takTerbaca:
-      "Nothing could be read from this file. The fields are filled by hand.",
+      "Nothing could be read from this file. The memo can still be uploaded; " +
+      "the fields read from the memo will be empty.",
     unduhRekap: "Download recap (.xlsx)",
     nLampiran: (n: number) => `${n} attachments`,
     takAdaLampiran: "No attachments yet",
@@ -560,72 +553,11 @@ export default function MemoPage() {
               orang mengubah apa yang seharusnya mengikuti memonya. Nilainya
               tetap disimpan dan tetap tampil pada rekapitulasi. */}
 
-          {/* Rincian kolom Nilai / Skema Fee.
-              Ditampilkan hanya bila memonya memang memuat tabel skema. Dapat
-              disunting: pembedahan tabel dari pindaian miring tidak pernah
-              sempurna, dan yang mengunggah sedang memegang memonya. */}
-          {skema.length > 0 && (
-            <div className="rinci-skema">
-              <div className="lbl" style={{ marginTop: 14 }}>
-                {k.fSkema}
-                <span className="pill" style={{ marginLeft: 8 }}>
-                  {k.barisN(skema.length)}
-                </span>
-              </div>
-              <p className="catatan-skema">{k.cSkema}</p>
-              <table className="tabel-skema">
-                <thead>
-                  <tr>
-                    <th>{k.sKelompok}</th><th>{k.sNo}</th><th>{k.sKategori}</th>
-                    <th>{k.sNilai}</th><th>{k.sKeterangan}</th><th />
-                  </tr>
-                </thead>
-                <tbody>
-                  {skema.map((b, i) => {
-                    const ubah = (bagian: Partial<BarisSkema>) =>
-                      setSkema((x) => x.map((y, j) =>
-                        j === i ? { ...y, ...bagian } : y));
-                    // Judul tabel hanya ditulis pada baris pertama tiap
-                    // kelompok; mengulangnya di setiap baris membuat kolom
-                    // yang penting terdesak ke pinggir.
-                    const kepala = i === 0 || skema[i - 1].kelompok !== b.kelompok;
-                    return (
-                      <tr key={i}>
-                        <td className="sel-kelompok">
-                          {kepala ? (
-                            <input value={b.kelompok}
-                                   onChange={(e) =>
-                                     ubah({ kelompok: e.target.value })} />
-                          ) : null}
-                        </td>
-                        <td className="sel-no">{b.urutan}</td>
-                        <td>
-                          <input value={b.kategori}
-                                 onChange={(e) =>
-                                   ubah({ kategori: e.target.value })} />
-                        </td>
-                        <td>
-                          <textarea value={b.nilai}
-                                    onChange={(e) =>
-                                      ubah({ nilai: e.target.value })} />
-                        </td>
-                        <td>
-                          <textarea value={b.keterangan}
-                                    onChange={(e) =>
-                                      ubah({ keterangan: e.target.value })} />
-                        </td>
-                        <td>
-                          <button className="buang-baris" title={k.buangBaris}
-                                  onClick={() => setSkema((x) =>
-                                    x.filter((_, j) => j !== i))}>×</button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
+          {/* Rincian skema fee tidak lagi ditampilkan di sini. Tabelnya
+              tetap dibedah dari memonya dan tetap ikut tersimpan — yang
+              dihilangkan tampilannya pada formulir, bukan pembedahannya.
+              Hasilnya dilihat pada baris memonya di rekapitulasi, tempat
+              seluruh memo dibandingkan berdampingan. */}
 
           <div className="lbl" style={{ marginTop: 12 }}>{k.fKeterangan}</div>
           <textarea value={keterangan} style={{ width: "100%", minHeight: 54 }}
