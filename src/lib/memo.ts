@@ -333,6 +333,92 @@ export async function berkasMemo(id: string, projectId: string) {
   return m;
 }
 
+/** Kolom memo yang boleh diubah setelah tersimpan. */
+export type UbahMemo = {
+  nomor?: string | null; judul?: string | null; keterangan?: string | null;
+  tanggal_memo?: string | null; berlaku_dari?: string | null;
+  berlaku_sampai?: string | null; dari?: string | null;
+};
+
+/**
+ * Membetulkan kolom memo yang sudah tersimpan.
+ *
+ * Kolom-kolom ini dibaca mesin dari lembar memonya, dan pembacaan gambar
+ * tidak selalu tepat — tanggal yang gagal terbaca tersimpan kosong dan baru
+ * ketahuan berbulan kemudian, saat rekapitulasinya dibaca orang. Tanpa jalan
+ * membetulkannya, satu-satunya jalan adalah menghapus memonya lalu
+ * mengunggahnya kembali; itu memutus lampiran yang sudah menempel padanya dan
+ * meninggalkan jejak "dihapus" pada memo yang sebenarnya tidak salah.
+ *
+ * Yang tidak dapat diubah: berkas memonya sendiri. Berkas adalah buktinya;
+ * mengganti berkas di bawah nomor yang sama berarti dua dokumen berbeda
+ * pernah menyandang satu keterangan. Untuk itu memonya diunggah baru.
+ *
+ * Nilai sebelum dan sesudahnya dicatat pada jejak audit, hanya untuk kolom
+ * yang benar-benar berubah.
+ */
+export async function ubahMemo(
+  id: string, projectId: string, aktor: string, p: UbahMemo,
+) {
+  await ensureKolomMemo();
+  const lama = await one<Record<string, any>>(
+    `SELECT nomor, judul, keterangan, tanggal_memo, berlaku_dari,
+            berlaku_sampai, dari
+       FROM memos WHERE id=$1 AND project_id=$2`,
+    [id, projectId]);
+  if (!lama) throw new WorkflowError("Memo tidak ditemukan.", "not_found", 404);
+
+  const teks = (v?: string | null) =>
+    v === undefined ? undefined : (v?.trim() ? v.trim() : null);
+  const tgl = (v?: string | null) =>
+    v === undefined ? undefined : (v?.trim() ? v.trim() : null);
+
+  const baru: Record<string, string | null> = {};
+  for (const [k, v] of Object.entries({
+    nomor: teks(p.nomor), judul: teks(p.judul), keterangan: teks(p.keterangan),
+    dari: teks(p.dari), tanggal_memo: tgl(p.tanggal_memo),
+    berlaku_dari: tgl(p.berlaku_dari), berlaku_sampai: tgl(p.berlaku_sampai),
+  })) if (v !== undefined) baru[k] = v;
+
+  // Judul adalah satu-satunya kolom yang tidak boleh kosong: ia yang menyebut
+  // memo itu pada seluruh layar, dan memo tanpa judul hanya berupa baris
+  // kosong yang tidak dapat dipilih maupun dicari.
+  if ("judul" in baru && !baru.judul) {
+    throw new WorkflowError("Judul memo wajib diisi.", "validation", 422);
+  }
+
+  // Tanggal DATE kembali dari PostgreSQL sebagai objek Date. Dibandingkan apa
+  // adanya, setiap penyimpanan akan tampak sebagai perubahan.
+  const iso = (v: any) => {
+    if (!v) return null;
+    if (v instanceof Date) {
+      const q = (n: number) => String(n).padStart(2, "0");
+      return `${v.getFullYear()}-${q(v.getMonth() + 1)}-${q(v.getDate())}`;
+    }
+    return String(v).slice(0, 10);
+  };
+  const TANGGAL = new Set(["tanggal_memo", "berlaku_dari", "berlaku_sampai"]);
+  const berubah: Record<string, { dari: any; jadi: any }> = {};
+  for (const [k, v] of Object.entries(baru)) {
+    const sebelum = TANGGAL.has(k) ? iso(lama[k]) : (lama[k] ?? null);
+    if (sebelum !== v) berubah[k] = { dari: sebelum, jadi: v };
+  }
+  if (!Object.keys(berubah).length) return { ok: true, berubah: 0 };
+
+  const kunci = Object.keys(berubah);
+  await query(
+    `UPDATE memos SET ${kunci.map((k, i) => `${k}=$${i + 3}`).join(", ")}
+      WHERE id=$1 AND project_id=$2`,
+    [id, projectId, ...kunci.map((k) => berubah[k].jadi)]);
+
+  await audit({
+    entityType: "memo", entityId: id, action: "memo_edited", actor: aktor,
+    before: Object.fromEntries(kunci.map((k) => [k, berubah[k].dari])),
+    after: Object.fromEntries(kunci.map((k) => [k, berubah[k].jadi])),
+  });
+  return { ok: true, berubah: kunci.length };
+}
+
 /**
  * Hapus memo.
  *
