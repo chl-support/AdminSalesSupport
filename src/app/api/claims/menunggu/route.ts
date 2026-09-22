@@ -44,7 +44,8 @@ const LAYAR: Record<string, string> = {
 };
 
 const SEMUA_FEE: ClaimType[] =
-  ["closing_fee", "cash_reward", "commission", "overriding"];
+  ["closing_fee", "cash_reward", "continuity_reward",
+     "commission", "overriding"];
 
 /**
  * Fee yang sudah boleh diajukan tapi belum diajukan siapa pun.

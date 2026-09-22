@@ -7,7 +7,8 @@
  * bisa tidak sinkron.
  */
 
-export type Jenis = "closing_fee" | "commission" | "cash_reward" | "overriding";
+export type Jenis = "closing_fee" | "commission" | "cash_reward"
+                  | "continuity_reward" | "overriding";
 
 /**
  * Keempat jenis fee, dalam urutan tampilnya.
@@ -29,6 +30,15 @@ export const JENIS: {
     slug: "cash_reward",
     nama: "Cash Reward",
     ringkas: "Penghargaan tunai atas pencapaian.",
+    prasyarat: "SPU, PPJB, dan DP/angsuran pertama sudah diterima (BR-03).",
+  },
+  {
+    // Formulirnya sama persis dengan Cash Reward — hanya namanya yang berganti,
+    // termasuk di judul blok perhitungan dan catatan kakinya. Berlaku untuk
+    // seluruh project, sama seperti keempat jenis lainnya.
+    slug: "continuity_reward",
+    nama: "Continuity Reward",
+    ringkas: "Penghargaan tunai atas pencapaian berkelanjutan.",
     prasyarat: "SPU, PPJB, dan DP/angsuran pertama sudah diterima (BR-03).",
   },
   {
@@ -61,6 +71,7 @@ export const NAMA_EN: Record<Jenis, string> = {
   closing_fee: "Closing Fee",
   commission: "Commission",
   cash_reward: "Cash Reward",
+  continuity_reward: "Continuity Reward",
   overriding: "Overriding",
 };
 
@@ -73,6 +84,7 @@ export const RINGKAS_EN: Record<Jenis, string> = {
   closing_fee: "Reward for closing a sale.",
   commission: "Commission on the contract value.",
   cash_reward: "Cash award for hitting a target.",
+  continuity_reward: "Cash award for sustained performance.",
   overriding: "Tiered incentive for supervisors and coordinators.",
 };
 
@@ -81,6 +93,9 @@ export const PRASYARAT_EN: Record<Jenis, string> = {
   closing_fee: "The SPU has been signed by the buyer (BR-01).",
   commission: "The SPU and PPJB have been signed by the buyer (BR-02).",
   cash_reward:
+    "The SPU, PPJB, and the down payment or first instalment have been " +
+    "received (BR-03).",
+  continuity_reward:
     "The SPU, PPJB, and the down payment or first instalment have been " +
     "received (BR-03).",
   overriding: "The unit has been Sign P3U (BR-04).",
@@ -94,6 +109,7 @@ export const PERAN_PENERIMA: Record<Jenis, string[]> = {
   closing_fee: ["agent", "sales_inhouse", "sales_markom", "markom"],
   commission: ["agent", "sales_inhouse", "sales_markom", "markom"],
   cash_reward: ["agent", "sales_inhouse", "sales_markom", "markom"],
+  continuity_reward: ["agent", "sales_inhouse", "sales_markom", "markom"],
   overriding: ["sales_manager_inhouse", "agent"],
 };
 
@@ -148,6 +164,11 @@ export const DOKUMEN: Record<Jenis, string[]> = {
     "Surat Pemesanan Unit (SPU)",
     "Kelengkapan Data (KTP, NPWP & Bukti Bayar BF)",
   ],
+  continuity_reward: [
+    "Formulir Pemesanan Unit (FPU)",
+    "Surat Pemesanan Unit (SPU)",
+    "Kelengkapan Data (KTP, NPWP & Bukti Bayar BF)",
+  ],
   commission: [
     "Formulir Pemesanan Unit (FPU)",
     "Surat Pemesanan Unit (SPU)",
@@ -163,6 +184,7 @@ export const JUDUL_HITUNG: Record<Jenis, string> = {
   closing_fee: "PERHITUNGAN CLOSING FEE",
   commission: "PERHITUNGAN KOMISI",
   cash_reward: "PERHITUNGAN CASH REWARD",
+  continuity_reward: "PERHITUNGAN CONTINUITY REWARD",
   overriding: "PERHITUNGAN OVERRIDING",
 };
 
@@ -188,6 +210,13 @@ export const CATATAN: Record<Jenis, string[]> = {
       "& Surat Pemesanan Unit (SPU) di tanda tangani oleh pemesan.",
     "Nominal Cash Reward & Persyaratan pembayaran yang dikeluarkan sesuai " +
       "dengan ketentuan yang berlaku(*).",
+  ],
+  continuity_reward: [
+    "Form Pengajuan Continuity Reward hanya berlaku untuk 1 (satu) unit.",
+    "Continuity Reward hanya dapat di proses setelah Data-data Konsumen " +
+      "dilengkapi & Surat Pemesanan Unit (SPU) di tanda tangani oleh pemesan.",
+    "Nominal Continuity Reward & Persyaratan pembayaran yang dikeluarkan " +
+      "sesuai dengan ketentuan yang berlaku(*).",
   ],
   commission: [
     "Form Pengajuan Komisi hanya berlaku untuk 1 (satu) unit.",
@@ -232,6 +261,7 @@ export const KOP = [
 export const DOKUMEN_KODE: Record<Jenis, string[][]> = {
   closing_fee: [["fpu"], ["spu"], ["ktp", "npwp", "booking_fee_proof"]],
   cash_reward: [["fpu"], ["spu"], ["ktp", "npwp", "booking_fee_proof"]],
+  continuity_reward: [["fpu"], ["spu"], ["ktp", "npwp", "booking_fee_proof"]],
   // Baris terakhir Komisi memuat Faktur Pajak bagi yang PKP dan Surat
   // Pernyataan bagi yang bukan — sama seperti kalimatnya pada cetakan.
   // Keduanya dicatat sekaligus: yang tidak ditagih server tidak menghalangi,

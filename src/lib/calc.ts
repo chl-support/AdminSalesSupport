@@ -10,7 +10,8 @@ import type { PoolClient } from "pg";
 import { one, query, setting } from "./db";
 import { applyRate, ratio, rupiahWords, stripVat } from "./money";
 
-export type ClaimType = "closing_fee" | "commission" | "cash_reward" | "overriding";
+export type ClaimType = "closing_fee" | "commission" | "cash_reward"
+                      | "continuity_reward" | "overriding";
 export type RecipientRole =
   | "agent" | "sales_inhouse" | "sales_manager_inhouse" | "sales_markom" | "markom";
 export type OverridingLevel =
@@ -455,6 +456,9 @@ export const REQUIRED_DOCS: Record<ClaimType, string[]> = {
   commission: ["fpu", "spu", "ppjb", "kwitansi", "invoice", "ktp", "npwp",
                "bank_account"],
   cash_reward: ["fpu", "spu", "ktp", "npwp", "booking_fee_proof"],
+  // Continuity Reward memakai formulir dan kelengkapan yang sama dengan Cash
+  // Reward; yang berbeda hanya namanya dan skema nilainya.
+  continuity_reward: ["fpu", "spu", "ktp", "npwp", "booking_fee_proof"],
   overriding: [],
 };
 

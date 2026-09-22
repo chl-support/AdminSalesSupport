@@ -230,8 +230,12 @@ export async function createClaim(params: {
                                    params.recipientRole,
                                    params.overridingLevel ?? null, c, bank);
 
-    const prefix = { closing_fee: "CF", commission: "KMS",
-                     cash_reward: "CR", overriding: "OR" }[params.claimType];
+    // "CTR" untuk Continuity Reward, bukan "CR" yang sudah dipakai Cash
+    // Reward: dua jenis berbeda dengan awalan nomor yang sama akan terbaca
+    // sebagai satu deret, dan rekap yang menghitungnya per awalan ikut salah.
+    const prefix = { closing_fee: "CF", commission: "KMS", cash_reward: "CR",
+                     continuity_reward: "CTR",
+                     overriding: "OR" }[params.claimType];
     const { count } = (await one<{ count: number }>(
       "SELECT COUNT(*)::int AS count FROM claims WHERE claim_type=$1",
       [params.claimType], c))!;

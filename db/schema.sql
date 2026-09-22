@@ -17,8 +17,14 @@ BEGIN;
 
 DO $$ BEGIN
   CREATE TYPE claim_type AS ENUM
-    ('closing_fee','commission','cash_reward','overriding');
+    ('closing_fee','commission','cash_reward','continuity_reward','overriding');
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+-- Continuity Reward menyusul belakangan, jadi pemasangan yang sudah berjalan
+-- perlu penambahan nilainya sendiri. ADD VALUE IF NOT EXISTS aman dijalankan
+-- berulang, dan tanpa ini klaim jenis baru ditolak basis data dengan galat enum
+-- yang tidak menyebut sebabnya.
+ALTER TYPE claim_type ADD VALUE IF NOT EXISTS 'continuity_reward';
 
 DO $$ BEGIN
   CREATE TYPE recipient_role AS ENUM
@@ -195,11 +201,16 @@ CREATE INDEX IF NOT EXISTS idx_units_marketing ON units(marketing_id);
 -- lain, dan keduanya adalah penjualan tersendiri dengan klaim tersendiri.
 -- Nomor kontrak yang membedakannya, jadi di situlah keunikan ditegakkan.
 ALTER TABLE units DROP CONSTRAINT IF EXISTS units_code_key;
--- Indeks ini digantikan uniq_units_contract_project lebih jauh di bawah, setelah
--- kolom project_id ada. Dibiarkan di sini supaya pemasangan lama tetap terjaga
--- sepanjang migrasi berjalan, lalu dijatuhkan di tempat penggantinya dibuat.
-CREATE UNIQUE INDEX IF NOT EXISTS uniq_units_contract
-  ON units (contract_number) WHERE contract_number IS NOT NULL;
+-- Keunikannya ditegakkan per project, oleh uniq_units_contract_project lebih
+-- jauh di bawah — setelah kolom project_id ada.
+--
+-- Indeks menyeluruh atas contract_number sengaja tidak dibuat di sini, meski
+-- dulu ada. Nomor kontrak yang sama wajar muncul di dua project: masing-masing
+-- menomori kontraknya sendiri. Membuatnya lebih dulu lalu menjatuhkannya di
+-- bawah tampak tidak berbahaya — tetapi begitu ada dua project yang bertemu
+-- nomor yang sama, pembuatannya gagal dengan 23505 dan seluruh migrasi ikut
+-- berhenti, termasuk bagian yang tidak ada hubungannya. Itulah yang terjadi
+-- saat Continuity Reward ditambahkan: migrasinya tidak pernah sampai ke sana.
 CREATE INDEX IF NOT EXISTS idx_units_code ON units(code);
 
 CREATE TABLE IF NOT EXISTS incentive_schemes (

@@ -262,8 +262,19 @@ ul.syarat-daftar .untuk { color: var(--mut); }
   background: var(--ink); color: #fff; padding: 5px 10px;
 }
 .form-blok table td { border: none; border-bottom: 1px solid #EEF0F1; padding: 5px 0; }
-.form-blok table td:first-child { width: 46%; color: var(--sub); }
-.form-blok table td:last-child { text-align: right; color: var(--ink); }
+.form-blok table td:first-child { width: 52%; color: var(--sub); }
+/* Isian rata kiri pada kolomnya sendiri, dengan titik dua di depannya —
+   sebagaimana formulir aslinya: labelnya menempati separuh kiri halaman,
+   isiannya mulai dari tengah. Sebelumnya isian dirapatkan ke tepi kanan, dan
+   mata harus melompati ruang kosong selebar setengah halaman untuk
+   memasangkan nama dengan nilainya. */
+.form-blok table td:last-child { text-align: left; color: var(--ink); }
+.cetak .form-blok table td:last-child::before {
+  content: ":"; margin-right: 8px; color: var(--sub);
+}
+/* Baris yang isinya memang bukan pasangan label–nilai tidak ikut diberi titik
+   dua: nama project berdiri sendiri sebagai judul di dalam bloknya. */
+.cetak .form-blok table td.baris-project::before { content: none; }
 .form-blok table tr:last-child td { border-bottom: none; }
 .hitung td:last-child { font-variant-numeric: tabular-nums; }
 .hitung tr.total td { font-weight: 700; border-top: 1.5px solid var(--ink); }
@@ -294,8 +305,22 @@ ul.ceklis input { width: auto; margin-top: 2px; }
 .nomor-form { margin: 2px 0 16px; text-align: center; font-size: 11.5px;
               color: var(--mut); }
 .cetak .dasar { margin: 8px 0 0; font-size: 11px; color: var(--mut); line-height: 1.5; }
-.cetak .penjelasan { margin: 0; font-size: 13px; min-height: 34px;
-                     border-bottom: 1px solid #EEF0F1; padding-bottom: 6px; }
+/* Blok penjelasan: garis titik-titik isian seperti pada formulir aslinya —
+   tiga baris pada Closing Fee dan Cash Reward, satu pada Komisi. Tingginya
+   tetap berapa pun panjang penjelasannya: blok yang tingginya mengikuti isi
+   membuat tiap klaim tercetak dengan tata letak yang sedikit berbeda, dan yang
+   paling panjang mendorong pengesahan ke halaman kedua. */
+.cetak .penjelasan {
+  margin: 0; font-size: 13px; line-height: 21px; min-height: 63px;
+  background-image: repeating-linear-gradient(
+    to bottom, transparent 0 20px,
+    var(--line) 20px, var(--line) 21px);
+  background-size: 100% 21px;
+}
+/* Komisi hanya punya satu baris isian pada aslinya. Minimum, bukan tinggi
+   tetap: penjelasan yang panjang tetap terbaca utuh — memotongnya berarti
+   mencetak dokumen resmi yang kalimatnya hilang separuh. */
+.cetak .penjelasan.sebaris { min-height: 21px; }
 ul.cetak-ceklis li { display: flex; gap: 8px; align-items: flex-start; }
 ul.cetak-ceklis .kotak { border: 1px solid var(--ink); width: 14px; height: 14px;
                          line-height: 13px; text-align: center; font-size: 10px;
@@ -319,6 +344,14 @@ ul.cetak-ceklis .kotak { border: 1px solid var(--ink); width: 14px; height: 14px
 .catatan-form { margin-top: 14px; font-size: 11px; color: var(--sub); }
 .catatan-form ul { margin: 4px 0 0; padding-left: 14px; }
 .catatan-form li { margin-bottom: 2px; line-height: 1.45; }
+
+/* "Agent / Inhouse" pada baris Status: yang tidak berlaku dicoret, sebagaimana
+   "coret yang tidak perlu" pada formulir aslinya. */
+.pilih-coret .dicoret { text-decoration: line-through; color: var(--mut); }
+
+/* Bilah judul blok yang membawa judul kedua di ujung kanan ("CHECKLIST"). */
+.form-blok > h3.dua-sisi { display: flex; justify-content: space-between;
+                           gap: 12px; align-items: baseline; }
 
 /* Nama project sebagai baris tebal tanpa label di blok data pemesanan. */
 .baris-project { font-size: 12.5px; letter-spacing: .02em; }
@@ -1305,3 +1338,56 @@ td.sel-keadaan .menunggu {
    karena ia pengatur daftarnya, bukan bagian dari daftarnya. */
 .pilih-cetak.ringkas { border: none; }
 .pilih-cetak.ringkas li { padding: 2px 0; border-bottom: none; }
+
+/* ── Cetakan satu halaman ────────────────────────────────────────────────
+   Formulir ini selalu dicetak satu lembar; begitu ia tumpah ke halaman kedua,
+   yang tercetak adalah blok pengesahan sendirian di lembar kosong — dan lembar
+   itulah yang beredar untuk ditandatangani.
+   
+   Ukuran layar dibuat longgar supaya terbaca di monitor; ukuran cetak
+   dirapatkan di sini supaya muat. Angka-angkanya bukan tebakan: diukur dengan
+   mencetak keempat jenis fee ke PDF A4 dan menghitung halamannya. */
+@page { size: A4 portrait; margin: 10mm 11mm; }
+
+@media print {
+  html, body { font-size: 11px; }
+  .cetak { padding: 0; font-size: 10px; }
+
+  .cetak .kop { padding-bottom: 4px; margin-bottom: 6px; }
+  .cetak .kop b { font-size: 12.5px; }
+  .cetak .kop span { font-size: 9px; line-height: 1.35; }
+  .cetak .judul-form { font-size: 12px; margin: 6px 0 6px; }
+
+  .form-blok { margin-bottom: 6px; }
+  .form-blok > h3 { font-size: 9.5px; padding: 3px 8px; margin-bottom: 4px; }
+  .form-blok table td { padding: 1.5px 0; font-size: 9.5px; }
+  .cetak .penjelasan { font-size: 9.5px; line-height: 14px; min-height: 42px;
+                       background-image: repeating-linear-gradient(
+                         to bottom, transparent 0 13px,
+                         var(--line) 13px, var(--line) 14px);
+                       background-size: 100% 14px; }
+  .cetak .penjelasan.sebaris { min-height: 14px; }
+  .baris-project { font-size: 10px; }
+
+  ul.ceklis { font-size: 9.5px; }
+  ul.ceklis li { padding: 2px 0; }
+  ul.cetak-ceklis .kotak { width: 11px; height: 11px; line-height: 10px;
+                           font-size: 8px; }
+
+  /* Kotak tanda tangan tetap cukup tinggi untuk tanda tangan basah: ini kolom
+     yang memang diisi tangan di atas kertas, bukan hiasan yang boleh dipipihkan
+     sampai habis. */
+  .sah { gap: 12px; margin-top: 4px; }
+  .sah-judul { font-size: 10px; margin-bottom: 4px; }
+  .sah .kotak-ttd { height: 52px; }
+  .sah .kotak-ttd img { max-height: 48px; }
+  .sah span { font-size: 9.5px; margin-top: 3px; }
+
+  .catatan-form { margin-top: 6px; font-size: 8.5px; }
+  .catatan-form li { margin-bottom: 1px; line-height: 1.35; }
+
+  /* Satu formulir satu halaman, dan beberapa formulir dalam satu jendela
+     pratinjau tercetak berurutan — bukan saling menyambung di tengah lembar. */
+  .lembar { page-break-inside: avoid; break-inside: avoid; }
+  .lembar + .lembar { page-break-before: always; break-before: page; }
+}

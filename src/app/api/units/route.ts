@@ -89,7 +89,8 @@ export const GET = handler(async (req) => {
    * lain di sela-selanya membuat satu baris menyebut dua keadaan sekaligus.
    */
   const SEMUA: ClaimType[] =
-    ["closing_fee", "cash_reward", "commission", "overriding"];
+    ["closing_fee", "cash_reward", "continuity_reward",
+     "commission", "overriding"];
   const semuaJenis = (eligibleFor as string) === "all";
   const diminta: ClaimType[] = semuaJenis ? SEMUA : [eligibleFor];
 
