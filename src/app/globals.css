@@ -1277,3 +1277,48 @@ td.sel-keadaan .menunggu {
 .alamat-tautan { border: 1px solid var(--line); background: #FBFBFA;
                  padding: 7px 9px; font-size: 11.5px; line-height: 1.5;
                  overflow-wrap: anywhere; }
+
+/* ---- Rincian Nilai / Skema Fee -------------------------------------- */
+/* Kolom Nilai / Skema Fee pada memo bukan satu kalimat melainkan beberapa
+   tabel berkategori. Tabel ini menampilkannya kembali sebagai tabel, bukan
+   memaksanya masuk ke dalam satu kotak isian. */
+.rinci-skema { margin-top: 4px; }
+.catatan-skema {
+  margin: 2px 0 8px; font-size: 12px; font-style: italic; opacity: .7;
+}
+.tabel-skema {
+  width: 100%; border-collapse: collapse; table-layout: fixed;
+  font-size: 12px;
+}
+.tabel-skema th, .tabel-skema td {
+  border: 1px solid rgba(0, 0, 0, .18); padding: 4px 6px;
+  vertical-align: top; text-align: left;
+}
+.tabel-skema th { font-weight: 600; background: rgba(0, 0, 0, .04); }
+.tabel-skema col, .tabel-skema .sel-kelompok { width: 17%; }
+.tabel-skema .sel-no { width: 34px; text-align: center; opacity: .6; }
+.tabel-skema td:nth-child(3) { width: 18%; }
+.tabel-skema td:nth-child(4) { width: 27%; }
+.tabel-skema td:last-child   { width: 26px; }
+.tabel-skema.tersimpan td:last-child { width: auto; }
+/* Kotak isian di dalam sel dibuat rata dengan selnya, supaya tabelnya tetap
+   terbaca sebagai tabel dan bukan sebagai deretan kotak. */
+.tabel-skema input, .tabel-skema textarea {
+  width: 100%; border: 0; background: transparent; padding: 0;
+  font: inherit; color: inherit; resize: vertical;
+}
+/* Isi sel Nilai dan Keterangan kerap beberapa baris. Kotaknya dibuat
+   mengikuti isinya bila peramban mendukung, dan cukup tinggi bila tidak —
+   sel yang memotong isinya membuat orang menyetujui apa yang tidak dibacanya. */
+.tabel-skema textarea {
+  min-height: 76px; line-height: 1.35; field-sizing: content;
+}
+.tabel-skema input:focus, .tabel-skema textarea:focus {
+  outline: 2px solid rgba(0, 0, 0, .35); outline-offset: 1px;
+}
+.tabel-skema .buang-baris {
+  border: 0; background: transparent; cursor: pointer; font-size: 15px;
+  line-height: 1; padding: 0 2px; opacity: .45;
+}
+.tabel-skema .buang-baris:hover { opacity: 1; }
+.tabel-skema.tersimpan { margin: 8px 0 12px; }
