@@ -43,7 +43,8 @@ const KATA = {
     dihapus: (j: string) =>
       `Memo "${j}" dihapus. Judulnya tetap tercatat pada jejak audit.`,
     daftar: "Dokumentasi Memo",
-    berkasN: (n: number) => `${n} berkas`,
+    pBaru: (n: number) => `📥 ${n} Dokumen Baru Diunggah`,
+    pArsip: (n: number) => `🗄️ ${n} Dokumen Terarsip`,
     fTanggal: "Tanggal memo",
     kNo: "No", kNomor: "Nomor Memo", kTanggal: "Tanggal Memo",
     kDari: "Pengajuan (Dari)", kPerihal: "Perihal / Program",
@@ -101,7 +102,8 @@ const KATA = {
     dihapus: (j: string) =>
       `Memo "${j}" deleted. Its title remains in the audit trail.`,
     daftar: "Memo documentation",
-    berkasN: (n: number) => `${n} files`,
+    pBaru: (n: number) => `📥 ${n} newly uploaded documents`,
+    pArsip: (n: number) => `🗄️ ${n} archived documents`,
     fTanggal: "Memo date",
     kNo: "No", kNomor: "Memo number", kTanggal: "Memo date",
     kDari: "Submitted by", kPerihal: "Subject / programme",
@@ -483,6 +485,23 @@ export default function MemoPage() {
   const lampiranDari = (memoId: string) =>
     lampiran.filter((f) => f.memo_id === memoId);
 
+  /**
+   * Memo yang diunggah pada hari ini.
+   *
+   * Dibandingkan menurut tanggal setempat, bukan UTC: yang mengunggah pada
+   * pukul tujuh pagi WIB masih berada di tanggal kemarin menurut UTC, dan
+   * unggahannya tidak akan terhitung sebagai unggahan hari ini.
+   */
+  const baruHariIni = daftar.filter((m) => {
+    if (!m.uploaded_at) return false;
+    const u = new Date(m.uploaded_at);
+    if (Number.isNaN(u.getTime())) return false;
+    const kini = new Date();
+    return u.getFullYear() === kini.getFullYear() &&
+           u.getMonth() === kini.getMonth() &&
+           u.getDate() === kini.getDate();
+  }).length;
+
   return (
     <Kerangka sesi={sesi} judul={
       <div>
@@ -583,7 +602,8 @@ export default function MemoPage() {
                 {k.unduhRekap}
               </a>
             )}
-            <span className="pill">{k.berkasN(daftar.length)}</span>
+            <span className="pill">{k.pBaru(baruHariIni)}</span>
+            <span className="pill">{k.pArsip(daftar.length)}</span>
           </span>
         </h2>
 

@@ -55,6 +55,8 @@ td.n { text-align: right; font-variant-numeric: tabular-nums; color: var(--ink);
   display: inline-block; padding: 1px 7px; font-size: 10.5px;
   border: 1px solid var(--line); background: #FBFBFA; white-space: nowrap;
 }
+/* Dua pil berdampingan tidak boleh berdempetan menjadi satu blok. */
+.pill + .pill { margin-left: 6px; }
 .pill.ok { border-color: var(--ok); color: var(--ok); background: var(--okbg); }
 .pill.warn { border-color: var(--warn); color: var(--warn); background: var(--warnbg); }
 .pill.stop { border-color: var(--stop); color: var(--stop); background: var(--stopbg); }
