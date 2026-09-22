@@ -42,7 +42,7 @@ const KATA = {
     tersimpan: (j: string) => `Memo "${j}" tersimpan.`,
     dihapus: (j: string) =>
       `Memo "${j}" dihapus. Judulnya tetap tercatat pada jejak audit.`,
-    daftar: "Memo tersimpan",
+    daftar: "Dokumentasi Memo",
     berkasN: (n: number) => `${n} berkas`,
     fTanggal: "Tanggal memo",
     kNo: "No", kNomor: "Nomor Memo", kTanggal: "Tanggal Memo",
@@ -100,7 +100,7 @@ const KATA = {
     tersimpan: (j: string) => `Memo "${j}" saved.`,
     dihapus: (j: string) =>
       `Memo "${j}" deleted. Its title remains in the audit trail.`,
-    daftar: "Stored memos",
+    daftar: "Memo documentation",
     berkasN: (n: number) => `${n} files`,
     fTanggal: "Memo date",
     kNo: "No", kNomor: "Memo number", kTanggal: "Memo date",
