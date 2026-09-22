@@ -51,6 +51,7 @@ const CLAIM_TITLE: Record<string, string> = {
   closing_fee: "FORM KLAIM CLOSING FEE",
   commission: "FORM KLAIM KOMISI",
   cash_reward: "FORM KLAIM CASH REWARD",
+  continuity_reward: "FORM KLAIM CONTINUITY REWARD",
   overriding: "REKAP OVERRIDING",
 };
 

@@ -435,6 +435,21 @@ async function main() {
     assert(c.status === "completed", c.status);
   });
 
+  await check("Continuity Reward terbentuk dengan nomor dan nilainya sendiri",
+              async () => {
+    // Jenis kelima, formulirnya sama dengan Cash Reward. Yang diuji di sini
+    // bukan tampilannya melainkan yang dapat diam-diam salah: nomor klaimnya
+    // memakai awalan sendiri, dan nilainya diambil dari skema jenis ini —
+    // bukan dari skema Cash Reward yang nominalnya berbeda.
+    const c = await wf.createClaim({
+      unitId: unit, marketingId: inhouseId, claimType: "continuity_reward",
+      recipientRole: "sales_inhouse", actor: "admin" });
+    assert(c.claim_number.startsWith("CTR-"), c.claim_number);
+    // Skemanya menyebut nilai bersih; brutonya di-gross-up agar yang diterima
+    // penerima tepat sebesar itu sesudah potongan PPh.
+    assert(c.net_amount === 5_000_000, String(c.net_amount));
+  });
+
   await check("rekap memakai tanggal transfer, bukan tanggal input", async () => {
     const rec = await settlement.paymentRecap("2020-01-01", "2100-01-01");
     assert(rec.totals.net_amount === 4_393_750, JSON.stringify(rec.totals));

@@ -17,8 +17,14 @@ BEGIN;
 
 DO $$ BEGIN
   CREATE TYPE claim_type AS ENUM
-    ('closing_fee','commission','cash_reward','overriding');
+    ('closing_fee','commission','cash_reward','continuity_reward','overriding');
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+-- Continuity Reward menyusul belakangan, jadi pemasangan yang sudah berjalan
+-- perlu penambahan nilainya sendiri. ADD VALUE IF NOT EXISTS aman dijalankan
+-- berulang, dan tanpa ini klaim jenis baru ditolak basis data dengan galat enum
+-- yang tidak menyebut sebabnya.
+ALTER TYPE claim_type ADD VALUE IF NOT EXISTS 'continuity_reward';
 
 DO $$ BEGIN
   CREATE TYPE recipient_role AS ENUM

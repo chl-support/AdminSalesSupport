@@ -42,7 +42,8 @@ const tgl = (v?: string | null) => {
 
 const JENIS_NAMA: Record<string, string> = {
   closing_fee: "Closing Fee", commission: "Komisi",
-  cash_reward: "Cash Reward", overriding: "Overriding",
+  cash_reward: "Cash Reward", continuity_reward: "Continuity Reward",
+  overriding: "Overriding",
 };
 
 export function FormPengajuan(
