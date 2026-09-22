@@ -263,10 +263,12 @@ export function FormPengajuan(
                 <img src={ttd} alt="Tanda tangan pemohon" />
               )}
             </div>
-            {/* Keterangan di bawah kotak ditulis tetap "Konsumen", bukan nama
-                penandatangannya. Namanya sendiri tetap tersimpan pada klaim —
-                yang berubah hanya apa yang tercetak di bawah garis. */}
-            <span>Konsumen</span>
+            {/* Keterangan di bawah kotak ditulis tetap "Sales/Agent", bukan
+                nama penandatangannya. Yang menandatangani kolom Pemohon adalah
+                yang mengajukan feenya — Sales atau Agent, bukan konsumen.
+                Namanya sendiri tetap tersimpan pada klaim; yang berubah hanya
+                apa yang tercetak di bawah garis. */}
+            <span>Sales/Agent</span>
           </div>
 
           <div className="sah-kanan">

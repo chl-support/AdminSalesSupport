@@ -34,30 +34,11 @@ const KATA = {
     pengantar:
       "Pengajuan Yang Sedang Dalam Proses Verifikasi Dan Persetujuan Oleh " +
       "Pihak Terkait Sebelum Dapat Dilanjutkan Ke Proses Berikutnya.",
-    alurJudul: "Alur pengajuan",
-    alurIsi:
-      "Admin mengajukan klaim → Form Pengajuan terbentuk → tim pajak memeriksa " +
-      "nilainya → setelah disetujui, Admin mengirim tautan ke Agent → Agent " +
-      "membaca formulirnya, mengunggah Kwitansi dan Invoice, lalu menandatangani " +
-      "pada kolom Pemohon. Tombol di bawah menjalankan satu klaim sampai langkah " +
-      "tanda tangan untuk keperluan pengujian.",
-    jalankanAlur: "Jalankan alur sampai tanda tangan",
-    ujiGate: "Uji gate: kirim link tanpa verifikasi pajak",
     unduhMaster: "Unduh Laporan Master (.xlsx)",
     muatUlang: "Muat ulang",
     gagal: "Gagal",
     berhasil: "Berhasil.",
-    takDapatDijalankan: "Tidak dapat dijalankan",
-    siapTtd: (nomor: string) => `Klaim ${nomor} siap ditandatangani`,
-    linkWa: "Link WhatsApp:",
     otpDemo: "Kode OTP (hanya demo):",
-    dikoreksi:
-      "Nominal dikoreksi Finance — agent akan melihat selisih dan alasannya " +
-      "sebelum tanda tangan.",
-    takAdaBelumVerif: "Tidak ada klaim yang belum diverifikasi pajak.",
-    gateBocor: "Gate gagal menahan — ini bug",
-    gateBocorIsi: "Seharusnya ditolak 409.",
-    gateMenahan: (kode: number) => `Gate menahan sesuai BR-13 (HTTP ${kode})`,
     linkTerkirim: (nomor: string) => `Link terkirim ke ${nomor}`,
     pesanWaAman:
       "Pesan WhatsApp tidak memuat nominal maupun nama konsumen.",
@@ -106,44 +87,18 @@ const KATA = {
     belumAdaKlaim: "Belum ada klaim.",
     formPengajuan: "Form pengajuan",
     cetakFormulir: "Cetak formulir",
-    dokumenBeredar: "Dokumen beredar fisik",
-    thSalinan: "Salinan", thPosisi: "Posisi", thUmur: "Umur",
-    hari: (n: number) => `${n} hari`,
-    takAdaBeredar: "Tidak ada dokumen beredar.",
-    rekonsiliasi: "Rekonsiliasi bank",
-    belumDikonfirmasi: "belum dikonfirmasi",
     thPenerima: "Penerima",
-    semuaDikonfirmasi: "Semua instruksi sudah dikonfirmasi tanggalnya.",
   },
   en: {
     judul: "Approval Status",
     pengantar:
       "Submissions undergoing verification and approval by the parties " +
       "concerned",
-    alurJudul: "Submission flow",
-    alurIsi:
-      "Admin submits a claim → the Submission Form is created → the tax team " +
-      "checks the amounts → once approved, Admin sends a link to the Agent → " +
-      "the Agent reads the form, uploads the Receipt and Invoice, then signs " +
-      "in the Applicant column. The buttons below drive one claim up to the " +
-      "signing step, for testing.",
-    jalankanAlur: "Run the flow up to signing",
-    ujiGate: "Test gate: send link without tax verification",
     unduhMaster: "Download Master Report (.xlsx)",
     muatUlang: "Reload",
     gagal: "Failed",
     berhasil: "Done.",
-    takDapatDijalankan: "Cannot be run",
-    siapTtd: (nomor: string) => `Claim ${nomor} is ready for signing`,
-    linkWa: "WhatsApp link:",
     otpDemo: "OTP code (demo only):",
-    dikoreksi:
-      "The amount was corrected by Finance — the agent will see the difference " +
-      "and the reason before signing.",
-    takAdaBelumVerif: "No claim is awaiting tax verification.",
-    gateBocor: "The gate failed to hold — this is a bug",
-    gateBocorIsi: "It should have been rejected with 409.",
-    gateMenahan: (kode: number) => `Gate held as per BR-13 (HTTP ${kode})`,
     linkTerkirim: (nomor: string) => `Link sent to ${nomor}`,
     pesanWaAman:
       "The WhatsApp message contains neither the amount nor the buyer's name.",
@@ -192,14 +147,7 @@ const KATA = {
     belumAdaKlaim: "No claims yet.",
     formPengajuan: "Submission form",
     cetakFormulir: "Print the form",
-    dokumenBeredar: "Documents circulating physically",
-    thSalinan: "Copy", thPosisi: "Location", thUmur: "Age",
-    hari: (n: number) => `${n} days`,
-    takAdaBeredar: "No documents are circulating.",
-    rekonsiliasi: "Bank reconciliation",
-    belumDikonfirmasi: "not confirmed yet",
     thPenerima: "Recipient",
-    semuaDikonfirmasi: "Every instruction has its date confirmed.",
   },
 };
 
@@ -211,8 +159,6 @@ export default function Console() {
   const k = useKata(KATA);
   const [claims, setClaims] = useState<Claim[]>([]);
   const [selected, setSelected] = useState<string>("");
-  const [circulating, setCirculating] = useState<any[]>([]);
-  const [recon, setRecon] = useState<any[]>([]);
   const [note, setNote] = useState<Note>(null);
   const [busy, setBusy] = useState(false);
   const [lastHash, setLastHash] = useState<string | null>(null);
@@ -239,14 +185,13 @@ export default function Console() {
     // Jejak audit tidak lagi ikut diambil di sini: ia punya menunya sendiri, dan
     // 40 baris terakhir tanpa penyaringan bukan jawaban atas pertanyaan apa pun
     // yang membuat orang membukanya.
-    const [c, circ, rec] = await Promise.all([
-      api("/claims"),
-      api("/claims/circulating"),
-      api("/reports/bank-reconciliation?min_age_days=0"),
-    ]);
+    // Dua panel bawah — dokumen beredar fisik dan rekonsiliasi bank — dibuang
+    // dari layar ini: yang pertama sudah punya menunya sendiri (Sirkulasi
+    // Dokumen), yang kedua pekerjaan Finance, bukan pekerjaan siapa pun yang
+    // membuka konsol klaim. Panggilan datanya ikut, supaya layar ini tidak
+    // menarik dua kueri untuk isi yang tidak ditampilkannya.
+    const c = await api("/claims");
     setClaims(c);
-    setCirculating(circ);
-    setRecon(rec);
     setSelected((prev) => (c.some((x: Claim) => x.id === prev) ? prev : c[0]?.id ?? ""));
   }, [api]);
 
@@ -273,33 +218,6 @@ export default function Console() {
       setNote({ kind: "ok", html: ok });
       await refresh();
     });
-
-  const demo = () => run(async () => {
-    const r = await api("/demo/run-flow", { method: "POST" });
-    if (r.error) {
-      setNote({ kind: "warn", html: `<b>${k.takDapatDijalankan}</b>${r.error}` });
-      return;
-    }
-    setNote({ kind: "ok", html:
-      `<b>${k.siapTtd(r.claim_number)}</b>
-       ${k.linkWa} <a href="/sign/${r.token}" target="_blank">/sign/${r.token}</a><br>
-       ${k.otpDemo} <b>${r.otp}</b><br>
-       ${k.dikoreksi}` });
-    await refresh();
-  });
-
-  const testGate = () => run(async () => {
-    const target = claims.find((c) => c.status === "pending_tax_verification")
-                ?? claims.find((c) => c.status === "draft");
-    if (!target) { setNote({ kind: "warn", html: k.takAdaBelumVerif }); return; }
-    try {
-      await api(`/claims/${target.id}/signature-requests`, { method: "POST", body: "{}" });
-      setNote({ kind: "stop", html: `<b>${k.gateBocor}</b>${k.gateBocorIsi}` });
-    } catch (e: any) {
-      setNote({ kind: "ok",
-                html: `<b>${k.gateMenahan(e.status)}</b>${e.body?.detail}` });
-    }
-  });
 
   const issueLink = () => run(async () => {
     const r = await api(`/claims/${selected}/signature-requests`,
@@ -411,14 +329,13 @@ export default function Console() {
       </div>
     }>
 
-      <div className="banner info sp">
-        <b>{k.alurJudul}</b>
-        {k.alurIsi}
-      </div>
-
+      {/* Dua tombol saja. Yang dibuang: "Jalankan alur sampai tanda tangan"
+          dan "Uji gate" — keduanya alat uji yang membuat klaim sungguhan pada
+          basis data sungguhan, dan keterangan alur di atasnya yang menjelaskan
+          cara memakainya. Keadaan tiap klaim sekarang terbaca sebagai kalimat
+          di layar Approval / Persetujuan; konsol ini tempat menindaklanjuti,
+          bukan tempat mempelajari alurnya. */}
       <div className="row sp">
-        <button className="pri" onClick={demo} disabled={busy}>{k.jalankanAlur}</button>
-        <button onClick={testGate} disabled={busy}>{k.ujiGate}</button>
         <button onClick={() => { location.href = "/api/reports/master-report?format=xlsx"; }}>{k.unduhMaster}</button>
         <button onClick={() => refresh()} disabled={busy}>{k.muatUlang}</button>
       </div>
@@ -543,47 +460,6 @@ export default function Console() {
         </div>
       )}
 
-      <div className="grid sp">
-        <div className="panel">
-          <h2>{k.dokumenBeredar}</h2>
-          <table><tbody>
-            {circulating.length ? (
-              <>
-                <tr><th>{k.thNomor}</th><th>{k.thSalinan}</th><th>{k.thPosisi}</th>
-                    <th>{k.thUmur}</th></tr>
-                {circulating.map((c) => (
-                  <tr key={c.id}>
-                    <td>{c.claim_number}</td><td>#{c.print_copy_number}</td>
-                    <td>{c.physical_location ?? "-"}</td>
-                    <td className="n">{k.hari(c.age_days ?? 0)}</td>
-                  </tr>
-                ))}
-              </>
-            ) : <tr><td style={{ color: "var(--mut)" }}>{k.takAdaBeredar}</td></tr>}
-          </tbody></table>
-        </div>
-
-        <div className="panel">
-          <h2>{k.rekonsiliasi}{" "}
-            <span className="pill warn">{k.belumDikonfirmasi}</span>
-          </h2>
-          <table><tbody>
-            {recon.length ? (
-              <>
-                <tr><th>{k.thNomor}</th><th>{k.thPenerima}</th><th>{k.thNilai}</th>
-                    <th>{k.thUmur}</th></tr>
-                {recon.map((r) => (
-                  <tr key={r.id}>
-                    <td>{r.claim_number}</td><td>{r.recipient_name ?? "-"}</td>
-                    <td className="n">{rp(r.amount)}</td>
-                    <td className="n">{k.hari(r.age)}</td>
-                  </tr>
-                ))}
-              </>
-            ) : <tr><td style={{ color: "var(--ok)" }}>{k.semuaDikonfirmasi}</td></tr>}
-          </tbody></table>
-        </div>
-      </div>
     </Kerangka>
   );
 }
