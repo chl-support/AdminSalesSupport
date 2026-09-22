@@ -1,6 +1,7 @@
 import { handler, currentUser, projectAktif } from "@/lib/api";
 import { WorkflowError } from "@/lib/workflow";
-import { daftarMemo, lampiranProject, simpanMemo } from "@/lib/memo";
+import { daftarMemo, lampiranProject, namaDikenal, simpanMemo }
+  from "@/lib/memo";
 
 /** Memo pada project yang sedang dikerjakan. */
 export const GET = handler(async (req) => {
@@ -11,6 +12,9 @@ export const GET = handler(async (req) => {
   return {
     memos: await daftarMemo(projectId),
     lampiran: await lampiranProject(projectId),
+    // Acuan ejaan nama penanda tangan bagi pembacaan OCR di peramban. Tidak
+    // disaring per project: penanda tangan memo berulang lintas project.
+    nama: await namaDikenal(),
   };
 });
 

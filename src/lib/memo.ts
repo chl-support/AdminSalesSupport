@@ -112,6 +112,40 @@ export async function daftarMemo(projectId: string) {
 }
 
 /**
+ * Nama-nama yang ejaannya sudah dipastikan benar.
+ *
+ * Dipakai untuk membetulkan ejaan hasil OCR pada blok tanda tangan memo.
+ * Sumbernya dua, dan keduanya diperlukan:
+ *
+ *   - users.full_name — nama pengguna sistem, diketik saat akunnya dibuat.
+ *     Inilah yang menolong memo *pertama* sebuah project, saat belum ada memo
+ *     terdahulu yang bisa dijadikan acuan.
+ *   - nama penanda tangan pada memo yang sudah tersimpan, dari SELURUH
+ *     project, bukan project yang sedang dibuka saja. Penanda tangan memo
+ *     berulang lintas project, dan yang menyetujui Banara hari ini menyetujui
+ *     Naraya minggu depan.
+ *
+ * Nilai yang berisi beberapa nama dipisah di sini, di basis datanya, supaya
+ * pemanggilnya menerima satu nama per baris.
+ */
+export async function namaDikenal(): Promise<string[]> {
+  await ensureKolomMemo();
+  const baris = await query<{ nama: string }>(
+    `SELECT DISTINCT trim(nama) AS nama FROM (
+           SELECT unnest(string_to_array(diajukan_oleh,  ',')) AS nama
+             FROM memos WHERE diajukan_oleh  IS NOT NULL
+       UNION SELECT unnest(string_to_array(diketahui_oleh, ',')) FROM memos
+             WHERE diketahui_oleh IS NOT NULL
+       UNION SELECT unnest(string_to_array(disetujui_oleh, ',')) FROM memos
+             WHERE disetujui_oleh IS NOT NULL
+       UNION SELECT full_name FROM users WHERE active
+     ) x
+      WHERE length(trim(nama)) >= 3
+      ORDER BY 1`);
+  return baris.map((b) => b.nama);
+}
+
+/**
  * Lampiran seluruh memo pada satu project, sekali ambil.
  *
  * Diambil bersama daftarnya, bukan satu permintaan per memo: layar

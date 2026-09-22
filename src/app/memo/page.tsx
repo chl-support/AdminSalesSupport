@@ -71,9 +71,6 @@ const KATA = {
       `pembacaan gambar tidak selalu tepat — periksa sebelum menyimpan.`,
     ocrKosong:
       "Tulisan pada pindaian ini tidak terbaca. Kolom sisanya diisi manual.",
-    dariMemoLalu: (n: number, nomor: string) =>
-      ` ${n} kolom lagi disalin dari memo sebelumnya (${nomor}) — bukan ` +
-      `dibaca dari berkas ini. Ubah bila memang berbeda.`,
     terbacaIsi: (n: number) =>
       `${n} kolom terisi dari isi memo. Periksa sebelum menyimpan.`,
     terbacaNama: (n: number) =>
@@ -143,9 +140,6 @@ const KATA = {
     ocrKosong:
       "No text could be read from this scan. The remaining fields are filled " +
       "by hand.",
-    dariMemoLalu: (n: number, nomor: string) =>
-      ` ${n} more fields were copied from the previous memo (${nomor}) — not ` +
-      `read from this file. Change them if they differ.`,
     terbacaIsi: (n: number) =>
       `${n} fields filled from the memo's contents. Check before saving.`,
     terbacaNama: (n: number) =>
@@ -257,6 +251,10 @@ export default function MemoPage() {
 
   // Lampiran: daftarnya, baris mana yang sedang terbuka, dan isian unggahnya.
   const [lampiran, setLampiran] = useState<Lampiran[]>([]);
+  // Nama yang ejaannya sudah dipastikan benar — pengguna sistem, dan penanda
+  // tangan memo yang sudah tersimpan pada seluruh project. Lihat namaDikenal()
+  // di @/lib/memo.
+  const [namaDikenal, setNamaDikenal] = useState<string[]>([]);
   const [terbuka, setTerbuka] = useState<string | null>(null);
   const [lBerkas, setLBerkas] = useState<File | null>(null);
   const [lLabel, setLLabel] = useState("");
@@ -270,6 +268,7 @@ export default function MemoPage() {
       const b = await res.json().catch(() => ({}));
       if (!res.ok) { setGalat(b.detail ?? `HTTP ${res.status}`); return; }
       setDaftar(b.memos ?? []);
+      setNamaDikenal(b.nama ?? []);
       setLampiran(b.lampiran ?? []);
       setGalat(null);
     } catch (e: any) { setGalat(String(e?.message ?? e)); }
@@ -397,23 +396,22 @@ export default function MemoPage() {
 
       const dariGambar = tebakKolom(teks);
 
-      // Ejaan nama hasil OCR sering meleset satu dua huruf ("Almonk" untuk
-      // "Al Imron"). Nama yang sama sudah pernah diketik benar oleh orang
-      // pada memo project ini sebelumnya, jadi hasil bacaan mesin
-      // dipadankan ke daftar itu; yang tidak mirip dengan satu pun nama
-      // dikenal dibiarkan apa adanya.
-      const dikenal = Array.from(new Set(
-        daftar.flatMap((x) =>
-          [x.diajukan_oleh, x.diketahui_oleh, x.disetujui_oleh]
-            .filter((v): v is string => !!v)
-            .flatMap((v) => v.split(",").map((y) => y.trim())))
-          .filter(Boolean)));
+      // Ejaan nama hasil OCR sering meleset satu dua huruf ("Allmonk" untuk
+      // "Al Imron"). Hasil bacaan mesin dipadankan ke nama yang ejaannya
+      // sudah dipastikan benar; yang tidak mirip dengan satu pun di antaranya
+      // dibiarkan apa adanya.
+      //
+      // Acuannya bukan memo project ini saja. Memo pertama sebuah project
+      // tidak punya pendahulu, dan justru di situlah ejaan OCR masuk mentah
+      // ke basis data — persis yang terjadi pada "Allmonk". Daftarnya datang
+      // dari server: nama pengguna sistem, ditambah penanda tangan seluruh
+      // memo yang sudah tersimpan, lintas project.
       dariGambar.diajukan_oleh =
-        cocokkanNama(dariGambar.diajukan_oleh, dikenal);
+        cocokkanNama(dariGambar.diajukan_oleh, namaDikenal);
       dariGambar.diketahui_oleh =
-        cocokkanNama(dariGambar.diketahui_oleh, dikenal);
+        cocokkanNama(dariGambar.diketahui_oleh, namaDikenal);
       dariGambar.disetujui_oleh =
-        cocokkanNama(dariGambar.disetujui_oleh, dikenal);
+        cocokkanNama(dariGambar.disetujui_oleh, namaDikenal);
       m += +isi("judul", dariGambar.judul, judul, setJudul);
       m += +isi("nomor", dariGambar.nomor, nomor, setNomor);
       m += +isi("tanggal_memo", dariGambar.tanggal_memo, tanggalMemo, setTanggalMemo);
@@ -427,38 +425,16 @@ export default function MemoPage() {
       m += +isi("diketahui_oleh", dariGambar.diketahui_oleh, diketahui, setDiketahui);
       m += +isi("disetujui_oleh", dariGambar.disetujui_oleh, disetujui, setDisetujui);
 
-      // Yang tetap kosong disalin dari memo terakhir project ini.
+      // Kolom yang tetap kosong DIBIARKAN kosong.
       //
-      // Nama pengaju, yang mengetahui, dan yang menyetujui berulang dari memo
-      // ke memo, begitu pula nilai skema dan daftar dokumen pendukungnya —
-      // dan pada memo sebelumnya ketiganya sudah pernah diketik benar oleh
-      // orang. Menyalinnya bukan menebak: sumbernya data yang sudah
-      // dikonfirmasi manusia, bukan gambar yang ditafsirkan mesin.
-      //
-      // Yang disalin hanya kolom yang memang berulang. Nomor, judul, tanggal,
-      // dan periode justru khas tiap memo; menyalinnya berarti memo baru
-      // menyandang nomor memo lama.
-      const lalu = daftar[0];
-      let q = 0;
-      if (lalu) {
-        q += +isi("dari", lalu.dari ?? undefined, dariSiapa, setDariSiapa);
-        q += +isi("kepada", lalu.kepada ?? undefined, kepada, setKepada);
-        q += +isi("nilai_skema", lalu.nilai_skema ?? undefined, nilai, setNilai);
-        q += +isi("dokumen_wajib", lalu.dokumen_wajib ?? undefined, dokumen,
-                  setDokumen);
-        q += +isi("diajukan_oleh", lalu.diajukan_oleh ?? undefined, diajukan,
-                  setDiajukan);
-        q += +isi("diketahui_oleh", lalu.diketahui_oleh ?? undefined, diketahui,
-                  setDiketahui);
-        q += +isi("disetujui_oleh", lalu.disetujui_oleh ?? undefined, disetujui,
-                  setDisetujui);
-      }
-
-      const pokok = berteks ? k.terbacaIsi(n)
-                            : (m ? k.ocrHasil(m) : k.ocrKosong);
-      setKabar(q
-        ? pokok + k.dariMemoLalu(q, lalu!.nomor ?? lalu!.judul)
-        : pokok);
+      // Sebelumnya kolom sisa disalin dari memo terakhir project ini. Itu
+      // dihapus atas permintaan: setiap memo harus mengacu pada berkas
+      // lampirannya sendiri. Memo yang menyebut penyetuju lain, nilai skema
+      // lain, atau dokumen wajib lain tidak boleh tertutup salinan memo
+      // sebelumnya — kolom yang kosong adalah keterangan jujur bahwa memonya
+      // memang tidak menyebutkannya, dan itu lebih baik daripada angka yang
+      // tampak benar tetapi bukan milik memo ini.
+      setKabar(berteks ? k.terbacaIsi(n) : (m ? k.ocrHasil(m) : k.ocrKosong));
     } catch (e: any) {
       setGalat(String(e?.message ?? e));
     } finally { setMembaca(false); setKemajuan(null); }
