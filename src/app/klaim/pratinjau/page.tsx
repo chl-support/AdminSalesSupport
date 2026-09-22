@@ -57,7 +57,6 @@ const KATA = {
     terkirim: (n: number) =>
       `${n} klaim sudah dikirim ke tim pajak. Setelah diverifikasi, klaim ` +
       "kembali ke Pengajuan Fee untuk dikirimkan tautannya kepada Sales/Agent.",
-    sudahJalan: "sudah berjalan",
     lampiranTombol: (n: number) => `Pratinjau lampiran (${n})`,
     lampiranKosong: "Belum ada lampiran pada klaim ini.",
     lampiranJudul: "Lampiran klaim",
@@ -95,7 +94,6 @@ const KATA = {
     terkirim: (n: number) =>
       `${n} claims sent to the tax team. Once verified, they return to Fee ` +
       "Submission so the link can be sent to the Sales/Agent.",
-    sudahJalan: "already under way",
     lampiranTombol: (n: number) => `Preview attachments (${n})`,
     lampiranKosong: "No attachments on this claim yet.",
     lampiranJudul: "Claim attachments",
@@ -349,13 +347,6 @@ export default function PratinjauPage() {
 
       {klaim.map((c) => (
         <div key={c.id} className="panel sp lembar">
-          {c.status !== "draft" && (
-            <div className="row jangan-cetak" style={{ marginBottom: 8 }}>
-              <span className="pill ok">
-                {c.claim_number} · {c.status} — {k.sudahJalan}
-              </span>
-            </div>
-          )}
           <FormPengajuan
             klaim={c}
             ceklis={c.status === "draft" && bolehKirim
