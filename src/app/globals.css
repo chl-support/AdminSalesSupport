@@ -1213,7 +1213,7 @@ a.tautan-klaim:hover { border-color: var(--ink); }
    apa yang ditunggu (baris kecil di bawahnya). Kalimat tunggunya dibiarkan
    berganti baris — "Menunggu tautan tanda tangan dikirim ke Sales/Agent" dalam
    satu baris utuh melebarkan seluruh tabelnya. */
-td.sel-keadaan, th.sel-keadaan { width: 252px; }
+td.sel-keadaan, th.sel-keadaan { width: 210px; }
 td.sel-keadaan .pill {
   white-space: normal; max-width: 100%; text-align: left; line-height: 1.4;
   font-size: inherit;
@@ -1270,3 +1270,10 @@ td.sel-keadaan .menunggu {
 .langkah-agent { margin: 0 0 10px; padding-left: 20px; font-size: 12.5px;
                  line-height: 1.6; color: var(--sub); }
 .langkah-agent li { margin-bottom: 6px; }
+
+/* Alamat tautan tanda tangan di dalam pop-upnya. Dibiarkan patah di mana saja:
+   ia bukan kalimat, dan yang tidak boleh terjadi adalah pop-upnya melebar
+   sampai keluar layar ponsel. */
+.alamat-tautan { border: 1px solid var(--line); background: #FBFBFA;
+                 padding: 7px 9px; font-size: 11.5px; line-height: 1.5;
+                 overflow-wrap: anywhere; }

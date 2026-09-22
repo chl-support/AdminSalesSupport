@@ -67,6 +67,10 @@ const KATA = {
     waKode: "Kode verifikasi:",
     waKodeCatatan: "Sampaikan kode lewat jalur terpisah dari tautannya.",
     waGagal: "Tautan tidak dapat diterbitkan",
+    waJudul: "Tautan tanda tangan untuk Sales/Agent",
+    waLihat: "Lihat tautannya",
+    waAlamat: "Alamat tautan",
+    waTutup: "Tutup",
   },
   en: {
     judul: "Approval Status",
@@ -99,6 +103,10 @@ const KATA = {
     waKode: "Verification code:",
     waKodeCatatan: "Give the code through a channel separate from the link.",
     waGagal: "The link could not be issued",
+    waJudul: "Signature link for the Sales/Agent",
+    waLihat: "Show the link",
+    waAlamat: "Link address",
+    waTutup: "Close",
   },
 };
 
@@ -257,6 +265,15 @@ export default function PersetujuanPage() {
   /** Tautan yang sudah terbit pada layar ini, berkunci id klaim. */
   const [tautan, setTautan] = useState<Record<string, any>>({});
   const [mengirim, setMengirim] = useState<string | null>(null);
+  /**
+   * Klaim yang tautannya sedang diperlihatkan.
+   *
+   * Tautan, tombol WhatsApp, dan kodenya dulu digambar di dalam sel Status.
+   * Sel itu lalu setinggi lima baris dan selebar alamat tautannya, dan satu
+   * baris yang membengkak melebarkan seluruh tabel — sembilan kolom lain ikut
+   * menanggung ruang yang hanya dibutuhkan satu sel.
+   */
+  const [lihatTautan, setLihatTautan] = useState<string | null>(null);
 
   const muat = useCallback(async () => {
     setBusy(true);
@@ -320,6 +337,7 @@ export default function PersetujuanPage() {
         return;
       }
       setTautan((lama) => ({ ...lama, [c.id]: b }));
+      setLihatTautan(c.id);
       await muat();
     } catch (e: any) {
       setGalat(String(e?.message ?? e));
@@ -412,35 +430,25 @@ export default function PersetujuanPage() {
                       keadaan, bukan deretan tombol yang tak dapat ditekan. */}
                   {sesi.role === "admin_sales" &&
                    MENUNGGU_TAUTAN.includes(c.status) && (
-                    tautan[c.id] ? (
-                      <div className="tautan-terbit">
-                        <div>{k.waTerbit(tautan[c.id].masked_phone)}</div>
-                        <div className="row" style={{ margin: "5px 0" }}>
-                          <a className="tombol-klaim kecil"
-                             href={`https://wa.me/${nomorWa(c.marketing?.phone)}` +
-                                   `?text=${encodeURIComponent(
-                                     `${tautan[c.id].message}\n` +
-                                     `${window.location.origin}/sign/${tautan[c.id].token}`)}`}
-                             target="_blank" rel="noreferrer">{k.waBukaWa}</a>
-                          <button onClick={() => {
-                            navigator.clipboard?.writeText(
-                              `${window.location.origin}/sign/${tautan[c.id].token}`);
-                            setKabar(k.waTersalin);
-                          }}>{k.waSalin}</button>
-                        </div>
-                        <div>{k.waKode} <b>{tautan[c.id].otp_demo}</b></div>
-                        <div className="hint" style={{ textAlign: "left" }}>
-                          {k.waKodeCatatan}
-                        </div>
+                    c.marketing?.phone ? (
+                      <div className="row" style={{ margin: "6px 0 0", gap: 6 }}>
+                        <button disabled={mengirim !== null}
+                                onClick={() => void kirimTautan(c)}>
+                          {mengirim === c.id ? k.waMengirim
+                            : c.status === "signature_link_sent" ? k.waUlang
+                            : k.waKirim}
+                        </button>
+                        {/* Tautan yang sudah terbit pada layar ini dapat dibuka
+                            kembali tanpa menerbitkan yang baru — menerbitkan
+                            ulang menggugurkan tautan yang mungkin sudah
+                            dikirim. */}
+                        {tautan[c.id] && (
+                          <button className="tautan"
+                                  onClick={() => setLihatTautan(c.id)}>
+                            {k.waLihat}
+                          </button>
+                        )}
                       </div>
-                    ) : c.marketing?.phone ? (
-                      <button style={{ marginTop: 6 }}
-                              disabled={mengirim !== null}
-                              onClick={() => void kirimTautan(c)}>
-                        {mengirim === c.id ? k.waMengirim
-                          : c.status === "signature_link_sent" ? k.waUlang
-                          : k.waKirim}
-                      </button>
                     ) : (
                       <div className="menunggu" style={{ color: "var(--stop)" }}>
                         {k.waTanpaHp}
@@ -474,6 +482,54 @@ export default function PersetujuanPage() {
           </tbody></table>
         </div>
       </div>
+
+      {/* Tautannya diperlihatkan di pop-up, bukan di dalam selnya: alamat
+          tautan sepanjang tujuh puluh karakter di dalam sel tabel melebarkan
+          kolomnya, dan kolom yang melebar mendorong sembilan kolom lainnya. */}
+      {lihatTautan && tautan[lihatTautan] && (() => {
+        const t = tautan[lihatTautan];
+        const c = klaim.find((x) => x.id === lihatTautan);
+        const alamat = `${window.location.origin}/sign/${t.token}`;
+        return (
+          <div className="tirai"
+               onMouseDown={(e) => {
+                 if (e.target === e.currentTarget) setLihatTautan(null);
+               }}>
+            <div className="popup" role="dialog" aria-modal="true"
+                 aria-label={k.waJudul} style={{ maxWidth: 420 }}>
+              <h2 style={{ margin: "0 0 4px" }}>{k.waJudul}</h2>
+              <p className="pengantar" style={{ margin: "0 0 10px" }}>
+                <b>{c?.claim_number}</b> ·{" "}
+                {c?.marketing?.full_name ?? "—"} ·{" "}
+                {k.waTerbit(t.masked_phone)}
+              </p>
+
+              <div className="lbl">{k.waAlamat}</div>
+              <div className="alamat-tautan">{alamat}</div>
+
+              <div className="row" style={{ margin: "10px 0" }}>
+                <a className="tombol-klaim kecil"
+                   href={`https://wa.me/${nomorWa(c?.marketing?.phone)}` +
+                         `?text=${encodeURIComponent(`${t.message}\n${alamat}`)}`}
+                   target="_blank" rel="noreferrer">{k.waBukaWa}</a>
+                <button onClick={() => {
+                  navigator.clipboard?.writeText(alamat);
+                  setKabar(k.waTersalin);
+                }}>{k.waSalin}</button>
+              </div>
+
+              <div style={{ fontSize: 12.5 }}>
+                {k.waKode} <b>{t.otp_demo}</b>
+              </div>
+              <p className="hint" style={{ textAlign: "left", margin: "4px 0 0" }}>
+                {k.waKodeCatatan}
+              </p>
+
+              <button onClick={() => setLihatTautan(null)}>{k.waTutup}</button>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Pemberitahuan setelah jendela pratinjau menutup diri. Dibuat sebagai
           pop-up, bukan banner: jendela yang tiba-tiba hilang dari layar adalah
