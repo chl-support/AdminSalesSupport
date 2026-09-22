@@ -3,7 +3,7 @@ import ExcelJS from "exceljs";
 
 import { handler, projectAktif } from "@/lib/api";
 import { one } from "@/lib/db";
-import { daftarMemo, lampiranProject } from "@/lib/memo";
+import { daftarMemo, lampiranProject, skemaProject } from "@/lib/memo";
 
 /**
  * Rekapitulasi Memo Approval sebagai workbook Excel.
@@ -98,6 +98,7 @@ export const GET = handler(async (req) => {
   const projectId = await projectAktif(req);
   const memos = await daftarMemo(projectId) as Baris[];
   const lampiran = await lampiranProject(projectId) as Baris[];
+  const skema = await skemaProject(projectId) as Baris[];
   const proyek = await one<{ name: string }>(
     "SELECT name FROM projects WHERE id=$1", [projectId]);
 
@@ -127,6 +128,41 @@ export const GET = handler(async (req) => {
       ws.getCell(r, c).border =
         { top: tepi, left: tepi, bottom: tepi, right: tepi };
     }
+  }
+
+  // Rincian skema fee mendapat lembarnya sendiri, tidak dijejalkan ke dalam
+  // satu sel pada lembar pertama. Satu memo bisa memuat belasan baris skema,
+  // dan sel yang memuat semuanya tidak dapat disaring, dijumlah, maupun
+  // diurutkan — tiga hal yang justru dicari orang saat membuka rekap ini.
+  if (skema.length) {
+    const ks = wb.addWorksheet("Rincian Skema Fee");
+    const KOLOM_SKEMA: [string, number][] = [
+      ["Nomor Memo", 24], ["Tanggal Memo", 14], ["Skema", 30],
+      ["No", 6], ["Kategori", 24], ["Nilai", 42], ["Keterangan", 52],
+    ];
+    ks.addRow([`Rincian Nilai / Skema Fee — ${proyek?.name ?? ""}`]);
+    ks.mergeCells(1, 1, 1, KOLOM_SKEMA.length);
+    ks.getCell(1, 1).font = { bold: true, size: 13 };
+    ks.addRow([]);
+    const kepalaS = ks.addRow(KOLOM_SKEMA.map(([j]) => j));
+    kepalaS.font = { bold: true };
+    kepalaS.alignment =
+      { vertical: "middle", horizontal: "center", wrapText: true };
+    KOLOM_SKEMA.forEach(([, l], i) => { ks.getColumn(i + 1).width = l; });
+
+    const memoDari = new Map(memos.map((m) => [String(m.id), m]));
+    for (const b of skema) {
+      const m = memoDari.get(String(b.memo_id));
+      const baris = ks.addRow([
+        m?.nomor ?? m?.judul ?? "", iso(m?.tanggal_memo), b.kelompok ?? "",
+        b.urutan ?? "", b.kategori ?? "", b.nilai ?? "", b.keterangan ?? "",
+      ]);
+      baris.alignment = { vertical: "top", wrapText: true };
+    }
+    for (let r = 3; r <= ks.rowCount; r++)
+      for (let c = 1; c <= KOLOM_SKEMA.length; c++)
+        ks.getCell(r, c).border =
+          { top: tepi, left: tepi, bottom: tepi, right: tepi };
   }
 
   const buf = await wb.xlsx.writeBuffer();

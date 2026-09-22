@@ -18,6 +18,8 @@ import { useCallback, useEffect, useState } from "react";
 
 import { useBahasa, useKata } from "../bahasa";
 import { tebakKolom, cocokkanNama } from "@/lib/memo-tebak";
+import { bedahSkema, ringkasSkema } from "@/lib/memo-skema";
+import type { BarisSkema, KataOCR } from "@/lib/memo-skema";
 import { bacaPindaian, type Kemajuan } from "./ocr";
 import { Kerangka, MemeriksaSesi } from "../kerangka";
 import { useSesi } from "../session";
@@ -47,6 +49,13 @@ const KATA = {
     fKepada: "Kepada (Yth)",
     cKepada: "mis. Bpk. Johannes Tanuwijaya, Bpk. Setia Iskandar & Bpk. Al Imron",
     fNilai: "Nilai / Skema Fee",
+    fSkema: "Rincian Nilai / Skema Fee",
+    cSkema: "Dibedah dari tabel di dalam memo. Periksa dan betulkan bila " +
+            "ada yang meleset — yang tersimpan adalah isi tabel ini.",
+    barisN: (n: number) => `${n} baris`,
+    sKelompok: "Skema", sNo: "No", sKategori: "Kategori", sNilai: "Nilai",
+    sKeterangan: "Keterangan", buangBaris: "Buang baris ini",
+    tanpaSkema: "Memo ini tidak memuat tabel skema.",
     cNilai: "mis. 2,5% dari harga sewa unit (setelah dikurangi biaya operasional)",
     fDokumen: "Dokumen pendukung wajib",
     cDokumen: "Satu baris satu dokumen — mis. Form Referensi / Kwitansi / " +
@@ -71,9 +80,6 @@ const KATA = {
       `pembacaan gambar tidak selalu tepat — periksa sebelum menyimpan.`,
     ocrKosong:
       "Tulisan pada pindaian ini tidak terbaca. Kolom sisanya diisi manual.",
-    dariMemoLalu: (n: number, nomor: string) =>
-      ` ${n} kolom lagi disalin dari memo sebelumnya (${nomor}) — bukan ` +
-      `dibaca dari berkas ini. Ubah bila memang berbeda.`,
     terbacaIsi: (n: number) =>
       `${n} kolom terisi dari isi memo. Periksa sebelum menyimpan.`,
     terbacaNama: (n: number) =>
@@ -119,6 +125,13 @@ const KATA = {
     fKepada: "Addressed to",
     cKepada: "e.g. Mr Johannes Tanuwijaya, Mr Setia Iskandar & Mr Al Imron",
     fNilai: "Value / fee scheme",
+    fSkema: "Value / fee scheme breakdown",
+    cSkema: "Extracted from the tables inside the memo. Check and correct " +
+            "anything that is off — what this table holds is what is saved.",
+    barisN: (n: number) => `${n} rows`,
+    sKelompok: "Scheme", sNo: "No", sKategori: "Category", sNilai: "Value",
+    sKeterangan: "Notes", buangBaris: "Remove this row",
+    tanpaSkema: "This memo carries no scheme table.",
     cNilai: "e.g. 2.5% of the unit rent (net of operating costs)",
     fDokumen: "Required supporting documents",
     cDokumen: "One document per line — e.g. Referral form / Receipt / " +
@@ -143,9 +156,6 @@ const KATA = {
     ocrKosong:
       "No text could be read from this scan. The remaining fields are filled " +
       "by hand.",
-    dariMemoLalu: (n: number, nomor: string) =>
-      ` ${n} more fields were copied from the previous memo (${nomor}) — not ` +
-      `read from this file. Change them if they differ.`,
     terbacaIsi: (n: number) =>
       `${n} fields filled from the memo's contents. Check before saving.`,
     terbacaNama: (n: number) =>
@@ -185,6 +195,9 @@ type Lampiran = {
   content_type: string; size_bytes: number;
   uploaded_by: string; uploaded_at: string;
 };
+
+/** Satu baris rincian skema sebagaimana dikembalikan server. */
+type SkemaTersimpan = BarisSkema & { id: string; memo_id: string };
 
 const tgl = (v?: string | null) => (v ? String(v).slice(0, 10) : "—");
 const kb = (n: number) => `${Math.max(1, Math.round(n / 1024))} KB`;
@@ -250,6 +263,10 @@ export default function MemoPage() {
   const [dariSiapa, setDariSiapa] = useState("");
   const [kepada, setKepada] = useState("");
   const [nilai, setNilai] = useState("");
+  // Rincian kolom Nilai / Skema Fee, hasil pembedahan tabel di dalam memonya.
+  const [skema, setSkema] = useState<BarisSkema[]>([]);
+  /** Rincian skema seluruh memo yang sudah tersimpan pada project ini. */
+  const [skemaSimpan, setSkemaSimpan] = useState<SkemaTersimpan[]>([]);
   const [dokumen, setDokumen] = useState("");
   const [diajukan, setDiajukan] = useState("");
   const [diketahui, setDiketahui] = useState("");
@@ -257,6 +274,10 @@ export default function MemoPage() {
 
   // Lampiran: daftarnya, baris mana yang sedang terbuka, dan isian unggahnya.
   const [lampiran, setLampiran] = useState<Lampiran[]>([]);
+  // Nama yang ejaannya sudah dipastikan benar — pengguna sistem, dan penanda
+  // tangan memo yang sudah tersimpan pada seluruh project. Lihat namaDikenal()
+  // di @/lib/memo.
+  const [namaDikenal, setNamaDikenal] = useState<string[]>([]);
   const [terbuka, setTerbuka] = useState<string | null>(null);
   const [lBerkas, setLBerkas] = useState<File | null>(null);
   const [lLabel, setLLabel] = useState("");
@@ -270,7 +291,9 @@ export default function MemoPage() {
       const b = await res.json().catch(() => ({}));
       if (!res.ok) { setGalat(b.detail ?? `HTTP ${res.status}`); return; }
       setDaftar(b.memos ?? []);
+      setNamaDikenal(b.nama ?? []);
       setLampiran(b.lampiran ?? []);
+      setSkemaSimpan(b.skema ?? []);
       setGalat(null);
     } catch (e: any) { setGalat(String(e?.message ?? e)); }
   }, []);
@@ -298,6 +321,7 @@ export default function MemoPage() {
       fd.append("diajukan_oleh", diajukan);
       fd.append("diketahui_oleh", diketahui);
       fd.append("disetujui_oleh", disetujui);
+      if (skema.length) fd.append("skema", JSON.stringify(skema));
       const res = await fetch("/api/memos", { method: "POST", body: fd });
       if (res.status === 401) { location.href = "/login"; return; }
       const b = await res.json().catch(() => ({}));
@@ -306,7 +330,7 @@ export default function MemoPage() {
       setBerkas(null); setJudul(""); setNomor(""); setKeterangan("");
       setDari(""); setSampai(""); setTanggalMemo(""); setDariSiapa("");
       setKepada(""); setNilai(""); setDokumen(""); setDiajukan("");
-      setDiketahui(""); setDisetujui("");
+      setDiketahui(""); setDisetujui(""); setSkema([]);
       await muat();
     } catch (e: any) {
       setGalat(String(e?.message ?? e));
@@ -379,13 +403,14 @@ export default function MemoPage() {
       const berteks = b.sumber === "isi";
       let m = 0;
       let teks = "";
+      let kataOCR: KataOCR[] = [];
 
       if (!berteks) {
         // Berkasnya pindaian: nama berkas sudah memberi nomor, perihal, dan
         // periodenya, tetapi kolom sisanya hanya ada di dalam lembar memonya.
         // Tulisannya dibaca di sini, di peramban — lihat ./ocr.
         setKabar(b.sumber === "nama" ? k.terbacaNama(n) : k.takTerbaca);
-        teks = await bacaPindaian(f, (m: Kemajuan) => {
+        const pindai = await bacaPindaian(f, (m: Kemajuan) => {
           if (m.tahap === "menyiapkan") setKemajuan(k.ocrSiap);
           else if (m.tahap === "menggambar")
             setKemajuan(k.ocrGambar(m.halaman ?? 1, m.dari ?? 1));
@@ -393,27 +418,40 @@ export default function MemoPage() {
             setKemajuan(k.ocrBaca(m.persen ?? 0));
           else setKemajuan(null);
         });
+        teks = pindai.teks;
+        kataOCR = pindai.kata;
+      }
+
+      // Kolom "Nilai / Skema Fee" di dalam memonya bukan satu kalimat
+      // melainkan beberapa tabel berkategori. Dibedah menjadi baris di sini,
+      // lalu ditampilkan untuk diperiksa sebelum ikut tersimpan.
+      const rinci = bedahSkema(kataOCR);
+      if (rinci.length) {
+        setSkema(rinci);
+        // Kolom Nilai / Skema Fee yang lama tetap diisi ringkasannya, supaya
+        // rekapitulasi menyamping tetap terbaca dalam satu baris tanpa harus
+        // membuka rinciannya.
+        isi("nilai_skema", ringkasSkema(rinci), nilai, setNilai);
       }
 
       const dariGambar = tebakKolom(teks);
 
-      // Ejaan nama hasil OCR sering meleset satu dua huruf ("Almonk" untuk
-      // "Al Imron"). Nama yang sama sudah pernah diketik benar oleh orang
-      // pada memo project ini sebelumnya, jadi hasil bacaan mesin
-      // dipadankan ke daftar itu; yang tidak mirip dengan satu pun nama
-      // dikenal dibiarkan apa adanya.
-      const dikenal = Array.from(new Set(
-        daftar.flatMap((x) =>
-          [x.diajukan_oleh, x.diketahui_oleh, x.disetujui_oleh]
-            .filter((v): v is string => !!v)
-            .flatMap((v) => v.split(",").map((y) => y.trim())))
-          .filter(Boolean)));
+      // Ejaan nama hasil OCR sering meleset satu dua huruf ("Allmonk" untuk
+      // "Al Imron"). Hasil bacaan mesin dipadankan ke nama yang ejaannya
+      // sudah dipastikan benar; yang tidak mirip dengan satu pun di antaranya
+      // dibiarkan apa adanya.
+      //
+      // Acuannya bukan memo project ini saja. Memo pertama sebuah project
+      // tidak punya pendahulu, dan justru di situlah ejaan OCR masuk mentah
+      // ke basis data — persis yang terjadi pada "Allmonk". Daftarnya datang
+      // dari server: nama pengguna sistem, ditambah penanda tangan seluruh
+      // memo yang sudah tersimpan, lintas project.
       dariGambar.diajukan_oleh =
-        cocokkanNama(dariGambar.diajukan_oleh, dikenal);
+        cocokkanNama(dariGambar.diajukan_oleh, namaDikenal);
       dariGambar.diketahui_oleh =
-        cocokkanNama(dariGambar.diketahui_oleh, dikenal);
+        cocokkanNama(dariGambar.diketahui_oleh, namaDikenal);
       dariGambar.disetujui_oleh =
-        cocokkanNama(dariGambar.disetujui_oleh, dikenal);
+        cocokkanNama(dariGambar.disetujui_oleh, namaDikenal);
       m += +isi("judul", dariGambar.judul, judul, setJudul);
       m += +isi("nomor", dariGambar.nomor, nomor, setNomor);
       m += +isi("tanggal_memo", dariGambar.tanggal_memo, tanggalMemo, setTanggalMemo);
@@ -427,38 +465,16 @@ export default function MemoPage() {
       m += +isi("diketahui_oleh", dariGambar.diketahui_oleh, diketahui, setDiketahui);
       m += +isi("disetujui_oleh", dariGambar.disetujui_oleh, disetujui, setDisetujui);
 
-      // Yang tetap kosong disalin dari memo terakhir project ini.
+      // Kolom yang tetap kosong DIBIARKAN kosong.
       //
-      // Nama pengaju, yang mengetahui, dan yang menyetujui berulang dari memo
-      // ke memo, begitu pula nilai skema dan daftar dokumen pendukungnya —
-      // dan pada memo sebelumnya ketiganya sudah pernah diketik benar oleh
-      // orang. Menyalinnya bukan menebak: sumbernya data yang sudah
-      // dikonfirmasi manusia, bukan gambar yang ditafsirkan mesin.
-      //
-      // Yang disalin hanya kolom yang memang berulang. Nomor, judul, tanggal,
-      // dan periode justru khas tiap memo; menyalinnya berarti memo baru
-      // menyandang nomor memo lama.
-      const lalu = daftar[0];
-      let q = 0;
-      if (lalu) {
-        q += +isi("dari", lalu.dari ?? undefined, dariSiapa, setDariSiapa);
-        q += +isi("kepada", lalu.kepada ?? undefined, kepada, setKepada);
-        q += +isi("nilai_skema", lalu.nilai_skema ?? undefined, nilai, setNilai);
-        q += +isi("dokumen_wajib", lalu.dokumen_wajib ?? undefined, dokumen,
-                  setDokumen);
-        q += +isi("diajukan_oleh", lalu.diajukan_oleh ?? undefined, diajukan,
-                  setDiajukan);
-        q += +isi("diketahui_oleh", lalu.diketahui_oleh ?? undefined, diketahui,
-                  setDiketahui);
-        q += +isi("disetujui_oleh", lalu.disetujui_oleh ?? undefined, disetujui,
-                  setDisetujui);
-      }
-
-      const pokok = berteks ? k.terbacaIsi(n)
-                            : (m ? k.ocrHasil(m) : k.ocrKosong);
-      setKabar(q
-        ? pokok + k.dariMemoLalu(q, lalu!.nomor ?? lalu!.judul)
-        : pokok);
+      // Sebelumnya kolom sisa disalin dari memo terakhir project ini. Itu
+      // dihapus atas permintaan: setiap memo harus mengacu pada berkas
+      // lampirannya sendiri. Memo yang menyebut penyetuju lain, nilai skema
+      // lain, atau dokumen wajib lain tidak boleh tertutup salinan memo
+      // sebelumnya — kolom yang kosong adalah keterangan jujur bahwa memonya
+      // memang tidak menyebutkannya, dan itu lebih baik daripada angka yang
+      // tampak benar tetapi bukan milik memo ini.
+      setKabar(berteks ? k.terbacaIsi(n) : (m ? k.ocrHasil(m) : k.ocrKosong));
     } catch (e: any) {
       setGalat(String(e?.message ?? e));
     } finally { setMembaca(false); setKemajuan(null); }
@@ -505,6 +521,9 @@ export default function MemoPage() {
   const bolehHapus = sesi.role === "admin_sales" || sesi.role === "admin_system";
   const lampiranDari = (memoId: string) =>
     lampiran.filter((f) => f.memo_id === memoId);
+
+  const skemaDari = (memoId: string) =>
+    skemaSimpan.filter((b) => b.memo_id === memoId);
 
   return (
     <Kerangka sesi={sesi} judul={
@@ -589,6 +608,73 @@ export default function MemoPage() {
                      onChange={(e) => setDisetujui(e.target.value)} />
             </div>
           </div>
+
+          {/* Rincian kolom Nilai / Skema Fee.
+              Ditampilkan hanya bila memonya memang memuat tabel skema. Dapat
+              disunting: pembedahan tabel dari pindaian miring tidak pernah
+              sempurna, dan yang mengunggah sedang memegang memonya. */}
+          {skema.length > 0 && (
+            <div className="rinci-skema">
+              <div className="lbl" style={{ marginTop: 14 }}>
+                {k.fSkema}
+                <span className="pill" style={{ marginLeft: 8 }}>
+                  {k.barisN(skema.length)}
+                </span>
+              </div>
+              <p className="catatan-skema">{k.cSkema}</p>
+              <table className="tabel-skema">
+                <thead>
+                  <tr>
+                    <th>{k.sKelompok}</th><th>{k.sNo}</th><th>{k.sKategori}</th>
+                    <th>{k.sNilai}</th><th>{k.sKeterangan}</th><th />
+                  </tr>
+                </thead>
+                <tbody>
+                  {skema.map((b, i) => {
+                    const ubah = (bagian: Partial<BarisSkema>) =>
+                      setSkema((x) => x.map((y, j) =>
+                        j === i ? { ...y, ...bagian } : y));
+                    // Judul tabel hanya ditulis pada baris pertama tiap
+                    // kelompok; mengulangnya di setiap baris membuat kolom
+                    // yang penting terdesak ke pinggir.
+                    const kepala = i === 0 || skema[i - 1].kelompok !== b.kelompok;
+                    return (
+                      <tr key={i}>
+                        <td className="sel-kelompok">
+                          {kepala ? (
+                            <input value={b.kelompok}
+                                   onChange={(e) =>
+                                     ubah({ kelompok: e.target.value })} />
+                          ) : null}
+                        </td>
+                        <td className="sel-no">{b.urutan}</td>
+                        <td>
+                          <input value={b.kategori}
+                                 onChange={(e) =>
+                                   ubah({ kategori: e.target.value })} />
+                        </td>
+                        <td>
+                          <textarea value={b.nilai}
+                                    onChange={(e) =>
+                                      ubah({ nilai: e.target.value })} />
+                        </td>
+                        <td>
+                          <textarea value={b.keterangan}
+                                    onChange={(e) =>
+                                      ubah({ keterangan: e.target.value })} />
+                        </td>
+                        <td>
+                          <button className="buang-baris" title={k.buangBaris}
+                                  onClick={() => setSkema((x) =>
+                                    x.filter((_, j) => j !== i))}>×</button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
 
           <div className="lbl" style={{ marginTop: 12 }}>{k.fDokumen}</div>
           <textarea value={dokumen} style={{ width: "100%", minHeight: 54 }}
@@ -741,6 +827,35 @@ export default function MemoPage() {
                 <td colSpan={bolehHapus ? 13 : 12}>
                   <div className="rincian lampiran-memo">
                     <b>{m.nomor ?? m.judul}</b>
+
+                    {/* Rincian skema fee memo ini, sebagaimana tersimpan.
+                        Dibaca saja di sini: yang menyunting adalah layar
+                        unggah, tempat memonya masih ada di tangan. */}
+                    {skemaDari(m.id).length > 0 && (
+                      <table className="tabel-skema tersimpan">
+                        <thead>
+                          <tr>
+                            <th>{k.sKelompok}</th><th>{k.sNo}</th>
+                            <th>{k.sKategori}</th><th>{k.sNilai}</th>
+                            <th>{k.sKeterangan}</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {skemaDari(m.id).map((b, i, semua) => (
+                            <tr key={b.id}>
+                              <td className="sel-kelompok">
+                                {i === 0 || semua[i - 1].kelompok !== b.kelompok
+                                  ? b.kelompok : ""}
+                              </td>
+                              <td className="sel-no">{b.urutan}</td>
+                              <td>{b.kategori}</td>
+                              <td>{b.nilai}</td>
+                              <td>{b.keterangan}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
 
                     {lampiranDari(m.id).length > 0 && (
                       <ul className="berkas-lampiran">
