@@ -434,19 +434,40 @@ export default function PratinjauPage() {
               </div>
               {daftar.length ? (
                 <>
-                  <div className="row" style={{ margin: "0 0 6px", gap: 6 }}>
-                    <button className="tautan" onClick={() => setCetakDok(
-                      Object.fromEntries(daftar
-                        .filter((d: any) => d.has_content)
-                        .map((d: any) => [d.id, true])))}>
-                      {k.cetakSemua}
-                    </button>
-                    <button className="tautan"
-                            onClick={() => setCetakDok({})}>
-                      {k.cetakKosongkan}
-                    </button>
-                  </div>
-                  <ul className="pilih-cetak">
+                  {/* Dua pilihan bulat, bukan dua tautan bergaris bawah.
+                      Tautan di atas daftar centang terbaca sebagai "menuju ke
+                      suatu tempat"; bulatan yang salah satunya terisi
+                      menyatakan keadaan daftarnya sekarang — seluruhnya
+                      tercentang, atau tidak satu pun. */}
+                  {(() => {
+                    const punyaIsi = daftar.filter((d: any) => d.has_content);
+                    const dicentang = punyaIsi
+                      .filter((d: any) => cetakDok[d.id]).length;
+                    return (
+                      <ul className="pilih-cetak ringkas">
+                        <li>
+                          <label className="ceklis-pilih">
+                            <input type="radio" name="cetak-lampiran"
+                                   checked={punyaIsi.length > 0 &&
+                                            dicentang === punyaIsi.length}
+                                   onChange={() => setCetakDok(
+                                     Object.fromEntries(punyaIsi
+                                       .map((d: any) => [d.id, true])))} />
+                            <span>{k.cetakSemua}</span>
+                          </label>
+                        </li>
+                        <li>
+                          <label className="ceklis-pilih">
+                            <input type="radio" name="cetak-lampiran"
+                                   checked={dicentang === 0}
+                                   onChange={() => setCetakDok({})} />
+                            <span>{k.cetakKosongkan}</span>
+                          </label>
+                        </li>
+                      </ul>
+                    );
+                  })()}
+                  <ul className="pilih-cetak" style={{ marginTop: 6 }}>
                     {daftar.map((d: any) => (
                       <li key={d.id}>
                         <label className="ceklis-pilih">
