@@ -292,8 +292,22 @@ ul.ceklis input { width: auto; margin-top: 2px; }
 .nomor-form { margin: 2px 0 16px; text-align: center; font-size: 11.5px;
               color: var(--mut); }
 .cetak .dasar { margin: 8px 0 0; font-size: 11px; color: var(--mut); line-height: 1.5; }
-.cetak .penjelasan { margin: 0; font-size: 13px; min-height: 34px;
-                     border-bottom: 1px solid #EEF0F1; padding-bottom: 6px; }
+/* Blok penjelasan: garis titik-titik isian seperti pada formulir aslinya —
+   tiga baris pada Closing Fee dan Cash Reward, satu pada Komisi. Tingginya
+   tetap berapa pun panjang penjelasannya: blok yang tingginya mengikuti isi
+   membuat tiap klaim tercetak dengan tata letak yang sedikit berbeda, dan yang
+   paling panjang mendorong pengesahan ke halaman kedua. */
+.cetak .penjelasan {
+  margin: 0; font-size: 13px; line-height: 21px; min-height: 63px;
+  background-image: repeating-linear-gradient(
+    to bottom, transparent 0 20px,
+    var(--line) 20px, var(--line) 21px);
+  background-size: 100% 21px;
+}
+/* Komisi hanya punya satu baris isian pada aslinya. Minimum, bukan tinggi
+   tetap: penjelasan yang panjang tetap terbaca utuh — memotongnya berarti
+   mencetak dokumen resmi yang kalimatnya hilang separuh. */
+.cetak .penjelasan.sebaris { min-height: 21px; }
 ul.cetak-ceklis li { display: flex; gap: 8px; align-items: flex-start; }
 ul.cetak-ceklis .kotak { border: 1px solid var(--ink); width: 14px; height: 14px;
                          line-height: 13px; text-align: center; font-size: 10px;
@@ -317,6 +331,14 @@ ul.cetak-ceklis .kotak { border: 1px solid var(--ink); width: 14px; height: 14px
 .catatan-form { margin-top: 14px; font-size: 11px; color: var(--sub); }
 .catatan-form ul { margin: 4px 0 0; padding-left: 14px; }
 .catatan-form li { margin-bottom: 2px; line-height: 1.45; }
+
+/* "Agent / Inhouse" pada baris Status: yang tidak berlaku dicoret, sebagaimana
+   "coret yang tidak perlu" pada formulir aslinya. */
+.pilih-coret .dicoret { text-decoration: line-through; color: var(--mut); }
+
+/* Bilah judul blok yang membawa judul kedua di ujung kanan ("CHECKLIST"). */
+.form-blok > h3.dua-sisi { display: flex; justify-content: space-between;
+                           gap: 12px; align-items: baseline; }
 
 /* Nama project sebagai baris tebal tanpa label di blok data pemesanan. */
 .baris-project { font-size: 12.5px; letter-spacing: .02em; }
@@ -1309,15 +1331,20 @@ td.sel-keadaan .menunggu {
   html, body { font-size: 11px; }
   .cetak { padding: 0; font-size: 10px; }
 
-  .cetak .kop { padding-bottom: 5px; margin-bottom: 7px; }
+  .cetak .kop { padding-bottom: 4px; margin-bottom: 6px; }
   .cetak .kop b { font-size: 12.5px; }
   .cetak .kop span { font-size: 9px; line-height: 1.35; }
-  .cetak .judul-form { font-size: 12px; margin: 7px 0 7px; }
+  .cetak .judul-form { font-size: 12px; margin: 6px 0 6px; }
 
-  .form-blok { margin-bottom: 8px; }
+  .form-blok { margin-bottom: 6px; }
   .form-blok > h3 { font-size: 9.5px; padding: 3px 8px; margin-bottom: 4px; }
   .form-blok table td { padding: 1.5px 0; font-size: 9.5px; }
-  .cetak .penjelasan { font-size: 9.5px; min-height: 18px; padding-bottom: 3px; }
+  .cetak .penjelasan { font-size: 9.5px; line-height: 14px; min-height: 42px;
+                       background-image: repeating-linear-gradient(
+                         to bottom, transparent 0 13px,
+                         var(--line) 13px, var(--line) 14px);
+                       background-size: 100% 14px; }
+  .cetak .penjelasan.sebaris { min-height: 14px; }
   .baris-project { font-size: 10px; }
 
   ul.ceklis { font-size: 9.5px; }
@@ -1330,11 +1357,11 @@ td.sel-keadaan .menunggu {
      sampai habis. */
   .sah { gap: 12px; margin-top: 4px; }
   .sah-judul { font-size: 10px; margin-bottom: 4px; }
-  .sah .kotak-ttd { height: 52px; }
-  .sah .kotak-ttd img { max-height: 48px; }
+  .sah .kotak-ttd { height: 50px; }
+  .sah .kotak-ttd img { max-height: 46px; }
   .sah span { font-size: 9.5px; margin-top: 3px; }
 
-  .catatan-form { margin-top: 8px; font-size: 8.5px; }
+  .catatan-form { margin-top: 6px; font-size: 8.5px; }
   .catatan-form li { margin-bottom: 1px; line-height: 1.35; }
 
   /* Satu formulir satu halaman, dan beberapa formulir dalam satu jendela

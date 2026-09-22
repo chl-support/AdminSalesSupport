@@ -24,7 +24,21 @@ import { CATATAN, DOKUMEN, JUDUL_HITUNG, KOP, type Jenis } from "./jenis";
  */
 const rp = (n?: number | null) =>
   `Rp. ${(n ?? 0).toLocaleString("id-ID")},-`;
-const tgl = (v?: string | null) => (v ? String(v).slice(0, 10) : "—");
+/**
+ * Tanggal seperti pada formulir aslinya: "5 Juni 2026", bukan "2026-06-05".
+ *
+ * Formulir ini dibaca dan ditandatangani orang, bukan dibaca mesin. Bentuk
+ * ISO pada dokumen resmi berbahasa Indonesia terbaca sebagai keluaran sistem
+ * yang bocor ke kertas.
+ */
+const BULAN = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli",
+               "Agustus", "September", "Oktober", "November", "Desember"];
+const tgl = (v?: string | null) => {
+  if (!v) return "—";
+  const [th, bl, hr] = String(v).slice(0, 10).split("-").map(Number);
+  if (!th || !bl || !hr) return String(v).slice(0, 10);
+  return `${hr} ${BULAN[bl - 1] ?? bl} ${th}`;
+};
 
 const JENIS_NAMA: Record<string, string> = {
   closing_fee: "Closing Fee", commission: "Komisi",
@@ -92,9 +106,19 @@ export function FormPengajuan(
         <h3>INFORMASI DATA MARKETING</h3>
         <table><tbody>
           <tr><td>Nama Marketing</td><td>{m.full_name ?? "—"}</td></tr>
+          {/* Seperti pada formulir aslinya: kedua pilihan ditulis, yang tidak
+              berlaku dicoret. Bedanya coretannya tidak perlu dikerjakan tangan
+              — sistem sudah tahu yang mana, jadi ia yang mencoretnya. */}
           <tr><td>Status</td>
-              <td>{m.marketing_type === "agent" ? "Agent"
-                   : m.marketing_type === "inhouse" ? "Inhouse" : "—"}</td></tr>
+              <td className="pilih-coret">
+                <span className={m.marketing_type === "inhouse" ? "dicoret" : ""}>
+                  Agent
+                </span>
+                {" / "}
+                <span className={m.marketing_type === "agent" ? "dicoret" : ""}>
+                  Inhouse
+                </span>
+              </td></tr>
           <tr><td>Nama Kantor Marketing</td>
               <td>{m.agency_name ?? pt}</td></tr>
           <tr><td>Alamat Kantor</td><td>{m.agency_address ?? "—"}</td></tr>
@@ -138,19 +162,22 @@ export function FormPengajuan(
         <h3>{JUDUL_HITUNG[jenis] ?? `PERHITUNGAN ${nama.toUpperCase()}`}</h3>
         <table><tbody>
           {jenis === "commission" && (
-            <tr><td>Total Pembayaran / Persen Pembayaran</td>
+            <tr><td>Total Pembayaran/Persen Pembayaran</td>
                 <td>{rp(klaim.total_payment)} ·{" "}
                     {(Number(klaim.payment_percent ?? 0) * 100).toFixed(2)}%</td></tr>
           )}
           <tr><td>Jumlah {nama}</td><td>{rp(klaim.gross_amount)}</td></tr>
           <tr><td>PPN</td><td>{rp(klaim.vat)}</td></tr>
-          <tr><td>Potongan PPh
+          {/* Namanya persis seperti pada formulir aslinya: "Potongan PPh".
+              Pasal tarifnya menempel pada angkanya, bukan pada namanya — yang
+              membaca kertas ini tetap perlu tahu PPh 21 atau PPh 23. */}
+          <tr><td>Potongan PPh</td>
+              <td>− {rp(klaim.withholding_tax)}
                   {klaim.withholding_tax_type
                     ? ` (${String(klaim.withholding_tax_type)
                         .replace(/^pph/i, "PPh ").toUpperCase()
                         .replace("PPH ", "PPh ")})`
-                    : ""}</td>
-              <td>− {rp(klaim.withholding_tax)}</td></tr>
+                    : ""}</td></tr>
           <tr className="total"><td>{nama} yang Dibayarkan</td>
               <td>{rp(klaim.net_amount)}</td></tr>
           {/* Komisi tidak punya baris Terbilang pada cetakannya; Closing Fee
@@ -165,16 +192,26 @@ export function FormPengajuan(
 
       <div className="form-blok">
         <h3>PENJELASAN PENGAJUAN {nama.toUpperCase()}</h3>
-        <p className="penjelasan">
-          {klaim.notes?.trim() || <span style={{ color: "var(--mut)" }}>—</span>}
+        {/* Titik-titik isian seperti pada formulir aslinya — satu baris pada
+            Komisi, tiga pada Closing Fee dan Cash Reward. Tingginya tetap
+            berapa pun panjang penjelasannya, supaya cetakan selalu satu
+            halaman dan bloknya tidak berubah tinggi dari satu klaim ke klaim
+            berikutnya. */}
+        <p className={`penjelasan${jenis === "commission" ? " sebaris" : ""}`}>
+          {klaim.notes?.trim() || ""}
         </p>
       </div>
 
       {dokumen.length > 0 && (
         <div className="form-blok">
-          <h3>
-            SYARAT{jenis === "commission" ? "/" : " / "}DOKUMEN PENGAJUAN{" "}
-            {nama.toUpperCase()}
+          {/* "CHECKLIST" di ujung kanan bilahnya, seperti pada aslinya: kolom
+              centang di sebelah kanan memang punya judul sendiri di sana. */}
+          <h3 className="dua-sisi">
+            <span>
+              SYARAT{jenis === "commission" ? "/" : " / "}DOKUMEN PENGAJUAN{" "}
+              {nama.toUpperCase()}
+            </span>
+            <span>CHECKLIST</span>
           </h3>
           <ul className="ceklis cetak-ceklis">
             {dokumen.map((d, i) => (
