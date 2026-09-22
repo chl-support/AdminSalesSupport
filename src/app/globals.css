@@ -1128,7 +1128,7 @@ a.tautan-klaim:hover { border-color: var(--ink); }
    
    Lebar minimumnya dipatok supaya kolom tidak saling menghimpit sampai tak
    terbaca; .tscroll di sekelilingnya yang menyediakan gulirannya. */
-.rekap-memo { min-width: 1640px; table-layout: fixed; }
+.rekap-memo { min-width: 1186px; table-layout: fixed; }
 .rekap-memo th, .rekap-memo td { vertical-align: top; }
 .rekap-memo tr.terbuka > td { background: #FBFBFA; }
 .rekap-memo th { text-align: center; }
@@ -1136,35 +1136,20 @@ a.tautan-klaim:hover { border-color: var(--ink); }
 /* Lebar tiap kolom dipatok, bukan dibiarkan mengikuti isi: dibiarkan bebas,
    satu memo berperihal panjang akan memipihkan kolom tanggal pada seluruh
    baris lain. Urutannya sama dengan urutan kolom pada markahnya. */
-.rekap-memo th:nth-child(1)  { width: 42px; }
-.rekap-memo th:nth-child(2)  { width: 168px; }
-.rekap-memo th:nth-child(3)  { width: 104px; }
-.rekap-memo th:nth-child(4)  { width: 158px; }
-.rekap-memo th:nth-child(5)  { width: 192px; }
-.rekap-memo th:nth-child(6)  { width: 214px; }
-.rekap-memo th:nth-child(7)  { width: 188px; }
-.rekap-memo th:nth-child(8)  { width: 152px; }
-.rekap-memo th:nth-child(9)  { width: 150px; }
-.rekap-memo th:nth-child(10) { width: 212px; }
-.rekap-memo th:nth-child(11) { width: 150px; }
-.rekap-memo th:nth-child(12) { width: 136px; }
-.rekap-memo th:nth-child(13) { width: 84px; }
+.rekap-memo th:nth-child(1) { width: 40px; }   /* No */
+.rekap-memo th:nth-child(2) { width: 150px; }  /* Nomor Memo */
+.rekap-memo th:nth-child(3) { width: 96px; }   /* Tanggal Memo */
+.rekap-memo th:nth-child(4) { width: 146px; }  /* Pengajuan (Dari) */
+.rekap-memo th:nth-child(5) { width: 230px; }  /* Perihal / Program */
+.rekap-memo th:nth-child(6) { width: 136px; }  /* Periode Program */
+.rekap-memo th:nth-child(7) { width: 190px; }  /* Berkas */
+.rekap-memo th:nth-child(8) { width: 122px; }  /* Lampiran */
+.rekap-memo th:nth-child(9) { width: 76px; }   /* Tindakan */
 
 .rekap-memo td.no { text-align: center; font-weight: 650; color: var(--ink); }
 /* Nomor memo panjang dan tidak pernah dibaca sebagai kalimat: dikecilkan dan
    diizinkan patah di mana saja, supaya tidak memaksa kolomnya melebar. */
 .rekap-memo td.nomor { font-size: 11px; overflow-wrap: anywhere; }
-
-/* Daftar dokumen pendukung: nomornya dibangkitkan layar, bukan diketik. */
-.rekap-memo ol.dok { margin: 0; padding-left: 17px; }
-.rekap-memo ol.dok li { margin-bottom: 7px; }
-.rekap-memo ol.dok li:last-child { margin-bottom: 0; }
-
-/* Ketiga pihaknya berjarak, seperti pada cetakannya — berdempetan, ketiganya
-   terbaca sebagai satu blok nama tanpa peran. */
-.rekap-memo .pihak > div { margin-bottom: 9px; }
-.rekap-memo .pihak > div:last-child { margin-bottom: 0; }
-.rekap-memo .pihak b { color: var(--ink); }
 
 /* Keterangan tambahan di bawah isi utama sebuah sel. */
 .rekap-memo .sisip { display: block; margin-top: 4px; font-size: 11px;

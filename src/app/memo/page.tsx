@@ -48,12 +48,9 @@ const KATA = {
     sKelompok: "Skema", sNo: "No", sKategori: "Kategori", sNilai: "Nilai",
     sKeterangan: "Keterangan",
     kNo: "No", kNomor: "Nomor Memo", kTanggal: "Tanggal Memo",
-    kDari: "Pengajuan (Dari)", kKepada: "Kepada (Yth)",
-    kPerihal: "Perihal / Program", kNilai: "Nilai / Skema Fee",
-    kPeriode: "Periode Program", kDokumen: "Dokumen Pendukung Wajib",
-    kPihak: "Diajukan / Diketahui / Disetujui Oleh",
+    kDari: "Pengajuan (Dari)", kPerihal: "Perihal / Program",
+    kPeriode: "Periode Program",
     kBerkas: "Berkas", kLampiran: "Lampiran", kTindakan: "Tindakan",
-    lDiajukan: "Diajukan:", lDiketahui: "Diketahui:", lDisetujui: "Disetujui:",
     seterusnya: "seterusnya", hapus: "Hapus",
     kosong: "Belum ada memo pada project ini.",
     membaca: "Membaca berkas…",
@@ -111,12 +108,9 @@ const KATA = {
     sKelompok: "Scheme", sNo: "No", sKategori: "Category", sNilai: "Value",
     sKeterangan: "Notes",
     kNo: "No", kNomor: "Memo number", kTanggal: "Memo date",
-    kDari: "Submitted by", kKepada: "Addressed to",
-    kPerihal: "Subject / programme", kNilai: "Value / fee scheme",
-    kPeriode: "Programme period", kDokumen: "Required supporting documents",
-    kPihak: "Submitted / noted / approved by",
+    kDari: "Submitted by", kPerihal: "Subject / programme",
+    kPeriode: "Programme period",
     kBerkas: "File", kLampiran: "Attachments", kTindakan: "Action",
-    lDiajukan: "Submitted:", lDiketahui: "Noted:", lDisetujui: "Approved:",
     seterusnya: "onwards", hapus: "Delete",
     kosong: "No memos on this project yet.",
     membaca: "Reading the file…",
@@ -614,10 +608,8 @@ export default function MemoPage() {
           <table className="rekap-memo"><tbody>
             <tr>
               <th>{k.kNo}</th><th>{k.kNomor}</th><th>{k.kTanggal}</th>
-              <th>{k.kDari}</th><th>{k.kKepada}</th><th>{k.kPerihal}</th>
-              <th>{k.kNilai}</th><th>{k.kPeriode}</th><th>{k.kDokumen}</th>
-              <th>{k.kPihak}</th><th>{k.kBerkas}</th>
-              <th>{k.kLampiran}</th>
+              <th>{k.kDari}</th><th>{k.kPerihal}</th><th>{k.kPeriode}</th>
+              <th>{k.kBerkas}</th><th>{k.kLampiran}</th>
               {bolehHapus && <th>{k.kTindakan}</th>}
             </tr>
 
@@ -627,39 +619,13 @@ export default function MemoPage() {
                 <td className="nomor">{m.nomor ?? "—"}</td>
                 <td>{tglPanjang(m.tanggal_memo, bahasa) ?? "—"}</td>
                 <td>{m.dari ?? "—"}</td>
-                <td>{m.kepada ?? "—"}</td>
                 <td>
                   {m.judul}
                   {m.keterangan && <span className="sisip">{m.keterangan}</span>}
                 </td>
-                <td>{m.nilai_skema ?? "—"}</td>
                 <td>
                   {periode(m.berlaku_dari, m.berlaku_sampai, bahasa,
                            k.seterusnya) ?? "—"}
-                </td>
-                <td>
-                  {/* Satu baris satu dokumen, dinomori saat ditampilkan —
-                      bukan saat diketik. Yang mengetik cukup menulis
-                      daftarnya; penomorannya urusan layar. */}
-                  {m.dokumen_wajib
-                    ? <ol className="dok">
-                        {m.dokumen_wajib.split("\n")
-                          .map((d) => d.trim()).filter(Boolean)
-                          .map((d, j) => <li key={j}>{d}</li>)}
-                      </ol>
-                    : "—"}
-                </td>
-                <td>
-                  {m.diajukan_oleh || m.diketahui_oleh || m.disetujui_oleh
-                    ? <div className="pihak">
-                        {m.diajukan_oleh && (
-                          <div><b>{k.lDiajukan}</b> {m.diajukan_oleh}</div>)}
-                        {m.diketahui_oleh && (
-                          <div><b>{k.lDiketahui}</b> {m.diketahui_oleh}</div>)}
-                        {m.disetujui_oleh && (
-                          <div><b>{k.lDisetujui}</b> {m.disetujui_oleh}</div>)}
-                      </div>
-                    : "—"}
                 </td>
                 <td>
                   <a href={`/api/memos/${m.id}`} target="_blank" rel="noreferrer">
@@ -702,7 +668,7 @@ export default function MemoPage() {
                 selebar daftar berkasnya pada seluruh baris lain. */}
             {daftar.map((m) => terbuka === m.id && (
               <tr key={`${m.id}-lampiran`} className="terbuka">
-                <td colSpan={bolehHapus ? 13 : 12}>
+                <td colSpan={bolehHapus ? 9 : 8}>
                   <div className="rincian lampiran-memo">
                     <b>{m.nomor ?? m.judul}</b>
 
@@ -783,7 +749,7 @@ export default function MemoPage() {
 
             {!daftar.length && (
               <tr>
-                <td colSpan={bolehHapus ? 13 : 12} style={{ color: "var(--mut)" }}>
+                <td colSpan={bolehHapus ? 9 : 8} style={{ color: "var(--mut)" }}>
                   {k.kosong}
                 </td>
               </tr>
