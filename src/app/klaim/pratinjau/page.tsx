@@ -50,15 +50,6 @@ const KATA = {
     cetakBelumAda: "Centang setidaknya satu yang akan dicetak.",
     mengirim: "Mengirim…",
     jumlah: (n: number) => `${n} formulir`,
-    pengantar:
-      "Periksa tiap formulir, lalu centang dokumen yang berkasnya sudah ada " +
-      "di tangan Anda. Setelah dikirim, klaim berpindah ke tim pajak untuk " +
-      "diverifikasi dan kembali ke Anda bila sudah benar.",
-    belumLengkap: "Centang seluruh dokumen pada tiap formulir sebelum dikirim.",
-    lampirkan:
-      "Lampirkan berkasnya pada tiap baris syarat bila ada. Berkas yang " +
-      "dilampirkan dapat dibuka tim pajak langsung dari klaimnya; yang hanya " +
-      "dicentang tidak memberi mereka apa pun untuk diperiksa.",
     bukanAdmin:
       "Pengiriman ke tim pajak hanya dapat dilakukan Admin Sales. Formulir di " +
       "bawah dapat diperiksa, tetapi tidak dapat dikirim dari sini.",
@@ -66,7 +57,6 @@ const KATA = {
     terkirim: (n: number) =>
       `${n} klaim sudah dikirim ke tim pajak. Setelah diverifikasi, klaim ` +
       "kembali ke Pengajuan Fee untuk dikirimkan tautannya kepada Sales/Agent.",
-    sudahJalan: "sudah berjalan",
     lampiranTombol: (n: number) => `Pratinjau lampiran (${n})`,
     lampiranKosong: "Belum ada lampiran pada klaim ini.",
     lampiranJudul: "Lampiran klaim",
@@ -97,15 +87,6 @@ const KATA = {
     cetakBelumAda: "Tick at least one thing to print.",
     mengirim: "Sending…",
     jumlah: (n: number) => `${n} forms`,
-    pengantar:
-      "Check each form, then tick the documents you actually hold. Once sent, " +
-      "the claim moves to the tax team for verification and comes back to you " +
-      "if everything is correct.",
-    belumLengkap: "Tick every document on each form before sending.",
-    lampirkan:
-      "Attach the file on each requirement line where you have one. Attached " +
-      "files can be opened by the tax team straight from the claim; a tick " +
-      "alone gives them nothing to check.",
     bukanAdmin:
       "Only the Sales Admin can send claims to the tax team. The forms below " +
       "can be reviewed, but not sent from here.",
@@ -113,7 +94,6 @@ const KATA = {
     terkirim: (n: number) =>
       `${n} claims sent to the tax team. Once verified, they return to Fee ` +
       "Submission so the link can be sent to the Sales/Agent.",
-    sudahJalan: "already under way",
     lampiranTombol: (n: number) => `Preview attachments (${n})`,
     lampiranKosong: "No attachments on this claim yet.",
     lampiranJudul: "Claim attachments",
@@ -365,23 +345,8 @@ export default function PratinjauPage() {
         <div className="banner warn jangan-cetak">{k.bukanAdmin}</div>
       )}
 
-      {klaim.length > 0 && bolehKirim && (
-        <div className="banner info jangan-cetak">
-          <b>{k.pengantar}</b>
-          {k.lampirkan}
-          {!lengkap && masihDraft.length > 0 ? ` ${k.belumLengkap}` : ""}
-        </div>
-      )}
-
       {klaim.map((c) => (
         <div key={c.id} className="panel sp lembar">
-          {c.status !== "draft" && (
-            <div className="row jangan-cetak" style={{ marginBottom: 8 }}>
-              <span className="pill ok">
-                {c.claim_number} · {c.status} — {k.sudahJalan}
-              </span>
-            </div>
-          )}
           <FormPengajuan
             klaim={c}
             ceklis={c.status === "draft" && bolehKirim
@@ -460,19 +425,40 @@ export default function PratinjauPage() {
               </div>
               {daftar.length ? (
                 <>
-                  <div className="row" style={{ margin: "0 0 6px", gap: 6 }}>
-                    <button className="tautan" onClick={() => setCetakDok(
-                      Object.fromEntries(daftar
-                        .filter((d: any) => d.has_content)
-                        .map((d: any) => [d.id, true])))}>
-                      {k.cetakSemua}
-                    </button>
-                    <button className="tautan"
-                            onClick={() => setCetakDok({})}>
-                      {k.cetakKosongkan}
-                    </button>
-                  </div>
-                  <ul className="pilih-cetak">
+                  {/* Dua pilihan bulat, bukan dua tautan bergaris bawah.
+                      Tautan di atas daftar centang terbaca sebagai "menuju ke
+                      suatu tempat"; bulatan yang salah satunya terisi
+                      menyatakan keadaan daftarnya sekarang — seluruhnya
+                      tercentang, atau tidak satu pun. */}
+                  {(() => {
+                    const punyaIsi = daftar.filter((d: any) => d.has_content);
+                    const dicentang = punyaIsi
+                      .filter((d: any) => cetakDok[d.id]).length;
+                    return (
+                      <ul className="pilih-cetak ringkas">
+                        <li>
+                          <label className="ceklis-pilih">
+                            <input type="radio" name="cetak-lampiran"
+                                   checked={punyaIsi.length > 0 &&
+                                            dicentang === punyaIsi.length}
+                                   onChange={() => setCetakDok(
+                                     Object.fromEntries(punyaIsi
+                                       .map((d: any) => [d.id, true])))} />
+                            <span>{k.cetakSemua}</span>
+                          </label>
+                        </li>
+                        <li>
+                          <label className="ceklis-pilih">
+                            <input type="radio" name="cetak-lampiran"
+                                   checked={dicentang === 0}
+                                   onChange={() => setCetakDok({})} />
+                            <span>{k.cetakKosongkan}</span>
+                          </label>
+                        </li>
+                      </ul>
+                    );
+                  })()}
+                  <ul className="pilih-cetak" style={{ marginTop: 6 }}>
                     {daftar.map((d: any) => (
                       <li key={d.id}>
                         <label className="ceklis-pilih">
