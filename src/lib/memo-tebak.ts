@@ -111,11 +111,47 @@ export function rentangBulan(teks: string) {
   };
 }
 
-/** Tanggal pertama yang ditulis panjang pada sepotong teks. */
+/**
+ * Tanggal pertama yang ditulis panjang pada sepotong teks.
+ *
+ * Pemisah antar bagiannya dibiarkan longgar. Pada pindaian, spasi antara
+ * angka dan nama bulan kerap hilang ("01Januari 2026") atau berganti menjadi
+ * koma maupun titik; memaksakan satu spasi membuat tanggal yang sebenarnya
+ * terbaca jelas oleh mata justru tidak terbaca oleh mesin.
+ */
 function tanggalPanjang(teks: string) {
   const b = "(" + Object.keys(BULAN).join("|") + ")";
-  const m = new RegExp(`(\\d{1,2})\\s+${b}\\.?\\s+(\\d{4})`, "i").exec(teks);
+  const m = new RegExp(`(\\d{1,2})[\\s.,-]*${b}\\.?[\\s.,-]*(\\d{4})`, "i")
+    .exec(teks);
   return m ? keIso(Number(m[1]), m[2], Number(m[3])) : undefined;
+}
+
+/**
+ * Tanggal yang ditulis serba angka: "02/01/2026", "2-1-2026", "2.1.26".
+ *
+ * Hari dulu, baru bulan — sebagaimana lazim ditulis di sini. Hanya dipakai
+ * pada teks yang sudah dipastikan mengikuti label "Tanggal", tidak dicari
+ * bebas di seluruh memo: nomor memo, nomor perjanjian, dan nomor telepon
+ * semuanya berbentuk angka-berpemisah, dan salah satunya pasti tersangkut.
+ */
+function tanggalAngka(teks: string) {
+  const m = /(?<![\d/.\-])(\d{1,2})[/.\-](\d{1,2})[/.\-](\d{2,4})(?![\d/.\-])/
+    .exec(teks);
+  if (!m) return undefined;
+  const hari = Number(m[1]), bulan = Number(m[2]);
+  let tahun = Number(m[3]);
+  if (hari < 1 || hari > 31 || bulan < 1 || bulan > 12) return undefined;
+  // Tahun dua angka dianggap abad ini. Memo yang diurus sistem ini tidak
+  // pernah berasal dari tahun 1900-an.
+  if (tahun < 100) tahun += 2000;
+  if (tahun < 2000 || tahun > 2100) return undefined;
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${tahun}-${p(bulan)}-${p(hari)}`;
+}
+
+/** Tanggal pada sepotong teks, ditulis panjang maupun serba angka. */
+function tanggalApaPun(teks: string) {
+  return tanggalPanjang(teks) ?? tanggalAngka(teks);
 }
 
 /**
@@ -142,8 +178,15 @@ export function tebakKolom(teks: string): Tebakan {
       const n = sesudahLabel(b);
       if (/\//.test(n)) t.nomor = rapikan(n);
     }
-    if (!t.tanggal_memo && /^(tanggal|tgl\.?)\s*[:.]/i.test(b)) {
-      t.tanggal_memo = tanggalPanjang(b) ?? undefined;
+    // Labelnya dicari di mana pun pada barisnya, bukan hanya di awalnya. OCR
+    // kerap menyatukan dua kolom sebuah kepala surat menjadi satu baris —
+    // "Nomor : 002/SBC   Tanggal : 5 Maret 2026" — dan yang berpatokan pada
+    // awal baris akan melewatkan seluruhnya.
+    const berlabelTanggal = /(?:^|\s)(?:tanggal|tgl\.?)\s*[:.]/i.exec(b);
+    if (!t.tanggal_memo && berlabelTanggal) {
+      t.tanggal_memo =
+        tanggalApaPun(b.slice(berlabelTanggal.index + berlabelTanggal[0].length))
+        ?? undefined;
     }
     if (!t.kepada && /^kepada\b/i.test(b)) {
       t.kepada = nilaiLabel(baris, i, LABEL);
@@ -216,8 +259,21 @@ export function tebakKolom(teks: string): Tebakan {
   // bisa saja tanggal mulai berlakunya, dan tanggal memo yang keliru tersimpan
   // sebagai kapan sesuatu diputuskan.
   if (!t.tanggal_memo) {
-    const kepala = baris.slice(0, 12).find((b) => /^[A-Za-z .]{3,24},\s*\d{1,2}\s/.test(b));
+    const kepala = baris.slice(0, 12)
+      .find((b) => /^[A-Za-z .]{3,24},\s*\d{1,2}[\s.,-]/.test(b));
     if (kepala) t.tanggal_memo = tanggalPanjang(kepala);
+  }
+  // Masih kosong: tanggal panjang pertama pada kepala memo, di mana pun ia
+  // berada. Baris perihal dilewati — di sanalah periode programnya ditulis,
+  // dan tanggal mulai berlaku bukan tanggal memonya. Longgar memang, tetapi
+  // kolom ini tampil di layar unggah dan dapat dibetulkan sebelum disimpan;
+  // yang kosong sama sekali justru diam-diam terbawa ke rekapitulasi.
+  if (!t.tanggal_memo) {
+    for (const b of baris.slice(0, 12)) {
+      if (/^(perihal|hal|lampiran|nomor|no\.?)\s*[:.]/i.test(b)) continue;
+      const v = tanggalPanjang(b);
+      if (v) { t.tanggal_memo = v; break; }
+    }
   }
   if (dokumen.length) t.dokumen_wajib = dokumen.join("\n");
 
