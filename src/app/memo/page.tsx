@@ -45,8 +45,6 @@ const KATA = {
     daftar: "Memo tersimpan",
     berkasN: (n: number) => `${n} berkas`,
     fTanggal: "Tanggal memo",
-    sKelompok: "Skema", sNo: "No", sKategori: "Kategori", sNilai: "Nilai",
-    sKeterangan: "Keterangan",
     kNo: "No", kNomor: "Nomor Memo", kTanggal: "Tanggal Memo",
     kDari: "Pengajuan (Dari)", kPerihal: "Perihal / Program",
     kPeriode: "Periode Program",
@@ -105,8 +103,6 @@ const KATA = {
     daftar: "Stored memos",
     berkasN: (n: number) => `${n} files`,
     fTanggal: "Memo date",
-    sKelompok: "Scheme", sNo: "No", sKategori: "Category", sNilai: "Value",
-    sKeterangan: "Notes",
     kNo: "No", kNomor: "Memo number", kTanggal: "Memo date",
     kDari: "Submitted by", kPerihal: "Subject / programme",
     kPeriode: "Programme period",
@@ -163,9 +159,6 @@ type Lampiran = {
   content_type: string; size_bytes: number;
   uploaded_by: string; uploaded_at: string;
 };
-
-/** Satu baris rincian skema sebagaimana dikembalikan server. */
-type SkemaTersimpan = BarisSkema & { id: string; memo_id: string };
 
 const tgl = (v?: string | null) => (v ? String(v).slice(0, 10) : "—");
 const kb = (n: number) => `${Math.max(1, Math.round(n / 1024))} KB`;
@@ -233,8 +226,6 @@ export default function MemoPage() {
   const [nilai, setNilai] = useState("");
   // Rincian kolom Nilai / Skema Fee, hasil pembedahan tabel di dalam memonya.
   const [skema, setSkema] = useState<BarisSkema[]>([]);
-  /** Rincian skema seluruh memo yang sudah tersimpan pada project ini. */
-  const [skemaSimpan, setSkemaSimpan] = useState<SkemaTersimpan[]>([]);
   // Dokumen pendukung wajib tidak lagi punya kotak isian di layar — isinya
   // dibaca dari memonya sendiri, bukan diketik. Nilainya tetap disimpan dan
   // tetap tampil pada rekapitulasi.
@@ -264,7 +255,6 @@ export default function MemoPage() {
       setDaftar(b.memos ?? []);
       setNamaDikenal(b.nama ?? []);
       setLampiran(b.lampiran ?? []);
-      setSkemaSimpan(b.skema ?? []);
       setGalat(null);
     } catch (e: any) { setGalat(String(e?.message ?? e)); }
   }, []);
@@ -493,9 +483,6 @@ export default function MemoPage() {
   const lampiranDari = (memoId: string) =>
     lampiran.filter((f) => f.memo_id === memoId);
 
-  const skemaDari = (memoId: string) =>
-    skemaSimpan.filter((b) => b.memo_id === memoId);
-
   return (
     <Kerangka sesi={sesi} judul={
       <div>
@@ -671,35 +658,6 @@ export default function MemoPage() {
                 <td colSpan={bolehHapus ? 9 : 8}>
                   <div className="rincian lampiran-memo">
                     <b>{m.nomor ?? m.judul}</b>
-
-                    {/* Rincian skema fee memo ini, sebagaimana tersimpan.
-                        Dibaca saja di sini: yang menyunting adalah layar
-                        unggah, tempat memonya masih ada di tangan. */}
-                    {skemaDari(m.id).length > 0 && (
-                      <table className="tabel-skema tersimpan">
-                        <thead>
-                          <tr>
-                            <th>{k.sKelompok}</th><th>{k.sNo}</th>
-                            <th>{k.sKategori}</th><th>{k.sNilai}</th>
-                            <th>{k.sKeterangan}</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {skemaDari(m.id).map((b, i, semua) => (
-                            <tr key={b.id}>
-                              <td className="sel-kelompok">
-                                {i === 0 || semua[i - 1].kelompok !== b.kelompok
-                                  ? b.kelompok : ""}
-                              </td>
-                              <td className="sel-no">{b.urutan}</td>
-                              <td>{b.kategori}</td>
-                              <td>{b.nilai}</td>
-                              <td>{b.keterangan}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    )}
 
                     {lampiranDari(m.id).length > 0 && (
                       <ul className="berkas-lampiran">
