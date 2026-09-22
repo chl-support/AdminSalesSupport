@@ -17,7 +17,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { useBahasa, useKata } from "../bahasa";
-import { tebakKolom } from "@/lib/memo-tebak";
+import { tebakKolom, cocokkanNama } from "@/lib/memo-tebak";
 import { bacaPindaian, type Kemajuan } from "./ocr";
 import { Kerangka, MemeriksaSesi } from "../kerangka";
 import { useSesi } from "../session";
@@ -396,6 +396,24 @@ export default function MemoPage() {
       }
 
       const dariGambar = tebakKolom(teks);
+
+      // Ejaan nama hasil OCR sering meleset satu dua huruf ("Almonk" untuk
+      // "Al Imron"). Nama yang sama sudah pernah diketik benar oleh orang
+      // pada memo project ini sebelumnya, jadi hasil bacaan mesin
+      // dipadankan ke daftar itu; yang tidak mirip dengan satu pun nama
+      // dikenal dibiarkan apa adanya.
+      const dikenal = Array.from(new Set(
+        daftar.flatMap((x) =>
+          [x.diajukan_oleh, x.diketahui_oleh, x.disetujui_oleh]
+            .filter((v): v is string => !!v)
+            .flatMap((v) => v.split(",").map((y) => y.trim())))
+          .filter(Boolean)));
+      dariGambar.diajukan_oleh =
+        cocokkanNama(dariGambar.diajukan_oleh, dikenal);
+      dariGambar.diketahui_oleh =
+        cocokkanNama(dariGambar.diketahui_oleh, dikenal);
+      dariGambar.disetujui_oleh =
+        cocokkanNama(dariGambar.disetujui_oleh, dikenal);
       m += +isi("judul", dariGambar.judul, judul, setJudul);
       m += +isi("nomor", dariGambar.nomor, nomor, setNomor);
       m += +isi("tanggal_memo", dariGambar.tanggal_memo, tanggalMemo, setTanggalMemo);

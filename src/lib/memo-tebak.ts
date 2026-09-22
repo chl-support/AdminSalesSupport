@@ -199,6 +199,15 @@ export function tebakKolom(teks: string): Tebakan {
     if (baik) t.nilai_skema = rapikan(baik);
   }
 
+  // Blok tanda tangan di kaki memo: ketiga nama dibaca menurut letak
+  // kolomnya. Hanya dipakai bila label persetujuan belum terisi dari badan
+  // suratnya, yang memang lebih dapat dipercaya bila ada.
+  const ttd = blokTandaTangan(baris);
+  for (const kunci of
+       ["diajukan_oleh", "diketahui_oleh", "disetujui_oleh"] as const) {
+    if (!t[kunci] && ttd[kunci]) t[kunci] = ttd[kunci];
+  }
+
   const rentang = rentangBulan(teks);
   if (rentang.berlaku_dari) t.berlaku_dari = rentang.berlaku_dari;
   if (rentang.berlaku_sampai) t.berlaku_sampai = rentang.berlaku_sampai;
@@ -218,4 +227,121 @@ export function tebakKolom(teks: string): Tebakan {
     if (!t[kunci]) delete t[kunci];
   }
   return t;
+}
+
+// ── Blok tanda tangan di kaki memo ────────────────────────────────────────
+
+/**
+ * Ketiga nama pada blok tanda tangan, dibaca menurut letaknya.
+ *
+ * Pada memo yang sudah ditandatangani, ketiga label berdiri berdampingan
+ * sebagai kepala kolom dan namanya ada di baris paling bawah — dipisahkan
+ * garis kolom, coretan tanda tangan, dan apa pun yang tertangkap OCR di
+ * antaranya:
+ *
+ *   Diajukan Oleh, Diketahui Oleh, Disetujui
+ *   #96 4
+ *   Ya "|. NI
+ *   Setia Iskandar Rusli | Almonk ——  /1. / lehannesTanuwijaya
+ *
+ * Yang dipakai urutannya, bukan labelnya: kolom pertama yang mengajukan,
+ * kedua yang mengetahui, ketiga yang menyetujui. Label pada kepala kolom
+ * kerap terpotong — pada contoh di atas "Disetujui" kehilangan "Oleh" — dan
+ * mencocokkan nama ke label yang rusak lebih rapuh daripada menghitung kolom.
+ */
+const LABEL_TTD = /diajukan|diketahui|disetujui|mengetahui|menyetujui/gi;
+
+function potongNama(baris: string): string[] {
+  return baris
+    // Pemisah kolom pada cetakan: garis tegak, garis miring, tanda pisah
+    // panjang, atau sekadar dua spasi atau lebih.
+    .split(/[|\/\\—–]+|\s{2,}/)
+    .map((x) => x
+      // Angka dan tanda baca yang tertangkap dari coretan tanda tangan
+      // dibuang; yang tersisa hanya huruf.
+      .replace(/[^A-Za-z.'\s-]/g, " ")
+      // "lehannesTanuwijaya" — dua kata yang menempel karena spasinya hilang
+      // saat dipindai.
+      .replace(/([a-z])([A-Z])/g, "$1 $2")
+      .replace(/\s+/g, " ").trim())
+    .filter((x) => x.replace(/[^A-Za-z]/g, "").length >= 3);
+}
+
+export function blokTandaTangan(baris: string[]): Tebakan {
+  // Dicari dari belakang: blok tanda tangan ada di kaki memo, dan kata
+  // "disetujui" bisa saja muncul lebih dulu di badan suratnya.
+  for (let i = baris.length - 1; i >= 0; i--) {
+    const cocok = baris[i].match(LABEL_TTD);
+    if (!cocok || cocok.length < 2) continue;
+
+    // Baris nama adalah baris terakhir yang berisi dua kolom atau lebih dalam
+    // beberapa baris sesudah kepalanya. Diambil yang terakhir, bukan yang
+    // pertama: di antaranya masih ada coretan tanda tangan yang sesekali
+    // terbaca sebagai huruf.
+    let nama: string[] = [];
+    for (let j = i + 1; j < Math.min(i + 9, baris.length); j++) {
+      const p = potongNama(baris[j]);
+      if (p.length >= 2) nama = p;
+    }
+    if (nama.length < 2) return {};
+    return {
+      diajukan_oleh: nama[0],
+      diketahui_oleh: nama[1],
+      disetujui_oleh: nama[2],
+    };
+  }
+  return {};
+}
+
+// ── Mencocokkan nama hasil OCR ke ejaan yang sudah benar ──────────────────
+
+const bersihNama = (v: string) =>
+  v.toLowerCase().replace(/[^a-z]/g, "");
+
+/** Jarak sunting, untuk mengukur seberapa jauh dua ejaan. */
+function jarak(a: string, b: string) {
+  const d: number[] = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    let atas = d[0]; d[0] = i;
+    for (let j = 1; j <= b.length; j++) {
+      const lama = d[j];
+      d[j] = Math.min(d[j] + 1, d[j - 1] + 1,
+                      atas + (a[i - 1] === b[j - 1] ? 0 : 1));
+      atas = lama;
+    }
+  }
+  return d[b.length];
+}
+
+/**
+ * Nama hasil OCR diganti ejaan yang sudah pernah diketik orang.
+ *
+ * Tanda tangan menimpa tulisan di bawahnya, dan yang terbaca menjadi "Almonk"
+ * untuk Al Imron atau "lehannesTanuwijaya" untuk Johannes Tanuwijaya. Nama
+ * yang sama itu sudah tersimpan dengan ejaan benar pada memo-memo sebelumnya
+ * di project ini — jadi yang diambil dari gambar cukup *siapa di kolom mana*,
+ * sedangkan ejaannya diambil dari data yang sudah dikonfirmasi manusia.
+ *
+ * Yang tidak cukup mirip dibiarkan apa adanya. Memaksakan padanan terdekat
+ * pada nama yang memang baru akan menyalin nama orang lain ke kolom
+ * tanggung jawab — persis kekeliruan yang paling mahal di layar ini.
+ */
+const AMBANG = 0.55;
+
+export function cocokkanNama(nilai: string | undefined, dikenal: string[]) {
+  if (!nilai || !dikenal.length) return nilai;
+  return nilai.split(",").map((bagian) => {
+    const asli = bagian.trim();
+    const a = bersihNama(asli);
+    if (a.length < 3) return asli;
+
+    let terbaik = ""; let nilaiTerbaik = 0;
+    for (const d of dikenal) {
+      const b = bersihNama(d);
+      if (!b) continue;
+      const mirip = 1 - jarak(a, b) / Math.max(a.length, b.length);
+      if (mirip > nilaiTerbaik) { nilaiTerbaik = mirip; terbaik = d; }
+    }
+    return nilaiTerbaik >= AMBANG ? terbaik : asli;
+  }).join(", ");
 }
