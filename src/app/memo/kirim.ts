@@ -18,11 +18,18 @@
 /**
  * Berkas sampai sebesar ini dikirim utuh dalam satu permintaan.
  *
- * Tiga megabita, bukan empat setengah: selain berkasnya, satu permintaan
- * unggah juga membawa seluruh isian formulir dan pembatas multipart, dan
- * angka 4,5 MB itu berlaku bagi keseluruhannya.
+ * Satu megabita, jauh di bawah batas 4,5 MB yang berlaku. Sempat disetel tiga
+ * megabita — cukup, tetapi hanya menyisakan satu setengah megabita bagi isian
+ * formulir, pembatas multipart, dan apa pun yang kelak ditambahkan ke
+ * permintaan yang sama. Kelonggaran yang tipis itulah yang membuat batas ini
+ * terlampaui tanpa ada yang menyadarinya.
+ *
+ * Yang dikorbankan hanya satu perjalanan bolak-balik tambahan bagi berkas
+ * satu sampai tiga megabita; yang didapat, seluruh jenjang ukuran di atas
+ * satu megabita menempuh jalan yang sudah terbukti tidak pernah melampaui
+ * batas.
  */
-export const AMBANG_LANGSUNG = 3 * 1024 * 1024;
+export const AMBANG_LANGSUNG = 1024 * 1024;
 
 /** Besar tiap potong bagi berkas yang dipecah. */
 const BESAR_POTONG = 2 * 1024 * 1024;
@@ -55,7 +62,15 @@ export async function titipBerkas(
     const res = await fetch("/api/memos/bagian", { method: "POST", body: fd });
     if (res.status === 401) { location.href = "/login"; throw new Error("401"); }
     const b = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(b.detail ?? `HTTP ${res.status}`);
+    // Potongan pun dapat ditolak di tepi jaringan, dan jawabannya kemudian
+    // berupa halaman HTML tanpa medan detail. Tanpa kalimat ini, yang tampil
+    // hanya "HTTP 413" — angka yang tidak memberi tahu apa pun.
+    if (!res.ok) {
+      throw new Error(b.detail ?? (res.status === 413
+        ? `Potongan ke-${i + 1} ditolak karena terlalu besar. ` +
+          `Besar potongan ${Math.round(BESAR_POTONG / 1024 / 1024)} MB.`
+        : `HTTP ${res.status}`));
+    }
     id = b.id as string;
     lapor({ terkirim: Math.min((i + 1) * BESAR_POTONG, berkas.size),
             dari: berkas.size });
@@ -75,4 +90,22 @@ export const perluDipecah = (berkas: File) => berkas.size > AMBANG_LANGSUNG;
 export function pasangBerkas(fd: FormData, berkas: File, titipan: string | null) {
   if (titipan) fd.append("unggah_id", titipan);
   else fd.append("file", berkas);
+}
+
+/** Batas ukuran berkas, sama dengan yang dipakai server. */
+export const BATAS_BERKAS = 10 * 1024 * 1024;
+
+/**
+ * Menolak berkas yang pasti ditolak server, sebelum satu bita pun terkirim.
+ *
+ * Mengunggah sepuluh megabita hanya untuk diberi tahu bahwa ia terlalu besar
+ * adalah menit yang terbuang, dan pada sambungan lambat menit itu terasa
+ * seperti sistem yang menggantung.
+ */
+export function periksaUkuran(berkas: File): string | null {
+  if (berkas.size <= BATAS_BERKAS) return null;
+  const mb = (n: number) => (n / 1024 / 1024).toFixed(1).replace(".", ",");
+  return `Berkas ${mb(berkas.size)} MB melebihi batas ` +
+         `${mb(BATAS_BERKAS)} MB. Perkecil dulu berkasnya, ` +
+         `misalnya dengan memindai pada resolusi yang lebih rendah.`;
 }

@@ -21,7 +21,8 @@ import { tebakKolom, cocokkanNama } from "@/lib/memo-tebak";
 import { bedahSkema, ringkasSkema } from "@/lib/memo-skema";
 import type { BarisSkema, KataOCR } from "@/lib/memo-skema";
 import { bacaPindaian, type Kemajuan } from "./ocr";
-import { pasangBerkas, perluDipecah, titipBerkas } from "./kirim";
+import { pasangBerkas, periksaUkuran, perluDipecah, titipBerkas }
+  from "./kirim";
 import { Kerangka, MemeriksaSesi } from "../kerangka";
 import { useSesi } from "../session";
 
@@ -60,6 +61,12 @@ const KATA = {
     kosong: "Belum ada memo pada project ini.",
     membaca: "Membaca berkas…",
     menitip: (persen: number) => `Mengirim berkas… ${persen}%`,
+    terlaluBesar:
+      "Berkas ini ditolak di tepi jaringan karena satu permintaan membawa " +
+      "terlalu banyak sekaligus — belum sampai ke aplikasinya. Muat ulang " +
+      "halaman ini (Ctrl+Shift+R), lalu coba lagi: berkas besar seharusnya " +
+      "dikirim bertahap.",
+    takTerbaca413: "Permintaan ditolak (HTTP %s) tanpa keterangan.",
     gagalJaringan:
       "Berkas tidak sampai ke server. Sambungan terputus di tengah jalan — " +
       "periksa jaringan, lalu coba lagi. Bila berulang pada berkas yang sama, " +
@@ -129,6 +136,12 @@ const KATA = {
     kosong: "No memos on this project yet.",
     membaca: "Reading the file…",
     menitip: (persen: number) => `Sending the file… ${persen}%`,
+    terlaluBesar:
+      "This file was rejected at the network edge because one request " +
+      "carried too much at once — it never reached the application. Reload " +
+      "this page (Ctrl+Shift+R) and try again: large files are meant to be " +
+      "sent in pieces.",
+    takTerbaca413: "The request was rejected (HTTP %s) with no explanation.",
     gagalJaringan:
       "The file did not reach the server. The connection dropped part way — " +
       "check the network and try again. If it keeps happening with the same " +
@@ -195,6 +208,23 @@ function pesanGalat(e: any, k: { gagalJaringan: string }) {
   const p = String(e?.message ?? e);
   return /failed to fetch|networkerror|load failed/i.test(p)
     ? k.gagalJaringan : p;
+}
+
+/**
+ * Keterangan galat dari sebuah jawaban HTTP.
+ *
+ * Galat yang dilempar aplikasi ini selalu membawa kalimat penjelasan pada
+ * medan detail. Jawaban tanpa medan itu berarti bukan aplikasi yang
+ * menjawabnya melainkan tepi jaringan, yang membalas dengan halaman HTML dan
+ * tidak tahu apa-apa tentang memo. "HTTP 413" yang tampil polos di layar
+ * berasal dari situ, dan tidak memberi tahu apa pun kepada yang membacanya.
+ */
+function pesanJawaban(res: Response, b: any, k: {
+  terlaluBesar: string; takTerbaca413: string;
+}) {
+  if (b?.detail) return String(b.detail);
+  if (res.status === 413) return k.terlaluBesar;
+  return k.takTerbaca413.replace("%s", String(res.status));
 }
 
 const tgl = (v?: string | null) => (v ? String(v).slice(0, 10) : "—");
@@ -294,7 +324,7 @@ export default function MemoPage() {
       const res = await fetch("/api/memos");
       if (res.status === 401) { location.href = "/login"; return; }
       const b = await res.json().catch(() => ({}));
-      if (!res.ok) { setGalat(b.detail ?? `HTTP ${res.status}`); return; }
+      if (!res.ok) { setGalat(pesanJawaban(res, b, k)); return; }
       setDaftar(b.memos ?? []);
       setNamaDikenal(b.nama ?? []);
       setLampiran(b.lampiran ?? []);
@@ -329,7 +359,7 @@ export default function MemoPage() {
       const res = await fetch("/api/memos", { method: "POST", body: fd });
       if (res.status === 401) { location.href = "/login"; return; }
       const b = await res.json().catch(() => ({}));
-      if (!res.ok) { setGalat(b.detail ?? `HTTP ${res.status}`); return; }
+      if (!res.ok) { setGalat(pesanJawaban(res, b, k)); return; }
       setKabar(k.tersimpan(b.judul));
       setBerkas(null); setTitipan(null);
       setJudul(""); setNomor(""); setKeterangan("");
@@ -348,7 +378,7 @@ export default function MemoPage() {
       const res = await fetch(`/api/memos/${m.id}`, { method: "DELETE" });
       if (res.status === 401) { location.href = "/login"; return; }
       const b = await res.json().catch(() => ({}));
-      if (!res.ok) { setGalat(b.detail ?? `HTTP ${res.status}`); return; }
+      if (!res.ok) { setGalat(pesanJawaban(res, b, k)); return; }
       setKabar(k.dihapus(m.judul));
       await muat();
     } catch (e: any) {
@@ -381,7 +411,7 @@ export default function MemoPage() {
       const res = await fetch("/api/memos/baca", { method: "POST", body: fd });
       if (res.status === 401) { location.href = "/login"; return; }
       const b = await res.json().catch(() => ({}));
-      if (!res.ok) { setGalat(b.detail ?? `HTTP ${res.status}`); return; }
+      if (!res.ok) { setGalat(pesanJawaban(res, b, k)); return; }
 
       const kolom = b.kolom ?? {};
 
@@ -512,7 +542,7 @@ export default function MemoPage() {
                               { method: "POST", body: fd });
       if (res.status === 401) { location.href = "/login"; return; }
       const b = await res.json().catch(() => ({}));
-      if (!res.ok) { setGalat(b.detail ?? `HTTP ${res.status}`); return; }
+      if (!res.ok) { setGalat(pesanJawaban(res, b, k)); return; }
       setKabar(k.lampiranTersimpan(b.file_name ?? lBerkas.name));
       setLBerkas(null); setLLabel("");
       await muat();
@@ -528,7 +558,7 @@ export default function MemoPage() {
                               { method: "DELETE" });
       if (res.status === 401) { location.href = "/login"; return; }
       const b = await res.json().catch(() => ({}));
-      if (!res.ok) { setGalat(b.detail ?? `HTTP ${res.status}`); return; }
+      if (!res.ok) { setGalat(pesanJawaban(res, b, k)); return; }
       setKabar(k.lampiranDihapus(f.file_name));
       await muat();
     } catch (e: any) {
@@ -568,7 +598,7 @@ export default function MemoPage() {
       });
       if (res.status === 401) { location.href = "/login"; return; }
       const b = await res.json().catch(() => ({}));
-      if (!res.ok) { setGalat(b.detail ?? `HTTP ${res.status}`); return; }
+      if (!res.ok) { setGalat(pesanJawaban(res, b, k)); return; }
       setKabar(b.berubah ? k.tersuntingN(b.berubah) : k.takBerubah);
       setSunting(null);
       await muat();
@@ -675,6 +705,10 @@ export default function MemoPage() {
                    // Titipan berkas sebelumnya tidak berlaku bagi berkas
                    // baru; dibiarkan, memo yang tersimpan adalah berkas lama.
                    setBerkas(f); setTitipan(null);
+                   // Berkas yang pasti ditolak server tidak perlu dikirim
+                   // dulu untuk diketahui terlalu besar.
+                   const besar = f && periksaUkuran(f);
+                   if (besar) { setGalat(besar); setBerkas(null); return; }
                    if (f) void bacaBerkas(f);
                  }} />
 

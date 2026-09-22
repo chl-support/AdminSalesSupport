@@ -90,6 +90,7 @@ export function Kerangka(
                   daftar nama yang harus ditambah tiap ada project baru. Bila
                   berkas lambangnya belum ada, namanya yang ditulis. */}
               <LogoProject slug={sesi.project_slug ?? ""} tinggi={34}
+                           tinggiTegak={48}
                            alt={sesi.project_name}
                            gantiTeks={sesi.project_name} />
             </span>

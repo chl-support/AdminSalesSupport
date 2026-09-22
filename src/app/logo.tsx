@@ -87,18 +87,39 @@ export function Logo({ tinggi = 40, hanyaLambang = false,
  * project itu, bukan bahan susunan layar. Yang disamakan bidangnya, bukan
  * gambarnya.
  */
-export function LogoProject({ slug, tinggi = 40, alt, gantiTeks }:
+/**
+ * Lambang yang selebar ini atau kurang dibanding tingginya dianggap tegak.
+ *
+ * Keenam lambang terbelah jelas pada angka ini: Banara 0,94 dan Mazenta 0,79
+ * di satu sisi; Marchand 2,36, Permai 3,51, Naraya 3,78, dan BIO 4,32 di sisi
+ * lain. Tidak ada yang berada di dekat batasnya, jadi penggolongan ini tidak
+ * goyah oleh selisih beberapa piksel.
+ */
+const RASIO_TEGAK = 1.6;
+
+export function LogoProject({ slug, tinggi = 40, alt, gantiTeks, tinggiTegak }:
                             { slug: string; tinggi?: number; alt: string;
-                              gantiTeks?: string }) {
+                              gantiTeks?: string; tinggiTegak?: number }) {
   const [gagal, setGagal] = useState(false);
+  const [tegak, setTegak] = useState(false);
   const ref = useRef<HTMLImageElement | null>(null);
 
   // Gambar yang gagal dimuat sebelum React sempat terpasang tidak pernah
   // memicu onError — dan itu justru yang terjadi pada muatan pertama halaman.
+  //
+  // Bentuknya diukur di sini pula, dengan alasan yang sama: gambar yang sudah
+  // selesai dimuat sebelum React terpasang tidak pernah memicu onLoad.
   useEffect(() => {
     const img = ref.current;
-    if (img && img.complete && img.naturalWidth === 0) setGagal(true);
+    if (!img || !img.complete) return;
+    if (img.naturalWidth === 0) setGagal(true);
+    else ukurBentuk(img);
   }, []);
+
+  const ukurBentuk = (img: HTMLImageElement) => {
+    if (!img.naturalHeight) return;
+    setTegak(img.naturalWidth / img.naturalHeight < RASIO_TEGAK);
+  };
 
   // Tanpa berkasnya, namanya yang ditulis. Kartu pemilih project tidak lagi
   // menuliskan nama project di bawah lambangnya — namanya sudah ada di dalam
@@ -111,8 +132,14 @@ export function LogoProject({ slug, tinggi = 40, alt, gantiTeks }:
 
   return (
     // eslint-disable-next-line @next/next/no-img-element
+    // Lambang tegak diberi tinggi tersendiri bila pemanggilnya menyediakan.
+    // Dipatok satu tinggi untuk semua, lambang yang hampir persegi menyusut
+    // menjadi seperempat lebar lambang yang memanjang, dan di sebelahnya
+    // tampak seperti gambar yang gagal dimuat separuh.
     <img ref={ref} src={`/project/${slug}.png`} alt={alt}
-         className="logo-project" style={{ height: tinggi }}
+         className="logo-project"
+         style={{ height: tegak && tinggiTegak ? tinggiTegak : tinggi }}
+         onLoad={(e) => ukurBentuk(e.currentTarget)}
          onError={() => setGagal(true)} />
   );
 }
