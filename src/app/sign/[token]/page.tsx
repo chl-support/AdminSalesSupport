@@ -72,7 +72,9 @@ const KLAIM_CONTOH = {
   withholding_tax_type: "PPh 23",
   net_amount: 5_318_750,
   amount_in_words: "Lima juta tiga ratus delapan belas ribu tujuh ratus lima puluh rupiah",
-  payment_percent: 88.2,
+  // Rasio, bukan persen: formulirnya mengalikan 100 sendiri. Ditulis 88.2 di
+  // sini, layar contohnya berbunyi "8820.00%".
+  payment_percent: 0.882,
   total_payment: 163_212_500,
   notes: "Full payment. Penerimaan sudah melewati 20% dari nilai kontrak.",
   project: { company_name: "PT. Serpong Bangun Cipta", name: "Banara Serpong" },
@@ -382,15 +384,11 @@ export default function SignPage() {
             <FormPengajuan klaim={claim} />
           </div>
 
-          <table style={{ marginTop: 12 }}>
-            <tbody>
-              <tr><td>Jumlah bruto</td><td className="n">{rp(claim.gross_amount)}</td></tr>
-              <tr><td>PPN</td><td className="n">{rp(claim.vat)}</td></tr>
-              <tr><td>Potongan {String(claim.withholding_tax_type ?? "").toUpperCase()}</td>
-                  <td className="n">({rp(claim.withholding_tax)})</td></tr>
-              <tr><td><b>Dibayarkan</b></td><td className="n"><b>{rp(claim.net_amount)}</b></td></tr>
-            </tbody>
-          </table>
+          {/* Tanpa ringkasan nominal di bawah formulirnya. Keempat angkanya —
+              bruto, PPN, potongan PPh, dan yang dibayarkan — sudah tercantum di
+              dalam Form Pengajuan tepat di atasnya. Dua tempat yang menyebut
+              angka yang sama menimbulkan pertanyaan mana yang berlaku, dan
+              yang ditandatangani adalah yang di formulir. */}
 
           <button className="pri" onClick={() => setStep("berkas")}
                   style={{ width: "100%", marginTop: 12, padding: 13 }}>
