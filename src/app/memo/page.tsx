@@ -57,9 +57,6 @@ const KATA = {
     sKeterangan: "Keterangan", buangBaris: "Buang baris ini",
     tanpaSkema: "Memo ini tidak memuat tabel skema.",
     cNilai: "mis. 2,5% dari harga sewa unit (setelah dikurangi biaya operasional)",
-    fDokumen: "Dokumen pendukung wajib",
-    cDokumen: "Satu baris satu dokumen — mis. Form Referensi / Kwitansi / " +
-              "Dokumen transaksi sewa",
     fDiajukan: "Diajukan oleh", fDiketahui: "Diketahui oleh",
     fDisetujui: "Disetujui oleh",
     kNo: "No", kNomor: "Nomor Memo", kTanggal: "Tanggal Memo",
@@ -133,9 +130,6 @@ const KATA = {
     sKeterangan: "Notes", buangBaris: "Remove this row",
     tanpaSkema: "This memo carries no scheme table.",
     cNilai: "e.g. 2.5% of the unit rent (net of operating costs)",
-    fDokumen: "Required supporting documents",
-    cDokumen: "One document per line — e.g. Referral form / Receipt / " +
-              "Lease transaction document",
     fDiajukan: "Submitted by", fDiketahui: "Noted by", fDisetujui: "Approved by",
     kNo: "No", kNomor: "Memo number", kTanggal: "Memo date",
     kDari: "Submitted by", kKepada: "Addressed to",
@@ -267,6 +261,9 @@ export default function MemoPage() {
   const [skema, setSkema] = useState<BarisSkema[]>([]);
   /** Rincian skema seluruh memo yang sudah tersimpan pada project ini. */
   const [skemaSimpan, setSkemaSimpan] = useState<SkemaTersimpan[]>([]);
+  // Dokumen pendukung wajib tidak lagi punya kotak isian di layar — isinya
+  // dibaca dari memonya sendiri, bukan diketik. Nilainya tetap disimpan dan
+  // tetap tampil pada rekapitulasi.
   const [dokumen, setDokumen] = useState("");
   const [diajukan, setDiajukan] = useState("");
   const [diketahui, setDiketahui] = useState("");
@@ -675,11 +672,6 @@ export default function MemoPage() {
               </table>
             </div>
           )}
-
-          <div className="lbl" style={{ marginTop: 12 }}>{k.fDokumen}</div>
-          <textarea value={dokumen} style={{ width: "100%", minHeight: 54 }}
-                    placeholder={k.cDokumen}
-                    onChange={(e) => setDokumen(e.target.value)} />
 
           <div className="lbl" style={{ marginTop: 12 }}>{k.fKeterangan}</div>
           <textarea value={keterangan} style={{ width: "100%", minHeight: 54 }}
