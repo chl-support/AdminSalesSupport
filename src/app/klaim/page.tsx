@@ -318,6 +318,10 @@ export default function PengajuanFeePage() {
     }
   }, []);
 
+  // Menunggu sesi lebih dulu: memanggil /api/units sebelum identitasnya pasti
+  // hanya menghasilkan 401 dan pengalihan yang tidak perlu.
+  useEffect(() => { if (sesi) void muat(); }, [sesi, muat]);
+
   /**
    * Ajukan seluruh fee yang dicentang pada satu unit.
    *
