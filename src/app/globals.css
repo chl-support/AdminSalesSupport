@@ -1080,7 +1080,12 @@ ul.syarat-foto { margin: 8px 0 0 16px; padding: 0; font-size: 11.5px;
    garis, 18 piksel lagi dari garis ke nama PT. */
 .kartu-project .nama { display: block; padding: 18px 18px 17px;
                        border-top: 1px solid #EEF0F1;
-                       font-size: 11.5px; color: var(--sub); }
+                       /* Sedikit lebih besar dari sebelumnya dan ditebalkan,
+                          tetapi tidak lebih dari itu: pada 13 piksel ia mulai
+                          mengalahkan lambang yang kecil seperti Banara dan
+                          Mazenta, dan kartunya terbaca sebagai nama PT dengan
+                          gambar di atasnya, bukan sebaliknya. */
+                       font-size: 12px; font-weight: 700; color: var(--sub); }
 
 /* Sapuan emas di tepi atas saat disorot: melebar dari kiri ke kanan, jadi
    yang berpindah antar kartu terlihat ke mana sorotnya berpindah. */
