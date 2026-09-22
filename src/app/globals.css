@@ -1128,8 +1128,12 @@ a.tautan-klaim:hover { border-color: var(--ink); }
    
    Lebar minimumnya dipatok supaya kolom tidak saling menghimpit sampai tak
    terbaca; .tscroll di sekelilingnya yang menyediakan gulirannya. */
-.rekap-memo { min-width: 1186px; table-layout: fixed; }
+.rekap-memo { min-width: 1254px; table-layout: fixed; }
 .rekap-memo th, .rekap-memo td { vertical-align: top; }
+/* Apa pun yang diletakkan di dalam sel tidak boleh lebih lebar daripada
+   selnya. Kolomnya berlebar tetap, jadi isi yang lebih lebar tidak membuat
+   kolomnya melebar melainkan menyeberangi garis pemisahnya. */
+.rekap-memo td > button, .rekap-memo td > a { max-width: 100%; }
 .rekap-memo tr.terbuka > td { background: #FBFBFA; }
 .rekap-memo th { text-align: center; }
 
@@ -1143,8 +1147,8 @@ a.tautan-klaim:hover { border-color: var(--ink); }
 .rekap-memo th:nth-child(5) { width: 230px; }  /* Perihal / Program */
 .rekap-memo th:nth-child(6) { width: 136px; }  /* Periode Program */
 .rekap-memo th:nth-child(7) { width: 190px; }  /* Berkas */
-.rekap-memo th:nth-child(8) { width: 122px; }  /* Lampiran */
-.rekap-memo th:nth-child(9) { width: 76px; }   /* Tindakan */
+.rekap-memo th:nth-child(8) { width: 174px; }  /* Lampiran */
+.rekap-memo th:nth-child(9) { width: 92px; }   /* Tindakan */
 
 .rekap-memo td.no { text-align: center; font-weight: 650; color: var(--ink); }
 /* Nomor memo panjang dan tidak pernah dibaca sebagai kalimat: dikecilkan dan
@@ -1157,9 +1161,14 @@ a.tautan-klaim:hover { border-color: var(--ink); }
 
 /* Pembuka daftar lampiran pada tiap baris rekap. Ditulis sebagai tombol, bukan
    tautan: ia membuka bagian halaman yang sama, tidak pergi ke mana pun. */
+/* Lebarnya dibatasi selebar selnya, dan labelnya boleh patah.
+   Dengan table-layout: fixed kolomnya tidak ikut melebar mengikuti isi, jadi
+   tombol yang menolak patah tidak terpotong melainkan meluber melewati garis
+   pemisah dan menindih kolom sebelahnya. */
 .tombol-lampiran { border: 1px solid var(--line); background: #fff;
                    padding: 4px 8px; font-size: 11px; font-weight: 600;
-                   color: var(--sub); cursor: pointer; white-space: nowrap; }
+                   color: var(--sub); cursor: pointer;
+                   max-width: 100%; text-align: left; }
 .tombol-lampiran:hover { border-color: var(--ink); color: var(--ink); }
 .tombol-lampiran .anak-panah { margin-left: 6px; color: var(--mut); }
 
