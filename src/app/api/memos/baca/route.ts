@@ -1,7 +1,10 @@
 import { handler, currentUser } from "@/lib/api";
 import { WorkflowError } from "@/lib/workflow";
 import { bacaMemo } from "@/lib/memo-baca";
-import { periksaBerkas } from "@/lib/memo";
+import { lihatUnggah, periksaBerkas } from "@/lib/memo";
+
+/** Membaca isi berkas; beri waktu yang cukup. */
+export const maxDuration = 60;
 
 /**
  * Baca memo yang baru dipilih, tanpa menyimpannya.
@@ -16,17 +19,27 @@ import { periksaBerkas } from "@/lib/memo";
  * langkah berikutnya tidak ada gunanya dibaca lebih dulu.
  */
 export const POST = handler(async (req) => {
-  await currentUser(req);
+  const user = await currentUser(req);
 
   const form = await req.formData().catch(() => null);
+  const v = form?.get("unggah_id");
+  const titipan = typeof v === "string" && v.trim() ? v.trim() : null;
   const berkas = form?.get("file");
-  if (!berkas || typeof berkas === "string") {
+  if (!titipan && (!berkas || typeof berkas === "string")) {
     throw new WorkflowError("Berkas belum dipilih.", "file_required", 422);
   }
-  const f = berkas as File;
-  const buf = Buffer.from(await f.arrayBuffer());
-  const tipe = f.type || "application/octet-stream";
-  periksaBerkas(buf, tipe);
 
-  return bacaMemo(buf, tipe, f.name);
+  // Titipan TIDAK dibuang di sini. Pembacaan ini hanya mengusulkan isian;
+  // berkasnya masih dibutuhkan utuh saat tombol unggah ditekan, dan mengirim
+  // ulang seluruh potongannya berarti mengunggah dua kali untuk satu memo.
+  const isi = titipan
+    ? await lihatUnggah(titipan, user.username)
+    : {
+        buf: Buffer.from(await (berkas as File).arrayBuffer()),
+        file_name: (berkas as File).name,
+        content_type: (berkas as File).type || "application/octet-stream",
+      };
+  periksaBerkas(isi.buf, isi.content_type);
+
+  return bacaMemo(isi.buf, isi.content_type, isi.file_name);
 });

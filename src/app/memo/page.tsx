@@ -21,6 +21,7 @@ import { tebakKolom, cocokkanNama } from "@/lib/memo-tebak";
 import { bedahSkema, ringkasSkema } from "@/lib/memo-skema";
 import type { BarisSkema, KataOCR } from "@/lib/memo-skema";
 import { bacaPindaian, type Kemajuan } from "./ocr";
+import { pasangBerkas, perluDipecah, titipBerkas } from "./kirim";
 import { Kerangka, MemeriksaSesi } from "../kerangka";
 import { useSesi } from "../session";
 
@@ -58,6 +59,11 @@ const KATA = {
               "Untuk mengganti berkas, unggah memo baru.",
     kosong: "Belum ada memo pada project ini.",
     membaca: "Membaca berkas…",
+    menitip: (persen: number) => `Mengirim berkas… ${persen}%`,
+    gagalJaringan:
+      "Berkas tidak sampai ke server. Sambungan terputus di tengah jalan — " +
+      "periksa jaringan, lalu coba lagi. Bila berulang pada berkas yang sama, " +
+      "berkas itu kemungkinan terlalu besar untuk diterima utuh.",
     ocrSiap: "Menyiapkan pembaca tulisan…",
     ocrGambar: (h: number, n: number) => `Menggambar halaman ${h} dari ${n}…`,
     ocrBaca: (persen: number) => `Membaca tulisan pada pindaian… ${persen}%`,
@@ -122,6 +128,11 @@ const KATA = {
               "To replace the file, upload a new memo.",
     kosong: "No memos on this project yet.",
     membaca: "Reading the file…",
+    menitip: (persen: number) => `Sending the file… ${persen}%`,
+    gagalJaringan:
+      "The file did not reach the server. The connection dropped part way — " +
+      "check the network and try again. If it keeps happening with the same " +
+      "file, that file is probably too large to be accepted in one piece.",
     ocrSiap: "Preparing the text reader…",
     ocrGambar: (h: number, n: number) => `Rendering page ${h} of ${n}…`,
     ocrBaca: (persen: number) => `Reading the scan… ${persen}%`,
@@ -171,6 +182,20 @@ type Lampiran = {
   content_type: string; size_bytes: number;
   uploaded_by: string; uploaded_at: string;
 };
+
+/**
+ * Keterangan galat yang dapat dipahami yang membacanya.
+ *
+ * fetch() yang gagal di tingkat jaringan hanya melempar TypeError berbunyi
+ * "Failed to fetch": tanpa status, tanpa keterangan. Dari layar, unggahan
+ * tampak gagal tanpa sebab sama sekali. Kalimatnya diganti dengan yang
+ * menyebut kemungkinan sebabnya dan apa yang dapat dikerjakan.
+ */
+function pesanGalat(e: any, k: { gagalJaringan: string }) {
+  const p = String(e?.message ?? e);
+  return /failed to fetch|networkerror|load failed/i.test(p)
+    ? k.gagalJaringan : p;
+}
 
 const tgl = (v?: string | null) => (v ? String(v).slice(0, 10) : "—");
 const kb = (n: number) => `${Math.max(1, Math.round(n / 1024))} KB`;
@@ -254,6 +279,9 @@ export default function MemoPage() {
   const [namaDikenal, setNamaDikenal] = useState<string[]>([]);
   const [terbuka, setTerbuka] = useState<string | null>(null);
   /** Memo yang kolomnya sedang dibetulkan, beserta isian sementaranya. */
+  /** Pengenal titipan berkas besar yang sudah dikirim bertahap. Lihat
+   *  ./kirim — berkas kecil tidak pernah memakai ini. */
+  const [titipan, setTitipan] = useState<string | null>(null);
   const [sunting, setSunting] = useState<string | null>(null);
   const [sIsi, setSIsi] = useState<Record<string, string>>({});
   const [lBerkas, setLBerkas] = useState<File | null>(null);
@@ -271,7 +299,7 @@ export default function MemoPage() {
       setNamaDikenal(b.nama ?? []);
       setLampiran(b.lampiran ?? []);
       setGalat(null);
-    } catch (e: any) { setGalat(String(e?.message ?? e)); }
+    } catch (e: any) { setGalat(pesanGalat(e, k)); }
   }, []);
 
   useEffect(() => { if (sesi) void muat(); }, [sesi, muat]);
@@ -281,7 +309,7 @@ export default function MemoPage() {
     setBusy(true); setGalat(null); setKabar(null);
     try {
       const fd = new FormData();
-      fd.append("file", berkas);
+      pasangBerkas(fd, berkas, titipan);
       // Judul kosong diisi nama berkasnya, bukan ditolak: yang mengunggah
       // sedang memegang berkasnya, dan namanya biasanya sudah menjelaskan.
       fd.append("judul", judul.trim() || berkas.name);
@@ -303,13 +331,14 @@ export default function MemoPage() {
       const b = await res.json().catch(() => ({}));
       if (!res.ok) { setGalat(b.detail ?? `HTTP ${res.status}`); return; }
       setKabar(k.tersimpan(b.judul));
-      setBerkas(null); setJudul(""); setNomor(""); setKeterangan("");
+      setBerkas(null); setTitipan(null);
+      setJudul(""); setNomor(""); setKeterangan("");
       setDari(""); setSampai(""); setTanggalMemo(""); setDariSiapa("");
       setKepada(""); setNilai(""); setDokumen(""); setDiajukan("");
       setDiketahui(""); setDisetujui(""); setSkema([]);
       await muat();
     } catch (e: any) {
-      setGalat(String(e?.message ?? e));
+      setGalat(pesanGalat(e, k));
     } finally { setBusy(false); }
   };
 
@@ -323,7 +352,7 @@ export default function MemoPage() {
       setKabar(k.dihapus(m.judul));
       await muat();
     } catch (e: any) {
-      setGalat(String(e?.message ?? e));
+      setGalat(pesanGalat(e, k));
     } finally { setBusy(false); }
   };
 
@@ -336,8 +365,19 @@ export default function MemoPage() {
   const bacaBerkas = async (f: File) => {
     setMembaca(true); setGalat(null); setKabar(null);
     try {
+      // Berkas besar dititipkan dulu sepotong demi sepotong; yang dikirim ke
+      // sini hanya pengenalnya. Titipannya dipakai ulang saat tombol unggah
+      // ditekan, jadi satu memo tetap hanya sekali menyeberangi jaringan.
+      let id: string | null = null;
+      if (perluDipecah(f)) {
+        setKemajuan(k.menitip(0));
+        id = await titipBerkas(f, ({ terkirim, dari }) =>
+          setKemajuan(k.menitip(Math.round((terkirim / dari) * 100))));
+        setTitipan(id);
+        setKemajuan(null);
+      }
       const fd = new FormData();
-      fd.append("file", f);
+      pasangBerkas(fd, f, id);
       const res = await fetch("/api/memos/baca", { method: "POST", body: fd });
       if (res.status === 401) { location.href = "/login"; return; }
       const b = await res.json().catch(() => ({}));
@@ -452,7 +492,7 @@ export default function MemoPage() {
       // tampak benar tetapi bukan milik memo ini.
       setKabar(berteks ? k.terbacaIsi(n) : (m ? k.ocrHasil(m) : k.ocrKosong));
     } catch (e: any) {
-      setGalat(String(e?.message ?? e));
+      setGalat(pesanGalat(e, k));
     } finally { setMembaca(false); setKemajuan(null); }
   };
 
@@ -462,7 +502,11 @@ export default function MemoPage() {
     setBusy(true); setGalat(null); setKabar(null);
     try {
       const fd = new FormData();
-      fd.append("file", lBerkas);
+      if (perluDipecah(lBerkas)) {
+        fd.append("unggah_id", await titipBerkas(lBerkas));
+      } else {
+        fd.append("file", lBerkas);
+      }
       fd.append("label", lLabel);
       const res = await fetch(`/api/memos/${memoId}/lampiran`,
                               { method: "POST", body: fd });
@@ -473,7 +517,7 @@ export default function MemoPage() {
       setLBerkas(null); setLLabel("");
       await muat();
     } catch (e: any) {
-      setGalat(String(e?.message ?? e));
+      setGalat(pesanGalat(e, k));
     } finally { setBusy(false); }
   };
 
@@ -488,7 +532,7 @@ export default function MemoPage() {
       setKabar(k.lampiranDihapus(f.file_name));
       await muat();
     } catch (e: any) {
-      setGalat(String(e?.message ?? e));
+      setGalat(pesanGalat(e, k));
     } finally { setBusy(false); }
   };
 
@@ -529,7 +573,7 @@ export default function MemoPage() {
       setSunting(null);
       await muat();
     } catch (e: any) {
-      setGalat(String(e?.message ?? e));
+      setGalat(pesanGalat(e, k));
     } finally { setBusy(false); }
   };
 
@@ -628,7 +672,9 @@ export default function MemoPage() {
                  accept=".pdf,.jpg,.jpeg,.png,.webp,.xls,.xlsx,.doc,.docx"
                  onChange={(e) => {
                    const f = e.target.files?.[0] ?? null;
-                   setBerkas(f);
+                   // Titipan berkas sebelumnya tidak berlaku bagi berkas
+                   // baru; dibiarkan, memo yang tersimpan adalah berkas lama.
+                   setBerkas(f); setTitipan(null);
                    if (f) void bacaBerkas(f);
                  }} />
 
