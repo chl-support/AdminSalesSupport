@@ -1,7 +1,10 @@
 import { handler, currentUser, projectAktif } from "@/lib/api";
 import { WorkflowError } from "@/lib/workflow";
-import { daftarMemo, lampiranProject, namaDikenal, simpanMemo }
+import { daftarMemo, lampiranProject, namaDikenal, rakitUnggah, simpanMemo }
   from "@/lib/memo";
+
+/** Menulis berkas memo ke basis data; beri waktu yang cukup. */
+export const maxDuration = 60;
 
 /** Memo pada project yang sedang dikerjakan. */
 export const GET = handler(async (req) => {
@@ -32,15 +35,26 @@ export const POST = handler(async (req) => {
   const projectId = await projectAktif(req);
 
   const form = await req.formData().catch(() => null);
-  const berkas = form?.get("file");
-  if (!berkas || typeof berkas === "string") {
-    throw new WorkflowError("Berkas memo belum dipilih.", "file_required", 422);
-  }
-  const f = berkas as File;
   const teks = (k: string) => {
     const v = form?.get(k);
     return typeof v === "string" && v.trim() ? v.trim() : null;
   };
+
+  // Berkasnya boleh tiba dengan dua cara: utuh dalam permintaan ini, atau
+  // sebagai titipan yang tadi dikirim sepotong demi sepotong. Yang kedua
+  // dipakai untuk berkas besar — lihat mulaiUnggah() di @/lib/memo.
+  const titipan = teks("unggah_id");
+  const berkas = form?.get("file");
+  if (!titipan && (!berkas || typeof berkas === "string")) {
+    throw new WorkflowError("Berkas memo belum dipilih.", "file_required", 422);
+  }
+  const isi = titipan
+    ? await rakitUnggah(titipan, user.username)
+    : {
+        buf: Buffer.from(await (berkas as File).arrayBuffer()),
+        file_name: (berkas as File).name,
+        content_type: (berkas as File).type || "application/octet-stream",
+      };
 
   // Rincian skemanya dikirim sebagai JSON dalam satu medan formulir: jumlah
   // barisnya berbeda tiap memo, dan medan bernomor akan memaksa kedua sisi
@@ -56,7 +70,7 @@ export const POST = handler(async (req) => {
 
   return simpanMemo(projectId, user.username, {
     skema,
-    judul: teks("judul") ?? f.name,
+    judul: teks("judul") ?? isi.file_name,
     nomor: teks("nomor"),
     keterangan: teks("keterangan"),
     berlaku_dari: teks("berlaku_dari"),
@@ -69,8 +83,8 @@ export const POST = handler(async (req) => {
     diajukan_oleh: teks("diajukan_oleh"),
     diketahui_oleh: teks("diketahui_oleh"),
     disetujui_oleh: teks("disetujui_oleh"),
-    file_name: f.name,
-    content_type: f.type || "application/octet-stream",
-    buf: Buffer.from(await f.arrayBuffer()),
+    file_name: isi.file_name,
+    content_type: isi.content_type,
+    buf: isi.buf,
   });
 });

@@ -111,8 +111,132 @@ export function ensureKolomMemo(): Promise<void> {
     await query(
       `CREATE INDEX IF NOT EXISTS idx_memo_skema_memo
          ON memo_skema(memo_id, baris)`);
+    // Titipan berkas yang dikirim bertahap. Lihat mulaiUnggah().
+    await query(
+      `CREATE TABLE IF NOT EXISTS memo_unggah (
+         id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+         file_name    TEXT NOT NULL,
+         content_type TEXT NOT NULL,
+         uploaded_by  TEXT NOT NULL,
+         created_at   TIMESTAMPTZ NOT NULL DEFAULT now())`);
+    await query(
+      `CREATE TABLE IF NOT EXISTS memo_unggah_bagian (
+         unggah_id UUID NOT NULL
+                   REFERENCES memo_unggah(id) ON DELETE CASCADE,
+         urutan    INT  NOT NULL,
+         data      BYTEA NOT NULL,
+         PRIMARY KEY (unggah_id, urutan))`);
   })().catch(() => { sekali = null; });
   return sekali;
+}
+
+/**
+ * Berkas yang dikirim bertahap, sepotong demi sepotong.
+ *
+ * Fungsi serverless membatasi besar satu permintaan masuk — di Vercel 4,5 MB
+ * — sedangkan memo pindaian beberapa halaman kerap lebih besar daripada itu.
+ * Permintaan yang melampauinya diputus di tepi jaringan sebelum sempat
+ * mencapai kode ini, sehingga peramban tidak menerima jawaban apa pun dan
+ * hanya dapat melaporkan "Failed to fetch": tanpa status, tanpa keterangan,
+ * tanpa petunjuk apa yang salah.
+ *
+ * Karena itu berkas besar tidak pernah dikirim utuh. Ia dipecah di peramban,
+ * tiap potong dikirim sebagai permintaan tersendiri yang jauh di bawah batas,
+ * lalu dirakit kembali di sini. Yang membatasi besar berkas kini hanya aturan
+ * aplikasinya sendiri, bukan batas fungsi yang tidak dapat diubah.
+ *
+ * Titipan yang tidak pernah dirakit — karena unggahannya ditinggalkan di
+ * tengah jalan — disapu bersama pemanggilan berikutnya.
+ */
+export async function mulaiUnggah(
+  nama: string, tipe: string, aktor: string,
+): Promise<string> {
+  await ensureKolomMemo();
+  await sapuUnggah();
+  const r = await one<{ id: string }>(
+    `INSERT INTO memo_unggah (file_name, content_type, uploaded_by)
+     VALUES ($1,$2,$3) RETURNING id`,
+    [String(nama ?? "memo").slice(0, 300),
+     jenisBerkas(tipe) || "application/octet-stream", aktor]);
+  return r!.id;
+}
+
+/** Satu potong berkas. Urutannya dari 0, dan boleh tiba tidak berurutan. */
+export async function simpanBagian(
+  id: string, urutan: number, buf: Buffer, aktor: string,
+) {
+  await ensureKolomMemo();
+  const t = await one<{ uploaded_by: string }>(
+    "SELECT uploaded_by FROM memo_unggah WHERE id=$1", [id]);
+  if (!t) throw new WorkflowError("Unggahan tidak ditemukan.", "not_found", 404);
+  // Titipan orang lain tidak dapat disisipi: id-nya acak, tetapi tebakan yang
+  // berhasil sekali pun tidak boleh cukup untuk menyusupkan isi berkas.
+  if (t.uploaded_by !== aktor) {
+    throw new WorkflowError("Unggahan tidak ditemukan.", "not_found", 404);
+  }
+  if (!buf?.length) {
+    throw new WorkflowError("Potongan kosong.", "validation", 422);
+  }
+  const besar = await one<{ n: string }>(
+    `SELECT COALESCE(SUM(length(data)),0)::text AS n
+       FROM memo_unggah_bagian WHERE unggah_id=$1`, [id]);
+  if (Number(besar!.n) + buf.length > BATAS) {
+    await query("DELETE FROM memo_unggah WHERE id=$1", [id]);
+    throw new WorkflowError(
+      `Berkas melebihi batas ${BATAS / 1024 / 1024} MB.`, "file_too_large", 413);
+  }
+  await query(
+    `INSERT INTO memo_unggah_bagian (unggah_id, urutan, data)
+     VALUES ($1,$2,$3)
+     ON CONFLICT (unggah_id, urutan) DO UPDATE SET data = EXCLUDED.data`,
+    [id, urutan, buf]);
+  return { ok: true };
+}
+
+/**
+ * Merakit kembali potongan-potongannya tanpa membuang titipannya.
+ *
+ * Dipakai layar pembacaan, yang hanya mengusulkan isian: berkasnya masih
+ * dibutuhkan utuh ketika tombol unggah ditekan, dan mengirim ulang seluruh
+ * potongannya berarti satu memo diunggah dua kali.
+ */
+export async function lihatUnggah(id: string, aktor: string) {
+  return ambilUnggah(id, aktor, false);
+}
+
+/** Merakit kembali potongan-potongannya, lalu membuang titipannya. */
+export async function rakitUnggah(id: string, aktor: string) {
+  return ambilUnggah(id, aktor, true);
+}
+
+async function ambilUnggah(id: string, aktor: string, buang: boolean) {
+  await ensureKolomMemo();
+  const t = await one<{ file_name: string; content_type: string;
+                        uploaded_by: string }>(
+    "SELECT file_name, content_type, uploaded_by FROM memo_unggah WHERE id=$1",
+    [id]);
+  if (!t || t.uploaded_by !== aktor) {
+    throw new WorkflowError("Unggahan tidak ditemukan.", "not_found", 404);
+  }
+  const bagian = await query<{ data: Buffer }>(
+    "SELECT data FROM memo_unggah_bagian WHERE unggah_id=$1 ORDER BY urutan",
+    [id]);
+  if (!bagian.length) {
+    throw new WorkflowError("Berkas belum terkirim.", "file_required", 422);
+  }
+  if (buang) await query("DELETE FROM memo_unggah WHERE id=$1", [id]);
+  return {
+    buf: Buffer.concat(bagian.map((b) => b.data)),
+    file_name: t.file_name,
+    content_type: t.content_type,
+  };
+}
+
+/** Titipan yang ditinggalkan di tengah jalan tidak boleh menumpuk selamanya. */
+async function sapuUnggah() {
+  await query(
+    "DELETE FROM memo_unggah WHERE created_at < now() - interval '2 hours'")
+    .catch(() => { /* penyapuan bukan bagian dari pekerjaan yang diminta */ });
 }
 
 export async function daftarMemo(projectId: string) {
