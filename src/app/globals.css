@@ -1391,3 +1391,15 @@ td.sel-keadaan .menunggu {
   .lembar { page-break-inside: avoid; break-inside: avoid; }
   .lembar + .lembar { page-break-before: always; break-before: page; }
 }
+
+/* ---- Pembetulan kolom memo yang sudah tersimpan --------------------- */
+/* Duduk di dalam baris memo yang terbuka, di atas daftar lampirannya.
+   Dipisahkan garis dan diberi latar sedikit berbeda supaya terbaca sebagai
+   formulir yang mengubah sesuatu, bukan sebagai keterangan yang dibaca. */
+.sunting-memo {
+  margin: 10px 0 14px; padding: 12px 14px 14px;
+  border: 1px solid var(--line); background: #fff;
+}
+.catatan-sunting {
+  margin: 10px 0 0; font-size: 11.5px; font-style: italic; color: var(--mut);
+}

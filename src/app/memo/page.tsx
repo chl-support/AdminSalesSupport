@@ -50,7 +50,12 @@ const KATA = {
     kDari: "Pengajuan (Dari)", kPerihal: "Perihal / Program",
     kPeriode: "Periode Program",
     kBerkas: "Berkas", kLampiran: "Lampiran", kTindakan: "Tindakan",
-    seterusnya: "seterusnya", hapus: "Hapus",
+    seterusnya: "seterusnya", hapus: "Hapus", ubah: "Ubah",
+    simpan: "Simpan perubahan", menyimpan: "Menyimpan…", batal: "Batal",
+    tersuntingN: (n: number) => `${n} kolom dibetulkan.`,
+    takBerubah: "Tidak ada kolom yang berubah.",
+    cSunting: "Berkas memonya sendiri tidak dapat diganti di sini. " +
+              "Untuk mengganti berkas, unggah memo baru.",
     kosong: "Belum ada memo pada project ini.",
     membaca: "Membaca berkas…",
     ocrSiap: "Menyiapkan pembaca tulisan…",
@@ -109,7 +114,12 @@ const KATA = {
     kDari: "Submitted by", kPerihal: "Subject / programme",
     kPeriode: "Programme period",
     kBerkas: "File", kLampiran: "Attachments", kTindakan: "Action",
-    seterusnya: "onwards", hapus: "Delete",
+    seterusnya: "onwards", hapus: "Delete", ubah: "Edit",
+    simpan: "Save changes", menyimpan: "Saving…", batal: "Cancel",
+    tersuntingN: (n: number) => `${n} fields corrected.`,
+    takBerubah: "No field changed.",
+    cSunting: "The memo file itself cannot be replaced here. " +
+              "To replace the file, upload a new memo.",
     kosong: "No memos on this project yet.",
     membaca: "Reading the file…",
     ocrSiap: "Preparing the text reader…",
@@ -243,6 +253,9 @@ export default function MemoPage() {
   // di @/lib/memo.
   const [namaDikenal, setNamaDikenal] = useState<string[]>([]);
   const [terbuka, setTerbuka] = useState<string | null>(null);
+  /** Memo yang kolomnya sedang dibetulkan, beserta isian sementaranya. */
+  const [sunting, setSunting] = useState<string | null>(null);
+  const [sIsi, setSIsi] = useState<Record<string, string>>({});
   const [lBerkas, setLBerkas] = useState<File | null>(null);
   const [lLabel, setLLabel] = useState("");
   const [membaca, setMembaca] = useState(false);
@@ -482,6 +495,44 @@ export default function MemoPage() {
   if (memuat || !sesi) return <MemeriksaSesi />;
 
   const bolehHapus = sesi.role === "admin_sales" || sesi.role === "admin_system";
+  /**
+   * Membuka penyunting untuk satu memo.
+   *
+   * Isiannya disalin dari nilai yang sedang tersimpan, bukan dibiarkan
+   * kosong: yang membetulkan satu kolom tidak boleh mengetik ulang enam kolom
+   * lain yang sudah benar.
+   */
+  const bukaSunting = (m: Memo) => {
+    setSunting(m.id); setGalat(null); setKabar(null);
+    setSIsi({
+      nomor: m.nomor ?? "", judul: m.judul ?? "",
+      keterangan: m.keterangan ?? "",
+      dari: m.dari ?? "",
+      tanggal_memo: (m.tanggal_memo ?? "").slice(0, 10),
+      berlaku_dari: (m.berlaku_dari ?? "").slice(0, 10),
+      berlaku_sampai: (m.berlaku_sampai ?? "").slice(0, 10),
+    });
+  };
+
+  const simpanSunting = async (m: Memo) => {
+    setBusy(true); setGalat(null); setKabar(null);
+    try {
+      const res = await fetch(`/api/memos/${m.id}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(sIsi),
+      });
+      if (res.status === 401) { location.href = "/login"; return; }
+      const b = await res.json().catch(() => ({}));
+      if (!res.ok) { setGalat(b.detail ?? `HTTP ${res.status}`); return; }
+      setKabar(b.berubah ? k.tersuntingN(b.berubah) : k.takBerubah);
+      setSunting(null);
+      await muat();
+    } catch (e: any) {
+      setGalat(String(e?.message ?? e));
+    } finally { setBusy(false); }
+  };
+
   const lampiranDari = (memoId: string) =>
     lampiran.filter((f) => f.memo_id === memoId);
 
@@ -662,6 +713,16 @@ export default function MemoPage() {
                 </td>
                 {bolehHapus && (
                   <td>
+                    <button disabled={busy}
+                            onClick={() => {
+                              // Penyuntingnya duduk di dalam baris yang
+                              // terbuka, jadi barisnya dibuka sekalian.
+                              setTerbuka(m.id);
+                              setLBerkas(null); setLLabel("");
+                              bukaSunting(m);
+                            }}>
+                      {k.ubah}
+                    </button>
                     <button disabled={busy} onClick={() => void hapus(m)}>
                       {k.hapus}
                     </button>
@@ -678,6 +739,59 @@ export default function MemoPage() {
                 <td colSpan={bolehHapus ? 9 : 8}>
                   <div className="rincian lampiran-memo">
                     <b>{m.nomor ?? m.judul}</b>
+
+                    {/* Pembetulan kolom memo yang sudah tersimpan. Kolom ini
+                        dibaca mesin dari lembar memonya, dan pembacaan gambar
+                        tidak selalu tepat — tanpa jalan membetulkannya, satu-
+                        satunya jalan adalah menghapus lalu mengunggah ulang,
+                        yang memutus lampiran yang sudah menempel. */}
+                    {sunting === m.id && (
+                      <div className="sunting-memo">
+                        <div className="filters">
+                          {([["nomor", k.fNomor], ["judul", k.fJudul],
+                             ["dari", k.kDari]] as const).map(([kunci, label]) => (
+                            <div key={kunci}>
+                              <div className="lbl">{label}</div>
+                              <input value={sIsi[kunci] ?? ""}
+                                     onChange={(e) => setSIsi((x) =>
+                                       ({ ...x, [kunci]: e.target.value }))} />
+                            </div>
+                          ))}
+                        </div>
+                        <div className="filters" style={{ marginTop: 10 }}>
+                          {([["tanggal_memo", k.fTanggal],
+                             ["berlaku_dari", k.fDari],
+                             ["berlaku_sampai", k.fSampai]] as const)
+                            .map(([kunci, label]) => (
+                            <div key={kunci}>
+                              <div className="lbl">{label}</div>
+                              <input type="date" value={sIsi[kunci] ?? ""}
+                                     onChange={(e) => setSIsi((x) =>
+                                       ({ ...x, [kunci]: e.target.value }))} />
+                            </div>
+                          ))}
+                        </div>
+                        <div className="lbl" style={{ marginTop: 10 }}>
+                          {k.fKeterangan}
+                        </div>
+                        <textarea value={sIsi.keterangan ?? ""}
+                                  style={{ width: "100%", minHeight: 48 }}
+                                  onChange={(e) => setSIsi((x) =>
+                                    ({ ...x, keterangan: e.target.value }))} />
+                        <div className="row" style={{ marginTop: 10,
+                                                      marginBottom: 0 }}>
+                          <button className="pri" disabled={busy}
+                                  onClick={() => void simpanSunting(m)}>
+                            {busy ? k.menyimpan : k.simpan}
+                          </button>
+                          <button disabled={busy}
+                                  onClick={() => setSunting(null)}>
+                            {k.batal}
+                          </button>
+                        </div>
+                        <p className="catatan-sunting">{k.cSunting}</p>
+                      </div>
+                    )}
 
                     {lampiranDari(m.id).length > 0 && (
                       <ul className="berkas-lampiran">
