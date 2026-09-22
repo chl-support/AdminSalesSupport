@@ -1201,7 +1201,13 @@ a.tautan-klaim:hover { border-color: var(--ink); }
 .rekap-memo th:nth-child(6) { width: 136px; }  /* Periode Program */
 .rekap-memo th:nth-child(7) { width: 190px; }  /* Berkas */
 .rekap-memo th:nth-child(8) { width: 174px; }  /* Lampiran */
-.rekap-memo th:nth-child(9) { width: 92px; }   /* Tindakan */
+.rekap-memo th:nth-child(9) { width: 96px; }   /* Tindakan */
+
+/* Ubah dan Hapus dibuat selebar selnya, bukan selebar tulisannya masing-
+   masing: dua tombol bertumpuk yang berbeda lebar terbaca sebagai dua hal
+   yang berlainan jenis, padahal keduanya tindakan atas baris yang sama. */
+.rekap-memo td:nth-child(9) > button { display: block; width: 100%; }
+.rekap-memo td:nth-child(9) > button + button { margin-top: 6px; }
 
 .rekap-memo td.no { text-align: center; font-weight: 650; color: var(--ink); }
 /* Nomor memo panjang dan tidak pernah dibaca sebagai kalimat: dikecilkan dan
