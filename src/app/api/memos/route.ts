@@ -1,6 +1,6 @@
 import { handler, currentUser, projectAktif } from "@/lib/api";
 import { WorkflowError } from "@/lib/workflow";
-import { daftarMemo, lampiranProject, namaDikenal, simpanMemo, skemaProject }
+import { daftarMemo, lampiranProject, namaDikenal, simpanMemo }
   from "@/lib/memo";
 
 /** Memo pada project yang sedang dikerjakan. */
@@ -15,7 +15,9 @@ export const GET = handler(async (req) => {
     // Acuan ejaan nama penanda tangan bagi pembacaan OCR di peramban. Tidak
     // disaring per project: penanda tangan memo berulang lintas project.
     nama: await namaDikenal(),
-    skema: await skemaProject(projectId),
+    // Rincian skema tidak ikut: layarnya tidak lagi menampilkannya, dan
+    // mengambilnya berarti satu kueri per pembukaan layar tanpa pembaca.
+    // Rekap Excel mengambilnya sendiri lewat skemaProject().
   };
 });
 
