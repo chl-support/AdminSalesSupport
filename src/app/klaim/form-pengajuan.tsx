@@ -32,7 +32,7 @@ const JENIS_NAMA: Record<string, string> = {
 };
 
 export function FormPengajuan(
-  { klaim, ttdPemohon, ceklis, onCeklis, berkas, onBerkas }: {
+  { klaim, ttdPemohon, ceklis, onCeklis, berkas, onBerkas, tanpaLampiran }: {
     klaim: any; ttdPemohon?: string | null;
     /**
      * Centang dokumen yang sedang berjalan, bila layar pemanggilnya memang
@@ -51,6 +51,16 @@ export function FormPengajuan(
      */
     berkas?: Record<string, string>;
     onBerkas?: (item: string, berkas: File | null) => void;
+    /**
+     * Sembunyikan blok LAMPIRAN.
+     *
+     * Dipakai layar tanda tangan Sales/Agent: di sana daftar lampiran hanya
+     * memanjangkan formulir dengan sepuluh baris berisi nama berkas yang sama,
+     * dan yang mengunggahnya sudah melihat unggahannya sendiri satu langkah
+     * sebelumnya. Pada cetakan dan pada pemeriksaan internal blok itu tetap
+     * ada — di sanalah ia memang dibaca.
+     */
+    tanpaLampiran?: boolean;
   },
 ) {
   const jenis = klaim.claim_type as Jenis;
@@ -252,7 +262,7 @@ export function FormPengajuan(
         )}
       </div>
 
-      {lampiran.length > 0 && (
+      {!tanpaLampiran && lampiran.length > 0 && (
         <div className="form-blok">
           <h3>LAMPIRAN</h3>
           <table><tbody>

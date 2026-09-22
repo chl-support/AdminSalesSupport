@@ -72,12 +72,6 @@ const MENU: Butir[] = [
     label: { id: "Approval / Persetujuan", en: "Approval Status" } },
   { href: "/laporan",
     label: { id: "Report / Laporan", en: "Marketing Report" } },
-  // Dua langkah terakhir pengajuan berjalan di luar konsol — pada WhatsApp
-  // Admin Sales dan pada ponsel Sales/Agent. Layar ini memperlihatkan bentuk
-  // keduanya lebih dulu, supaya tidak perlu menerbitkan tautan sungguhan ke
-  // nomor sungguhan hanya untuk tahu apa yang diterima orang di seberang.
-  { href: "/contoh", label: { id: "Contoh Alur", en: "Walkthrough" },
-    peran: ["admin_sales", "admin_system"] },
   // Administrasi sempat hilang dari menu saat susunannya ditata ulang, padahal
   // layarnya tetap ada: unggah Laporan Penjualan, Laporan Penerimaan, dan
   // Report Agent semuanya di sana. Butir yang hilang membuat satu-satunya jalan

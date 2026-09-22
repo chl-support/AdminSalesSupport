@@ -47,58 +47,6 @@ const LANGKAH: { key: Step; no: string; label: string }[] = [
   { key: "sign", no: "4", label: "Tanda tangan" },
 ];
 
-/**
- * Layar contoh, dibuka lewat /sign/contoh dari menu Contoh Alur.
- *
- * Sebelumnya tautan contoh pada layar itu mendarat di sini apa adanya dan
- * ditolak "Sesi tidak ditemukan" — benar menurut mesin, tidak berguna bagi yang
- * menekannya. Yang ingin dilihat memang layar ini; yang tidak ada hanyalah
- * klaim sungguhannya.
- *
- * Maka klaimnya yang dikarang, bukan layarnya. Empat langkahnya berjalan penuh
- * — kode, formulir, unggahan, tanda tangan — tanpa satu pun permintaan ke
- * server: tidak ada yang tersimpan, tidak ada klaim yang bergerak, dan kode apa
- * pun diterima. Menyalin layar ini menjadi "layar contoh" tersendiri akan
- * menghasilkan dua layar yang berbeda perilaku cepat atau lambat, dan yang
- * dipelajari orang justru yang bukan layar sesungguhnya.
- */
-const KLAIM_CONTOH = {
-  id: "contoh",
-  claim_number: "KMS-2026-0007",
-  claim_type: "commission",
-  gross_amount: 5_550_000,
-  vat: 0,
-  withholding_tax: 231_250,
-  withholding_tax_type: "PPh 23",
-  net_amount: 5_318_750,
-  amount_in_words: "Lima juta tiga ratus delapan belas ribu tujuh ratus lima puluh rupiah",
-  // Rasio, bukan persen: formulirnya mengalikan 100 sendiri. Ditulis 88.2 di
-  // sini, layar contohnya berbunyi "8820.00%".
-  payment_percent: 0.882,
-  total_payment: 163_212_500,
-  notes: "Full payment. Penerimaan sudah melewati 20% dari nilai kontrak.",
-  project: { company_name: "PT. Serpong Bangun Cipta", name: "Banara Serpong" },
-  unit: {
-    code: "BIOBA2-017", buyer_name: "Dwi Lestari", cluster_code: "BA2",
-    unit_type: "6", land_area: 72, building_area: 60,
-    contract_date: "2026-03-14", contract_value_incl_vat: 185_000_000,
-    project_name: "Banara Serpong",
-  },
-  marketing: {
-    full_name: "Fransisca Yolanda", marketing_type: "agent",
-    npwp: "09.254.294.1-411.000", phone: "08121234800",
-    email: "fransisca@contoh.id",
-    agency_name: "PT. Mitra Properti Utama",
-    agency_address: "Ruko Mendrisio III Blok B No. 11, Gading Serpong",
-    agency_npwp: "01.383.923.4-411.000",
-  },
-  bank_account: {
-    holder_name: "Fransisca Yolanda", bank_name: "BCA",
-    account_number: "1234500000", branch: "Gading Serpong",
-  },
-  documents: [],
-};
-
 export default function SignPage() {
   const { token } = useParams<{ token: string }>();
   const [step, setStep] = useState<Step>("loading");
@@ -116,9 +64,6 @@ export default function SignPage() {
 
   const pad = usePadTtd();
 
-  /** Layar contoh: tidak ada satu pun permintaan yang dikirim ke server. */
-  const contoh = token === "contoh";
-
   const api = async (path: string, init?: RequestInit) => {
     const res = await fetch(path, {
       headers: { "Content-Type": "application/json" }, ...init,
@@ -129,18 +74,6 @@ export default function SignPage() {
   };
 
   const load = async () => {
-    if (contoh) {
-      setCtx({
-        claim: { ...KLAIM_CONTOH, documents: dokumen },
-        otp_verified: false,
-        // Ikut dikarang: tanpa ini kepala langkah kedua berbunyi
-        // "diverifikasi tim pajak — · —", tanda hubung tanpa apa pun di
-        // sekitarnya, yang terbaca sebagai data yang gagal dimuat.
-        tax_verification: { verified_by: "ratna", verified_at: "2026-09-18" },
-      });
-      setStep((s) => (s === "loading" ? "otp" : s));
-      return;
-    }
     try {
       const d = await api(`/api/signing-sessions/${token}`);
       setCtx(d);
@@ -156,13 +89,6 @@ export default function SignPage() {
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [token]);
 
   const verifyOtp = async () => {
-    if (contoh) {
-      // Kode apa pun diterima; yang diperlihatkan adalah bentuk langkahnya,
-      // bukan kebenaran kodenya — dan tidak ada kode sungguhan untuk dicocokkan.
-      if (otp.trim().length < 6) { setOtpHint("Masukkan enam angka."); return; }
-      setOtpHint(""); setStep("review");
-      return;
-    }
     setBusy(true);
     try {
       await api(`/api/signing-sessions/${token}/otp/verify`,
@@ -181,13 +107,6 @@ export default function SignPage() {
       setUnggahHint(`${file.name} berukuran ` +
         `${(file.size / 1024 / 1024).toFixed(1)} MB, melebihi batas 3 MB. ` +
         "Perkecil pindaian atau kirim per halaman.");
-      return;
-    }
-    if (contoh) {
-      setDokumen((lama) => [...lama, {
-        id: `contoh-${lama.length + 1}`, checklist_item: item,
-        file_name: file.name, size_bytes: file.size, has_content: false,
-      }]);
       return;
     }
     setBusy(true);
@@ -224,15 +143,6 @@ export default function SignPage() {
 
   const submit = async () => {
     if (!pratinjauTtd) return;
-    if (contoh) {
-      setDone({ kind: "ok", html:
-        `<b>Sampai di sini langkahnya</b>
-         Pada tautan yang sungguhan, tanda tangan dicocokkan dengan spesimen
-         terdaftar, dokumen lalu disegel dan diteruskan ke pemeriksaan Admin
-         Sales dan Finance. Dari layar contoh ini tidak ada yang terkirim.` });
-      setStep("done");
-      return;
-    }
     setBusy(true);
     try {
       const r = await api(`/api/signing-sessions/${token}/signature`, {
@@ -276,14 +186,6 @@ export default function SignPage() {
   };
 
   const sendDispute = async () => {
-    if (contoh) {
-      setDone({ kind: "ok", html:
-        `<b>Sampai di sini langkahnya</b>
-         Pada tautan yang sungguhan, sanggahan mengembalikan klaim ke Finance
-         untuk diperiksa ulang. Dari layar contoh ini tidak ada yang terkirim.` });
-      setStep("done");
-      return;
-    }
     setBusy(true);
     try {
       await api(`/api/signing-sessions/${token}/dispute`,
@@ -299,10 +201,7 @@ export default function SignPage() {
     } finally { setBusy(false); }
   };
 
-  // Pada layar contoh, lampiran yang baru "diunggah" ikut tampil di blok
-  // LAMPIRAN formulir — sama seperti pada tautan sungguhan, yang mengambilnya
-  // dari server setelah tiap unggahan.
-  const claim = contoh && ctx ? { ...ctx.claim, documents: dokumen } : ctx?.claim;
+  const claim = ctx?.claim;
   const tv = ctx?.tax_verification;
 
   const punya = (item: string) => dokumen.filter((d) => d.checklist_item === item);
@@ -326,14 +225,6 @@ export default function SignPage() {
           {error ?? (claim ? `${claim.unit?.code} — ${claim.unit?.buyer_name}` : "")}
         </p>
       </header>
-
-      {contoh && (
-        <div className="banner warn">
-          <b>Ini layar contoh</b>
-          Isinya karangan dan tidak ada yang tersimpan: tidak ada klaim yang
-          bergerak, tidak ada berkas yang terkirim, dan kode apa pun diterima.
-        </div>
-      )}
 
       {!error && step !== "done" && step !== "loading" && (
         <div className="langkah">
@@ -381,7 +272,7 @@ export default function SignPage() {
 
           <div className="lbl">Form Pengajuan — hanya untuk dibaca</div>
           <div className="form-lihat">
-            <FormPengajuan klaim={claim} />
+            <FormPengajuan klaim={claim} tanpaLampiran />
           </div>
 
           {/* Tanpa ringkasan nominal di bawah formulirnya. Keempat angkanya —
@@ -499,7 +390,7 @@ export default function SignPage() {
           </div>
           <div className="form-lihat">
             <FormPengajuan klaim={{ ...claim, documents: dokumen }}
-                           ttdPemohon={pratinjauTtd} />
+                           ttdPemohon={pratinjauTtd} tanpaLampiran />
           </div>
           <button className="pri" onClick={submit} disabled={busy}
                   style={{ width: "100%", marginTop: 12, padding: 13 }}>
@@ -543,7 +434,7 @@ export default function SignPage() {
           {done.kind === "ok" && claim && (
             <div className="form-lihat" style={{ marginTop: 12 }}>
               <FormPengajuan klaim={{ ...claim, documents: dokumen }}
-                             ttdPemohon={pratinjauTtd} />
+                             ttdPemohon={pratinjauTtd} tanpaLampiran />
             </div>
           )}
         </section>
