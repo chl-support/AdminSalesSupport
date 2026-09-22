@@ -260,8 +260,19 @@ ul.syarat-daftar .untuk { color: var(--mut); }
   background: var(--ink); color: #fff; padding: 5px 10px;
 }
 .form-blok table td { border: none; border-bottom: 1px solid #EEF0F1; padding: 5px 0; }
-.form-blok table td:first-child { width: 46%; color: var(--sub); }
-.form-blok table td:last-child { text-align: right; color: var(--ink); }
+.form-blok table td:first-child { width: 52%; color: var(--sub); }
+/* Isian rata kiri pada kolomnya sendiri, dengan titik dua di depannya —
+   sebagaimana formulir aslinya: labelnya menempati separuh kiri halaman,
+   isiannya mulai dari tengah. Sebelumnya isian dirapatkan ke tepi kanan, dan
+   mata harus melompati ruang kosong selebar setengah halaman untuk
+   memasangkan nama dengan nilainya. */
+.form-blok table td:last-child { text-align: left; color: var(--ink); }
+.cetak .form-blok table td:last-child::before {
+  content: ":"; margin-right: 8px; color: var(--sub);
+}
+/* Baris yang isinya memang bukan pasangan label–nilai tidak ikut diberi titik
+   dua: nama project berdiri sendiri sebagai judul di dalam bloknya. */
+.cetak .form-blok table td.baris-project::before { content: none; }
 .form-blok table tr:last-child td { border-bottom: none; }
 .hitung td:last-child { font-variant-numeric: tabular-nums; }
 .hitung tr.total td { font-weight: 700; border-top: 1.5px solid var(--ink); }
@@ -1357,8 +1368,8 @@ td.sel-keadaan .menunggu {
      sampai habis. */
   .sah { gap: 12px; margin-top: 4px; }
   .sah-judul { font-size: 10px; margin-bottom: 4px; }
-  .sah .kotak-ttd { height: 50px; }
-  .sah .kotak-ttd img { max-height: 46px; }
+  .sah .kotak-ttd { height: 52px; }
+  .sah .kotak-ttd img { max-height: 48px; }
   .sah span { font-size: 9.5px; margin-top: 3px; }
 
   .catatan-form { margin-top: 6px; font-size: 8.5px; }

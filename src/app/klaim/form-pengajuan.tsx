@@ -168,16 +168,11 @@ export function FormPengajuan(
           )}
           <tr><td>Jumlah {nama}</td><td>{rp(klaim.gross_amount)}</td></tr>
           <tr><td>PPN</td><td>{rp(klaim.vat)}</td></tr>
-          {/* Namanya persis seperti pada formulir aslinya: "Potongan PPh".
-              Pasal tarifnya menempel pada angkanya, bukan pada namanya — yang
-              membaca kertas ini tetap perlu tahu PPh 21 atau PPh 23. */}
+          {/* Persis seperti pada formulir aslinya: "Potongan PPh", tanpa
+              menyebut pasalnya. Pasal tarifnya tetap tersimpan pada klaim dan
+              terbaca di konsol; pada kertas ia tidak pernah ditulis. */}
           <tr><td>Potongan PPh</td>
-              <td>− {rp(klaim.withholding_tax)}
-                  {klaim.withholding_tax_type
-                    ? ` (${String(klaim.withholding_tax_type)
-                        .replace(/^pph/i, "PPh ").toUpperCase()
-                        .replace("PPH ", "PPh ")})`
-                    : ""}</td></tr>
+              <td>− {rp(klaim.withholding_tax)}</td></tr>
           <tr className="total"><td>{nama} yang Dibayarkan</td>
               <td>{rp(klaim.net_amount)}</td></tr>
           {/* Komisi tidak punya baris Terbilang pada cetakannya; Closing Fee
