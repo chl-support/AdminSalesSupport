@@ -50,15 +50,6 @@ const KATA = {
     cetakBelumAda: "Centang setidaknya satu yang akan dicetak.",
     mengirim: "Mengirim…",
     jumlah: (n: number) => `${n} formulir`,
-    pengantar:
-      "Periksa tiap formulir, lalu centang dokumen yang berkasnya sudah ada " +
-      "di tangan Anda. Setelah dikirim, klaim berpindah ke tim pajak untuk " +
-      "diverifikasi dan kembali ke Anda bila sudah benar.",
-    belumLengkap: "Centang seluruh dokumen pada tiap formulir sebelum dikirim.",
-    lampirkan:
-      "Lampirkan berkasnya pada tiap baris syarat bila ada. Berkas yang " +
-      "dilampirkan dapat dibuka tim pajak langsung dari klaimnya; yang hanya " +
-      "dicentang tidak memberi mereka apa pun untuk diperiksa.",
     bukanAdmin:
       "Pengiriman ke tim pajak hanya dapat dilakukan Admin Sales. Formulir di " +
       "bawah dapat diperiksa, tetapi tidak dapat dikirim dari sini.",
@@ -97,15 +88,6 @@ const KATA = {
     cetakBelumAda: "Tick at least one thing to print.",
     mengirim: "Sending…",
     jumlah: (n: number) => `${n} forms`,
-    pengantar:
-      "Check each form, then tick the documents you actually hold. Once sent, " +
-      "the claim moves to the tax team for verification and comes back to you " +
-      "if everything is correct.",
-    belumLengkap: "Tick every document on each form before sending.",
-    lampirkan:
-      "Attach the file on each requirement line where you have one. Attached " +
-      "files can be opened by the tax team straight from the claim; a tick " +
-      "alone gives them nothing to check.",
     bukanAdmin:
       "Only the Sales Admin can send claims to the tax team. The forms below " +
       "can be reviewed, but not sent from here.",
@@ -363,14 +345,6 @@ export default function PratinjauPage() {
 
       {klaim.length > 0 && !bolehKirim && (
         <div className="banner warn jangan-cetak">{k.bukanAdmin}</div>
-      )}
-
-      {klaim.length > 0 && bolehKirim && (
-        <div className="banner info jangan-cetak">
-          <b>{k.pengantar}</b>
-          {k.lampirkan}
-          {!lengkap && masihDraft.length > 0 ? ` ${k.belumLengkap}` : ""}
-        </div>
       )}
 
       {klaim.map((c) => (
