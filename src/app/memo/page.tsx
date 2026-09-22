@@ -71,7 +71,7 @@ const KATA = {
     takTerbaca:
       "Tidak ada yang dapat dibaca dari berkas ini. Memonya tetap dapat " +
       "diunggah; kolom yang dibaca dari memo akan kosong.",
-    unduhRekap: "Unduh rekap (.xlsx)",
+    unduhRekap: "Download (.xlsx)",
     nLampiran: (n: number) => `${n} lampiran`,
     takAdaLampiran: "Belum ada lampiran",
     tambahLampiran: "Tambah lampiran",
@@ -130,7 +130,7 @@ const KATA = {
     takTerbaca:
       "Nothing could be read from this file. The memo can still be uploaded; " +
       "the fields read from the memo will be empty.",
-    unduhRekap: "Download recap (.xlsx)",
+    unduhRekap: "Download (.xlsx)",
     nLampiran: (n: number) => `${n} attachments`,
     takAdaLampiran: "No attachments yet",
     tambahLampiran: "Add attachment",
