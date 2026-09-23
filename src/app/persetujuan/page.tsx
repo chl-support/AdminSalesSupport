@@ -779,16 +779,50 @@ export default function PersetujuanPage() {
                             Dua tahap terakhir tidak dapat dipilih dari sini:
                             keduanya membawa serta berkasnya masing-masing, dan
                             tombolnya ada di kolom Tindakan. */}
-                        {l.n === 4 && bolehTahap && bolehGerak(c.status) && (
+                        {/* Pemilihnya muncul bagi yang dapat menggerakkan
+                            tahapnya MAUPUN yang dapat mencatat pembayarannya.
+                            Sebelumnya hanya yang pertama: Finance Payment —
+                            satu-satunya peran yang tugasnya memang mencatat
+                            pembayaran — tidak melihat pemilihnya sama sekali,
+                            sehingga "Pembayaran Selesai" tidak dapat dipilih
+                            oleh orang yang justru memilikinya. */}
+                        {l.n === 4 && (bolehTahap || bolehBayar) &&
+                         bolehGerak(c.status) && (
                           <select className="pilih-tahap"
                                   disabled={gerak === c.id}
                                   value={tahapDari(c.status) ?? ""}
-                                  onChange={(e) =>
-                                    void pindahTahap(c, Number(e.target.value))}>
+                                  onChange={(e) => {
+                                    const n = Number(e.target.value);
+                                    // "Pembayaran Selesai" tidak digerakkan
+                                    // dari sini: ia menuntut tanggal transfer
+                                    // dan bukti banknya, dan keduanya diisi di
+                                    // kotak yang terbuka di kolom Tindakan.
+                                    // Memindahkan statusnya lebih dulu akan
+                                    // mencatat klaim lunas tanpa satu pun
+                                    // bukti bahwa uangnya keluar.
+                                    if (n === 4) {
+                                      setByrUntuk(c.id); setByrTgl("");
+                                      setByrBukti(null);
+                                      return;
+                                    }
+                                    void pindahTahap(c, n);
+                                  }}>
                             {TAHAP.map((t) => (
                               <option key={t.n} value={t.n}
-                                      disabled={t.n >= 3 ||
-                                                t.n <= (tahapDari(c.status) ?? 0)}>
+                                      disabled={
+                                        t.n === 3 ||
+                                        t.n <= (tahapDari(c.status) ?? 0) ||
+                                        // Tahap 1 dan 2 hanya bagi yang
+                                        // memang menggerakkan peredaran
+                                        // dokumennya.
+                                        (t.n < 3 && !bolehTahap) ||
+                                        // Pembayaran baru dapat dicatat setelah
+                                        // Persetujuan Final, dan hanya oleh
+                                        // yang memang berwenang mencatatnya —
+                                        // endpoint-nya pun menolak peran lain.
+                                        (t.n === 4 &&
+                                         (!bolehBayar ||
+                                          (tahapDari(c.status) ?? 0) !== 3))}>
                                 {t.n}. {bahasa === "en" ? t.en : t.nama}
                               </option>
                             ))}

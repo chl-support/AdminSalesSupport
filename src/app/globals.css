@@ -1562,3 +1562,27 @@ td.sel-tindakan > a.tautan-klaim {
 }
 td.sel-tindakan > button:last-child,
 td.sel-tindakan > a.tautan-klaim:last-child { margin-bottom: 0; }
+
+/* Ringkasan klaim yang sudah selesai, di kepala daftar lampiran: dokumen full
+   sign, bukti transfer, dan tanggal uang keluar. Ketiganya diangkat ke atas
+   karena itu yang dicari orang ketika menengok klaim yang sudah dibayar —
+   sebelumnya keduanya tenggelam di antara lampiran lain, berjudul nama berkas
+   dan kode checklist yang tidak menyebut mana dokumen finalnya. */
+.ringkas-selesai {
+  border: 1px solid var(--ok); background: var(--okbg);
+  padding: 8px 10px; margin-bottom: 12px;
+}
+.ringkas-selesai .baris {
+  display: flex; justify-content: space-between; align-items: baseline;
+  gap: 10px; padding: 3px 0;
+}
+.ringkas-selesai .baris + .baris { border-top: 1px solid rgba(47,107,79,.18); }
+.ringkas-selesai .lbl {
+  font-size: 12px; font-weight: 600; color: var(--ok); margin: 0;
+}
+.ringkas-selesai .nilai {
+  font-size: 12.5px; color: var(--ink); font-variant-numeric: tabular-nums;
+}
+.ringkas-selesai .meta { font-size: 12px; white-space: nowrap; }
+/* "Lihat" dan "Unduh" berdempetan menjadi satu kata tanpa jarak ini. */
+.ringkas-selesai .meta a + a { margin-left: 10px; }
