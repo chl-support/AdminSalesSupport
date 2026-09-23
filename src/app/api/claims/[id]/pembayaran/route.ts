@@ -26,8 +26,13 @@ export const ITEM_BUKTI = "bukti_transfer";
  */
 export const POST = handler(async (req, { params }) => {
   const { id } = await params;
-  const user = await requireRole(req, "finance_payment", "finance_manager",
-                                 "head_finance", "admin_system");
+  // Admin Sales ikut, atas permintaan yang memakai sistem ini: merekalah yang
+  // mencatat pembayaran pada praktiknya, dan tanpa izin ini tombolnya ada di
+  // layar tetapi permintaannya ditolak di sini. Yang mencatat tetap tertulis
+  // pada jejak audit dan pada settlements.recorded_by, siapa pun perannya.
+  const user = await requireRole(req, "admin_sales", "finance_payment",
+                                 "finance_manager", "head_finance",
+                                 "admin_system");
   const p = await body(req);
 
   const klaim = await getClaim(id);
