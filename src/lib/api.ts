@@ -15,6 +15,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { explainDbError, one, query } from "./db";
 import { COOKIE, userFromToken } from "./auth";
 import { WorkflowError } from "./workflow";
+import { ensureKolomMarketing } from "./kolom";
 
 export type User = {
   id: string; username: string; full_name: string; role: string;
@@ -147,6 +148,7 @@ export function clientIp(req: NextRequest): string | null {
  * gabungannya sendiri, dan cepat atau lambat salah satunya lupa satu bidang.
  */
 export async function claimView(claim: any) {
+  await ensureKolomMarketing();
   const unit = await one("SELECT * FROM units WHERE id=$1", [claim.unit_id]);
   const mkt = await one(
     `SELECT m.id, m.full_name, m.marketing_type, m.category, m.phone, m.email,

@@ -1,6 +1,7 @@
 import { handler, requireRole, projectAktif } from "@/lib/api";
 import { WorkflowError } from "@/lib/workflow";
 import { imporLaporan } from "@/lib/penjualan";
+import { ensureKolomMarketing } from "@/lib/kolom";
 
 /**
  * Unggah Laporan Penjualan lewat konsol.
@@ -33,6 +34,13 @@ export const POST = handler(async (req) => {
   }
 
   const dryRun = new URL(req.url).searchParams.get("dry_run") === "true";
+
+  // Kolom marketings.category dan nilai enum recipient_role yang dipakai
+  // impor ini hanya ditambahkan lewat db/schema.sql. Dipasang di sini, sebelum
+  // transaksi impornya dibuka: ALTER TABLE di tengah transaksi yang sudah
+  // memegang kunci atas tabel marketings akan saling menunggu. Lihat
+  // src/lib/kolom.ts.
+  await ensureKolomMarketing();
 
   try {
     return await imporLaporan(teks, {
