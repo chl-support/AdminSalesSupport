@@ -716,8 +716,8 @@ export default function PersetujuanPage() {
    */
   const bolehTahap = ["admin_sales", "admin_system", "finance_manager",
                       "head_finance"].includes(sesi.role);
-  const bolehBayar = ["finance_payment", "finance_manager", "head_finance",
-                      "admin_system"].includes(sesi.role);
+  const bolehBayar = ["admin_sales", "finance_payment", "finance_manager",
+                      "head_finance", "admin_system"].includes(sesi.role);
   // Persis daftar yang diterima /api/claims/[id]/tax-verification.
   const bolehPajak = ["finance_tax", "finance_manager"].includes(sesi.role);
 
