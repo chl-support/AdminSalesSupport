@@ -189,9 +189,21 @@ export async function claimView(claim: any) {
         [claim.project_id])
     : null;
 
+  // Siapa yang mengajukan. Tidak ada kolomnya pada tabel claims, tetapi
+  // jejak auditnya mencatat pelakunya saat klaim dibuat — dan jejak itu
+  // memang sumber yang benar: ia tidak dapat diubah belakangan.
+  const pengaju = await one<{ actor: string; full_name: string | null }>(
+    `SELECT a.actor, u.full_name
+       FROM audit_log a LEFT JOIN users u ON u.username = a.actor
+      WHERE a.entity_type = 'claim' AND a.entity_id = $1 AND a.action = 'create'
+      ORDER BY a.occurred_at LIMIT 1`,
+    [String(claim.id)]);
+
   return {
     ...claim, unit, marketing: mkt, bank_account: bank,
     project: proyek,
+    diajukan_oleh: pengaju?.actor ?? null,
+    diajukan_oleh_nama: pengaju?.full_name ?? null,
     documents: dokumen,
     signature_png: ttd?.image_png ?? null,
     signed_display_at: ttd?.occurred_at ?? claim.signed_at ?? null,

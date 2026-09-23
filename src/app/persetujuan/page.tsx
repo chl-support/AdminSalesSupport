@@ -35,6 +35,24 @@ import { namaJenis } from "../klaim/jenis";
 const rp = (n?: number | null) => `Rp ${(n ?? 0).toLocaleString("id-ID")}`;
 const tgl = (v?: string | null) => (v ? String(v).slice(0, 10) : "—");
 
+/** "2026-09-21" menjadi "21/09/2026", sebagaimana tertulis pada acuannya. */
+const tglPendek = (v?: string | null) => {
+  const [y, b, h] = String(v ?? "").slice(0, 10).split("-");
+  return y && b && h ? `${h}/${b}/${y}` : "—";
+};
+
+/**
+ * "Diajukan oleh" sebagaimana diminta: nama orangnya, dengan nama masuknya
+ * di dalam kurung. Nama lengkapnya dapat hilang bila akunnya sudah dihapus —
+ * yang tersisa nama masuknya saja, dan itu tetap lebih berarti daripada
+ * kolom kosong.
+ */
+const pengaju = (c: any) => {
+  const nama = c.diajukan_oleh_nama, masuk = c.diajukan_oleh;
+  if (!masuk) return "—";
+  return nama ? `${nama} (${masuk})` : masuk;
+};
+
 const KATA = {
   id: {
     judul: "Approval / Persetujuan",
@@ -46,9 +64,12 @@ const KATA = {
     selesai: "sudah selesai",
     jumlah: (n: number) => `${n} klaim`,
     daftar: "Dokumen pengajuan",
-    thNomor: "Nomor", thJenis: "Jenis fee", thUnit: "Unit",
-    thPenerima: "Penerima", thBruto: "Bruto", thPph: "PPh",
-    thBersih: "Bersih", thStatus: "Status", thDokumen: "Dokumen",
+    thNo: "No.", thTanggal: "Tanggal Pengajuan", thPerihal: "Perihal/Topik",
+    thKategori: "Kategori", thPenerima: "Penerima",
+    thPengaju: "Diajukan Oleh, (user login)", thBruto: "Jumlah Komisi",
+    thPpn: "PPN", thPph: "PPh", thBersih: "Komisi Yang Dibayarkan",
+    thStatus: "Status", thDokumen: "Tindakan",
+    katInhouse: "Sales Inhouse", katAgent: "Agent",
     pratinjau: "Lihat pratinjau",
     kosong: "Belum ada pengajuan pada project ini.",
     memuat: "Memuat…",
@@ -82,9 +103,12 @@ const KATA = {
     selesai: "completed",
     jumlah: (n: number) => `${n} claims`,
     daftar: "Submission documents",
-    thNomor: "Number", thJenis: "Fee type", thUnit: "Unit",
-    thPenerima: "Recipient", thBruto: "Gross", thPph: "Withholding",
-    thBersih: "Net", thStatus: "Status", thDokumen: "Document",
+    thNo: "No.", thTanggal: "Submitted on", thPerihal: "Subject / topic",
+    thKategori: "Category", thPengaju: "Submitted by (login)",
+    thPpn: "VAT", katInhouse: "In-house sales", katAgent: "Agent",
+    thPenerima: "Recipient", thBruto: "Commission amount",
+    thPph: "Withholding",
+    thBersih: "Commission paid", thStatus: "Status", thDokumen: "Action",
     pratinjau: "View preview",
     kosong: "No submissions on this project yet.",
     memuat: "Loading…",
@@ -393,32 +417,45 @@ export default function PersetujuanPage() {
           <span className="pill">{k.jumlah(terlihat.length)}</span>
         </h2>
 
-        <div className="tscroll">
+        <div className="tscroll persetujuan">
           <table className="tabel-penjualan"><tbody>
             <tr>
-              <th>{k.thNomor}</th>
-              <th>{k.thJenis}</th>
-              <th>{k.thUnit}</th>
+              <th className="sel-no">{k.thNo}</th>
+              <th>{k.thTanggal}</th>
+              <th>{k.thPerihal}</th>
+              <th>{k.thKategori}</th>
               <th className="sel-penerima">{k.thPenerima}</th>
+              <th>{k.thPengaju}</th>
               <th>{k.thBruto}</th>
+              <th>{k.thPpn}</th>
               <th>{k.thPph}</th>
               <th>{k.thBersih}</th>
               <th className="sel-keadaan">{k.thStatus}</th>
               <th style={{ width: 140 }}>{k.thDokumen}</th>
             </tr>
 
-            {terlihat.map((c) => (
+            {terlihat.map((c, i) => (
               <tr key={c.id}>
+                <td className="sel-no">{i + 1}</td>
                 <td>
-                  <b>{c.claim_number}</b><br />
-                  <span style={{ color: "var(--mut)" }}>
-                    {tgl(c.created_at)}
+                  {tglPendek(c.created_at)}
+                  {/* Nomor klaim dan unitnya tidak punya kolom sendiri lagi,
+                      tetapi tidak dibuang: nomor itulah yang dipakai menyebut
+                      klaim ini di seluruh layar lain, dan tanpa unitnya satu
+                      penerima dengan dua klaim serupa tidak dapat dibedakan. */}
+                  <span className="sisip">
+                    {c.claim_number}
+                    {c.unit?.code ? ` · ${c.unit.code}` : ""}
                   </span>
                 </td>
                 <td>{namaJenis(c.claim_type, bahasa)}</td>
-                <td className="sel-unit">{c.unit?.code ?? "—"}</td>
+                <td>{c.marketing?.marketing_type === "agent" ? k.katAgent
+                     : c.marketing?.marketing_type === "inhouse" ? k.katInhouse
+                     : "—"}</td>
                 <td className="sel-penerima">{c.marketing?.full_name ?? "—"}</td>
+                <td>{pengaju(c)}</td>
                 <td className="n">{rp(c.gross_amount)}</td>
+                <td className="n">{rp(c.vat)}</td>
                 <td className="n">{rp(c.withholding_tax)}</td>
                 <td className="n"><b>{rp(c.net_amount)}</b></td>
                 <td className="sel-keadaan">
@@ -488,12 +525,12 @@ export default function PersetujuanPage() {
 
             {!terlihat.length && !busy && (
               <tr>
-                <td colSpan={9} style={{ color: "var(--mut)" }}>{k.kosong}</td>
+                <td colSpan={12} style={{ color: "var(--mut)" }}>{k.kosong}</td>
               </tr>
             )}
             {busy && (
               <tr>
-                <td colSpan={9} style={{ color: "var(--mut)" }}>{k.memuat}</td>
+                <td colSpan={12} style={{ color: "var(--mut)" }}>{k.memuat}</td>
               </tr>
             )}
           </tbody></table>
