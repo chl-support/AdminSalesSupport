@@ -256,12 +256,13 @@ ul.syarat-daftar li.tidak { color: var(--sub); }
 ul.syarat-daftar .untuk { color: var(--mut); }
 
 /* Formulir pengajuan, mengikuti tata letak formulir kertasnya */
-.form-blok { margin-bottom: 18px; }
+.form-blok { margin-bottom: 12px; }
 .form-blok > h3 {
-  margin: 0 0 8px; font-size: 12px; font-weight: 700; letter-spacing: .04em;
-  background: var(--ink); color: #fff; padding: 5px 10px;
+  margin: 0 0 5px; font-size: 12px; font-weight: 700; letter-spacing: .04em;
+  background: var(--ink); color: #fff; padding: 4px 10px;
 }
-.form-blok table td { border: none; border-bottom: 1px solid #EEF0F1; padding: 5px 0; }
+.form-blok table td { border: none; border-bottom: 1px solid #EEF0F1;
+                      padding: 3px 0; line-height: 1.35; }
 .form-blok table td:first-child { width: 52%; color: var(--sub); }
 /* Isian rata kiri pada kolomnya sendiri, dengan titik dua di depannya —
    sebagaimana formulir aslinya: labelnya menempati separuh kiri halaman,
@@ -278,15 +279,24 @@ ul.syarat-daftar .untuk { color: var(--mut); }
 .form-blok table tr:last-child td { border-bottom: none; }
 .hitung td:last-child { font-variant-numeric: tabular-nums; }
 .hitung tr.total td { font-weight: 700; border-top: 1.5px solid var(--ink); }
+/* Daftar syarat: tulisannya di kiri, kotak centangnya di kolom kanan.
+   Kolom kanannya selebar blok Developer pada tabel pengesahan (2fr dari 1fr+2fr)
+   supaya judul "CHECKLIST" dan kotak-kotaknya sejajar dengan kolom tanda
+   tangan Developer — seperti pada formulir aslinya. */
 ul.ceklis { list-style: none; margin: 0; padding: 0; font-size: 12.5px; }
-ul.ceklis li { padding: 4px 0; border-bottom: 1px solid #EEF0F1; }
-ul.ceklis label { display: flex; gap: 8px; align-items: flex-start; cursor: pointer; }
-ul.ceklis input { width: auto; margin-top: 2px; }
+ul.ceklis li { display: grid; grid-template-columns: 1fr 2fr; gap: 12px;
+               align-items: center; padding: 3px 0;
+               border-bottom: 1px solid #EEF0F1; }
+ul.ceklis .ceklis-teks { min-width: 0; }
+ul.ceklis .ceklis-kotak { display: flex; justify-content: center;
+                          align-items: center; }
+ul.ceklis label { cursor: pointer; }
+ul.ceklis input { width: auto; margin: 0; }
 
 /* Pratinjau Form Pengajuan */
 .cetak { background: #fff; border: 1px solid var(--line); padding: 22px 26px; }
 .cetak .kop { text-align: center; border-bottom: 2px solid var(--ink);
-              padding-bottom: 10px; margin-bottom: 16px; }
+              padding-bottom: 7px; margin-bottom: 10px; line-height: 1.4; }
 .cetak .kop b { display: block; font-size: 15px; letter-spacing: .02em; }
 .cetak .kop span { display: block; font-size: 11.5px; color: var(--sub); }
 /* Judul formulir rata tengah.
@@ -300,7 +310,7 @@ ul.ceklis input { width: auto; margin-top: 2px; }
   /* Jarak atas-bawah dipasang di sini karena baris nomor klaim yang dulu
      memberi jaraknya sudah dibuang; tanpa itu judulnya menempel persis pada
      bilah hitam blok pertama. */
-  margin: 16px 0 14px;
+  margin: 10px 0 9px;
 }
 .nomor-form { margin: 2px 0 16px; text-align: center; font-size: 11.5px;
               color: var(--mut); }
@@ -321,27 +331,36 @@ ul.ceklis input { width: auto; margin-top: 2px; }
    tetap: penjelasan yang panjang tetap terbaca utuh — memotongnya berarti
    mencetak dokumen resmi yang kalimatnya hilang separuh. */
 .cetak .penjelasan.sebaris { min-height: 21px; }
-ul.cetak-ceklis li { display: flex; gap: 8px; align-items: flex-start; }
+ul.cetak-ceklis .kotak { display: inline-block; }
 ul.cetak-ceklis .kotak { border: 1px solid var(--ink); width: 14px; height: 14px;
                          line-height: 13px; text-align: center; font-size: 10px;
-                         flex: none; margin-top: 2px; }
+                         flex: none; }
 /* Blok pengesahan: Pemohon di kiri, dua tanda tangan Developer di kanan di
    bawah satu judul — sebagaimana cetakan formulirnya. */
-.sah { display: grid; grid-template-columns: 1fr 2fr; gap: 16px; margin-top: 6px; }
+.sah { display: grid; grid-template-columns: 1fr 2fr; gap: 10px; margin-top: 6px; }
 .sah-judul {
   font-size: 11.5px; font-weight: 650; text-align: center; margin-bottom: 6px;
 }
-.sah-dua { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.sah .kotak-ttd { height: 62px; border: 1px solid var(--line);
-  display: flex; align-items: center; justify-content: center; overflow: hidden; }
-.sah .kotak-ttd img { max-height: 58px; max-width: 100%; }
+.sah-dua { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.sah .kotak-ttd { height: 74px; border: 1px solid var(--line);
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden; position: relative; }
+.sah .kotak-ttd img { max-height: 54px; max-width: 100%; }
+/* Nama terang di dalam kotaknya: rata tengah, menempel ke dasar, di bawah
+   goresan tanda tangannya. */
+.sah .kotak-pemohon { padding-bottom: 14px; }
+.sah .kotak-pemohon .nama-terang {
+  position: absolute; left: 6px; right: 6px; bottom: 3px;
+  text-align: center; font-size: 10.5px; line-height: 1.2; color: var(--ink);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 .sah span {
   display: block; text-align: center; font-size: 11px; color: var(--sub);
   margin-top: 4px; line-height: 1.4;
 }
 
 /* Catatan kaki formulir, seperti pada cetakannya. */
-.catatan-form { margin-top: 14px; font-size: 11px; color: var(--sub); }
+.catatan-form { margin-top: 10px; font-size: 11px; color: var(--sub); }
 .catatan-form ul { margin: 4px 0 0; padding-left: 14px; }
 .catatan-form li { margin-bottom: 2px; line-height: 1.45; }
 
@@ -350,8 +369,12 @@ ul.cetak-ceklis .kotak { border: 1px solid var(--ink); width: 14px; height: 14px
 .pilih-coret .dicoret { text-decoration: line-through; color: var(--mut); }
 
 /* Bilah judul blok yang membawa judul kedua di ujung kanan ("CHECKLIST"). */
-.form-blok > h3.dua-sisi { display: flex; justify-content: space-between;
+/* Bilah judul blok yang membawa judul kedua ("CHECKLIST") pada kolom kanannya.
+   Bukan rata kanan ke tepi kertas: ia judul sebuah kolom, dan kolomnya sama
+   dengan kolom tanda tangan Developer di bawah. */
+.form-blok > h3.dua-sisi { display: grid; grid-template-columns: 1fr 2fr;
                            gap: 12px; align-items: baseline; }
+.form-blok > h3.dua-sisi > span:last-child { text-align: center; }
 
 /* Nama project sebagai baris tebal tanpa label di blok data pemesanan. */
 .baris-project { font-size: 12.5px; letter-spacing: .02em; }

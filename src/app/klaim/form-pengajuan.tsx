@@ -138,7 +138,11 @@ export function FormPengajuan(
         <h3>INFORMASI DATA PEMESAN{jenis === "commission" ? "" : "AN"}</h3>
         <table><tbody>
           <tr><td colSpan={2} className="baris-project">
-              <b>{(u.project_name ?? klaim.project?.name ?? "—").toUpperCase()}</b>
+              {/* Nama project diambil dari data project, bukan dari kolom bebas
+                  pada baris unitnya: laporan penjualan menuliskannya singkat
+                  ("NARAYA") sementara namanya "Naraya Serpong". Yang tercetak
+                  di dokumen resmi adalah nama yang terdaftar. */}
+              <b>{(klaim.project?.name ?? u.project_name ?? "—").toUpperCase()}</b>
           </td></tr>
           <tr><td>Nama Pemesan</td><td>{u.buyer_name ?? "—"}</td></tr>
           {jenis === "commission" && (
@@ -212,18 +216,21 @@ export function FormPengajuan(
           <ul className="ceklis cetak-ceklis">
             {dokumen.map((d, i) => (
               <li key={d}>
+                {/* Kotak centangnya di kanan tulisan dan sekolom dengan judul
+                    CHECKLIST — seperti pada formulir aslinya, tempat kolom
+                    centang berdiri sendiri di sisi kanan. */}
+                <span className="ceklis-teks">{i + 1}. {d}</span>
                 {onCeklis ? (
                   /* Kotak yang benar-benar dicentang, bukan gambar centang.
                      Yang menekan "Kirim ke Pajak" menyatakan berkasnya ada di
                      tangannya, dan pernyataan itu tersimpan sebagai baris
                      dokumen pada klaimnya. */
-                  <label className="ceklis-pilih">
+                  <label className="ceklis-pilih ceklis-kotak">
                     <input type="checkbox" checked={Boolean(ceklis?.[d])}
                            onChange={(e) => onCeklis(d, e.target.checked)} />
-                    <span>{i + 1}. {d}</span>
                   </label>
                 ) : (
-                  <><span className="kotak">✓</span> {i + 1}. {d}</>
+                  <span className="ceklis-kotak"><span className="kotak">✓</span></span>
                 )}
                 {/* Berkasnya dilampirkan di baris syaratnya sendiri, bukan pada
                     satu kotak unggah terpisah di bawah: yang mengumpulkan
@@ -290,11 +297,16 @@ export function FormPengajuan(
         <div className="sah">
           <div className="sah-kiri">
             <div className="sah-judul">Pemohon</div>
-            <div className="kotak-ttd">
+            {/* Nama penandatangan tercetak di dalam kotaknya, rata tengah dan
+                menempel ke dasar — sebagaimana tanda tangan basah yang selalu
+                dibubuhi nama terang di bawahnya. Tidak perlu ditulis tangan
+                lagi: namanya sudah ada pada klaimnya. */}
+            <div className="kotak-ttd kotak-pemohon">
               {ttd && (
                 /* eslint-disable-next-line @next/next/no-img-element */
                 <img src={ttd} alt="Tanda tangan pemohon" />
               )}
+              <span className="nama-terang">{m.full_name ?? ""}</span>
             </div>
             {/* Keterangan di bawah kotak ditulis tetap "Sales/Agent", bukan
                 nama penandatangannya. Yang menandatangani kolom Pemohon adalah
