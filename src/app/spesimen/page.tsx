@@ -81,7 +81,7 @@ const KATA = {
     ubahNomor: "Ubah nomor telepon", tanpaNomor: "tanpa nomor telepon",
     phNomor: "08xxxxxxxxxx", simpan: "Simpan", batal: "Batal",
     ubahKategori: "Ubah kategori penerima fee",
-    hapus: "Hapus",
+    hapus: "Hapus data marketing",
     hapusJudul: (nama: string) => `Hapus ${nama}?`,
     hapusIsi:
       "Untuk baris yang salah input — nama yang sama terketik dua kali. " +
@@ -228,7 +228,7 @@ const KATA = {
     ubahNomor: "Change phone number", tanpaNomor: "no phone number",
     phNomor: "08xxxxxxxxxx", simpan: "Save", batal: "Cancel",
     ubahKategori: "Change fee recipient category",
-    hapus: "Delete",
+    hapus: "Delete this marketing record",
     hapusJudul: (nama: string) => `Delete ${nama}?`,
     hapusIsi:
       "For rows entered twice by mistake. Their bank account, signature " +
@@ -876,11 +876,17 @@ export default function SpesimenPage() {
                           </>
                         )}
 
-                        {/* Hapus berdiri terpisah di bawah, bukan berjajar
-                            dengan tindakan lain: yang lain menggerakkan
-                            pendaftaran, yang ini menghilangkan barisnya, dan
-                            keduanya tidak boleh berjajar dalam satu baris
-                            tombol yang ditekan cepat-cepat. */}
+                        {/* Hapus berdiri terpisah di bawah, dipisahkan garis,
+                            bukan berjajar dengan tindakan lain: yang lain
+                            menggerakkan pendaftaran, yang ini menghilangkan
+                            barisnya, dan keduanya tidak boleh berjajar dalam
+                            satu baris tombol yang ditekan cepat-cepat.
+
+                            Tulisannya menyebut apa yang dihapus. "Hapus"
+                            saja, berdiri tepat di bawah "Kirim tautan
+                            pendaftaran", terbaca sebagai penghapus tautan itu
+                            — padahal yang hilang adalah orangnya dari daftar
+                            ini. */}
                         <div className="hapus-baris">
                           <button className="tautan" disabled={busy}
                                   onClick={() => setHapus(b)}>
