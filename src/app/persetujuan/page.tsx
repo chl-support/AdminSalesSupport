@@ -69,6 +69,9 @@ const KATA = {
     belumJalan: "belum diteruskan", berjalan: "sedang berjalan",
     selesai: "sudah selesai",
     jumlah: (n: number) => `${n} klaim`,
+    unduhRekap: "Download (.xlsx)",
+    pProgress: (n: number) => `🔄 ${n} Progress`,
+    pFinish: (n: number) => `🏁 ${n} Finish`,
     daftar: "Dokumen pengajuan",
     thNo: "No.", thTanggal: "Tanggal Pengajuan", thPerihal: "Perihal/Topik",
     thKategori: "Kategori", thPenerima: "Penerima",
@@ -108,6 +111,9 @@ const KATA = {
     belumJalan: "not yet forwarded", berjalan: "in progress",
     selesai: "completed",
     jumlah: (n: number) => `${n} claims`,
+    unduhRekap: "Download (.xlsx)",
+    pProgress: (n: number) => `🔄 ${n} Progress`,
+    pFinish: (n: number) => `🏁 ${n} Finish`,
     daftar: "Submission documents",
     thNo: "No.", thTanggal: "Submitted on", thPerihal: "Subject / topic",
     thKategori: "Category", thPengaju: "Submitted by",
@@ -426,6 +432,21 @@ export default function PersetujuanPage() {
     return true;
   });
 
+  /**
+   * Dua angka pada kepala panel: yang masih berjalan dan yang sudah selesai.
+   *
+   * Dihitung dari SELURUH klaim project ini, bukan dari yang sedang tampil:
+   * angka yang ikut berubah mengikuti saringan akan berbunyi "0 Progress"
+   * begitu saringannya dipasang ke "sudah selesai", padahal yang berjalan
+   * tetap ada — hanya sedang tidak ditampilkan.
+   *
+   * Batas "selesai" memakai daftar SELESAI yang sama dengan saringannya.
+   * Dibuatkan daftar kedua yang khusus untuk angka ini, satu layar akan
+   * memuat dua arti "selesai" yang berbeda.
+   */
+  const selesai = klaim.filter((c) => SELESAI.includes(c.status)).length;
+  const jalan = klaim.length - selesai;
+
   return (
     <Kerangka sesi={sesi} lebar judul={
       <div>
@@ -455,7 +476,19 @@ export default function PersetujuanPage() {
       <div className="panel">
         <h2>
           {k.daftar}
-          <span className="pill">{k.jumlah(terlihat.length)}</span>
+          <span>
+            {/* Unduhan, bukan tombol: berkasnya dibangkitkan server dan
+                langsung disimpan peramban, tanpa layar perantara. Sejajar
+                dengan layar Dokumentasi Memo, yang sudah memakai bentuk ini. */}
+            {terlihat.length > 0 && (
+              <a className="tautan-klaim" href="/api/claims/rekap"
+                 style={{ marginRight: 8 }}>
+                {k.unduhRekap}
+              </a>
+            )}
+            <span className="pill">{k.pProgress(jalan)}</span>
+            <span className="pill">{k.pFinish(selesai)}</span>
+          </span>
         </h2>
 
         <div className="tscroll persetujuan">
