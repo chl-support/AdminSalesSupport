@@ -16,7 +16,7 @@ import { WorkflowError } from "../src/lib/workflow";
 import { applyRate, ratio, rupiahWords, terbilang } from "../src/lib/money";
 import { collect, preview } from "../src/lib/report";
 import { KATEGORI_JENIS, kategoriAwal } from "../src/lib/kategori";
-import { tambahMarketing } from "../src/lib/spesimen";
+import { hapusMarketing, tambahMarketing } from "../src/lib/spesimen";
 import { seed } from "./seed";
 import { signaturePng, strokes } from "./synthetic-signature";
 
@@ -557,6 +557,37 @@ async function main() {
     assert(!calc.dapatDiklaim(
       { ...tanpaKoordinator, status: "cancelled" }, "overriding", false),
       "unit batal seharusnya tetap menahan");
+  });
+
+  await check("marketing salah input dapat dihapus, yang terpakai tidak",
+              async () => {
+    const p = await one<{ id: string }>(
+      "SELECT id FROM projects ORDER BY created_at LIMIT 1");
+
+    // Yang baru dibuat dan belum dipakai di mana pun: hilang beserta
+    // rekening, spesimen, dan sesi pendaftarannya.
+    const salah = await tambahMarketing({
+      nama: "Conny Yulita Lie", kategori: "sales_manager_inhouse",
+      telepon: "0857-1111-2222",
+    }, "admin", p!.id);
+    const hasil = await hapusMarketing(salah.id, "admin", p!.id);
+    assert(hasil.deleted, "seharusnya terhapus");
+    const sisa = await one("SELECT id FROM marketings WHERE id=$1", [salah.id]);
+    assert(!sisa, "barisnya seharusnya sudah tidak ada");
+
+    // Yang sudah dipakai klaim ditolak. Inilah pagarnya: units menunjuk ke
+    // marketings dengan ON DELETE SET NULL, jadi tanpa pemeriksaan ini
+    // menghapus orang yang tercatat pada sebuah penjualan akan mengosongkan
+    // kolom Sales-nya diam-diam.
+    // Tanpa project: marketing contoh dibuat seed tanpa penanda project, dan
+    // yang diuji di sini pemeriksaan pemakaiannya, bukan lingkup projectnya.
+    let tertolak = "";
+    try {
+      await hapusMarketing(inhouseId, "admin");
+    } catch (e: any) { tertolak = String(e?.message ?? ""); }
+    assert(/tidak dapat dihapus/.test(tertolak), tertolak || "tidak menolak");
+    const masih = await one("SELECT id FROM marketings WHERE id=$1", [inhouseId]);
+    assert(Boolean(masih), "yang terpakai seharusnya tetap ada");
   });
 
   await check("rekap memakai tanggal transfer, bukan tanggal input", async () => {

@@ -877,6 +877,15 @@ ul.cetak-ceklis .kotak { border: 1px solid var(--ink); width: 14px; height: 14px
 .tautan-hidup .kode-tautan.pudar { color: var(--mut); }
 .tautan-hidup .tombol-berkas { font-size: 11.5px; padding: 5px 9px; }
 
+/* Tombol hapus pada baris Data Marketing: di bawah, berjarak, dan berbentuk
+   tautan — bukan tombol yang berjajar dengan tindakan pendaftaran di atasnya.
+   Yang menghilangkan baris tidak boleh setara bentuknya dengan yang
+   menggerakkannya. */
+.hapus-baris { margin-top: 8px; }
+.hapus-baris button.tautan { color: var(--mut); font-weight: 500;
+                             font-size: 11.5px; }
+.hapus-baris button.tautan:hover { color: var(--stop); }
+
 /* Bilah penyaring layar Data Marketing: tindakan di kiri, penyaring di kanan.
    Keduanya berjajar pada satu baris sampai layarnya sempit, lalu bertumpuk —
    pemilih yang terdorong keluar layar tidak dapat dipakai sama sekali. */
