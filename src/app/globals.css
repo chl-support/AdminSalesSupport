@@ -881,7 +881,8 @@ ul.cetak-ceklis .kotak { border: 1px solid var(--ink); width: 14px; height: 14px
    tautan — bukan tombol yang berjajar dengan tindakan pendaftaran di atasnya.
    Yang menghilangkan baris tidak boleh setara bentuknya dengan yang
    menggerakkannya. */
-.hapus-baris { margin-top: 8px; }
+.hapus-baris { margin-top: 10px; padding-top: 8px;
+               border-top: 1px solid var(--line); }
 .hapus-baris button.tautan { color: var(--mut); font-weight: 500;
                              font-size: 11.5px; }
 .hapus-baris button.tautan:hover { color: var(--stop); }
