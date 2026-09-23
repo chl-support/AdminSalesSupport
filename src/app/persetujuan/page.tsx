@@ -103,6 +103,27 @@ const KATA = {
                "Jejak audit mencatat bahwa persetujuan ini berdasar berkas " +
                "yang diunggah.",
     fsLihat: "Lihat dokumen full sign",
+    pjkTombol: "Verifikasi Pajak",
+    pjkJudul: "Verifikasi Pajak",
+    pjkPengantar:
+      "Periksa angkanya sebelum dokumen ini berjalan. Yang disetujui di sini " +
+      "terkunci dan tercetak pada formulir yang ditandatangani Sales/Agent.",
+    pjkSistem: "Angka dari sistem",
+    pjkBruto: "Jumlah komisi", pjkPpn: "PPN", pjkPph: "PPh",
+    pjkBersih: "Dibayarkan",
+    pjkKoreksiJudul: "Koreksi angka",
+    pjkKoreksiCatatan:
+      "Kosongkan yang tidak dikoreksi — yang kosong memakai angka sistem. " +
+      "Nilai bersih dihitung ulang sendiri.",
+    pjkAlasan: "Alasan (minimal 10 karakter, dibaca Sales/Agent sebelum tanda tangan)",
+    pjkAlasanKembali: "Alasan pengembalian (dibaca Admin Sales)",
+    pjkSetuju: "Setujui & kunci nilai",
+    pjkSetujuKoreksi: "Setujui dengan koreksi",
+    pjkKembalikan: "Kembalikan ke Admin Sales",
+    pjkMengirim: "Menyimpan…",
+    pjkSelesaiSetuju: "Nilai terkunci, dokumen berjalan ke Admin Sales.",
+    pjkSelesaiKoreksi: "Koreksi tersimpan dan nilai terkunci.",
+    pjkSelesaiKembali: "Dokumen dikembalikan ke Admin Sales.",
     byrTombol: "Catat pembayaran",
     byrJudul: "Pembayaran",
     byrTanggal: "Tanggal pembayaran",
@@ -170,6 +191,27 @@ const KATA = {
                "system issued. The audit trail records that this approval " +
                "rests on an uploaded file.",
     fsLihat: "Open the signed document",
+    pjkTombol: "Tax verification",
+    pjkJudul: "Tax verification",
+    pjkPengantar:
+      "Check the figures before this document travels. What is approved here " +
+      "is locked and printed on the form the Sales/Agent signs.",
+    pjkSistem: "System figures",
+    pjkBruto: "Commission", pjkPpn: "VAT", pjkPph: "Withholding tax",
+    pjkBersih: "Payable",
+    pjkKoreksiJudul: "Correct the figures",
+    pjkKoreksiCatatan:
+      "Leave blank what you are not correcting — blanks keep the system " +
+      "figure. The net amount is recalculated automatically.",
+    pjkAlasan: "Reason (at least 10 characters, read by the Sales/Agent before signing)",
+    pjkAlasanKembali: "Reason for returning it (read by the Sales Admin)",
+    pjkSetuju: "Approve & lock",
+    pjkSetujuKoreksi: "Approve with correction",
+    pjkKembalikan: "Return to the Sales Admin",
+    pjkMengirim: "Saving…",
+    pjkSelesaiSetuju: "Figures locked; the document moves on to the Sales Admin.",
+    pjkSelesaiKoreksi: "The correction is saved and the figures are locked.",
+    pjkSelesaiKembali: "The document has been returned to the Sales Admin.",
     byrTombol: "Record the payment",
     byrJudul: "Payment",
     byrTanggal: "Payment date",
@@ -412,6 +454,19 @@ export default function PersetujuanPage() {
   const [fsUntuk, setFsUntuk] = useState<string | null>(null);
   const [fsBerkas, setFsBerkas] = useState<File | null>(null);
   /** Klaim yang sedang dicatat pembayarannya. */
+  /**
+   * Klaim yang sedang diverifikasi tim pajak.
+   *
+   * Pemeriksaan pajak sebelumnya hanya ada di layar /konsol, yang butir
+   * menunya dibuang atas permintaan kantor — sehingga tim pajak tidak punya
+   * jalan ke pekerjaannya sendiri kecuali mengetik alamatnya. Kini ia berdiri
+   * di layar tempat tim pajak memang membaca daftar pengajuan.
+   */
+  const [pjkUntuk, setPjkUntuk] = useState<string | null>(null);
+  const [pjkBruto, setPjkBruto] = useState("");
+  const [pjkPpn, setPjkPpn] = useState("");
+  const [pjkPph, setPjkPph] = useState("");
+  const [pjkAlasan, setPjkAlasan] = useState("");
   const [byrUntuk, setByrUntuk] = useState<string | null>(null);
   const [byrTgl, setByrTgl] = useState("");
   const [byrBukti, setByrBukti] = useState<File | null>(null);
@@ -545,6 +600,49 @@ export default function PersetujuanPage() {
     } finally { setGerak(null); }
   };
 
+  /**
+   * Kirim keputusan verifikasi pajak.
+   *
+   * Aturannya ditegakkan taxVerify() di server — alasan wajib, minimal
+   * sepuluh karakter untuk koreksi, dan status harus memang sedang menunggu
+   * verifikasi. Tidak diulang di sini; aturan yang ditulis dua kali akan
+   * berbeda cepat atau lambat. Yang dikerjakan layar hanya mematikan tombol
+   * yang sudah pasti ditolak, supaya orang tidak menekan tombol yang berakhir
+   * galat.
+   */
+  const verifikasiPajak = async (c: any, keputusan: string) => {
+    setGerak(c.id); setGalat(null); setKabar(null);
+    try {
+      const angka: Record<string, number> = {};
+      const isi = (v: string) => Number(String(v).replace(/[^\d]/g, ""));
+      if (keputusan === "approve_with_correction") {
+        if (pjkBruto.trim()) angka.gross_amount = isi(pjkBruto);
+        if (pjkPpn.trim()) angka.vat = isi(pjkPpn);
+        if (pjkPph.trim()) angka.withholding_tax = isi(pjkPph);
+      }
+      const res = await fetch(`/api/claims/${c.id}/tax-verification`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          decision: keputusan,
+          corrected_amounts: keputusan === "approve_with_correction"
+            ? angka : undefined,
+          reason: pjkAlasan.trim() || undefined,
+        }),
+      });
+      if (res.status === 401) { location.href = "/login"; return; }
+      const b = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(b.detail ?? b.title ?? `HTTP ${res.status}`);
+      setKabar(keputusan === "approve" ? k.pjkSelesaiSetuju
+             : keputusan === "return" ? k.pjkSelesaiKembali
+             : k.pjkSelesaiKoreksi);
+      setPjkUntuk(null);
+      setPjkBruto(""); setPjkPpn(""); setPjkPph(""); setPjkAlasan("");
+      await muat();
+    } catch (e: any) {
+      setGalat(String(e?.message ?? e));
+    } finally { setGerak(null); }
+  };
+
   const catatPembayaran = async (c: any) => {
     setGerak(c.id); setGalat(null); setKabar(null);
     try {
@@ -620,6 +718,8 @@ export default function PersetujuanPage() {
                       "head_finance"].includes(sesi.role);
   const bolehBayar = ["admin_sales", "finance_payment", "finance_manager",
                       "head_finance", "admin_system"].includes(sesi.role);
+  // Persis daftar yang diterima /api/claims/[id]/tax-verification.
+  const bolehPajak = ["finance_tax", "finance_manager"].includes(sesi.role);
 
   const selesai = klaim.filter((c) => SELESAI.includes(c.status)).length;
   const jalan = klaim.length - selesai;
@@ -887,6 +987,22 @@ export default function PersetujuanPage() {
                     {k.pratinjau}
                   </button>
 
+                  {/* Verifikasi pajak: hanya pada baris yang memang sedang
+                      menunggunya, dan hanya bagi yang endpoint-nya menerima.
+                      Tombol yang selalu berakhir 403 bukan pembatasan — itu
+                      jebakan, dan yang menekannya mengira pekerjaannya sudah
+                      dilakukan. */}
+                  {bolehPajak && c.status === "pending_tax_verification" && (
+                    <button className="pri" disabled={gerak === c.id}
+                            onClick={() => {
+                              setPjkUntuk(c.id);
+                              setPjkBruto(""); setPjkPpn(""); setPjkPph("");
+                              setPjkAlasan("");
+                            }}>
+                      {k.pjkTombol}
+                    </button>
+                  )}
+
                   {/* Dokumen full sign: tombol unggahnya muncul selama klaim
                       masih beredar, dan berganti menjadi tautan begitu
                       berkasnya ada — pratinjau yang dibuka setelah itu
@@ -968,6 +1084,106 @@ export default function PersetujuanPage() {
                 </button>
                 <button disabled={gerak === c.id}
                         onClick={() => setFsUntuk(null)}>{k.batal}</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Verifikasi pajak. Angka sistem berdiri di atas supaya yang memeriksa
+          membaca yang diperiksanya lebih dulu, bukan mengetik koreksi atas
+          angka yang tidak terlihat. */}
+      {pjkUntuk && (() => {
+        const c = klaim.find((x) => x.id === pjkUntuk);
+        if (!c) return null;
+        const angka = (v: string) => Number(String(v).replace(/[^\d]/g, ""));
+        const adaKoreksi = Boolean(pjkBruto.trim() || pjkPpn.trim() || pjkPph.trim());
+        const bruto = pjkBruto.trim() ? angka(pjkBruto) : Number(c.gross_amount ?? 0);
+        const ppn = pjkPpn.trim() ? angka(pjkPpn) : Number(c.vat ?? 0);
+        const pph = pjkPph.trim() ? angka(pjkPph) : Number(c.withholding_tax ?? 0);
+        return (
+          <div className="tirai"
+               onMouseDown={(e) => {
+                 if (e.target === e.currentTarget && !gerak) setPjkUntuk(null);
+               }}>
+            <div className="popup" role="dialog" aria-modal="true"
+                 aria-label={k.pjkJudul} style={{ maxWidth: 480 }}>
+              <h2 style={{ margin: "0 0 4px" }}>{k.pjkJudul}</h2>
+              <p className="pengantar" style={{ margin: "0 0 4px" }}>
+                <b>{c.claim_number}</b> · {namaJenis(c.claim_type, bahasa)} ·{" "}
+                {c.marketing?.full_name ?? "—"}
+              </p>
+              <p className="hint" style={{ textAlign: "left", margin: "0 0 10px" }}>
+                {k.pjkPengantar}
+              </p>
+
+              <div className="lbl">{k.pjkSistem}</div>
+              <table className="angka-pajak"><tbody>
+                <tr><td>{k.pjkBruto}</td><td>{rp(c.gross_amount)}</td></tr>
+                <tr><td>{k.pjkPpn}</td><td>{rp(c.vat)}</td></tr>
+                <tr><td>{k.pjkPph}</td><td>{rp(c.withholding_tax)}</td></tr>
+                <tr><td><b>{k.pjkBersih}</b></td>
+                    <td><b>{rp(c.net_amount)}</b></td></tr>
+              </tbody></table>
+
+              <div className="lbl" style={{ marginTop: 12 }}>
+                {k.pjkKoreksiJudul}
+              </div>
+              <div className="filters rapat">
+                <div>
+                  <div className="lbl">{k.pjkBruto}</div>
+                  <input value={pjkBruto} inputMode="numeric"
+                         placeholder={String(c.gross_amount ?? 0)}
+                         onChange={(e) => setPjkBruto(e.target.value)} />
+                </div>
+                <div>
+                  <div className="lbl">{k.pjkPpn}</div>
+                  <input value={pjkPpn} inputMode="numeric"
+                         placeholder={String(c.vat ?? 0)}
+                         onChange={(e) => setPjkPpn(e.target.value)} />
+                </div>
+                <div>
+                  <div className="lbl">{k.pjkPph}</div>
+                  <input value={pjkPph} inputMode="numeric"
+                         placeholder={String(c.withholding_tax ?? 0)}
+                         onChange={(e) => setPjkPph(e.target.value)} />
+                </div>
+              </div>
+              <p className="hint" style={{ textAlign: "left", margin: "6px 0 0" }}>
+                {k.pjkKoreksiCatatan}
+              </p>
+              {adaKoreksi && (
+                <div className="kode-tautan" style={{ marginTop: 6 }}>
+                  {k.pjkBersih}: <b>{rp(bruto + ppn - pph)}</b>
+                </div>
+              )}
+
+              <div className="lbl" style={{ marginTop: 12 }}>
+                {adaKoreksi ? k.pjkAlasan : k.pjkAlasanKembali}
+              </div>
+              <textarea value={pjkAlasan} style={{ width: "100%", minHeight: 56 }}
+                        onChange={(e) => setPjkAlasan(e.target.value)} />
+
+              <div className="row" style={{ marginTop: 10, marginBottom: 0 }}>
+                {adaKoreksi ? (
+                  <button className="pri"
+                          disabled={gerak === c.id || pjkAlasan.trim().length < 10}
+                          onClick={() => void verifikasiPajak(
+                            c, "approve_with_correction")}>
+                    {gerak === c.id ? k.pjkMengirim : k.pjkSetujuKoreksi}
+                  </button>
+                ) : (
+                  <button className="pri" disabled={gerak === c.id}
+                          onClick={() => void verifikasiPajak(c, "approve")}>
+                    {gerak === c.id ? k.pjkMengirim : k.pjkSetuju}
+                  </button>
+                )}
+                <button disabled={gerak === c.id || !pjkAlasan.trim()}
+                        onClick={() => void verifikasiPajak(c, "return")}>
+                  {k.pjkKembalikan}
+                </button>
+                <button disabled={gerak === c.id}
+                        onClick={() => setPjkUntuk(null)}>{k.batal}</button>
               </div>
             </div>
           </div>
