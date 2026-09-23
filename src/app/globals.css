@@ -263,7 +263,11 @@ ul.syarat-daftar .untuk { color: var(--mut); }
 }
 .form-blok table td { border: none; border-bottom: 1px solid #EEF0F1;
                       padding: 3px 0; line-height: 1.35; }
-.form-blok table td:first-child { width: 52%; color: var(--sub); }
+/* Lebar kolom label: cukup untuk label terpanjang ("Nama (yang tercantum di
+   Rekening Bank)"), tidak lebih. Sebelumnya separuh halaman, sehingga titik dua
+   dan isiannya terdorong jauh ke kanan dan mata harus melompati ruang kosong
+   untuk memasangkan nama dengan nilainya. */
+.form-blok table td:first-child { width: 38%; color: var(--sub); }
 /* Isian rata kiri pada kolomnya sendiri, dengan titik dua di depannya —
    sebagaimana formulir aslinya: labelnya menempati separuh kiri halaman,
    isiannya mulai dari tengah. Sebelumnya isian dirapatkan ke tepi kanan, dan
