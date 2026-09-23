@@ -1,7 +1,8 @@
 import { handler, requireRole, body, claimView } from "@/lib/api";
 import { audit, query } from "@/lib/db";
 import { WorkflowError, getClaim, transition } from "@/lib/workflow";
-import { simpanLampiran } from "@/lib/lampiran";
+import { BATAS_TITIPAN, simpanLampiran } from "@/lib/lampiran";
+import { rakitUnggah } from "@/lib/memo";
 import { bolehGerak, tahapDari } from "@/lib/tahap";
 import { jalurKe } from "@/lib/tahap-alur";
 
@@ -35,7 +36,7 @@ export const POST = handler(async (req, { params }) => {
   const user = await requireRole(req, "admin_sales", "admin_system",
                                  "finance_manager", "head_finance");
   const p = await body(req);
-  if (!p.content_base64) {
+  if (!p.content_base64 && !p.unggah_id) {
     throw new WorkflowError("Dokumen full sign belum dipilih.",
                             "file_required", 422);
   }
@@ -61,15 +62,31 @@ export const POST = handler(async (req, { params }) => {
       "tanpa_jalur", 422);
   }
 
+  // Titipan dirakit sesudah klaimnya lolos pemeriksaan, bukan sebelum.
+  // rakitUnggah() membuang potongannya begitu selesai merakit, jadi merakit
+  // lebih dulu lalu menolak klaimnya berarti berkas yang sudah susah payah
+  // dikirim hilang tanpa tersimpan di mana pun — dan yang mengunggah harus
+  // mengirim sepuluh megabita itu sekali lagi.
+  //
+  // Dokumen pindaian belasan halaman datang lewat jalur ini; batasnya
+  // BATAS_TITIPAN, sebab potongannya tidak pernah melewati batas satu
+  // permintaan. Lihat titipBerkas() di layarnya.
+  const titipan = p.unggah_id
+    ? await rakitUnggah(String(p.unggah_id), user.username)
+    : null;
+
   // Berkasnya disimpan lebih dulu. Klaim yang sudah berpindah ke "disetujui"
   // tetapi gagal menyimpan berkasnya adalah persetujuan tanpa dasar tertulis;
   // berkas yang tersimpan tanpa perpindahan hanya lampiran yang menunggu.
   const dok = await simpanLampiran(id, {
     checklist_item: ITEM_FULL_SIGN,
-    file_name: p.file_name ?? "dokumen-full-sign.pdf",
-    content_base64: p.content_base64,
-    content_type: p.content_type,
-  }, { source: "full_sign", uploadedBy: user.username });
+    file_name: p.file_name ?? titipan?.file_name ?? "dokumen-full-sign.pdf",
+    content_type: titipan?.content_type ?? p.content_type,
+    content_base64: titipan ? undefined : p.content_base64,
+  }, {
+    source: "full_sign", uploadedBy: user.username,
+    ...(titipan ? { buf: titipan.buf, batas: BATAS_TITIPAN } : {}),
+  });
 
   await audit({
     entityType: "claim", entityId: id, action: "full_sign_unggah",
