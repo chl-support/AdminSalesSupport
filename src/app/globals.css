@@ -1312,21 +1312,38 @@ td.sel-keadaan { text-align: center; }
   font-size: 11.5px; font-weight: 700; line-height: 1.35;
   color: var(--ink); text-align: center; white-space: normal;
 }
-/* Warnanya menyusul keadaannya: hijau bila datanya sudah benar dan
-   pengajuannya disetujui, merah bila tertahan atau tidak jadi. */
-.kotak-keadaan.ok { border-color: var(--ok); background: var(--okbg); color: var(--ok); }
-.kotak-keadaan.warn { border-color: var(--warn); background: var(--warnbg); color: var(--warn); }
+/* Warnanya menyusul keadaan langkahnya. Yang sudah lewat hijau — datanya
+   sudah benar dan langkahnya disetujui; yang sedang berjalan berbingkai gelap
+   dan bertulisan tebal; yang belum sampai redup, supaya mata jatuh lebih dulu
+   pada langkah yang sedang berjalan; yang tertahan merah. */
+.kotak-keadaan.usai { border-color: var(--ok); background: var(--okbg); color: var(--ok); }
+.kotak-keadaan.kini { border-color: var(--ink); background: #FFF; color: var(--ink); }
+.kotak-keadaan.nanti { border-color: var(--line); background: #FBFBFA; color: var(--mut); font-weight: 600; }
 .kotak-keadaan.stop { border-color: var(--stop); background: var(--stopbg); color: var(--stop); }
 
-/* Kalimat tunggunya ikut berwarna sama dengan kotaknya. Abu-abu di bawah
-   kotak berwarna terbaca sebagai keterangan yang tidak berhubungan. */
+/* Empat langkah bertumpuk dalam satu sel, masing-masing kotak dan kalimatnya.
+   Jarak antarlangkah lebih besar daripada jarak kotak ke kalimatnya sendiri,
+   supaya keduanya terbaca sebagai satu kesatuan, bukan delapan baris lepas. */
+.langkah-keadaan { margin-bottom: 9px; }
+.langkah-keadaan:last-child { margin-bottom: 0; }
+
+/* Tombol tautan tanda tangan berdiri di bawah keempat langkah, dan mengikuti
+   lebar yang sama: tombol selebar tulisannya di bawah empat kotak yang rata
+   membuat kolomnya terbaca miring. */
+td.sel-keadaan .row { display: block; }
+td.sel-keadaan .row > button {
+  display: block; width: 100%; margin-top: 6px; white-space: normal;
+}
+
+/* Kalimat kerjanya ikut berwarna sama dengan kotak di atasnya. Abu-abu di
+   bawah kotak berwarna terbaca sebagai keterangan yang tidak berhubungan. */
 td.sel-keadaan .menunggu {
-  margin-top: 3px; color: var(--note); font-size: 11.5px; line-height: 1.4;
+  margin-top: 2px; color: var(--note); font-size: 11px; line-height: 1.35;
   text-align: center;
 }
-td.sel-keadaan.ok .menunggu { color: var(--ok); }
-td.sel-keadaan.warn .menunggu { color: var(--warn); }
-td.sel-keadaan.stop .menunggu { color: var(--stop); }
+td.sel-keadaan .menunggu.usai { color: var(--ok); }
+td.sel-keadaan .menunggu.nanti { color: var(--mut); }
+td.sel-keadaan .menunggu.stop { color: var(--stop); }
 
 /* Rincian dokumen yang menunggu, pada pemberitahuan saat masuk. */
 .daftar-menunggu { margin: 0; padding-left: 18px; font-size: 12.5px;
