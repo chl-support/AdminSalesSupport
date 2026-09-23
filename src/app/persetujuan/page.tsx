@@ -134,7 +134,8 @@ const KATA = {
     byrSelesai: "Pembayaran tercatat beserta bukti transfernya.",
     batal: "Batal",
     daftar: "Pengajuan & Dokumen",
-    thNo: "No.", thTanggal: "Tanggal Pengajuan", thPerihal: "Perihal/Topik",
+    thNo: "No.", thTanggal: "Tanggal Pengajuan", thUnit: "Unit",
+    thPerihal: "Perihal/Topik",
     thKategori: "Kategori", thPenerima: "Penerima",
     thPengaju: "Diajukan Oleh", thBruto: "Jumlah Komisi",
     thPpn: "PPN", thPph: "PPh", thBersih: "Komisi Yang Dibayarkan",
@@ -222,7 +223,8 @@ const KATA = {
     byrSelesai: "The payment is recorded together with its transfer proof.",
     batal: "Cancel",
     daftar: "Submissions & documents",
-    thNo: "No.", thTanggal: "Submitted on", thPerihal: "Subject / topic",
+    thNo: "No.", thTanggal: "Submitted on", thUnit: "Unit",
+    thPerihal: "Subject / topic",
     thKategori: "Category", thPengaju: "Submitted by",
     thPpn: "VAT", katInhouse: "In-house sales", katAgent: "Agent",
     thPenerima: "Recipient", thBruto: "Commission amount",
@@ -793,6 +795,7 @@ export default function PersetujuanPage() {
             <tr>
               <th className="sel-no">{k.thNo}</th>
               <th>{k.thTanggal}</th>
+              <th className="sel-unit">{k.thUnit}</th>
               <th>{k.thPerihal}</th>
               <th>{k.thKategori}</th>
               <th className="sel-penerima">{k.thPenerima}</th>
@@ -809,6 +812,11 @@ export default function PersetujuanPage() {
               <tr key={c.id}>
                 <td className="sel-no">{i + 1}</td>
                 <td>{tglPendek(c.created_at)}</td>
+                {/* Nomor unitnya — itulah yang dipakai orang untuk mengenali
+                    pengajuan ini. Sebelumnya hanya ada di lembar rekap dan di
+                    formulir pratinjau, sehingga dua pengajuan sejenis untuk
+                    penerima yang sama tidak dapat dibedakan dari tabel. */}
+                <td className="sel-unit">{c.unit?.code ?? "—"}</td>
                 <td>{namaJenis(c.claim_type, bahasa)}</td>
                 <td>{kategori(c, k, bahasa) ?? "—"}</td>
                 <td className="sel-penerima">{c.marketing?.full_name ?? "—"}</td>
@@ -1037,12 +1045,12 @@ export default function PersetujuanPage() {
 
             {!terlihat.length && !busy && (
               <tr>
-                <td colSpan={12} style={{ color: "var(--mut)" }}>{k.kosong}</td>
+                <td colSpan={13} style={{ color: "var(--mut)" }}>{k.kosong}</td>
               </tr>
             )}
             {busy && (
               <tr>
-                <td colSpan={12} style={{ color: "var(--mut)" }}>{k.memuat}</td>
+                <td colSpan={13} style={{ color: "var(--mut)" }}>{k.memuat}</td>
               </tr>
             )}
           </tbody></table>
