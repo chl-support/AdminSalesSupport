@@ -409,8 +409,52 @@ export default function PratinjauPage() {
                 }
               : undefined} />
 
-          {/* Lampirannya diperiksa dari sini, di luar formulirnya, lewat
-              tombol yang tidak ikut tercetak. */}
+          {/* Dokumen full sign, bukti transfer, dan tanggal uang keluar:
+              tiga hal yang dicari orang ketika menengok klaim yang sudah
+              selesai. Berdiri langsung di layar ini, bukan hanya di dalam
+              daftar lampiran — yang menekan "Tinjau Dokumen" menekan satu
+              tombol untuk melihat ketiganya, dan menyembunyikannya di balik
+              tombol kedua berarti ia harus tahu lebih dulu bahwa ketiganya
+              ada di sana.
+
+              Hanya muncul bila memang sudah ada isinya; pada klaim yang masih
+              berjalan, bloknya tidak menempati layar sama sekali. */}
+          {(dokPenting(c).length > 0 || c.tanggal_bayar) && (
+            <div className="ringkas-selesai jangan-cetak"
+                 style={{ margin: "10px 0 0" }}>
+              {dokPenting(c).map(([sebutan, d]: any) => (
+                <div className="baris" key={d.id}>
+                  <span className="lbl">{sebutan}</span>
+                  {d.has_content ? (
+                    <span className="meta">
+                      <a href={`/api/claims/${c.id}/documents/${d.id}?pratinjau=1`}
+                         target="_blank" rel="noreferrer">
+                        {k.lampiranLihat}
+                      </a>
+                      <a className="unduh"
+                         href={`/api/claims/${c.id}/documents/${d.id}`}>
+                        {k.lampiranUnduh}
+                      </a>
+                    </span>
+                  ) : (
+                    <span className="meta">{k.lampiranTakTersimpan}</span>
+                  )}
+                </div>
+              ))}
+              {c.tanggal_bayar && (
+                <div className="baris">
+                  <span className="lbl">{k.selesaiTanggal}</span>
+                  <span className="nilai">
+                    {tglPanjang(c.tanggal_bayar)}
+                    {c.rujukan_bayar ? ` · ${c.rujukan_bayar}` : ""}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Lampiran selengkapnya diperiksa dari sini, di luar formulirnya,
+              lewat tombol yang tidak ikut tercetak. */}
           <div className="row jangan-cetak" style={{ margin: "10px 0 0" }}>
             <button onClick={() => setLihatLampiran(c.id)}>
               {k.lampiranTombol(
