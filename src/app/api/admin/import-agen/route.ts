@@ -1,7 +1,6 @@
 import { handler, requireRole, projectAktif } from "@/lib/api";
 import { WorkflowError } from "@/lib/workflow";
 import { imporAgen } from "@/lib/agen";
-import { ensureKolomMarketing } from "@/lib/kolom";
 
 /**
  * Unggah Laporan Agent lewat konsol.
@@ -24,12 +23,6 @@ export const POST = handler(async (req) => {
   }
 
   const dryRun = new URL(req.url).searchParams.get("dry_run") === "true";
-
-  // Kolom marketings.category yang diisi impor ini hanya ditambahkan lewat
-  // db/schema.sql. Dipasang di sini, sebelum transaksi impornya dibuka: ALTER
-  // TABLE di tengah transaksi yang sudah memegang kunci atas tabel marketings
-  // akan saling menunggu. Lihat src/lib/kolom.ts.
-  await ensureKolomMarketing();
 
   try {
     return await imporAgen(teks, {

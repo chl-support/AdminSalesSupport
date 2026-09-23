@@ -2,7 +2,6 @@ import { handler, currentUser, body, idemKey, claimView,
          projectAktif } from "@/lib/api";
 import { idempotent, query } from "@/lib/db";
 import { createClaim } from "@/lib/workflow";
-import { ensureKolomMarketing } from "@/lib/kolom";
 
 export const GET = handler(async (req) => {
   const url = new URL(req.url);
@@ -21,12 +20,6 @@ export const GET = handler(async (req) => {
 export const POST = handler(async (req) => {
   const user = await currentUser(req);
   const p = await body(req);
-
-  // 'bgb' dan 'sales_coordinator' hanya ditambahkan ke enum recipient_role
-  // lewat db/schema.sql. Dipasang sebelum createClaim(), bukan sesudahnya:
-  // klaim untuk kedua kategori itu gagal pada INSERT-nya, jauh sebelum
-  // claimView() sempat memperbaiki apa pun. Lihat src/lib/kolom.ts.
-  await ensureKolomMarketing();
 
   return idempotent(idemKey(req), "POST /api/claims", async () =>
     claimView(await createClaim({

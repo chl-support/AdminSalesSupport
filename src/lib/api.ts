@@ -26,6 +26,14 @@ export type User = {
 };
 
 export async function currentUser(req: NextRequest): Promise<User> {
+  // Tambahan skema yang tertinggal dari migrasi dipasang di sini, satu titik
+  // untuk seluruh route: tiap route yang butuh sesi melewati fungsi ini, dan
+  // melewatinya sebelum membuka transaksi apa pun — ALTER TABLE di tengah
+  // transaksi yang sudah memegang kunci atas tabel yang sama akan saling
+  // menunggu. Sekali per proses; pemanggilan berikutnya hanya menunggu janji
+  // yang sudah selesai. Lihat src/lib/kolom.ts.
+  await ensureKolomMarketing();
+
   const token = req.cookies.get(COOKIE)?.value ?? "";
   const user = await userFromToken(token);
   if (!user) {
@@ -148,7 +156,6 @@ export function clientIp(req: NextRequest): string | null {
  * gabungannya sendiri, dan cepat atau lambat salah satunya lupa satu bidang.
  */
 export async function claimView(claim: any) {
-  await ensureKolomMarketing();
   const unit = await one("SELECT * FROM units WHERE id=$1", [claim.unit_id]);
   const mkt = await one(
     `SELECT m.id, m.full_name, m.marketing_type, m.category, m.phone, m.email,
