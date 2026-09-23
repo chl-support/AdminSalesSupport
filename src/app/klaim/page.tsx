@@ -22,6 +22,8 @@ import { useBahasa, useKata } from "../bahasa";
 import { Kerangka, MemeriksaSesi } from "../kerangka";
 import { useSesi } from "../session";
 import { JENIS, namaJenis, type Jenis } from "./jenis";
+import { KATEGORI_JENIS, kategoriAwal, namaKategori } from "@/lib/kategori";
+import { bacaBukuRekening } from "@/lib/rekening-baca";
 
 /**
  * Ambang penerimaan yang membuka pengajuan, disalin dari server.
@@ -123,7 +125,24 @@ const KATA = {
       "dibaca yang menandatangani — bukan catatan internal. Boleh dikosongkan.",
     dialogContoh: "mis. Full Payment. Pembayaran sudah mencapai 20%.",
     dialogSamakan: "Samakan untuk semua",
+    katJudul: "Kategori penerima", katNama: "Nama terdaftar",
+    katKosong: "Belum ada nama terdaftar pada kategori ini.",
+    katPetunjuk:
+      "Kategorinya ditetapkan di layar Data Marketing. Nama yang belum " +
+      "selesai mendaftarkan tanda tangannya tidak muncul di sini.",
     tfJudul: "Tujuan transfer",
+    bukuJudul: "Buku rekening",
+    bukuTombol: "Unggah buku rekening",
+    bukuGanti: "Ganti berkas",
+    bukuPetunjuk:
+      "Foto atau pindaian halaman depan buku rekening. Nama penerima, bank, " +
+      "dan no. rekening diisikan dari sana — periksa sebelum diajukan.",
+    bukuMembaca: "Membaca buku rekening…",
+    bukuPersen: (p: number) => `Membaca buku rekening… ${p}%`,
+    bukuTerbaca: (kolom: string) => `Terbaca dari berkas: ${kolom}.`,
+    bukuKosong:
+      "Tidak ada yang terbaca dari berkas itu. Isi ketiga kolomnya sendiri.",
+    bukuGagal: "Berkas tidak dapat dibaca",
     tfNama: "Nama penerima", tfJenis: "Atas nama",
     tfBadan: "Badan Usaha (PT)", tfPribadi: "Pribadi (Perorangan)",
     tfBank: "Bank", tfRekening: "No. rekening", tfCabang: "Kantor cabang",
@@ -184,7 +203,23 @@ const KATA = {
       "blank.",
     dialogContoh: "e.g. Full payment. Payments have reached 20%.",
     dialogSamakan: "Use for all",
+    katJudul: "Recipient category", katNama: "Registered name",
+    katKosong: "No registered name in this category yet.",
+    katPetunjuk:
+      "Categories are set on the Marketing Data screen. Names that have not " +
+      "finished signature enrolment do not appear here.",
     tfJudul: "Transfer destination",
+    bukuJudul: "Bank passbook",
+    bukuTombol: "Upload passbook",
+    bukuGanti: "Replace file",
+    bukuPetunjuk:
+      "A photo or scan of the passbook's front page. Recipient name, bank, " +
+      "and account number are filled from it — check before submitting.",
+    bukuMembaca: "Reading the passbook…",
+    bukuPersen: (p: number) => `Reading the passbook… ${p}%`,
+    bukuTerbaca: (kolom: string) => `Read from the file: ${kolom}.`,
+    bukuKosong: "Nothing could be read from that file. Fill the three fields in yourself.",
+    bukuGagal: "The file could not be read",
     tfNama: "Recipient name", tfJenis: "Held by",
     tfBadan: "Company (PT)", tfPribadi: "Individual",
     tfBank: "Bank", tfRekening: "Account number", tfCabang: "Branch",
@@ -217,6 +252,7 @@ type Fee = {
   missing_codes: string[];
   recipient: { id: string | null; name: string | null;
                status: string | null; source: string; type: string | null;
+               category: string | null;
                bank?: { holder_name: string | null; holder_type: string | null;
                         bank_name: string | null; account_number: string | null;
                         branch: string | null } | null };
@@ -234,6 +270,24 @@ type Unit = {
   agency_name: string | null;
   fees: Record<Jenis, Fee>;
 };
+
+/** Nama yang terdaftar, untuk pemilih di bawah kategori. */
+type Orang = {
+  id: string; full_name: string; category: string | null;
+  holder_name: string | null; bank_name: string | null;
+  account_number: string | null; branch: string | null;
+  holder_type: string | null;
+};
+
+/** Isi berkas sebagai data URL, bentuk yang diterima endpoint lampiran. */
+function keBase64(berkas: File): Promise<string> {
+  return new Promise((selesai, gagal) => {
+    const baca = new FileReader();
+    baca.onload = () => selesai(String(baca.result ?? ""));
+    baca.onerror = () => gagal(baca.error ?? new Error("gagal membaca berkas"));
+    baca.readAsDataURL(berkas);
+  });
+}
 
 type Saring = "semua" | "bisa" | "sudah" | "belum_syarat";
 
@@ -274,10 +328,81 @@ export default function PengajuanFeePage() {
    * Overriding ke rekening Sales-nya.
    */
   const [transfer, setTransfer] = useState<Record<string, any>>({});
+  /**
+   * Kategori penerima dan nama yang dipilih, per jenis fee.
+   *
+   * Dulu tidak ada yang dipilih: penerima sebuah fee selalu marketing yang
+   * tertulis pada data penjualan, dan dialog ini hanya memberitahukannya.
+   * Markom, Sales Manager, Sales Koordinator, dan BGB tidak pernah tertulis di
+   * sana — fee yang jatuh kepada mereka karena itu tidak punya jalan diajukan.
+   */
+  const [kategori, setKategori] = useState<Record<string, string>>({});
+  const [penerima, setPenerima] = useState<Record<string, string>>({});
+  /** Nama yang terdaftar di project ini, sumber pemilih nama di atas. */
+  const [orang, setOrang] = useState<Orang[]>([]);
+  /**
+   * Buku rekening yang diunggah per jenis fee, beserta keadaan pembacaannya.
+   *
+   * Berkasnya disimpan, bukan dibuang setelah dibaca: Komisi memang menuntut
+   * salinan rekening pada checklist dokumennya, dan yang barusan diunggah
+   * adalah berkas itu juga. Ia dilampirkan ke klaimnya begitu klaimnya jadi.
+   */
+  const [buku, setBuku] = useState<Record<string, {
+    nama: string; base64: string; tipe: string;
+  }>>({});
+  const [bukuKabar, setBukuKabar] = useState<Record<string, string>>({});
 
-  /** Isian awal tujuan transfer: rekening penerima yang sudah tercatat. */
-  const bawaanTransfer = (u: Unit, daftar: Jenis[]) =>
+  /**
+   * Nama yang terisi sendiri pada sebuah kategori.
+   *
+   * Yang tercatat pada data penjualan didahulukan bila ia memang berada di
+   * kategori itu; kalau tidak, satu-satunya nama di sana. Lebih dari satu nama
+   * yang sama-sama mungkin dibiarkan kosong: menebak salah satunya berarti
+   * menawarkan untuk mentransfer kepada orang yang belum tentu benar, dan
+   * pilihan yang sudah terisi hampir tidak pernah dibaca ulang.
+   */
+  const namaAwal = (calon: Orang[], idTercatat: string | null) => {
+    if (idTercatat && calon.some((o) => o.id === idTercatat)) return idTercatat;
+    return calon.length === 1 ? calon[0].id : "";
+  };
+
+  /** Nama terdaftar pada satu kategori, urut nama. */
+  const orangKategori = useCallback(
+    (kat: string) => orang.filter((o) => (o.category ?? "sales_inhouse") === kat),
+    [orang]);
+
+  /**
+   * Isian tujuan transfer dari rekening seseorang yang sudah tercatat.
+   *
+   * Rekening terakhirnya, bukan kosong: orang yang sama hampir selalu dibayar
+   * ke rekening yang sama, dan mengetiknya ulang tiap pengajuan adalah tempat
+   * salah ketik nomor rekening lahir.
+   */
+  const transferDari = (o: Orang | null | undefined, namaCadangan?: string | null) => ({
+    holder_name: o?.holder_name ?? o?.full_name ?? namaCadangan ?? "",
+    bank_name: o?.bank_name ?? "",
+    account_number: o?.account_number ?? "",
+    branch: o?.branch ?? "",
+    holder_type: o?.holder_type === "company" ? "company" : "individual",
+  });
+
+  /**
+   * Isian awal tujuan transfer: rekening orang yang terpilih.
+   *
+   * Mengikuti nama yang terpilih di atasnya, bukan marketing yang tercatat
+   * pada data penjualan. Keduanya sama untuk sebagian besar fee, tetapi tidak
+   * untuk Overriding — di sana rekening yang tercatat pada unit adalah
+   * rekening yang menjual, dan mengisikannya berarti menawarkan untuk
+   * mentransfer ke orang yang salah.
+   *
+   * Yang belum memilih nama mendapat kolom kosong, bukan rekening siapa pun.
+   */
+  const bawaanTransfer = (u: Unit, daftar: Jenis[],
+                          dipilih: Record<string, string> = {}) =>
     Object.fromEntries(daftar.map((slug) => {
+      const o = orang.find((x) => x.id === dipilih[slug]);
+      if (o) return [slug, transferDari(o)];
+      if (dipilih[slug] === "") return [slug, transferDari(null)];
       const b = u.fees[slug]?.recipient?.bank;
       return [slug, {
         holder_name: b?.holder_name ?? u.fees[slug]?.recipient?.name ?? "",
@@ -287,6 +412,28 @@ export default function PengajuanFeePage() {
         holder_type: b?.holder_type === "company" ? "company" : "individual",
       }];
     }));
+
+  /**
+   * Kategori dan nama yang terpilih lebih dulu saat dialognya dibuka.
+   *
+   * Yang tercatat pada data penjualan didahulukan selama jenis fee itu memang
+   * boleh jatuh kepadanya. Overriding tidak pernah jatuh kepada yang menjual,
+   * jadi di sana yang terpilih adalah kategori sah yang pertama — dan namanya
+   * dikosongkan sampai orangnya dipilih, bukan diisi orang yang kebetulan
+   * berada di urutan teratas.
+   */
+  const bawaanPenerima = (u: Unit, daftar: Jenis[]) => {
+    const kat: Record<string, string> = {};
+    const pen: Record<string, string> = {};
+    for (const slug of daftar) {
+      const r = u.fees[slug]?.recipient;
+      const awal = kategoriAwal(slug, r?.category ?? null);
+      if (!awal) continue;
+      kat[slug] = awal;
+      pen[slug] = namaAwal(orangKategori(awal), r?.id ?? null);
+    }
+    return { kat, pen };
+  };
 
   const toggle = (unitId: string, jenis: Jenis) =>
     setPilih((lama) => {
@@ -318,9 +465,84 @@ export default function PengajuanFeePage() {
     }
   }, []);
 
+  /**
+   * Nama yang terdaftar, dibaca sekali untuk seluruh layar.
+   *
+   * Bukan tiap kali dialognya dibuka: daftarnya sama untuk setiap unit, dan
+   * memuatnya ulang pada setiap klik membuat pemilih namanya kosong sekejap
+   * tepat saat orang hendak memilih.
+   *
+   * Gagalnya tidak menghentikan layar. Yang hilang hanya pemilih namanya;
+   * daftar penjualan di belakangnya tetap terbaca, dan galatnya muncul saat
+   * dialognya dibuka — di sanalah ia berarti.
+   */
+  const muatOrang = useCallback(async () => {
+    try {
+      const res = await fetch("/api/marketings/kategori");
+      if (!res.ok) return;
+      const b = await res.json().catch(() => ({}));
+      setOrang(b.marketings ?? []);
+    } catch { /* biar — pemilihnya kosong, dan itu terlihat */ }
+  }, []);
+
+  /**
+   * Baca buku rekening yang diunggah, lalu isikan tiga kolom tujuan transfer.
+   *
+   * OCR-nya dijalankan di peramban, memakai mesin yang sama dengan pembacaan
+   * memo — berkasnya sudah ada di komputer yang mengunggah, dan komputer itu
+   * sedang menganggur menunggu hasilnya.
+   *
+   * Yang terbaca menimpa isian yang ada; yang tidak terbaca membiarkannya.
+   * Buku rekening yang diunggah adalah pernyataan "ke sinilah transfernya",
+   * jadi nama dan nomor di dalamnya memang lebih berhak daripada rekening lama
+   * yang terisi otomatis — tetapi kolom yang gagal dibaca tidak boleh
+   * dikosongkan olehnya.
+   */
+  const bacaBuku = async (slug: string, berkas: File) => {
+    setBukuKabar({ ...bukuKabar, [slug]: k.bukuMembaca });
+    try {
+      const isi = await keBase64(berkas);
+      setBuku((lama) => ({ ...lama,
+        [slug]: { nama: berkas.name, base64: isi, tipe: berkas.type } }));
+
+      // Dimuat saat dipakai, bukan saat layar dibuka: mesin OCR dan data
+      // bahasanya berukuran belasan megabita, dan sebagian besar pengajuan
+      // tidak mengunggah buku rekening sama sekali.
+      const { bacaPindaian } = await import("../memo/ocr");
+      const { teks } = await bacaPindaian(berkas, (kb) => {
+        if (kb.tahap === "membaca" && typeof kb.persen === "number") {
+          setBukuKabar((lama) => ({ ...lama, [slug]: k.bukuPersen(kb.persen!) }));
+        }
+      });
+
+      const r = bacaBukuRekening(teks);
+      const terbaca: string[] = [];
+      if (r.holder_name) terbaca.push(k.tfNama);
+      if (r.bank_name) terbaca.push(k.tfBank);
+      if (r.account_number) terbaca.push(k.tfRekening);
+
+      setTransfer((lama) => {
+        const t = lama[slug] ?? {};
+        return { ...lama, [slug]: {
+          ...t,
+          holder_name: r.holder_name ?? t.holder_name ?? "",
+          bank_name: r.bank_name ?? t.bank_name ?? "",
+          account_number: r.account_number ?? t.account_number ?? "",
+        } };
+      });
+      setBukuKabar((lama) => ({ ...lama,
+        [slug]: terbaca.length ? k.bukuTerbaca(terbaca.join(", "))
+                               : k.bukuKosong }));
+    } catch (e: any) {
+      setBukuKabar((lama) => ({ ...lama,
+        [slug]: `${k.bukuGagal}: ${String(e?.message ?? e)}` }));
+    }
+  };
+
   // Menunggu sesi lebih dulu: memanggil /api/units sebelum identitasnya pasti
   // hanya menghasilkan 401 dan pengalihan yang tidak perlu.
-  useEffect(() => { if (sesi) void muat(); }, [sesi, muat]);
+  useEffect(() => { if (sesi) { void muat(); void muatOrang(); } },
+            [sesi, muat, muatOrang]);
 
   /**
    * Ajukan seluruh fee yang dicentang pada satu unit.
@@ -347,20 +569,34 @@ export default function PengajuanFeePage() {
     try {
       for (const slug of jenisTerpilih) {
         const f = u.fees[slug];
+        // Penerimanya yang dipilih pada dialog, bukan lagi yang tercatat pada
+        // data penjualan. Yang tercatat itu tetap menjadi pilihan awalnya —
+        // ia benar pada sebagian besar pengajuan — tetapi Markom, Sales
+        // Manager, Sales Koordinator, dan BGB tidak pernah tertulis di sana.
+        const kat = kategori[slug] ?? "";
+        const idPenerima = penerima[slug] || f?.recipient?.id;
+        if (!idPenerima) {
+          gagal.push(`${namaJenis(slug, bahasa)}: ${k.katKosong}`);
+          continue;
+        }
         const res = await fetch("/api/claims", {
           method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             unit_id: u.id,
-            marketing_id: f?.recipient?.id,
+            marketing_id: idPenerima,
             claim_type: slug,
-            // Peran bawaannya mengikuti jenis penerima fee ini — bukan jenis
-            // marketing unitnya, karena Overriding dibayarkan kepada orang
-            // lain yang jenisnya dapat berbeda. Aturan yang sama dipakai
-            // sebagai isian awal pada formulir pengajuan satuan.
-            recipient_role: slug === "overriding"
-              ? "sales_manager_inhouse"
-              : f?.recipient?.type === "agent" ? "agent" : "sales_inhouse",
-            overriding_level: slug === "overriding"
+            // Peran penerima = kategori yang dipilih. Keduanya memang satu hal
+            // yang sama, dan kodenya pun sama persis dengan enum
+            // recipient_role — lihat @/lib/kategori.
+            recipient_role: kat ||
+              (slug === "overriding" ? "sales_manager_inhouse"
+                : f?.recipient?.type === "agent" ? "agent" : "sales_inhouse"),
+            // Tingkat overriding hanya disebut bila kategorinya memang tingkat
+            // itu. Menyebut 'sales_manager_inhouse' untuk Overriding yang
+            // jatuh kepada Markom akan mencari tarif dengan dua syarat yang
+            // saling bertentangan, dan tidak menemukan satu pun.
+            overriding_level: slug === "overriding" &&
+                              kat === "sales_manager_inhouse"
               ? "sales_manager_inhouse" : null,
             notes: (catatan[slug] ?? "").trim() || null,
             transfer: tujuan[slug] ?? null,
@@ -373,6 +609,27 @@ export default function PengajuanFeePage() {
           continue;
         }
         dibuat.push(b.id);
+
+        // Buku rekening yang tadi dibaca ikut menempel pada klaimnya. Ia
+        // memang dokumen yang diminta checklist Komisi, dan yang barusan
+        // diunggah adalah berkas itu juga — memintanya sekali lagi di layar
+        // berikutnya berarti meminta berkas yang sama dua kali.
+        //
+        // Gagalnya tidak membatalkan klaim yang sudah jadi: lampirannya masih
+        // dapat diunggah dari layar pratinjau, klaimnya tidak dapat dibuat
+        // ulang.
+        const bk = buku[slug];
+        if (bk) {
+          try {
+            await fetch(`/api/claims/${b.id}/documents`, {
+              method: "POST", headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                checklist_item: "bank_account",
+                file_name: bk.nama, content_base64: bk.base64,
+              }),
+            });
+          } catch { /* biar — lihat alasannya di atas */ }
+        }
       }
 
       if (gagal.length) setGalat(`${k.gagalAjukan} — ${gagal.join(" · ")}`);
@@ -385,6 +642,10 @@ export default function PengajuanFeePage() {
       setSiapkan(null);
       setPenjelasan({});
       setTransfer({});
+      setKategori({});
+      setPenerima({});
+      setBuku({});
+      setBukuKabar({});
 
       // Berpindah hanya bila memang ada yang jadi. Kalau seluruhnya gagal,
       // yang perlu dibaca adalah pesan galatnya di layar ini — bukan daftar
@@ -597,8 +858,13 @@ export default function PengajuanFeePage() {
                                             mengajukan !== null}
                                   onClick={() => {
                                     const daftar = terpilihPada(u.id);
+                                    const { kat, pen } = bawaanPenerima(u, daftar);
                                     setPenjelasan({});
-                                    setTransfer(bawaanTransfer(u, daftar));
+                                    setTransfer(bawaanTransfer(u, daftar, pen));
+                                    setKategori(kat);
+                                    setPenerima(pen);
+                                    setBuku({});
+                                    setBukuKabar({});
                                     setSiapkan({ unit: u, jenis: daftar });
                                   }}>
                             {mengajukan === u.id ? k.mengajukan
@@ -710,16 +976,64 @@ export default function PengajuanFeePage() {
                 const ubah = (kolom: string, nilai: string) =>
                   setTransfer({ ...transfer,
                                 [slug]: { ...tf, [kolom]: nilai } });
+                const kat = kategori[slug] ?? "";
+                const calon = orangKategori(kat);
                 return (
                   <div key={slug} className="blok-fee">
-                    <h4>
-                      {namaJenis(slug, bahasa)}
-                      {pen?.name && (
-                        <span className="pill">
-                          {k.untukSiapa(pen.name, pen.source)}
-                        </span>
-                      )}
-                    </h4>
+                    <h4>{namaJenis(slug, bahasa)}</h4>
+
+                    {/* Kategori lebih dulu, nama di bawahnya. Urutannya bukan
+                        selera: kategorinya yang menentukan nama siapa saja
+                        yang boleh muncul, dan daftar nama yang berdiri di atas
+                        pemilih kategorinya akan berubah isi setelah dibaca. */}
+                    <div className="filters rapat">
+                      <div>
+                        <div className="lbl">{k.katJudul}</div>
+                        <select value={kat}
+                                onChange={(e) => {
+                                  const baru = e.target.value;
+                                  const isi = orangKategori(baru);
+                                  // Nama ikut berpindah bersama kategorinya.
+                                  // Dibiarkan, yang tertinggal adalah nama dari
+                                  // kategori sebelumnya — dan tujuan transfer
+                                  // di bawahnya tetap menunjuk rekeningnya.
+                                  const dipilih = namaAwal(isi, pen?.id ?? null);
+                                  setKategori({ ...kategori, [slug]: baru });
+                                  setPenerima({ ...penerima, [slug]: dipilih });
+                                  setTransfer({ ...transfer,
+                                    [slug]: transferDari(
+                                      isi.find((o) => o.id === dipilih)) });
+                                }}>
+                          {(KATEGORI_JENIS[slug] ?? []).map((kd) => (
+                            <option key={kd} value={kd}>
+                              {namaKategori(kd, bahasa)}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <div className="lbl">{k.katNama}</div>
+                        {calon.length ? (
+                          <select value={penerima[slug] ?? ""}
+                                  onChange={(e) => {
+                                    const id = e.target.value;
+                                    setPenerima({ ...penerima, [slug]: id });
+                                    setTransfer({ ...transfer,
+                                      [slug]: transferDari(
+                                        calon.find((o) => o.id === id)) });
+                                  }}>
+                            <option value="">—</option>
+                            {calon.map((o) => (
+                              <option key={o.id} value={o.id}>{o.full_name}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          <p className="hint" style={{ textAlign: "left", margin: 0 }}>
+                            {k.katKosong}
+                          </p>
+                        )}
+                      </div>
+                    </div>
 
                     <div className="lbl">{k.dialogNama}</div>
                     <textarea value={penjelasan[slug] ?? ""}
@@ -745,6 +1059,38 @@ export default function PengajuanFeePage() {
                     <div className="lbl" style={{ marginTop: 12 }}>
                       {k.tfJudul}
                     </div>
+
+                    {/* Buku rekening diunggah di dalam blok Tujuan Transfer,
+                        tepat di atas tiga kolom yang diisinya. Ditaruh di
+                        tempat lain, hubungan antara berkas dan kolomnya harus
+                        dijelaskan dengan kalimat. */}
+                    <div className="row" style={{ margin: "4px 0 8px" }}>
+                      <label className="tombol-berkas">
+                        {buku[slug] ? k.bukuGanti : k.bukuTombol}
+                        <input type="file" hidden
+                               accept="image/*,application/pdf"
+                               onChange={(e) => {
+                                 const f = e.target.files?.[0];
+                                 // Nilainya dikosongkan supaya berkas yang sama
+                                 // dapat dipilih dua kali berturut-turut —
+                                 // yang pertama gagal terbaca, yang kedua
+                                 // setelah difoto ulang dengan nama yang sama.
+                                 e.target.value = "";
+                                 if (f) void bacaBuku(slug, f);
+                               }} />
+                      </label>
+                      {buku[slug] && (
+                        <span className="hint" style={{ margin: 0 }}>
+                          {buku[slug].nama}
+                        </span>
+                      )}
+                    </div>
+                    {bukuKabar[slug] && (
+                      <p className="hint" style={{ textAlign: "left", margin: "0 0 8px" }}>
+                        {bukuKabar[slug]}
+                      </p>
+                    )}
+
                     <div className="filters rapat">
                       <div>
                         <div className="lbl">{k.tfNama}</div>

@@ -191,9 +191,16 @@ export async function imporLaporan(
     let id = ada?.id;
     if (!id) {
       id = (await query<{ id: string }>(
-        `INSERT INTO marketings (full_name, marketing_type, agency_id,
+        // Kategori penerima fee mengikuti jenis marketingnya. Hanya dua dari
+        // enam kategori yang dapat disimpulkan dari berkas penjualan — Markom,
+        // Sales Manager, Sales Koordinator, dan BGB ditetapkan Admin Sales di
+        // layar Data Marketing. Dibiarkan memakai bawaan kolomnya, seorang
+        // agent akan tercatat sebagai Sales Inhouse.
+        `INSERT INTO marketings (full_name, marketing_type, category, agency_id,
            npwp_type, recipient_type, phone, status, project_id)
-         VALUES ($1,$2,$3,'none',$4,'','draft',$5) RETURNING id`,
+         VALUES ($1,$2,
+                 CASE WHEN $2='agent' THEN 'agent' ELSE 'sales_inhouse' END,
+                 $3,'none',$4,'','draft',$5) RETURNING id`,
         [nama, agensi ? "agent" : "inhouse",
          agensi ? await agensiId(agensi) : null,
          agensi ? "company" : "individual", projectId], client))[0].id;

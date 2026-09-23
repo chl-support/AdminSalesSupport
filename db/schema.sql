@@ -28,8 +28,15 @@ ALTER TYPE claim_type ADD VALUE IF NOT EXISTS 'continuity_reward';
 
 DO $$ BEGIN
   CREATE TYPE recipient_role AS ENUM
-    ('agent','sales_inhouse','sales_manager_inhouse','sales_markom','markom');
+    ('agent','sales_inhouse','sales_manager_inhouse','sales_markom','markom',
+     'bgb','sales_coordinator');
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+-- BGB (konsumen yang membawa pembeli lain) dan Sales Koordinator menyusul
+-- belakangan, jadi pemasangan yang sudah berjalan perlu penambahan nilainya
+-- sendiri — sama seperti continuity_reward di atas.
+ALTER TYPE recipient_role ADD VALUE IF NOT EXISTS 'bgb';
+ALTER TYPE recipient_role ADD VALUE IF NOT EXISTS 'sales_coordinator';
 
 DO $$ BEGIN
   CREATE TYPE overriding_level AS ENUM
@@ -117,6 +124,38 @@ CREATE TABLE IF NOT EXISTS signature_specimens (
   archived     BOOLEAN NOT NULL DEFAULT FALSE,
   created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Kategori penerima fee, dipakai pemilihnya pada dialog pengajuan.
+--
+-- marketing_type hanya membedakan agent dari inhouse — itu yang menentukan
+-- tarif pajaknya, dan tetap begitu. Yang dipilih saat mengajukan fee lebih
+-- halus daripada itu: Markom, Sales Manager, Sales Koordinator, dan BGB adalah
+-- kategori tersendiri yang tidak tergambar oleh dua nilai. Keduanya karena itu
+-- berdampingan, bukan yang satu menggantikan yang lain.
+--
+-- Kolomnya TEXT, bukan enum recipient_role, meski nilainya sama persis dengan
+-- enum itu. Nilai enum yang baru ditambahkan tidak boleh dipakai di transaksi
+-- yang sama dengan ALTER TYPE-nya; memasang kolom bertipe enum di sini membuat
+-- migrasi yang memasang 'bgb' dan menuliskannya sekali jalan berhenti di
+-- tengah. Yang menjaga isinya tetap sah adalah CHECK di bawah.
+ALTER TABLE marketings ADD COLUMN IF NOT EXISTS category TEXT;
+
+-- Diisi dari marketing_type untuk baris yang sudah ada: seorang agent memang
+-- berkategori Agent, dan inhouse berkategori Sales Inhouse. Yang di luar
+-- keduanya — Markom, Sales Manager, Sales Koordinator, BGB — ditetapkan Admin
+-- Sales dari layar Data Marketing; tidak ada yang dapat menebaknya dari data
+-- yang sudah ada.
+UPDATE marketings SET category =
+  CASE WHEN marketing_type = 'agent' THEN 'agent' ELSE 'sales_inhouse' END
+ WHERE category IS NULL;
+
+ALTER TABLE marketings ALTER COLUMN category SET DEFAULT 'sales_inhouse';
+
+DO $$ BEGIN
+  ALTER TABLE marketings ADD CONSTRAINT marketings_category_check
+    CHECK (category IN ('agent','sales_inhouse','sales_manager_inhouse',
+                        'sales_markom','markom','bgb','sales_coordinator'));
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 CREATE TABLE IF NOT EXISTS bank_accounts (
   id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -704,6 +743,11 @@ UPDATE claims SET project_id = (SELECT id FROM projects WHERE slug='bio-district
  WHERE project_id IS NULL;
 UPDATE incentive_schemes SET project_id = (SELECT id FROM projects WHERE slug='bio-district')
  WHERE project_id IS NULL;
+
+-- Menyusul di sini, bukan di dekat kolomnya: indeksnya menyebut project_id,
+-- yang baru ada beberapa baris di atas.
+CREATE INDEX IF NOT EXISTS idx_marketings_category
+  ON marketings(project_id, category);
 
 -- Nomor kontrak unik per project, bukan di seluruh basis data.
 --

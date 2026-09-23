@@ -16,12 +16,14 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import { useKata } from "../bahasa";
+import { useBahasa, useKata } from "../bahasa";
+import { SEMUA_KATEGORI, namaKategori } from "@/lib/kategori";
 import { Kerangka, MemeriksaSesi } from "../kerangka";
 import { useSesi } from "../session";
 
 type Baris = {
   id: string; full_name: string; marketing_type: string; status: string;
+  category: string | null;
   phone: string | null; agency_name: string | null; spesimen: number;
   spesimen_lama: number;
   baseline_specimen_set_id: string | null;
@@ -65,6 +67,7 @@ const KATA = {
     thTindakan: "Tindakan",
     ubahNomor: "Ubah nomor telepon", tanpaNomor: "tanpa nomor telepon",
     phNomor: "08xxxxxxxxxx", simpan: "Simpan", batal: "Batal",
+    ubahKategori: "Ubah kategori penerima fee",
     rekamanLama: "rekaman lama", dariKtp: "dari KTP", ada: "ada",
     menungguDiperiksa: "menunggu diperiksa", ttdPadaKtp: "tanda tangan pada KTP",
     tautanTerbuka: "tautan terbuka",
@@ -132,6 +135,11 @@ const KATA = {
     kNomorTersimpanIsi: (nomor: string) =>
       `Tersimpan sebagai ${nomor}. Tautan pendaftaran kini dapat diterbitkan.`,
     kNomorGagal: "Nomor tidak dapat disimpan",
+    kKategoriTersimpan: (nama: string) => `Kategori ${nama} tersimpan`,
+    kKategoriIsi: (kat: string) =>
+      `Tersimpan sebagai ${kat}. Namanya kini muncul pada pemilih kategori ` +
+      `itu di layar Pengajuan Fee.`,
+    kKategoriGagal: "Kategori tidak dapat disimpan",
     kMassalGagal: "Penggantian massal gagal",
     kSetKosong: "Set ini tidak berisi tanda tangan",
     kSetKosongIsi:
@@ -173,6 +181,7 @@ const KATA = {
     thTindakan: "Action",
     ubahNomor: "Change phone number", tanpaNomor: "no phone number",
     phNomor: "08xxxxxxxxxx", simpan: "Save", batal: "Cancel",
+    ubahKategori: "Change fee recipient category",
     rekamanLama: "old screen capture", dariKtp: "from the ID card", ada: "present",
     menungguDiperiksa: "awaiting review", ttdPadaKtp: "signature on the ID card",
     tautanTerbuka: "link opened",
@@ -240,6 +249,11 @@ const KATA = {
     kNomorTersimpanIsi: (nomor: string) =>
       `Saved as ${nomor}. The registration link can now be issued.`,
     kNomorGagal: "The number could not be saved",
+    kKategoriTersimpan: (nama: string) => `${nama}'s category saved`,
+    kKategoriIsi: (kat: string) =>
+      `Saved as ${kat}. The name now appears under that category on the Fee ` +
+      `Submission screen.`,
+    kKategoriGagal: "The category could not be saved",
     kMassalGagal: "The bulk replacement failed",
     kSetKosong: "This set contains no signature",
     kSetKosongIsi:
@@ -260,6 +274,7 @@ const KATA = {
 export default function SpesimenPage() {
   const { sesi, memuat } = useSesi();
   const k = useKata(KATA);
+  const { bahasa } = useBahasa();
   const boleh = sesi?.role === "admin_sales" || sesi?.role === "admin_system";
 
   const [baris, setBaris] = useState<Baris[]>([]);
@@ -345,6 +360,29 @@ export default function SpesimenPage() {
     } catch (e: any) {
       setKabar({ kind: "stop", html:
         `<b>${k.kNomorGagal}</b>${e.body?.detail ?? ""}` });
+    } finally { setBusy(false); }
+  };
+
+  /**
+   * Kategori penerima fee seseorang, disunting di tempat ia tertulis.
+   *
+   * Berkas penjualan hanya mengenal agent dan sales inhouse — hanya itu yang
+   * ada di dalamnya. Markom, Sales Manager, Sales Koordinator, dan BGB
+   * ditetapkan di sini, dan sampai ditetapkan, fee yang jatuh kepada mereka
+   * tidak punya nama yang dapat dipilih di layar Pengajuan Fee.
+   */
+  const simpanKategori = async (b: Baris, kategoriBaru: string) => {
+    setBusy(true); setKabar(null);
+    try {
+      const r = await api(`/marketings/${b.id}`, {
+        method: "PATCH", body: JSON.stringify({ category: kategoriBaru }) });
+      setKabar({ kind: "ok", html:
+        `<b>${k.kKategoriTersimpan(b.full_name)}</b>${
+          k.kKategoriIsi(namaKategori(r.category, bahasa))}` });
+      await muat();
+    } catch (e: any) {
+      setKabar({ kind: "stop", html:
+        `<b>${k.kKategoriGagal}</b>${e.body?.detail ?? ""}` });
     } finally { setBusy(false); }
   };
 
@@ -488,6 +526,24 @@ export default function SpesimenPage() {
                           {b.marketing_type === "agent" ? "Agent" : "Inhouse"}
                           {b.agency_name ? ` · ${b.agency_name}` : ""}
                           {" · "}
+                          {/* Kategori penerima fee, disunting di tempat ia
+                              tertulis — sebagaimana nomor teleponnya di
+                              sebelahnya. Tanpa jalan mengubahnya di sini,
+                              Markom dan Sales Manager tidak akan pernah ada:
+                              berkas penjualan hanya mengenal agent dan
+                              inhouse. */}
+                          <select value={b.category ?? "sales_inhouse"}
+                                  title={k.ubahKategori} disabled={busy}
+                                  style={{ fontSize: 11, padding: "1px 4px",
+                                           marginRight: 4 }}
+                                  onChange={(e) =>
+                                    void simpanKategori(b, e.target.value)}>
+                            {SEMUA_KATEGORI.map((kd) => (
+                              <option key={kd} value={kd}>
+                                {namaKategori(kd, bahasa)}
+                              </option>
+                            ))}
+                          </select>
                           {/* Nomornya disunting di tempat ia tertulis. Ke nomor
                               inilah kode verifikasi pendaftaran dikirim, dan
                               data yang masuk dari berkas penjualan kerap belum

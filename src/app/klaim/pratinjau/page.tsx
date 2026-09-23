@@ -498,9 +498,13 @@ export default function PratinjauPage() {
                         // window.print() menahan jalannya halaman sampai
                         // dialog cetak peramban ditutup.
                         if (terpilih.length) {
+                          // Bukan PDF-nya langsung: yang dibuka adalah halaman
+                          // yang membungkusnya dan meminta dialog cetaknya
+                          // muncul sendiri. PDF yang dibuka apa adanya berhenti
+                          // sebagai tab yang menunggu Ctrl+P tanpa mengatakannya.
                           window.open(
-                            `/api/claims/${c!.id}/lampiran-gabungan` +
-                            `?ids=${terpilih.join(",")}`, "_blank");
+                            `/klaim/lampiran?klaim=${c!.id}` +
+                            `&ids=${terpilih.join(",")}`, "_blank");
                         }
                         if (cetakForm) setTimeout(() => window.print(), 200);
                       }}>

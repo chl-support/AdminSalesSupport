@@ -245,10 +245,12 @@ export async function seed(reset = true) {
   const marketings: { id: string; name: string }[] = [];
   for (const [i, [name, type, recipient, npwp, hasAgency]] of MARKETINGS.entries()) {
     const rows = await query(
-      `INSERT INTO marketings (full_name, marketing_type, agency_id, npwp,
-         npwp_type, recipient_type, phone, email, status,
+      `INSERT INTO marketings (full_name, marketing_type, category, agency_id,
+         npwp, npwp_type, recipient_type, phone, email, status,
          reference_signature_source, reference_signature_png, consent_version)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'active','ktp',$9,'consent-2026-03')
+       VALUES ($1,$2,
+               CASE WHEN $2='agent' THEN 'agent' ELSE 'sales_inhouse' END,
+               $3,$4,$5,$6,$7,$8,'active','ktp',$9,'consent-2026-03')
        RETURNING id`,
       [name, type, hasAgency ? agencyId : null, "0".repeat(15), npwp, recipient,
        `08121234${String(800 + i).padStart(3, "0")}`, `user${i}@example.com`,

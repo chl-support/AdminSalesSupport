@@ -31,6 +31,7 @@ import { useBahasa, useKata } from "../bahasa";
 import { Kerangka, MemeriksaSesi } from "../kerangka";
 import { useSesi } from "../session";
 import { namaJenis } from "../klaim/jenis";
+import { namaKategori } from "@/lib/kategori";
 
 const rp = (n?: number | null) => `Rp ${(n ?? 0).toLocaleString("id-ID")}`;
 const tgl = (v?: string | null) => (v ? String(v).slice(0, 10) : "—");
@@ -53,9 +54,23 @@ const pengaju = (c: any) => {
   return nama ? `${nama} (${masuk})` : masuk;
 };
 
-/** Kategori penerimanya: Sales Inhouse atau Agent. */
-const kategori = (c: any, k: { katAgent: string; katInhouse: string }) =>
-  c.marketing?.marketing_type === "agent" ? k.katAgent
+/**
+ * Kategori penerimanya — keenamnya, bukan hanya Sales Inhouse dan Agent.
+ *
+ * Yang dipakai adalah peran penerima pada klaimnya sendiri: itulah kategori
+ * yang dipilih saat fee ini diajukan, dan ia tersimpan bersama klaimnya.
+ * Membacanya dari data marketing yang sekarang akan menampilkan kategori
+ * orangnya hari ini, bukan kategori yang berlaku saat pengajuannya dibuat —
+ * dan klaim lama harus tetap menyebut apa yang benar saat itu.
+ *
+ * Klaim lama, dari sebelum kategorinya dapat dipilih, jatuh ke jenis
+ * marketingnya seperti sebelumnya.
+ */
+const kategori = (c: any, k: { katAgent: string; katInhouse: string },
+                  bahasa: "id" | "en" = "id") =>
+  c.recipient_role ? namaKategori(c.recipient_role, bahasa)
+  : c.marketing?.category ? namaKategori(c.marketing.category, bahasa)
+  : c.marketing?.marketing_type === "agent" ? k.katAgent
   : c.marketing?.marketing_type === "inhouse" ? k.katInhouse
   : null;
 
@@ -523,7 +538,7 @@ export default function PersetujuanPage() {
                   </span>
                 </td>
                 <td>{namaJenis(c.claim_type, bahasa)}</td>
-                <td>{kategori(c, k) ?? "—"}</td>
+                <td>{kategori(c, k, bahasa) ?? "—"}</td>
                 <td className="sel-penerima">{c.marketing?.full_name ?? "—"}</td>
                 <td>{pengaju(c)}</td>
                 <td className="n">{rp(c.gross_amount)}</td>
@@ -532,10 +547,10 @@ export default function PersetujuanPage() {
                 <td className="n"><b>{rp(c.net_amount)}</b></td>
                 <td className="sel-keadaan">
                   <span className={`pill ${warnaKeadaan(c.status)}`}>
-                    {keadaan(c.status, bahasa, kategori(c, k))[0]}
+                    {keadaan(c.status, bahasa, kategori(c, k, bahasa))[0]}
                   </span>
                   <div className="menunggu">
-                    {keadaan(c.status, bahasa, kategori(c, k))[1]}
+                    {keadaan(c.status, bahasa, kategori(c, k, bahasa))[1]}
                   </div>
 
                   {/* Pengiriman tautan ke Sales/Agent, di dalam kolom Status

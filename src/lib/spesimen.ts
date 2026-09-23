@@ -36,6 +36,7 @@ import { randomBytes, randomInt } from "node:crypto";
 
 import { audit, one, query, settingInt, setting } from "./db";
 import { WorkflowError } from "./workflow";
+import { SEMUA_KATEGORI } from "./kategori";
 
 /** Versi teks persetujuan. Naikkan bila kalimatnya berubah. */
 export const VERSI_PERSETUJUAN = "3.0";
@@ -292,10 +293,38 @@ export async function kirimSet(token: string) {
   return { konsistensi: null, jumlah: 1 };
 }
 
+/**
+ * Nama yang sudah terdaftar, dikelompokkan menurut kategori penerima fee.
+ *
+ * Dipakai pemilih nama pada dialog pengajuan fee, di bawah pemilih
+ * kategorinya. Sengaja ringkas — hanya id, nama, kategori, dan rekening
+ * terakhirnya: dialog itu dibuka berkali-kali dalam satu sesi, dan
+ * daftarMarketing() membawa serta spesimen tanda tangan dan sesi pendaftaran
+ * yang tidak satu pun dibacanya.
+ *
+ * Hanya yang berstatus aktif. Yang belum menyelesaikan pendaftaran tanda
+ * tangan memang akan ditolak createClaim(); memunculkannya di pemilih hanya
+ * menawarkan pilihan yang pasti gagal.
+ */
+export async function daftarPerKategori(projectId: string) {
+  return query(
+    `SELECT m.id, m.full_name, m.category, m.marketing_type,
+            b.holder_name, b.bank_name, b.account_number, b.branch,
+            b.holder_type
+       FROM marketings m
+       LEFT JOIN LATERAL (
+         SELECT * FROM bank_accounts b2
+          WHERE b2.marketing_id = m.id
+          ORDER BY b2.verified DESC, b2.id DESC LIMIT 1
+       ) b ON TRUE
+      WHERE m.project_id = $1 AND m.status = 'active'
+      ORDER BY m.full_name`, [projectId]);
+}
+
 /** Daftar pendaftaran untuk layar Admin, dalam lingkup satu project. */
 export async function daftarMarketing(projectId: string) {
   return query(
-    `SELECT m.id, m.full_name, m.marketing_type, m.status, m.phone,
+    `SELECT m.id, m.full_name, m.marketing_type, m.category, m.status, m.phone,
             a.name AS agency_name,
             COUNT(s.id) FILTER (WHERE NOT s.archived)::int AS spesimen,
             -- Spesimen lama berasal dari perekaman di layar; yang sekarang dari
@@ -519,6 +548,42 @@ export async function ubahNomor(
     actor: aktor, before: { phone: mkt.phone }, after: { phone: rapi },
   });
   return { phone: rapi, changed: true };
+}
+
+/**
+ * Kategori penerima fee seseorang.
+ *
+ * Yang masuk dari berkas penjualan hanya mengenal dua kategori — agent dan
+ * sales inhouse — karena hanya itu yang tertulis di sana. Markom, Sales
+ * Manager, Sales Koordinator, dan BGB ditetapkan di sini, dan sampai
+ * ditetapkan, fee yang jatuh kepada mereka tidak muncul di pemilih nama pada
+ * dialog pengajuan.
+ *
+ * Tercatat di audit: kategorinya menentukan jenis fee apa yang boleh diajukan
+ * atas nama orang ini, dan tarif mana pada memo skema yang dipakai
+ * menghitungnya.
+ */
+export async function ubahKategori(
+  marketingId: string, kategori: string, aktor: string, projectId?: string,
+) {
+  if (!SEMUA_KATEGORI.includes(kategori as any)) {
+    throw new WorkflowError(
+      "Kategori tidak dikenali.", "category_invalid", 422);
+  }
+  const mkt = await one<{ full_name: string; category: string | null }>(
+    "SELECT full_name, category FROM marketings WHERE id=$1 " +
+    "AND ($2::uuid IS NULL OR project_id=$2)", [marketingId, projectId ?? null]);
+  if (!mkt) throw new WorkflowError("Marketing tidak ditemukan.", "not_found", 404);
+  if (mkt.category === kategori) return { category: kategori, changed: false };
+
+  await query("UPDATE marketings SET category=$2 WHERE id=$1",
+              [marketingId, kategori]);
+  await audit({
+    entityType: "marketing", entityId: marketingId, action: "category_changed",
+    actor: aktor, before: { category: mkt.category },
+    after: { category: kategori },
+  });
+  return { category: kategori, changed: true };
 }
 
 /**

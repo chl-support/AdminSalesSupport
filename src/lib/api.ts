@@ -149,8 +149,8 @@ export function clientIp(req: NextRequest): string | null {
 export async function claimView(claim: any) {
   const unit = await one("SELECT * FROM units WHERE id=$1", [claim.unit_id]);
   const mkt = await one(
-    `SELECT m.id, m.full_name, m.marketing_type, m.phone, m.email, m.npwp,
-            m.npwp_type, m.recipient_type, m.status,
+    `SELECT m.id, m.full_name, m.marketing_type, m.category, m.phone, m.email,
+            m.npwp, m.npwp_type, m.recipient_type, m.status,
             a.name AS agency_name, a.address AS agency_address, a.npwp AS agency_npwp
        FROM marketings m LEFT JOIN agencies a ON a.id = m.agency_id
       WHERE m.id = $1`,
