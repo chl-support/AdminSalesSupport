@@ -1511,11 +1511,6 @@ td.sel-keadaan .menunggu.stop { color: var(--stop); }
 .tscroll.persetujuan .tabel-penjualan td.sel-no {
   text-align: center; color: var(--ink);
 }
-/* Nomor klaim dan kode unitnya, di bawah tanggalnya. */
-.tscroll.persetujuan .tabel-penjualan .sisip {
-  display: block; margin-top: 3px; font-size: 11px; color: var(--mut);
-  overflow-wrap: anywhere;
-}
 /* Apa pun di dalam sel tidak boleh lebih lebar daripada selnya; kolomnya
    berlebar tetap, jadi isi yang melebihi akan menyeberangi garis pemisah. */
 .tscroll.persetujuan .tabel-penjualan td > button { max-width: 100%; }

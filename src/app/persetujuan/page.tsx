@@ -690,17 +690,7 @@ export default function PersetujuanPage() {
             {terlihat.map((c, i) => (
               <tr key={c.id}>
                 <td className="sel-no">{i + 1}</td>
-                <td>
-                  {tglPendek(c.created_at)}
-                  {/* Nomor klaim dan unitnya tidak punya kolom sendiri lagi,
-                      tetapi tidak dibuang: nomor itulah yang dipakai menyebut
-                      klaim ini di seluruh layar lain, dan tanpa unitnya satu
-                      penerima dengan dua klaim serupa tidak dapat dibedakan. */}
-                  <span className="sisip">
-                    {c.claim_number}
-                    {c.unit?.code ? ` · ${c.unit.code}` : ""}
-                  </span>
-                </td>
+                <td>{tglPendek(c.created_at)}</td>
                 <td>{namaJenis(c.claim_type, bahasa)}</td>
                 <td>{kategori(c, k, bahasa) ?? "—"}</td>
                 <td className="sel-penerima">{c.marketing?.full_name ?? "—"}</td>
