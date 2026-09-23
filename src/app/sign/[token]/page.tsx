@@ -37,7 +37,7 @@ const BERKAS = [
 
 const BATAS = 3 * 1024 * 1024;
 
-type Step = "loading" | "otp" | "review" | "berkas" | "sign" | "konfirmasi"
+type Step = "loading" | "otp" | "review" | "berkas" | "sign"
           | "dispute" | "done";
 
 const LANGKAH: { key: Step; no: string; label: string }[] = [
@@ -130,28 +130,42 @@ export default function SignPage() {
     } finally { setBusy(false); }
   };
 
-  const tempel = () => {
+  /**
+   * Nilai tanda tangannya lebih dulu, tempelkan sesudah diterima.
+   *
+   * Sebelumnya urutannya terbalik: goresan langsung ditempel ke formulir,
+   * formulirnya ditampilkan utuh, baru sesudah "Kirim" ketahuan skornya di
+   * bawah ambang — dan yang menandatangani kembali ke kanvas setelah membaca
+   * dokumen yang ternyata belum jadi. Tiga kali bolak-balik untuk satu hal
+   * yang dapat diketahui di kanvasnya sendiri.
+   *
+   * Pemeriksaannya tetap satu panggilan yang sama ke server, jadi percobaannya
+   * tetap terhitung tiga: ini urutan yang dibalik, bukan gerbang yang
+   * dilonggarkan.
+   */
+  const periksa = async () => {
     if (pad.kosong()) {
       setFeedback({ kind: "warn", html:
         "<b>Belum ada tanda tangan</b>Tanda tangani di dalam kotak terlebih dahulu." });
       return;
     }
     setFeedback(null);
-    setPratinjauTtd(pad.dataUrl());
-    setStep("konfirmasi");
+    await submit(pad.dataUrl());
   };
 
-  const submit = async () => {
-    if (!pratinjauTtd) return;
+  const submit = async (imagePng: string) => {
+    if (!imagePng) return;
     setBusy(true);
     try {
       const r = await api(`/api/signing-sessions/${token}/signature`, {
         method: "POST",
         body: JSON.stringify({
-          image_png: pratinjauTtd,
+          image_png: imagePng,
           strokes: pad.goresan(), input_method: pad.metode() }),
       });
       if (r.outcome === "verified") {
+        // Baru di sini goresannya menempel pada formulir — sesudah diterima.
+        setPratinjauTtd(imagePng);
         setDone({ kind: "ok", html:
           `<b>Tanda tangan terverifikasi — skor ${r.score}</b>
            Tanda tangan Anda sudah menempel pada kolom Pemohon. Dokumen disegel
@@ -163,7 +177,6 @@ export default function SignPage() {
            Tanda tangan Anda tersimpan dan tidak dikirim ke mana pun.
            Sisa percobaan: ${r.attempts_remaining}.<br>
            ${r.guidance.map((g: string) => `• ${g}`).join("<br>")}` });
-        setPratinjauTtd(null);
         setStep("sign");
         pad.hapus();
         await load();
@@ -210,7 +223,7 @@ export default function SignPage() {
   // Penanda langkah. Yang sudah lewat ditandai selesai, bukan sekadar tidak
   // aktif: agent perlu tahu berkas yang tadi diunggah sudah benar-benar masuk.
   const urutan = LANGKAH.map((l) => l.key);
-  const kini = step === "konfirmasi" ? "sign" : step;
+  const kini = step;
   const idx = urutan.indexOf(kini as Step);
 
   return (
@@ -358,9 +371,10 @@ export default function SignPage() {
           <KanvasTtd pad={pad} tampil={step === "sign"} />
           <p style={{ fontSize: 11.5, color: "var(--mut)", textAlign: "center",
                       marginTop: 6 }}>
-            Tanda tangani di dalam kotak. Tanda tangan ini akan menempel pada kolom
-            Pemohon di Form Pengajuan. Gunakan stylus bila ada — goresan jari lebih
-            bervariasi dan lebih sering perlu diulang.
+            Tanda tangani di dalam kotak, lalu tekan Periksa. Tanda tangannya
+            dicocokkan dengan spesimen terdaftar lebih dulu; bila diterima, ia
+            menempel pada kolom Pemohon di Form Pengajuan. Gunakan stylus bila
+            ada — goresan jari lebih bervariasi dan lebih sering perlu diulang.
           </p>
           {feedback && (
             <div className={`banner ${feedback.kind}`}
@@ -369,37 +383,14 @@ export default function SignPage() {
           <div style={{ display: "flex", gap: 8 }}>
             <button onClick={pad.hapus} disabled={busy}
                     style={{ flex: 1, padding: 13 }}>Hapus</button>
-            <button className="pri" onClick={tempel} disabled={busy}
+            <button className="pri" onClick={() => void periksa()} disabled={busy}
                     style={{ flex: 1, padding: 13 }}>
-              Tempelkan ke formulir
+              {busy ? "Memeriksa…" : "Periksa tanda tangan"}
             </button>
           </div>
           <button onClick={() => setStep("berkas")} disabled={busy}
                   style={{ width: "100%", marginTop: 8, padding: 13 }}>
             Kembali ke berkas
-          </button>
-        </section>
-      )}
-
-      {step === "konfirmasi" && claim && (
-        <section className="panel">
-          <div className="banner info">
-            <b>Periksa sekali lagi sebelum dikirim</b>
-            Tanda tangan Anda sudah menempel pada kolom Pemohon di bawah. Setelah
-            dikirim, formulir disegel dan tidak dapat diubah.
-          </div>
-          <div className="form-lihat">
-            <FormPengajuan klaim={{ ...claim, documents: dokumen }}
-                           ttdPemohon={pratinjauTtd} />
-          </div>
-          <button className="pri" onClick={submit} disabled={busy}
-                  style={{ width: "100%", marginTop: 12, padding: 13 }}>
-            Kirim tanda tangan
-          </button>
-          <button onClick={() => { setPratinjauTtd(null); setStep("sign"); }}
-                  disabled={busy}
-                  style={{ width: "100%", marginTop: 8, padding: 13 }}>
-            Ulangi tanda tangan
           </button>
         </section>
       )}
