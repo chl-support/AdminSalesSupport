@@ -33,6 +33,7 @@ import { useSesi } from "../session";
 import { namaJenis } from "../klaim/jenis";
 import { namaKategori } from "@/lib/kategori";
 import { TAHAP, bolehGerak, tahapDari } from "@/lib/tahap";
+import { LANGKAH, keadaanLangkah, warnaLangkah } from "@/lib/langkah";
 
 const rp = (n?: number | null) => `Rp ${(n ?? 0).toLocaleString("id-ID")}`;
 const tgl = (v?: string | null) => (v ? String(v).slice(0, 10) : "—");
@@ -118,7 +119,7 @@ const KATA = {
     thPpn: "PPN", thPph: "PPh", thBersih: "Komisi Yang Dibayarkan",
     thStatus: "Status", thDokumen: "Tindakan",
     katInhouse: "Sales Inhouse", katAgent: "Agent",
-    pratinjau: "Lihat pratinjau",
+    pratinjau: "Tinjau Dokumen",
     kosong: "Belum ada pengajuan pada project ini.",
     memuat: "Memuat…",
     kabarJudul: "Dokumen sudah dikirim ke tim pajak",
@@ -183,7 +184,7 @@ const KATA = {
     thPenerima: "Recipient", thBruto: "Commission amount",
     thPph: "Withholding",
     thBersih: "Commission paid", thStatus: "Status", thDokumen: "Action",
-    pratinjau: "View preview",
+    pratinjau: "Review Document",
     kosong: "No submissions on this project yet.",
     memuat: "Loading…",
     kabarJudul: "Sent to the tax team",
@@ -364,29 +365,6 @@ const MENUNGGU_TAUTAN = ["tax_verified", "signature_link_sent",
 /** Keadaan yang dianggap belum bergerak ke mana pun. */
 const DIAM = ["draft", "submitted", "pending_admin_review"];
 const SELESAI = ["completed", "paid", "rejected", "cancelled", "clawback"];
-
-/**
- * Warna lencana keadaan.
- *
- * Hijau berarti datanya sudah benar dan pengajuannya sudah disetujui; merah
- * berarti tertahan atau tidak jadi. Sebelumnya keduanya sama-sama hijau —
- * SELESAI memuat 'rejected', 'cancelled', dan 'clawback' bersama 'paid' dan
- * 'completed' — sehingga klaim yang DITOLAK tampil dengan warna yang sama
- * dengan klaim yang sudah dibayar. Satu-satunya pembedanya kalimat kecil di
- * bawahnya, yang justru tidak dibaca orang yang sedang menyapu satu layar
- * penuh.
- */
-const DISETUJUI = ["approved", "awaiting_settlement_date", "partially_paid",
-                   "paid", "completed"];
-const TERTAHAN = ["returned", "rejected", "cancelled", "clawback",
-                  "signature_review_required"];
-
-function warnaKeadaan(status: string) {
-  if (DISETUJUI.includes(status)) return "ok";
-  if (TERTAHAN.includes(status)) return "stop";
-  if (DIAM.includes(status)) return "warn";
-  return "";
-}
 
 /**
  * Saringan: tiga kelompok ringkas, atau satu status tertentu.
@@ -731,36 +709,61 @@ export default function PersetujuanPage() {
                 <td className="n">{rp(c.vat)}</td>
                 <td className="n">{rp(c.withholding_tax)}</td>
                 <td className="n"><b>{rp(c.net_amount)}</b></td>
+                {/* Kolom Status: keempat langkah perjalanan pengajuan
+                    berdiri bersama, bukan satu keadaan saja. Yang membaca
+                    ingin tahu sudah lewat mana dan tinggal apa — pertanyaan
+                    yang dulu hanya terjawab dengan membuka jejak audit.
+
+                    Yang sudah lewat hijau, yang sedang berjalan bertulisan
+                    tebal berbingkai gelap, yang belum sampai redup, dan yang
+                    tertahan merah. */}
                 <td className="sel-keadaan">
-                  <span className={`pill ${warnaKeadaan(c.status)}`}>
-                    {keadaan(c.status, bahasa, kategori(c, k, bahasa))[0]}
-                  </span>
-                  <div className="menunggu">
-                    {keadaan(c.status, bahasa, kategori(c, k, bahasa))[1]}
-                  </div>
+                  {LANGKAH.map((l, i) => {
+                    const ling = keadaanLangkah(c.status)[i];
+                    // Langkah ketiga menyebut kategori penerimanya yang
+                    // sebenarnya — Sales Inhouse atau Agent — bukan
+                    // "Sales/Agent" yang menyebut dua pihak sekaligus
+                    // padahal hanya satu yang memegang dokumennya.
+                    const kat = kategori(c, k, bahasa);
+                    const ganti = (t: string) =>
+                      kat ? t.replace("Sales/Agent", kat) : t;
+                    return (
+                      <div className="langkah-keadaan" key={l.n}>
+                        <span className={`kotak-keadaan ${warnaLangkah(ling)}`}>
+                          {ganti(bahasa === "en" ? l.pihak.en : l.pihak.id)}
+                        </span>
+                        <div className={`menunggu ${warnaLangkah(ling)}`}>
+                          {ganti(bahasa === "en" ? l.kerja.en : l.kerja.id)}
+                        </div>
 
-                  {/* Pemilih tahap peredaran dokumen. Hanya muncul setelah
-                      dokumennya ditandatangani — keempat tahap ini memang
-                      menggambarkan peredaran dokumen fisik, yang baru bermula
-                      setelah tanda tangan ada.
+                        {/* Pemilih tahap peredaran dokumen, di dalam langkah
+                            keempat — langkah inilah yang menggambarkan
+                            peredaran dokumen fisik, dan keempat pilihannya
+                            adalah rinciannya. Hanya muncul setelah dokumennya
+                            ditandatangani: peredaran fisik baru bermula
+                            setelah tanda tangan ada.
 
-                      Dua tahap terakhir tidak dapat dipilih dari sini:
-                      keduanya membawa serta berkasnya masing-masing, dan
-                      tombolnya ada di kolom Tindakan. */}
-                  {bolehTahap && bolehGerak(c.status) && (
-                    <select className="pilih-tahap" disabled={gerak === c.id}
-                            value={tahapDari(c.status) ?? ""}
-                            onChange={(e) =>
-                              void pindahTahap(c, Number(e.target.value))}>
-                      {TAHAP.map((t) => (
-                        <option key={t.n} value={t.n}
-                                disabled={t.n >= 3 ||
-                                          t.n <= (tahapDari(c.status) ?? 0)}>
-                          {t.n}. {bahasa === "en" ? t.en : t.nama}
-                        </option>
-                      ))}
-                    </select>
-                  )}
+                            Dua tahap terakhir tidak dapat dipilih dari sini:
+                            keduanya membawa serta berkasnya masing-masing, dan
+                            tombolnya ada di kolom Tindakan. */}
+                        {l.n === 4 && bolehTahap && bolehGerak(c.status) && (
+                          <select className="pilih-tahap"
+                                  disabled={gerak === c.id}
+                                  value={tahapDari(c.status) ?? ""}
+                                  onChange={(e) =>
+                                    void pindahTahap(c, Number(e.target.value))}>
+                            {TAHAP.map((t) => (
+                              <option key={t.n} value={t.n}
+                                      disabled={t.n >= 3 ||
+                                                t.n <= (tahapDari(c.status) ?? 0)}>
+                                {t.n}. {bahasa === "en" ? t.en : t.nama}
+                              </option>
+                            ))}
+                          </select>
+                        )}
+                      </div>
+                    );
+                  })}
 
                   {/* Pengiriman tautan ke Sales/Agent, di dalam kolom Status
                       dan hanya untuk Admin Sales — merekalah yang berhubungan
@@ -811,7 +814,7 @@ export default function PersetujuanPage() {
                     layar Pengajuan Fee: yang dibuka adalah dokumen untuk
                     diperiksa dan dicetak, dan mencetaknya dari dalam layar ini
                     berarti ikut mencetak menu dan seluruh tabelnya. */}
-                <td>
+                <td className="sel-tindakan">
                   <button onClick={() => window.open(
                             `/klaim/pratinjau?ids=${c.id}`, "_blank")}>
                     {k.pratinjau}

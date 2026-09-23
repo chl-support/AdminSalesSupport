@@ -13,6 +13,7 @@ export const GET = handler(async (req) => {
   // menjalankan migrasi ulang — sesuatu yang tidak lagi mungkin setelah
   // SETUP_SECRET dicabut, seperti yang memang dianjurkan.
   await ensureProjectsSekali();
+
   return {
     projects: await query(
       "SELECT id, slug, name, company_name FROM projects WHERE active " +

@@ -15,6 +15,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { explainDbError, one, query } from "./db";
 import { COOKIE, userFromToken } from "./auth";
 import { WorkflowError } from "./workflow";
+import { ensureKolomMarketing } from "./kolom";
 
 export type User = {
   id: string; username: string; full_name: string; role: string;
@@ -25,6 +26,14 @@ export type User = {
 };
 
 export async function currentUser(req: NextRequest): Promise<User> {
+  // Tambahan skema yang tertinggal dari migrasi dipasang di sini, satu titik
+  // untuk seluruh route: tiap route yang butuh sesi melewati fungsi ini, dan
+  // melewatinya sebelum membuka transaksi apa pun — ALTER TABLE di tengah
+  // transaksi yang sudah memegang kunci atas tabel yang sama akan saling
+  // menunggu. Sekali per proses; pemanggilan berikutnya hanya menunggu janji
+  // yang sudah selesai. Lihat src/lib/kolom.ts.
+  await ensureKolomMarketing();
+
   const token = req.cookies.get(COOKIE)?.value ?? "";
   const user = await userFromToken(token);
   if (!user) {
