@@ -16,7 +16,7 @@ import { WorkflowError } from "../src/lib/workflow";
 import { applyRate, ratio, rupiahWords, terbilang } from "../src/lib/money";
 import { collect, preview } from "../src/lib/report";
 import { KATEGORI_JENIS, kategoriAwal } from "../src/lib/kategori";
-import { bacaBukuRekening } from "../src/lib/rekening-baca";
+import { tambahMarketing } from "../src/lib/spesimen";
 import { seed } from "./seed";
 import { signaturePng, strokes } from "./synthetic-signature";
 
@@ -481,34 +481,82 @@ async function main() {
            String(kategoriAwal("commission", "markom")));
   });
 
-  await check("buku rekening terbaca menjadi nama, bank, dan nomornya",
+  await check("marketing kategori baru dapat didaftarkan tangan", async () => {
+    // Markom, Sales Manager, Sales Koordinator, dan BGB tidak pernah tertulis
+    // pada berkas penjualan maupun laporan keagenan, jadi tanpa jalan ini
+    // mereka tidak pernah ada di daftar dan feenya tidak dapat diajukan.
+    // Project-nya diambil dari tabelnya sendiri: unit contoh belum tentu
+    // menyebut project, dan projectId yang kosong membuat pemeriksaan nama
+    // kembar tidak punya apa pun untuk dibandingkan.
+    const p = await one<{ id: string }>(
+      "SELECT id FROM projects ORDER BY created_at LIMIT 1");
+    const m = await tambahMarketing({
+      nama: "  Rina   Markom ", kategori: "markom",
+      telepon: "0812-3456-7890",
+    }, "admin", p!.id);
+    assert(m.category === "markom", m.category);
+    // Jenisnya disimpulkan dari kategorinya: hanya Agent yang berarti agent.
+    assert(m.marketing_type === "inhouse", m.marketing_type);
+    // Nama dan nomornya dibakukan, bukan disimpan apa adanya.
+    assert(m.full_name === "Rina Markom", m.full_name);
+    assert(m.phone === "6281234567890", m.phone);
+
+    const baru = await one<{ status: string }>(
+      "SELECT status FROM marketings WHERE id=$1", [m.id]);
+    assert(baru!.status === "draft", baru!.status);
+
+    // Nama kembar dalam satu project ditolak: data penjualan mencocokkan
+    // marketingnya dengan nama, dan dua baris bernama sama membuat fee sebuah
+    // unit jatuh ke salah satunya tanpa dasar.
+    let tertolak = false;
+    try {
+      await tambahMarketing({ nama: "rina markom", kategori: "markom",
+                              telepon: "0812-3456-7890" }, "admin", p!.id);
+    } catch (e: any) { tertolak = e instanceof WorkflowError; }
+    assert(tertolak, "nama kembar seharusnya ditolak");
+
+    // Nomor yang bukan nomor ponsel juga ditolak: ke nomor itulah tautan
+    // pendaftaran tanda tangannya dikirim.
+    let nomorTertolak = false;
+    try {
+      await tambahMarketing({ nama: "Dedi Markom", kategori: "markom",
+                              telepon: "123" }, "admin", p!.id);
+    } catch (e: any) { nomorTertolak = e instanceof WorkflowError; }
+    assert(nomorTertolak, "nomor keliru seharusnya ditolak");
+  });
+
+  await check("Overriding tetap dapat diklaim walau koordinatornya kosong",
               async () => {
-    // Tiga kolom yang dulu diketik ulang dari buku yang sedang dipegang. Yang
-    // diuji adalah yang paling mudah salah pada hasil OCR: tanggal yang
-    // terbaca sebagai nomor rekening, dan tulisan kartu yang terbaca sebagai
-    // nama orang.
-    const a = bacaBukuRekening(
-      "PT BANK CENTRAL ASIA Tbk\nBUKU TABUNGAN\nTAHAPAN\n" +
-      "No. Rekening : 5271 0489 77\nNama : AGNES RINI TRI FORESTIANTI\n" +
-      "KCP GADING SERPONG");
-    assert(a.holder_name === "Agnes Rini Tri Forestianti",
-           String(a.holder_name));
-    assert(a.bank_name === "BCA", String(a.bank_name));
-    assert(a.account_number === "5271048977", String(a.account_number));
+    // Berkas penjualan hampir selalu menyebut yang menjual, tetapi tingkat di
+    // atasnya kerap dikosongkan. Dulu itu mematikan tombol Overriding, dan fee
+    // yang memang berhak dibayarkan tidak punya jalan diajukan sama sekali —
+    // padahal sejak kategori penerimanya dapat dipilih, orangnya tidak lagi
+    // diambil dari kolom itu.
+    const tanpaKoordinator = {
+      status: "active", contract_value_incl_vat: 1_000_000_000,
+      received_amount: 500_000_000,
+      marketing_id: "x", marketing_status: "active",
+      sub_coordinator_id: null, coordinator_id: null,
+    };
+    assert(calc.dapatDiklaim(tanpaKoordinator, "overriding", false),
+           "Overriding seharusnya terbuka");
 
-    const b = bacaBukuRekening(
-      "MANDIRI\nDEBIT\n4617 0034 2211 7788\nVALID THRU 08/27\nBUDI SANTOSO");
-    assert(b.holder_name === "Budi Santoso", String(b.holder_name));
+    // Yang lain tetap menuntut penerimanya tercatat: kolom yang kosong di sana
+    // berarti penjualannya belum menyebut siapa yang menjual, dan itu memang
+    // data yang perlu dibetulkan lebih dulu.
+    assert(!calc.dapatDiklaim(
+      { ...tanpaKoordinator, marketing_id: null, marketing_status: null },
+      "closing_fee", false), "Closing Fee seharusnya tertahan");
 
-    // Tanggal berukuran delapan digit tidak boleh lolos sebagai nomor
-    // rekening: 12-08-2019 tanpa pemisah panjangnya persis nomor rekening.
-    const c = bacaBukuRekening("BANK BCA\nTanggal 12-08-2019\nSaldo 1.250.000");
-    assert(c.account_number === null, String(c.account_number));
-
-    // Berkas yang bukan buku rekening mengembalikan kosong, bukan tebakan.
-    const d = bacaBukuRekening("Kwitansi pembayaran booking fee");
-    assert(!d.holder_name && !d.bank_name && !d.account_number,
-           JSON.stringify(d));
+    // Yang menahan selain itu tidak ikut longgar.
+    assert(!calc.dapatDiklaim(tanpaKoordinator, "overriding", true),
+           "klaim aktif seharusnya tetap menahan");
+    assert(!calc.dapatDiklaim(
+      { ...tanpaKoordinator, received_amount: 1_000_000 }, "overriding", false),
+      "penerimaan kurang dari 20% seharusnya tetap menahan");
+    assert(!calc.dapatDiklaim(
+      { ...tanpaKoordinator, status: "cancelled" }, "overriding", false),
+      "unit batal seharusnya tetap menahan");
   });
 
   await check("rekap memakai tanggal transfer, bukan tanggal input", async () => {

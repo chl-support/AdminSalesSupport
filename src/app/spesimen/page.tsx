@@ -50,14 +50,26 @@ const KATA = {
     takBerwenangIsi:
       "Hanya Admin Sales dan Admin IT yang dapat menerbitkan tautan dan " +
       "memutuskan baseline.",
-    ringkas: (belum: number, menunggu: number) =>
-      `${belum} marketing belum punya spesimen · ${menunggu} menunggu diperiksa`,
-    ringkasIsi: (ambang: string) =>
-      "Tautan meminta foto KTP, lalu potongan tanda tangan yang tercetak di " +
-      "atasnya — itulah pembanding yang dipakai menilai tanda tangan pada " +
-      "klaim. Karena pembandingnya goresan pulpen di kertas sedangkan tanda " +
-      "tangan klaim dibuat di layar, angka kecocokannya rendah dengan " +
-      `sendirinya: yang memutuskan adalah Anda yang melihat keduanya, bukan ambang ${ambang}.`,
+    tambah: "+ Add", tambahJudul: "Tambah marketing baru",
+    tambahPengantar:
+      "Untuk orang yang tidak pernah tertulis pada berkas penjualan — Markom, " +
+      "Sales Manager, Sales Koordinator, dan BGB. Yang menjual sudah masuk " +
+      "sendiri dari unggahan berkasnya.",
+    tNama: "Nama lengkap", tKategori: "Kategori penerima fee",
+    tJenis: "Jenis", tJenisAgent: "Agent", tJenisInhouse: "Inhouse",
+    tTelepon: "Nomor telepon", tEmail: "Email (boleh dikosongkan)",
+    tNpwp: "NPWP (boleh dikosongkan)",
+    tCatatan:
+      "Tersimpan berstatus draft. Ia menjadi aktif setelah tanda tangannya " +
+      "didaftarkan lewat tautan pendaftaran, sama seperti yang lain — sebelum " +
+      "itu feenya belum dapat diajukan.",
+    tSimpan: "Simpan", tMenyimpan: "Menyimpan…",
+    tTersimpan: (nama: string) => `${nama} tersimpan`,
+    tTersimpanIsi:
+      "Berstatus draft. Terbitkan tautan pendaftaran tanda tangannya dari " +
+      "baris orang ini.",
+    tGagal: "Marketing baru tidak dapat disimpan",
+    fSaring: "Tampilkan",
     fSemua: "Semua", fBelum: "Belum punya spesimen",
     fMenunggu: "Menunggu diperiksa", fAktif: "Sudah aktif",
     muatUlang: "Muat ulang",
@@ -164,14 +176,25 @@ const KATA = {
     takBerwenangJudul: "Your role is not authorised over signature registration",
     takBerwenangIsi:
       "Only Admin Sales and IT Admin can issue links and decide the baseline.",
-    ringkas: (belum: number, menunggu: number) =>
-      `${belum} marketing without a specimen · ${menunggu} awaiting review`,
-    ringkasIsi: (ambang: string) =>
-      "The link asks for a photo of the ID card, then the signature printed " +
-      "on it — that is the reference used to judge signatures on claims. " +
-      "Because the reference is pen on paper while a claim signature is drawn " +
-      "on a screen, the match score is low by its very nature: the one who " +
-      `decides is you, looking at both, not the ${ambang} threshold.`,
+    tambah: "+ Add", tambahJudul: "Add a new marketing",
+    tambahPengantar:
+      "For people who never appear in the sales file — Marcomm, Sales " +
+      "Manager, Sales Coordinator, and BGB. Those who sell are already " +
+      "imported from the uploaded file.",
+    tNama: "Full name", tKategori: "Fee recipient category",
+    tJenis: "Type", tJenisAgent: "Agent", tJenisInhouse: "In-house",
+    tTelepon: "Phone number", tEmail: "Email (optional)",
+    tNpwp: "NPWP (optional)",
+    tCatatan:
+      "Saved as a draft. They become active once their signature is " +
+      "registered through the enrolment link, like everyone else — until " +
+      "then their fees cannot be submitted.",
+    tSimpan: "Save", tMenyimpan: "Saving…",
+    tTersimpan: (nama: string) => `${nama} saved`,
+    tTersimpanIsi:
+      "Saved as a draft. Issue their signature enrolment link from their row.",
+    tGagal: "The new marketing could not be saved",
+    fSaring: "Show",
     fSemua: "All", fBelum: "No specimen yet",
     fMenunggu: "Awaiting review", fAktif: "Active",
     muatUlang: "Reload",
@@ -278,7 +301,6 @@ export default function SpesimenPage() {
   const boleh = sesi?.role === "admin_sales" || sesi?.role === "admin_system";
 
   const [baris, setBaris] = useState<Baris[]>([]);
-  const [ambang, setAmbang] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [kabar, setKabar] = useState<{ kind: string; html: string } | null>(null);
   const [lihat, setLihat] = useState<string | null>(null);
@@ -295,6 +317,17 @@ export default function SpesimenPage() {
   // Penggantian massal: satu alasan untuk semua yang spesimennya dari
   // perekaman lama di layar.
   const [massal, setMassal] = useState(false);
+  /**
+   * Isian "+ Add": orang baru yang tidak datang dari unggahan berkas.
+   *
+   * Disimpan satu objek, bukan satu state per kolom: keenamnya lahir dan mati
+   * bersama dialognya, dan enam state terpisah berarti enam tempat yang harus
+   * diingat untuk dikosongkan kembali.
+   */
+  const [tambah, setTambah] = useState<{
+    full_name: string; category: string; marketing_type: string;
+    phone: string; email: string; npwp: string;
+  } | null>(null);
   const [alasanMassal, setAlasanMassal] = useState("");
   const [hasilMassal, setHasilMassal] = useState<any>(null);
 
@@ -313,7 +346,6 @@ export default function SpesimenPage() {
     if (!boleh) return;
     const d = await api("/marketings");
     setBaris(d.marketings ?? []);
-    setAmbang(d.ambang ?? null);
   }, [api, boleh]);
 
   useEffect(() => { if (sesi) void muat(); }, [sesi, muat]);
@@ -371,6 +403,30 @@ export default function SpesimenPage() {
    * ditetapkan di sini, dan sampai ditetapkan, fee yang jatuh kepada mereka
    * tidak punya nama yang dapat dipilih di layar Pengajuan Fee.
    */
+  /**
+   * Simpan orang baru, lalu buka kembali daftarnya pada orang itu.
+   *
+   * Penyaringnya dikembalikan ke "Semua" setelah tersimpan: yang baru dibuat
+   * berstatus draft dan belum punya spesimen, jadi pada penyaring "Sudah
+   * aktif" ia tersimpan dengan benar tetapi tidak terlihat sama sekali — dan
+   * yang menyimpannya akan mengira penyimpanannya gagal.
+   */
+  const simpanTambah = async () => {
+    if (!tambah) return;
+    setBusy(true); setKabar(null);
+    try {
+      const r = await api("/marketings", {
+        method: "POST", body: JSON.stringify(tambah) });
+      setKabar({ kind: "ok", html:
+        `<b>${k.tTersimpan(r.full_name)}</b>${k.tTersimpanIsi}` });
+      setTambah(null);
+      setSaring("semua");
+      await muat();
+    } catch (e: any) {
+      setKabar({ kind: "stop", html: `<b>${k.tGagal}</b>${e.body?.detail ?? ""}` });
+    } finally { setBusy(false); }
+  };
+
   const simpanKategori = async (b: Baris, kategoriBaru: string) => {
     setBusy(true); setKabar(null);
     try {
@@ -454,8 +510,6 @@ export default function SpesimenPage() {
     : saring === "menunggu" ? b.sesi_state === "submitted"
     : b.status === "active");
 
-  const menunggu = baris.filter((b) => b.sesi_state === "submitted").length;
-  const belum = baris.filter((b) => b.spesimen === 0).length;
   const lama = baris.filter((b) => b.spesimen_lama > 0).length;
   // Tautan disusun lengkap dengan nama situsnya supaya dapat langsung disalin
   // ke WhatsApp; "/daftar-ttd/…" saja tidak dapat dibuka orang lain.
@@ -476,33 +530,47 @@ export default function SpesimenPage() {
         </div>
       ) : (
         <>
-          <div className="banner info sp">
-            <b>{k.ringkas(belum, menunggu)}</b>
-            {k.ringkasIsi(String(ambang ?? "—"))}
-          </div>
-
           {kabar && (
             <div className={`banner ${kabar.kind}`}
                  dangerouslySetInnerHTML={{ __html: kabar.html }} />
           )}
 
-          <div className="row sp">
-            {[["semua", k.fSemua], ["belum", k.fBelum],
-              ["menunggu", k.fMenunggu], ["aktif", k.fAktif]]
-              .map(([nilai, label]) => (
-                <button key={nilai} className={saring === nilai ? "pri" : ""}
-                        onClick={() => setSaring(nilai)}>{label}</button>
-              ))}
-            <button onClick={() => void muat()} disabled={busy}>{k.muatUlang}</button>
-            {/* Peralihan ke tanda tangan KTP meninggalkan satu golongan di
-                tengah: yang sudah merekam goresan sebelum aturannya berubah.
-                Tombolnya hanya muncul selama golongan itu masih ada. */}
-            {lama > 0 && (
-              <button onClick={() => { setMassal(true); setHasilMassal(null); }}
-                      disabled={busy}>
-                {k.mintaRevisiLama(lama)}
+          {/* Tindakan di kiri, penyaring di kanan.
+              Sebelumnya keempat penyaring berupa tombol yang berjajar dengan
+              tombol tindakan, dan keduanya tidak dapat dibedakan dari
+              bentuknya — padahal yang satu mengubah apa yang terlihat dan
+              yang lain mengerjakan sesuatu. */}
+          <div className="row sp bilah-saring">
+            <div className="row" style={{ margin: 0 }}>
+              {/* Orang yang tidak pernah tertulis pada berkas penjualan —
+                  Markom, Sales Manager, Sales Koordinator, BGB — tidak punya
+                  jalan lain masuk ke daftar ini, dan feenya karena itu tidak
+                  dapat diajukan atas nama siapa pun. */}
+              <button className="pri" disabled={busy}
+                      onClick={() => setTambah({
+                        full_name: "", category: "markom",
+                        marketing_type: "inhouse", phone: "",
+                        email: "", npwp: "" })}>
+                {k.tambah}
               </button>
-            )}
+              <button onClick={() => void muat()} disabled={busy}>{k.muatUlang}</button>
+              {/* Peralihan ke tanda tangan KTP meninggalkan satu golongan di
+                  tengah: yang sudah merekam goresan sebelum aturannya berubah.
+                  Tombolnya hanya muncul selama golongan itu masih ada. */}
+              {lama > 0 && (
+                <button onClick={() => { setMassal(true); setHasilMassal(null); }}
+                        disabled={busy}>
+                  {k.mintaRevisiLama(lama)}
+                </button>
+              )}
+            </div>
+            <select value={saring} aria-label={k.fSaring}
+                    onChange={(e) => setSaring(e.target.value)}>
+              <option value="semua">{k.fSemua}</option>
+              <option value="belum">{k.fBelum}</option>
+              <option value="menunggu">{k.fMenunggu}</option>
+              <option value="aktif">{k.fAktif}</option>
+            </select>
           </div>
 
           <div className="panel">
@@ -683,6 +751,105 @@ export default function SpesimenPage() {
               </table>
             </div>
           </div>
+
+          {/* Pop-up "+ Add". Kategorinya berdiri paling atas sesudah nama:
+              ia yang menentukan jenisnya, dan yang mengisi perlu melihatnya
+              sebelum menjawab pertanyaan di bawahnya. */}
+          {tambah && (
+            <div className="tirai"
+                 onMouseDown={(e) => {
+                   if (e.target === e.currentTarget && !busy) setTambah(null);
+                 }}>
+              <div className="popup lebar" role="dialog" aria-modal="true"
+                   style={{ maxWidth: 520 }} aria-label={k.tambahJudul}>
+                <div className="popup-kepala">
+                  <h2>{k.tambahJudul}</h2>
+                  <button className="tautan" aria-label={k.tutup}
+                          disabled={busy}
+                          onClick={() => setTambah(null)}>✕</button>
+                </div>
+
+                <div className="popup-isi">
+                  <p className="hint" style={{ textAlign: "left", margin: "0 0 12px" }}>
+                    {k.tambahPengantar}
+                  </p>
+
+                  <div className="lbl">{k.tNama}</div>
+                  <input value={tambah.full_name} autoFocus
+                         style={{ width: "100%" }}
+                         onChange={(e) => setTambah(
+                           { ...tambah, full_name: e.target.value })} />
+
+                  <div className="filters rapat" style={{ marginTop: 10 }}>
+                    <div>
+                      <div className="lbl">{k.tKategori}</div>
+                      <select value={tambah.category}
+                              onChange={(e) => setTambah({
+                                ...tambah, category: e.target.value,
+                                // Jenisnya ikut kategorinya. Hanya Agent yang
+                                // berarti agent; sisanya inhouse. Masih dapat
+                                // dibetulkan sendiri pada kolom di sebelahnya.
+                                marketing_type: e.target.value === "agent"
+                                  ? "agent" : "inhouse" })}>
+                        {SEMUA_KATEGORI.map((kd) => (
+                          <option key={kd} value={kd}>
+                            {namaKategori(kd, bahasa)}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      {/* Bukan hal yang sama dengan kategorinya: inilah yang
+                          menentukan tarif pajaknya. */}
+                      <div className="lbl">{k.tJenis}</div>
+                      <select value={tambah.marketing_type}
+                              onChange={(e) => setTambah(
+                                { ...tambah, marketing_type: e.target.value })}>
+                        <option value="inhouse">{k.tJenisInhouse}</option>
+                        <option value="agent">{k.tJenisAgent}</option>
+                      </select>
+                    </div>
+                    <div>
+                      <div className="lbl">{k.tTelepon}</div>
+                      <input value={tambah.phone} inputMode="tel"
+                             placeholder={k.phNomor}
+                             onChange={(e) => setTambah(
+                               { ...tambah, phone: e.target.value })} />
+                    </div>
+                    <div>
+                      <div className="lbl">{k.tEmail}</div>
+                      <input value={tambah.email} inputMode="email"
+                             onChange={(e) => setTambah(
+                               { ...tambah, email: e.target.value })} />
+                    </div>
+                    <div>
+                      <div className="lbl">{k.tNpwp}</div>
+                      <input value={tambah.npwp} inputMode="numeric"
+                             onChange={(e) => setTambah(
+                               { ...tambah, npwp: e.target.value })} />
+                    </div>
+                  </div>
+
+                  <p className="hint" style={{ textAlign: "left", marginTop: 10 }}>
+                    {k.tCatatan}
+                  </p>
+                </div>
+
+                <div className="popup-kaki">
+                  <div className="row">
+                    <button className="pri"
+                            disabled={busy || tambah.full_name.trim().length < 3
+                                      || !tambah.phone.trim()}
+                            onClick={() => void simpanTambah()}>
+                      {busy ? k.tMenyimpan : k.tSimpan}
+                    </button>
+                    <button disabled={busy}
+                            onClick={() => setTambah(null)}>{k.batal}</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Pop-up penggantian massal. Alasannya diketik sekali dan
               tercatat pada tiap sesi yang terbit. */}

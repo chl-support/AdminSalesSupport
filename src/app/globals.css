@@ -254,6 +254,10 @@ ul.syarat-daftar li { margin-bottom: 2px; line-height: 1.45; }
 ul.syarat-daftar li.ya { color: var(--ok); }
 ul.syarat-daftar li.tidak { color: var(--sub); }
 ul.syarat-daftar .untuk { color: var(--mut); }
+/* Keterangan yang tidak menahan apa pun — ia memberitahu, bukan menolak. Tanpa
+   tanda silang dan lebih pudar daripada baris yang memang menghalangi, supaya
+   keduanya tidak terbaca sama beratnya. */
+ul.syarat-daftar li.catatan { color: var(--mut); font-style: italic; }
 
 /* Formulir pengajuan, mengikuti tata letak formulir kertasnya */
 .form-blok { margin-bottom: 12px; }
@@ -857,6 +861,13 @@ ul.cetak-ceklis .kotak { border: 1px solid var(--ink); width: 14px; height: 14px
 /* Tombol yang tampil sebagai tautan: perilakunya tombol (membuka isi di
    halaman yang sama), jadi elemennya tetap <button> demi papan ketik dan
    pembaca layar. */
+/* Bilah penyaring layar Data Marketing: tindakan di kiri, penyaring di kanan.
+   Keduanya berjajar pada satu baris sampai layarnya sempit, lalu bertumpuk —
+   pemilih yang terdorong keluar layar tidak dapat dipakai sama sekali. */
+.bilah-saring { display: flex; justify-content: space-between; align-items: center;
+                flex-wrap: wrap; gap: 8px; }
+.bilah-saring > select { min-width: 190px; }
+
 /* Label yang berperan sebagai tombol unggah.
    <input type="file"> tidak dapat diberi bentuk; yang terlihat karena itu
    labelnya, dan input-nya disembunyikan di dalamnya. Bentuknya mengikuti
