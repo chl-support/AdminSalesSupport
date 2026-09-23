@@ -1344,6 +1344,16 @@ td.sel-keadaan { text-align: center; }
 /* Empat langkah bertumpuk dalam satu sel, masing-masing kotak dan kalimatnya.
    Jarak antarlangkah lebih besar daripada jarak kotak ke kalimatnya sendiri,
    supaya keduanya terbaca sebagai satu kesatuan, bukan delapan baris lepas. */
+/* Panah pembentang, di atas kotak langkah pertama. Sengaja lebih kecil dan
+   lebih redup daripada kotak-kotak di bawahnya: ia mengatur tampilan, bukan
+   menyebut keadaan, dan tidak boleh ikut terbaca sebagai langkah kelima. */
+.kecilkan {
+  display: block; width: 100%; margin-bottom: 7px; padding: 0 6px;
+  border: 1px solid var(--line); background: var(--fill);
+  font-size: 11px; color: var(--mut); cursor: pointer; line-height: 1.6;
+}
+.kecilkan:hover { border-color: var(--mut); color: var(--ink); }
+
 .langkah-keadaan { margin-bottom: 9px; }
 .langkah-keadaan:last-child { margin-bottom: 0; }
 
@@ -1530,11 +1540,6 @@ td.sel-keadaan .menunggu.stop { color: var(--stop); }
 /* Nomor urut tidak ditebalkan: ia penunjuk baris, bukan isi yang dibaca. */
 .tscroll.persetujuan .tabel-penjualan td.sel-no {
   text-align: center; color: var(--ink);
-}
-/* Nomor klaim dan kode unitnya, di bawah tanggalnya. */
-.tscroll.persetujuan .tabel-penjualan .sisip {
-  display: block; margin-top: 3px; font-size: 11px; color: var(--mut);
-  overflow-wrap: anywhere;
 }
 /* Apa pun di dalam sel tidak boleh lebih lebar daripada selnya; kolomnya
    berlebar tetap, jadi isi yang melebihi akan menyeberangi garis pemisah. */
