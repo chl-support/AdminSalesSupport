@@ -587,6 +587,90 @@ export async function ubahKategori(
 }
 
 /**
+ * Daftarkan orang baru ke Data Marketing.
+ *
+ * Sampai sekarang orang hanya masuk lewat unggahan: berkas penjualan dan
+ * laporan keagenan. Keduanya hanya memuat yang menjual — Markom, Sales
+ * Manager, Sales Koordinator, dan BGB tidak pernah tertulis di sana, jadi
+ * orang yang berhak atas fee justru tidak pernah ada di daftar, dan feenya
+ * tidak dapat diajukan atas nama siapa pun.
+ *
+ * Statusnya 'draft', sama seperti yang masuk dari unggahan: yang dibuat di
+ * sini baru menyatakan orangnya ada, bukan bahwa tanda tangannya sudah
+ * terdaftar. Ia menjadi aktif lewat jalan yang sama — tautan pendaftaran
+ * spesimen — dan sebelum itu createClaim() tetap menolaknya.
+ *
+ * Nomor telepon wajib, meski kolomnya di basis data membolehkan kosong: ke
+ * nomor itulah tautan dan kode pendaftaran dikirim. Yang dibuat tanpa nomor
+ * berhenti pada langkah berikutnya, dan barisnya buntu di layar.
+ */
+export async function tambahMarketing(p: {
+  nama: string; kategori: string; jenis?: string | null;
+  telepon: string; email?: string | null; npwp?: string | null;
+}, aktor: string, projectId: string) {
+  const nama = (p.nama ?? "").trim().replace(/\s+/g, " ");
+  if (nama.length < 3) {
+    throw new WorkflowError(
+      "Nama belum diisi. Tuliskan nama lengkapnya.", "name_required", 422);
+  }
+  if (!SEMUA_KATEGORI.includes(p.kategori as any)) {
+    throw new WorkflowError("Kategori tidak dikenali.", "category_invalid", 422);
+  }
+  const telepon = rapikanNomor(p.telepon ?? "");
+  if (!telepon) {
+    throw new WorkflowError(
+      "Nomor telepon tidak dikenali. Tuliskan nomor ponsel Indonesia, " +
+      "misalnya 0812xxxxxxx.", "phone_invalid", 422);
+  }
+  // Tanpa project, barisnya tidak akan muncul di layar mana pun — seluruh
+  // daftar marketing disaring menurut project yang sedang dikerjakan — dan
+  // pemeriksaan nama kembar di bawah tidak menemukan apa pun untuk
+  // dibandingkan.
+  if (!projectId) {
+    throw new WorkflowError(
+      "Project belum dipilih.", "project_required", 422);
+  }
+
+  // Nama yang sama dalam satu project ditolak. Data penjualan mencocokkan
+  // marketing-nya dengan nama; dua baris bernama sama membuat pencocokan itu
+  // memilih salah satu tanpa dasar, dan fee unit bisa jatuh ke orang yang
+  // keliru.
+  const kembar = await one<{ id: string }>(
+    "SELECT id FROM marketings WHERE project_id=$1 AND lower(full_name)=lower($2)",
+    [projectId, nama]);
+  if (kembar) {
+    throw new WorkflowError(
+      `${nama} sudah terdaftar pada project ini. Ubah kategorinya pada baris ` +
+      `yang sudah ada, jangan dibuat kedua kalinya.`, "duplicate", 409);
+  }
+
+  // Agent atau inhouse menentukan tarif pajaknya, dan itu bukan hal yang sama
+  // dengan kategori penerima fee. Yang tidak disebutkan disimpulkan: hanya
+  // kategori Agent yang berarti agent.
+  const jenis = p.jenis === "agent" || p.jenis === "inhouse"
+    ? p.jenis
+    : p.kategori === "agent" ? "agent" : "inhouse";
+  const npwp = (p.npwp ?? "").trim() || null;
+
+  const baru = await one<{ id: string }>(
+    `INSERT INTO marketings (full_name, marketing_type, category, npwp,
+       npwp_type, recipient_type, phone, email, status, project_id)
+     VALUES ($1,$2,$3,$4,$5,'individual',$6,$7,'draft',$8)
+     RETURNING id`,
+    [nama, jenis, p.kategori, npwp, npwp ? "personal" : "none",
+     telepon, (p.email ?? "").trim() || null, projectId]);
+
+  await audit({
+    entityType: "marketing", entityId: baru!.id, action: "created",
+    actor: aktor,
+    after: { full_name: nama, category: p.kategori, marketing_type: jenis,
+             phone: telepon, sumber: "data_marketing" },
+  });
+  return { id: baru!.id, full_name: nama, category: p.kategori,
+           marketing_type: jenis, phone: telepon };
+}
+
+/**
  * Bakukan nomor ponsel ke bentuk 62xxxxxxxxxx, atau null bila bukan nomor.
  *
  * Satu bentuk saja yang disimpan supaya nomor yang sama tidak tersimpan dalam

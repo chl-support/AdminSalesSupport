@@ -16,6 +16,7 @@ import { WorkflowError } from "../src/lib/workflow";
 import { applyRate, ratio, rupiahWords, terbilang } from "../src/lib/money";
 import { collect, preview } from "../src/lib/report";
 import { KATEGORI_JENIS, kategoriAwal } from "../src/lib/kategori";
+import { tambahMarketing } from "../src/lib/spesimen";
 import { seed } from "./seed";
 import { signaturePng, strokes } from "./synthetic-signature";
 
@@ -478,6 +479,50 @@ async function main() {
            String(kategoriAwal("overriding", "agent")));
     assert(kategoriAwal("commission", "markom") === "sales_inhouse",
            String(kategoriAwal("commission", "markom")));
+  });
+
+  await check("marketing kategori baru dapat didaftarkan tangan", async () => {
+    // Markom, Sales Manager, Sales Koordinator, dan BGB tidak pernah tertulis
+    // pada berkas penjualan maupun laporan keagenan, jadi tanpa jalan ini
+    // mereka tidak pernah ada di daftar dan feenya tidak dapat diajukan.
+    // Project-nya diambil dari tabelnya sendiri: unit contoh belum tentu
+    // menyebut project, dan projectId yang kosong membuat pemeriksaan nama
+    // kembar tidak punya apa pun untuk dibandingkan.
+    const p = await one<{ id: string }>(
+      "SELECT id FROM projects ORDER BY created_at LIMIT 1");
+    const m = await tambahMarketing({
+      nama: "  Rina   Markom ", kategori: "markom",
+      telepon: "0812-3456-7890",
+    }, "admin", p!.id);
+    assert(m.category === "markom", m.category);
+    // Jenisnya disimpulkan dari kategorinya: hanya Agent yang berarti agent.
+    assert(m.marketing_type === "inhouse", m.marketing_type);
+    // Nama dan nomornya dibakukan, bukan disimpan apa adanya.
+    assert(m.full_name === "Rina Markom", m.full_name);
+    assert(m.phone === "6281234567890", m.phone);
+
+    const baru = await one<{ status: string }>(
+      "SELECT status FROM marketings WHERE id=$1", [m.id]);
+    assert(baru!.status === "draft", baru!.status);
+
+    // Nama kembar dalam satu project ditolak: data penjualan mencocokkan
+    // marketingnya dengan nama, dan dua baris bernama sama membuat fee sebuah
+    // unit jatuh ke salah satunya tanpa dasar.
+    let tertolak = false;
+    try {
+      await tambahMarketing({ nama: "rina markom", kategori: "markom",
+                              telepon: "0812-3456-7890" }, "admin", p!.id);
+    } catch (e: any) { tertolak = e instanceof WorkflowError; }
+    assert(tertolak, "nama kembar seharusnya ditolak");
+
+    // Nomor yang bukan nomor ponsel juga ditolak: ke nomor itulah tautan
+    // pendaftaran tanda tangannya dikirim.
+    let nomorTertolak = false;
+    try {
+      await tambahMarketing({ nama: "Dedi Markom", kategori: "markom",
+                              telepon: "123" }, "admin", p!.id);
+    } catch (e: any) { nomorTertolak = e instanceof WorkflowError; }
+    assert(nomorTertolak, "nomor keliru seharusnya ditolak");
   });
 
   await check("rekap memakai tanggal transfer, bukan tanggal input", async () => {

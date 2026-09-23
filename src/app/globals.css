@@ -857,6 +857,13 @@ ul.cetak-ceklis .kotak { border: 1px solid var(--ink); width: 14px; height: 14px
 /* Tombol yang tampil sebagai tautan: perilakunya tombol (membuka isi di
    halaman yang sama), jadi elemennya tetap <button> demi papan ketik dan
    pembaca layar. */
+/* Bilah penyaring layar Data Marketing: tindakan di kiri, penyaring di kanan.
+   Keduanya berjajar pada satu baris sampai layarnya sempit, lalu bertumpuk —
+   pemilih yang terdorong keluar layar tidak dapat dipakai sama sekali. */
+.bilah-saring { display: flex; justify-content: space-between; align-items: center;
+                flex-wrap: wrap; gap: 8px; }
+.bilah-saring > select { min-width: 190px; }
+
 /* Label yang berperan sebagai tombol unggah.
    <input type="file"> tidak dapat diberi bentuk; yang terlihat karena itu
    labelnya, dan input-nya disembunyikan di dalamnya. Bentuknya mengikuti
