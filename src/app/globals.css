@@ -1483,3 +1483,9 @@ td.sel-keadaan .menunggu {
 /* Apa pun di dalam sel tidak boleh lebih lebar daripada selnya; kolomnya
    berlebar tetap, jadi isi yang melebihi akan menyeberangi garis pemisah. */
 .tscroll.persetujuan .tabel-penjualan td > button { max-width: 100%; }
+
+/* Pemilih tahap peredaran, di dalam kolom Status. */
+.pilih-tahap {
+  display: block; width: 100%; margin-top: 8px;
+  font-size: 11px; padding: 3px 4px;
+}
