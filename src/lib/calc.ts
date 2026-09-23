@@ -12,8 +12,17 @@ import { applyRate, ratio, rupiahWords, stripVat } from "./money";
 
 export type ClaimType = "closing_fee" | "commission" | "cash_reward"
                       | "continuity_reward" | "overriding";
+/**
+ * Peran penerima fee — sama persis dengan enum recipient_role di basis data.
+ *
+ * Lima yang pertama ada sejak awal; 'bgb' dan 'sales_coordinator' menyusul
+ * bersama pemilih kategori pada dialog pengajuan. Daftar yang ditawarkan di
+ * layar ada di @/lib/kategori — ia enam dari tujuh nilai ini, karena
+ * 'sales_markom' tidak pernah dipakai dan tidak ditambahkan ke pilihannya.
+ */
 export type RecipientRole =
-  | "agent" | "sales_inhouse" | "sales_manager_inhouse" | "sales_markom" | "markom";
+  | "agent" | "sales_inhouse" | "sales_manager_inhouse" | "sales_markom"
+  | "markom" | "bgb" | "sales_coordinator";
 export type OverridingLevel =
   | "sales_manager_inhouse" | "kantor_agent" | "lead_agent"
   | "coordinator_agent_1" | "coordinator_agent_2";
@@ -434,9 +443,29 @@ export function penerimaFee(unit: any, claimType: ClaimType): {
 export function dapatDiklaim(
   unit: any, claimType: ClaimType, adaKlaimAktif: boolean,
 ): boolean {
+  if (!eligibility(unit, claimType).ok || adaKlaimAktif) return false;
+
+  /**
+   * Overriding tidak menuntut penerimanya sudah tercatat pada data penjualan.
+   *
+   * Dulu menuntut, dan syarat itu masuk akal selama penerima sebuah fee memang
+   * selalu diambil dari kolom pada baris penjualannya. Sejak kategori penerima
+   * dapat dipilih saat mengajukan — Sales Manager, Markom, atau Sales
+   * Koordinator — yang menentukan bukan lagi apa yang tertulis di berkas itu.
+   *
+   * Bedanya nyata di lapangan: berkas penjualan hampir selalu menyebut yang
+   * menjual, tetapi tingkat di atasnya kerap dikosongkan. Menahan Overriding
+   * karenanya berarti fee yang memang berhak dibayarkan tidak punya jalan
+   * diajukan sama sekali, sementara orangnya jelas dan dapat dipilih.
+   *
+   * Yang tidak dilonggarkan adalah pengajuannya sendiri: createClaim() tetap
+   * menuntut marketing yang sah dan berstatus aktif. Yang berubah hanya
+   * tombolnya — ia tidak lagi mati sebelum orangnya sempat dipilih.
+   */
+  if (claimType === "overriding") return true;
+
   const p = penerimaFee(unit, claimType);
-  return eligibility(unit, claimType).ok && !adaKlaimAktif &&
-         Boolean(p.id) && p.status === "active";
+  return Boolean(p.id) && p.status === "active";
 }
 
 /**

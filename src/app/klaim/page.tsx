@@ -23,7 +23,6 @@ import { Kerangka, MemeriksaSesi } from "../kerangka";
 import { useSesi } from "../session";
 import { JENIS, namaJenis, type Jenis } from "./jenis";
 import { KATEGORI_JENIS, kategoriAwal, namaKategori } from "@/lib/kategori";
-import { bacaBukuRekening } from "@/lib/rekening-baca";
 
 /**
  * Ambang penerimaan yang membuka pengajuan, disalin dari server.
@@ -135,14 +134,9 @@ const KATA = {
     bukuTombol: "Unggah buku rekening",
     bukuGanti: "Ganti berkas",
     bukuPetunjuk:
-      "Foto atau pindaian halaman depan buku rekening. Nama penerima, bank, " +
-      "dan no. rekening diisikan dari sana — periksa sebelum diajukan.",
-    bukuMembaca: "Membaca buku rekening…",
-    bukuPersen: (p: number) => `Membaca buku rekening… ${p}%`,
-    bukuTerbaca: (kolom: string) => `Terbaca dari berkas: ${kolom}.`,
-    bukuKosong:
-      "Tidak ada yang terbaca dari berkas itu. Isi ketiga kolomnya sendiri.",
-    bukuGagal: "Berkas tidak dapat dibaca",
+      "Foto atau pindaian halaman depan buku rekening. Ikut terlampir pada " +
+      "pengajuannya sebagai bukti rekening; isian di atas tetap diketik " +
+      "sendiri.",
     tfNama: "Nama penerima", tfJenis: "Atas nama",
     tfBadan: "Badan Usaha (PT)", tfPribadi: "Pribadi (Perorangan)",
     tfBank: "Bank", tfRekening: "No. rekening", tfCabang: "Kantor cabang",
@@ -160,6 +154,13 @@ const KATA = {
     penerimaanKurang: (p: number) =>
       `Penerimaan baru ${p.toFixed(1)}%, syaratnya ${AMBANG * 100}%`,
     belumMenyebut: (sumber: string) => `Data penjualan belum menyebut ${sumber}.`,
+    koordinatorKosong:
+      "Data penjualan belum menyebut Sales Koordinator — penerima Overriding " +
+      "dipilih sendiri saat mengajukan.",
+    koordinatorBelumAktif: (nama: string, status: string) =>
+      `${nama} (Overriding) berstatus ${status}, belum aktif — penerimanya ` +
+      `dapat diganti saat mengajukan.`,
+    pilihNama: "Pilih nama penerimanya lebih dulu.",
     belumAktif: (nama: string, status: string) =>
       `${nama} berstatus ${status}, belum aktif.`,
     takAdaCocok: "Tidak ada penjualan yang cocok dengan penyaringan ini.",
@@ -213,13 +214,9 @@ const KATA = {
     bukuTombol: "Upload passbook",
     bukuGanti: "Replace file",
     bukuPetunjuk:
-      "A photo or scan of the passbook's front page. Recipient name, bank, " +
-      "and account number are filled from it — check before submitting.",
-    bukuMembaca: "Reading the passbook…",
-    bukuPersen: (p: number) => `Reading the passbook… ${p}%`,
-    bukuTerbaca: (kolom: string) => `Read from the file: ${kolom}.`,
-    bukuKosong: "Nothing could be read from that file. Fill the three fields in yourself.",
-    bukuGagal: "The file could not be read",
+      "A photo or scan of the passbook's front page. It is attached to the " +
+      "submission as proof of the account; the fields above are still typed " +
+      "in by hand.",
     tfNama: "Recipient name", tfJenis: "Held by",
     tfBadan: "Company (PT)", tfPribadi: "Individual",
     tfBank: "Bank", tfRekening: "Account number", tfCabang: "Branch",
@@ -238,6 +235,13 @@ const KATA = {
       `Received is only ${p.toFixed(1)}%, the requirement is ${AMBANG * 100}%`,
     belumMenyebut: (sumber: string) =>
       `The sales data does not name a ${sumber} yet.`,
+    koordinatorKosong:
+      "The sales data does not name a Sales Coordinator — the Overriding " +
+      "recipient is chosen when submitting.",
+    koordinatorBelumAktif: (nama: string, status: string) =>
+      `${nama} (Overriding) is ${status}, not active yet — the recipient can ` +
+      `be changed when submitting.`,
+    pilihNama: "Choose the recipient's name first.",
     belumAktif: (nama: string, status: string) =>
       `${nama} is ${status}, not active yet.`,
     takAdaCocok: "No sales match this filter.",
@@ -341,16 +345,22 @@ export default function PengajuanFeePage() {
   /** Nama yang terdaftar di project ini, sumber pemilih nama di atas. */
   const [orang, setOrang] = useState<Orang[]>([]);
   /**
-   * Buku rekening yang diunggah per jenis fee, beserta keadaan pembacaannya.
+   * Buku rekening yang diunggah per jenis fee.
    *
-   * Berkasnya disimpan, bukan dibuang setelah dibaca: Komisi memang menuntut
-   * salinan rekening pada checklist dokumennya, dan yang barusan diunggah
-   * adalah berkas itu juga. Ia dilampirkan ke klaimnya begitu klaimnya jadi.
+   * Disimpan untuk dilampirkan ke klaimnya begitu klaimnya jadi — Komisi
+   * memang menuntut salinan rekening pada checklist dokumennya, dan yang
+   * barusan diunggah adalah berkas itu juga.
+   *
+   * Isinya tidak dibaca. Sempat dicoba: tiga kolom tujuan transfer diisikan
+   * dari hasil OCR berkasnya. Pada foto buku rekening yang sebenarnya — layar
+   * ponsel, miring, dengan latar meja — yang terbaca justru nama kantor
+   * cabang sebagai nama penerima. Kolom yang terisi salah lebih berbahaya
+   * daripada kolom kosong: yang kosong terlihat, yang terisi dianggap sudah
+   * benar dan tidak dibaca ulang. Jadi ketiganya diketik sendiri.
    */
   const [buku, setBuku] = useState<Record<string, {
     nama: string; base64: string; tipe: string;
   }>>({});
-  const [bukuKabar, setBukuKabar] = useState<Record<string, string>>({});
 
   /**
    * Nama yang terisi sendiri pada sebuah kategori.
@@ -486,57 +496,15 @@ export default function PengajuanFeePage() {
   }, []);
 
   /**
-   * Baca buku rekening yang diunggah, lalu isikan tiga kolom tujuan transfer.
+   * Simpan buku rekening yang diunggah, untuk dilampirkan pada klaimnya.
    *
-   * OCR-nya dijalankan di peramban, memakai mesin yang sama dengan pembacaan
-   * memo — berkasnya sudah ada di komputer yang mengunggah, dan komputer itu
-   * sedang menganggur menunggu hasilnya.
-   *
-   * Yang terbaca menimpa isian yang ada; yang tidak terbaca membiarkannya.
-   * Buku rekening yang diunggah adalah pernyataan "ke sinilah transfernya",
-   * jadi nama dan nomor di dalamnya memang lebih berhak daripada rekening lama
-   * yang terisi otomatis — tetapi kolom yang gagal dibaca tidak boleh
-   * dikosongkan olehnya.
+   * Hanya disimpan — tidak dibaca. Lihat alasannya pada keterangan state
+   * `buku` di atas.
    */
-  const bacaBuku = async (slug: string, berkas: File) => {
-    setBukuKabar({ ...bukuKabar, [slug]: k.bukuMembaca });
-    try {
-      const isi = await keBase64(berkas);
-      setBuku((lama) => ({ ...lama,
-        [slug]: { nama: berkas.name, base64: isi, tipe: berkas.type } }));
-
-      // Dimuat saat dipakai, bukan saat layar dibuka: mesin OCR dan data
-      // bahasanya berukuran belasan megabita, dan sebagian besar pengajuan
-      // tidak mengunggah buku rekening sama sekali.
-      const { bacaPindaian } = await import("../memo/ocr");
-      const { teks } = await bacaPindaian(berkas, (kb) => {
-        if (kb.tahap === "membaca" && typeof kb.persen === "number") {
-          setBukuKabar((lama) => ({ ...lama, [slug]: k.bukuPersen(kb.persen!) }));
-        }
-      });
-
-      const r = bacaBukuRekening(teks);
-      const terbaca: string[] = [];
-      if (r.holder_name) terbaca.push(k.tfNama);
-      if (r.bank_name) terbaca.push(k.tfBank);
-      if (r.account_number) terbaca.push(k.tfRekening);
-
-      setTransfer((lama) => {
-        const t = lama[slug] ?? {};
-        return { ...lama, [slug]: {
-          ...t,
-          holder_name: r.holder_name ?? t.holder_name ?? "",
-          bank_name: r.bank_name ?? t.bank_name ?? "",
-          account_number: r.account_number ?? t.account_number ?? "",
-        } };
-      });
-      setBukuKabar((lama) => ({ ...lama,
-        [slug]: terbaca.length ? k.bukuTerbaca(terbaca.join(", "))
-                               : k.bukuKosong }));
-    } catch (e: any) {
-      setBukuKabar((lama) => ({ ...lama,
-        [slug]: `${k.bukuGagal}: ${String(e?.message ?? e)}` }));
-    }
+  const simpanBuku = async (slug: string, berkas: File) => {
+    const isi = await keBase64(berkas);
+    setBuku((lama) => ({ ...lama,
+      [slug]: { nama: berkas.name, base64: isi, tipe: berkas.type } }));
   };
 
   // Menunggu sesi lebih dulu: memanggil /api/units sebelum identitasnya pasti
@@ -576,7 +544,12 @@ export default function PengajuanFeePage() {
         const kat = kategori[slug] ?? "";
         const idPenerima = penerima[slug] || f?.recipient?.id;
         if (!idPenerima) {
-          gagal.push(`${namaJenis(slug, bahasa)}: ${k.katKosong}`);
+          // Dua sebab yang berbeda: kategorinya memang belum punya orang sama
+          // sekali, atau orangnya ada tetapi belum dipilih. Satu kalimat untuk
+          // keduanya menyuruh orang mendaftarkan nama yang sebenarnya sudah
+          // ada di pemilihnya.
+          gagal.push(`${namaJenis(slug, bahasa)}: ${
+            orangKategori(kat).length ? k.pilihNama : k.katKosong}`);
           continue;
         }
         const res = await fetch("/api/claims", {
@@ -645,7 +618,6 @@ export default function PengajuanFeePage() {
       setKategori({});
       setPenerima({});
       setBuku({});
-      setBukuKabar({});
 
       // Berpindah hanya bila memang ada yang jadi. Kalau seluruhnya gagal,
       // yang perlu dibaca adalah pesan galatnya di layar ini — bukan daftar
@@ -864,7 +836,6 @@ export default function PengajuanFeePage() {
                                     setKategori(kat);
                                     setPenerima(pen);
                                     setBuku({});
-                                    setBukuKabar({});
                                     setSiapkan({ unit: u, jenis: daftar });
                                   }}>
                             {mengajukan === u.id ? k.mengajukan
@@ -916,6 +887,26 @@ export default function PengajuanFeePage() {
                             <span aria-hidden="true">✕</span>{" "}
                             {k.belumAktif(sales?.name ?? "—",
                                           sales?.status ?? "—")}
+                          </li>
+                        )}
+                        {/* Penerima Overriding disebut tersendiri. Ia orang
+                            lain daripada yang menjual, dan sampai sekarang
+                            keadaannya tidak pernah dilaporkan di sini sama
+                            sekali — kotak Overriding yang mati hanya bertulis
+                            "belum", tanpa sebab yang dapat dibaca siapa pun.
+
+                            Bukan tanda silang: sejak penerimanya dapat dipilih
+                            saat mengajukan, keduanya tidak lagi menahan apa
+                            pun. Yang perlu diketahui hanya bahwa namanya akan
+                            ditanyakan nanti. */}
+                        {u.fees.overriding?.marketing_missing && (
+                          <li className="catatan">{k.koordinatorKosong}</li>
+                        )}
+                        {u.fees.overriding?.marketing_inactive && (
+                          <li className="catatan">
+                            {k.koordinatorBelumAktif(
+                              u.fees.overriding?.recipient?.name ?? "—",
+                              u.fees.overriding?.recipient?.status ?? "—")}
                           </li>
                         )}
                       </ul>
@@ -1060,37 +1051,6 @@ export default function PengajuanFeePage() {
                       {k.tfJudul}
                     </div>
 
-                    {/* Buku rekening diunggah di dalam blok Tujuan Transfer,
-                        tepat di atas tiga kolom yang diisinya. Ditaruh di
-                        tempat lain, hubungan antara berkas dan kolomnya harus
-                        dijelaskan dengan kalimat. */}
-                    <div className="row" style={{ margin: "4px 0 8px" }}>
-                      <label className="tombol-berkas">
-                        {buku[slug] ? k.bukuGanti : k.bukuTombol}
-                        <input type="file" hidden
-                               accept="image/*,application/pdf"
-                               onChange={(e) => {
-                                 const f = e.target.files?.[0];
-                                 // Nilainya dikosongkan supaya berkas yang sama
-                                 // dapat dipilih dua kali berturut-turut —
-                                 // yang pertama gagal terbaca, yang kedua
-                                 // setelah difoto ulang dengan nama yang sama.
-                                 e.target.value = "";
-                                 if (f) void bacaBuku(slug, f);
-                               }} />
-                      </label>
-                      {buku[slug] && (
-                        <span className="hint" style={{ margin: 0 }}>
-                          {buku[slug].nama}
-                        </span>
-                      )}
-                    </div>
-                    {bukuKabar[slug] && (
-                      <p className="hint" style={{ textAlign: "left", margin: "0 0 8px" }}>
-                        {bukuKabar[slug]}
-                      </p>
-                    )}
-
                     <div className="filters rapat">
                       <div>
                         <div className="lbl">{k.tfNama}</div>
@@ -1121,6 +1081,39 @@ export default function PengajuanFeePage() {
                                onChange={(e) => ubah("branch", e.target.value)} />
                       </div>
                     </div>
+
+                    {/* Buku rekening: di bawah isian yang diketik, bukan di
+                        atasnya. Ia bukan sumber isian itu — hanya bukti yang
+                        ikut terlampir — dan yang berdiri lebih dulu di layar
+                        terbaca sebagai langkah pertama yang harus dikerjakan
+                        sebelum yang di bawahnya. */}
+                    <div className="lbl" style={{ marginTop: 12 }}>
+                      {k.bukuJudul}
+                    </div>
+                    <div className="row" style={{ margin: "4px 0 0" }}>
+                      <label className="tombol-berkas">
+                        {buku[slug] ? k.bukuGanti : k.bukuTombol}
+                        <input type="file" hidden
+                               accept="image/*,application/pdf"
+                               onChange={(e) => {
+                                 const f = e.target.files?.[0];
+                                 // Nilainya dikosongkan supaya berkas yang sama
+                                 // dapat dipilih dua kali berturut-turut —
+                                 // yang pertama kurang terbaca, yang kedua
+                                 // setelah difoto ulang dengan nama yang sama.
+                                 e.target.value = "";
+                                 if (f) void simpanBuku(slug, f);
+                               }} />
+                      </label>
+                      {buku[slug] && (
+                        <span className="hint" style={{ margin: 0 }}>
+                          {buku[slug].nama}
+                        </span>
+                      )}
+                    </div>
+                    <p className="hint" style={{ textAlign: "left", margin: "6px 0 0" }}>
+                      {k.bukuPetunjuk}
+                    </p>
                   </div>
                 );
               })}
