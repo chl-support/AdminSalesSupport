@@ -154,6 +154,13 @@ const KATA = {
     penerimaanKurang: (p: number) =>
       `Penerimaan baru ${p.toFixed(1)}%, syaratnya ${AMBANG * 100}%`,
     belumMenyebut: (sumber: string) => `Data penjualan belum menyebut ${sumber}.`,
+    koordinatorKosong:
+      "Data penjualan belum menyebut Sales Koordinator — penerima Overriding " +
+      "dipilih sendiri saat mengajukan.",
+    koordinatorBelumAktif: (nama: string, status: string) =>
+      `${nama} (Overriding) berstatus ${status}, belum aktif — penerimanya ` +
+      `dapat diganti saat mengajukan.`,
+    pilihNama: "Pilih nama penerimanya lebih dulu.",
     belumAktif: (nama: string, status: string) =>
       `${nama} berstatus ${status}, belum aktif.`,
     takAdaCocok: "Tidak ada penjualan yang cocok dengan penyaringan ini.",
@@ -228,6 +235,13 @@ const KATA = {
       `Received is only ${p.toFixed(1)}%, the requirement is ${AMBANG * 100}%`,
     belumMenyebut: (sumber: string) =>
       `The sales data does not name a ${sumber} yet.`,
+    koordinatorKosong:
+      "The sales data does not name a Sales Coordinator — the Overriding " +
+      "recipient is chosen when submitting.",
+    koordinatorBelumAktif: (nama: string, status: string) =>
+      `${nama} (Overriding) is ${status}, not active yet — the recipient can ` +
+      `be changed when submitting.`,
+    pilihNama: "Choose the recipient's name first.",
     belumAktif: (nama: string, status: string) =>
       `${nama} is ${status}, not active yet.`,
     takAdaCocok: "No sales match this filter.",
@@ -530,7 +544,12 @@ export default function PengajuanFeePage() {
         const kat = kategori[slug] ?? "";
         const idPenerima = penerima[slug] || f?.recipient?.id;
         if (!idPenerima) {
-          gagal.push(`${namaJenis(slug, bahasa)}: ${k.katKosong}`);
+          // Dua sebab yang berbeda: kategorinya memang belum punya orang sama
+          // sekali, atau orangnya ada tetapi belum dipilih. Satu kalimat untuk
+          // keduanya menyuruh orang mendaftarkan nama yang sebenarnya sudah
+          // ada di pemilihnya.
+          gagal.push(`${namaJenis(slug, bahasa)}: ${
+            orangKategori(kat).length ? k.pilihNama : k.katKosong}`);
           continue;
         }
         const res = await fetch("/api/claims", {
@@ -868,6 +887,26 @@ export default function PengajuanFeePage() {
                             <span aria-hidden="true">✕</span>{" "}
                             {k.belumAktif(sales?.name ?? "—",
                                           sales?.status ?? "—")}
+                          </li>
+                        )}
+                        {/* Penerima Overriding disebut tersendiri. Ia orang
+                            lain daripada yang menjual, dan sampai sekarang
+                            keadaannya tidak pernah dilaporkan di sini sama
+                            sekali — kotak Overriding yang mati hanya bertulis
+                            "belum", tanpa sebab yang dapat dibaca siapa pun.
+
+                            Bukan tanda silang: sejak penerimanya dapat dipilih
+                            saat mengajukan, keduanya tidak lagi menahan apa
+                            pun. Yang perlu diketahui hanya bahwa namanya akan
+                            ditanyakan nanti. */}
+                        {u.fees.overriding?.marketing_missing && (
+                          <li className="catatan">{k.koordinatorKosong}</li>
+                        )}
+                        {u.fees.overriding?.marketing_inactive && (
+                          <li className="catatan">
+                            {k.koordinatorBelumAktif(
+                              u.fees.overriding?.recipient?.name ?? "—",
+                              u.fees.overriding?.recipient?.status ?? "—")}
                           </li>
                         )}
                       </ul>

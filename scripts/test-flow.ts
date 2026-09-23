@@ -525,6 +525,40 @@ async function main() {
     assert(nomorTertolak, "nomor keliru seharusnya ditolak");
   });
 
+  await check("Overriding tetap dapat diklaim walau koordinatornya kosong",
+              async () => {
+    // Berkas penjualan hampir selalu menyebut yang menjual, tetapi tingkat di
+    // atasnya kerap dikosongkan. Dulu itu mematikan tombol Overriding, dan fee
+    // yang memang berhak dibayarkan tidak punya jalan diajukan sama sekali —
+    // padahal sejak kategori penerimanya dapat dipilih, orangnya tidak lagi
+    // diambil dari kolom itu.
+    const tanpaKoordinator = {
+      status: "active", contract_value_incl_vat: 1_000_000_000,
+      received_amount: 500_000_000,
+      marketing_id: "x", marketing_status: "active",
+      sub_coordinator_id: null, coordinator_id: null,
+    };
+    assert(calc.dapatDiklaim(tanpaKoordinator, "overriding", false),
+           "Overriding seharusnya terbuka");
+
+    // Yang lain tetap menuntut penerimanya tercatat: kolom yang kosong di sana
+    // berarti penjualannya belum menyebut siapa yang menjual, dan itu memang
+    // data yang perlu dibetulkan lebih dulu.
+    assert(!calc.dapatDiklaim(
+      { ...tanpaKoordinator, marketing_id: null, marketing_status: null },
+      "closing_fee", false), "Closing Fee seharusnya tertahan");
+
+    // Yang menahan selain itu tidak ikut longgar.
+    assert(!calc.dapatDiklaim(tanpaKoordinator, "overriding", true),
+           "klaim aktif seharusnya tetap menahan");
+    assert(!calc.dapatDiklaim(
+      { ...tanpaKoordinator, received_amount: 1_000_000 }, "overriding", false),
+      "penerimaan kurang dari 20% seharusnya tetap menahan");
+    assert(!calc.dapatDiklaim(
+      { ...tanpaKoordinator, status: "cancelled" }, "overriding", false),
+      "unit batal seharusnya tetap menahan");
+  });
+
   await check("rekap memakai tanggal transfer, bukan tanggal input", async () => {
     const rec = await settlement.paymentRecap("2020-01-01", "2100-01-01");
     assert(rec.totals.net_amount === 4_393_750, JSON.stringify(rec.totals));

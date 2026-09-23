@@ -254,6 +254,10 @@ ul.syarat-daftar li { margin-bottom: 2px; line-height: 1.45; }
 ul.syarat-daftar li.ya { color: var(--ok); }
 ul.syarat-daftar li.tidak { color: var(--sub); }
 ul.syarat-daftar .untuk { color: var(--mut); }
+/* Keterangan yang tidak menahan apa pun — ia memberitahu, bukan menolak. Tanpa
+   tanda silang dan lebih pudar daripada baris yang memang menghalangi, supaya
+   keduanya tidak terbaca sama beratnya. */
+ul.syarat-daftar li.catatan { color: var(--mut); font-style: italic; }
 
 /* Formulir pengajuan, mengikuti tata letak formulir kertasnya */
 .form-blok { margin-bottom: 12px; }
