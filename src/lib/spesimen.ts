@@ -37,7 +37,6 @@ import { randomBytes, randomInt } from "node:crypto";
 import { audit, one, query, settingInt, setting } from "./db";
 import { WorkflowError } from "./workflow";
 import { SEMUA_KATEGORI } from "./kategori";
-import { ensureKolomMarketing } from "./kolom";
 
 /** Versi teks persetujuan. Naikkan bila kalimatnya berubah. */
 export const VERSI_PERSETUJUAN = "3.0";
@@ -308,7 +307,6 @@ export async function kirimSet(token: string) {
  * menawarkan pilihan yang pasti gagal.
  */
 export async function daftarPerKategori(projectId: string) {
-  await ensureKolomMarketing();
   return query(
     `SELECT m.id, m.full_name, m.category, m.marketing_type,
             b.holder_name, b.bank_name, b.account_number, b.branch,
@@ -325,7 +323,6 @@ export async function daftarPerKategori(projectId: string) {
 
 /** Daftar pendaftaran untuk layar Admin, dalam lingkup satu project. */
 export async function daftarMarketing(projectId: string) {
-  await ensureKolomMarketing();
   return query(
     `SELECT m.id, m.full_name, m.marketing_type, m.category, m.status, m.phone,
             a.name AS agency_name,
@@ -573,7 +570,6 @@ export async function ubahKategori(
     throw new WorkflowError(
       "Kategori tidak dikenali.", "category_invalid", 422);
   }
-  await ensureKolomMarketing();
   const mkt = await one<{ full_name: string; category: string | null }>(
     "SELECT full_name, category FROM marketings WHERE id=$1 " +
     "AND ($2::uuid IS NULL OR project_id=$2)", [marketingId, projectId ?? null]);

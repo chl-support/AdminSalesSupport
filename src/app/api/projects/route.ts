@@ -4,7 +4,6 @@ import { COOKIE } from "@/lib/auth";
 import { createHash } from "node:crypto";
 import { WorkflowError } from "@/lib/workflow";
 import { ensureProjectsSekali } from "@/lib/projects";
-import { ensureKolomMarketing } from "@/lib/kolom";
 
 /** Project yang dapat dikerjakan, beserta yang sedang dipilih. */
 export const GET = handler(async (req) => {
@@ -14,12 +13,6 @@ export const GET = handler(async (req) => {
   // menjalankan migrasi ulang — sesuatu yang tidak lagi mungkin setelah
   // SETUP_SECRET dicabut, seperti yang memang dianjurkan.
   await ensureProjectsSekali();
-
-  // Sekalian tambahan skema yang tertinggal dengan sebab yang sama. Dipasang
-  // di sini, di panggilan pertama tiap sesi, supaya perbaikannya sudah selesai
-  // sebelum layar mana pun yang membutuhkannya dibuka — bukan setelah orang
-  // menemukan galat 500 di salah satunya. Lihat src/lib/kolom.ts.
-  await ensureKolomMarketing();
 
   return {
     projects: await query(
