@@ -1242,7 +1242,8 @@ a.tautan-klaim:hover { border-color: var(--ink); }
 .rekap-memo td:nth-child(9) > button { display: block; width: 100%; }
 .rekap-memo td:nth-child(9) > button + button { margin-top: 6px; }
 
-.rekap-memo td.no { text-align: center; font-weight: 650; color: var(--ink); }
+/* Nomor urut tidak ditebalkan: ia penunjuk baris, bukan isi yang dibaca. */
+.rekap-memo td.no { text-align: center; color: var(--ink); }
 /* Nomor memo panjang dan tidak pernah dibaca sebagai kalimat: dikecilkan dan
    diizinkan patah di mana saja, supaya tidak memaksa kolomnya melebar. */
 .rekap-memo td.nomor { font-size: 11px; overflow-wrap: anywhere; }
@@ -1452,3 +1453,33 @@ td.sel-keadaan .menunggu {
   .lampiran-cetak { height: auto; }
   .lampiran-cetak iframe { border: none; }
 }
+
+/* ---- Dokumen pengajuan: kolom mengikuti bentuk acuannya ------------- */
+/* Dua belas kolom, jauh lebih banyak daripada sebelumnya. Lebarnya dipatok
+   supaya satu perihal yang panjang tidak memipihkan kolom angka pada seluruh
+   baris lain; .tscroll di sekelilingnya yang menyediakan gulirannya. */
+.tscroll.persetujuan .tabel-penjualan { min-width: 1500px; table-layout: fixed; }
+.tscroll.persetujuan .tabel-penjualan th:nth-child(1)  { width: 44px; }  /* No. */
+.tscroll.persetujuan .tabel-penjualan th:nth-child(2)  { width: 132px; } /* Tanggal */
+.tscroll.persetujuan .tabel-penjualan th:nth-child(3)  { width: 118px; } /* Perihal */
+.tscroll.persetujuan .tabel-penjualan th:nth-child(4)  { width: 110px; } /* Kategori */
+.tscroll.persetujuan .tabel-penjualan th:nth-child(5)  { width: 150px; } /* Penerima */
+.tscroll.persetujuan .tabel-penjualan th:nth-child(6)  { width: 150px; } /* Diajukan */
+.tscroll.persetujuan .tabel-penjualan th:nth-child(7)  { width: 124px; } /* Jumlah */
+.tscroll.persetujuan .tabel-penjualan th:nth-child(8)  { width: 104px; } /* PPN */
+.tscroll.persetujuan .tabel-penjualan th:nth-child(9)  { width: 104px; } /* PPh */
+.tscroll.persetujuan .tabel-penjualan th:nth-child(10) { width: 132px; } /* Dibayarkan */
+.tscroll.persetujuan .tabel-penjualan th:nth-child(11) { width: 186px; } /* Status */
+.tscroll.persetujuan .tabel-penjualan th:nth-child(12) { width: 128px; } /* Tindakan */
+/* Nomor urut tidak ditebalkan: ia penunjuk baris, bukan isi yang dibaca. */
+.tscroll.persetujuan .tabel-penjualan td.sel-no {
+  text-align: center; color: var(--ink);
+}
+/* Nomor klaim dan kode unitnya, di bawah tanggalnya. */
+.tscroll.persetujuan .tabel-penjualan .sisip {
+  display: block; margin-top: 3px; font-size: 11px; color: var(--mut);
+  overflow-wrap: anywhere;
+}
+/* Apa pun di dalam sel tidak boleh lebih lebar daripada selnya; kolomnya
+   berlebar tetap, jadi isi yang melebihi akan menyeberangi garis pemisah. */
+.tscroll.persetujuan .tabel-penjualan td > button { max-width: 100%; }

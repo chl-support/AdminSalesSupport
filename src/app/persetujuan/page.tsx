@@ -31,9 +31,48 @@ import { useBahasa, useKata } from "../bahasa";
 import { Kerangka, MemeriksaSesi } from "../kerangka";
 import { useSesi } from "../session";
 import { namaJenis } from "../klaim/jenis";
+import { namaKategori } from "@/lib/kategori";
 
 const rp = (n?: number | null) => `Rp ${(n ?? 0).toLocaleString("id-ID")}`;
 const tgl = (v?: string | null) => (v ? String(v).slice(0, 10) : "—");
+
+/** "2026-09-21" menjadi "21/09/2026", sebagaimana tertulis pada acuannya. */
+const tglPendek = (v?: string | null) => {
+  const [y, b, h] = String(v ?? "").slice(0, 10).split("-");
+  return y && b && h ? `${h}/${b}/${y}` : "—";
+};
+
+/**
+ * "Diajukan oleh" sebagaimana diminta: nama orangnya, dengan nama masuknya
+ * di dalam kurung. Nama lengkapnya dapat hilang bila akunnya sudah dihapus —
+ * yang tersisa nama masuknya saja, dan itu tetap lebih berarti daripada
+ * kolom kosong.
+ */
+const pengaju = (c: any) => {
+  const nama = c.diajukan_oleh_nama, masuk = c.diajukan_oleh;
+  if (!masuk) return "—";
+  return nama ? `${nama} (${masuk})` : masuk;
+};
+
+/**
+ * Kategori penerimanya — keenamnya, bukan hanya Sales Inhouse dan Agent.
+ *
+ * Yang dipakai adalah peran penerima pada klaimnya sendiri: itulah kategori
+ * yang dipilih saat fee ini diajukan, dan ia tersimpan bersama klaimnya.
+ * Membacanya dari data marketing yang sekarang akan menampilkan kategori
+ * orangnya hari ini, bukan kategori yang berlaku saat pengajuannya dibuat —
+ * dan klaim lama harus tetap menyebut apa yang benar saat itu.
+ *
+ * Klaim lama, dari sebelum kategorinya dapat dipilih, jatuh ke jenis
+ * marketingnya seperti sebelumnya.
+ */
+const kategori = (c: any, k: { katAgent: string; katInhouse: string },
+                  bahasa: "id" | "en" = "id") =>
+  c.recipient_role ? namaKategori(c.recipient_role, bahasa)
+  : c.marketing?.category ? namaKategori(c.marketing.category, bahasa)
+  : c.marketing?.marketing_type === "agent" ? k.katAgent
+  : c.marketing?.marketing_type === "inhouse" ? k.katInhouse
+  : null;
 
 const KATA = {
   id: {
@@ -45,10 +84,16 @@ const KATA = {
     belumJalan: "belum diteruskan", berjalan: "sedang berjalan",
     selesai: "sudah selesai",
     jumlah: (n: number) => `${n} klaim`,
+    unduhRekap: "Download (.xlsx)",
+    pProgress: (n: number) => `🔄 ${n} Progress`,
+    pFinish: (n: number) => `🏁 ${n} Finish`,
     daftar: "Dokumen pengajuan",
-    thNomor: "Nomor", thJenis: "Jenis fee", thUnit: "Unit",
-    thPenerima: "Penerima", thBruto: "Bruto", thPph: "PPh",
-    thBersih: "Bersih", thStatus: "Status", thDokumen: "Dokumen",
+    thNo: "No.", thTanggal: "Tanggal Pengajuan", thPerihal: "Perihal/Topik",
+    thKategori: "Kategori", thPenerima: "Penerima",
+    thPengaju: "Diajukan Oleh", thBruto: "Jumlah Komisi",
+    thPpn: "PPN", thPph: "PPh", thBersih: "Komisi Yang Dibayarkan",
+    thStatus: "Status", thDokumen: "Tindakan",
+    katInhouse: "Sales Inhouse", katAgent: "Agent",
     pratinjau: "Lihat pratinjau",
     kosong: "Belum ada pengajuan pada project ini.",
     memuat: "Memuat…",
@@ -81,10 +126,16 @@ const KATA = {
     belumJalan: "not yet forwarded", berjalan: "in progress",
     selesai: "completed",
     jumlah: (n: number) => `${n} claims`,
+    unduhRekap: "Download (.xlsx)",
+    pProgress: (n: number) => `🔄 ${n} Progress`,
+    pFinish: (n: number) => `🏁 ${n} Finish`,
     daftar: "Submission documents",
-    thNomor: "Number", thJenis: "Fee type", thUnit: "Unit",
-    thPenerima: "Recipient", thBruto: "Gross", thPph: "Withholding",
-    thBersih: "Net", thStatus: "Status", thDokumen: "Document",
+    thNo: "No.", thTanggal: "Submitted on", thPerihal: "Subject / topic",
+    thKategori: "Category", thPengaju: "Submitted by",
+    thPpn: "VAT", katInhouse: "In-house sales", katAgent: "Agent",
+    thPenerima: "Recipient", thBruto: "Commission amount",
+    thPph: "Withholding",
+    thBersih: "Commission paid", thStatus: "Status", thDokumen: "Action",
     pratinjau: "View preview",
     kosong: "No submissions on this project yet.",
     memuat: "Loading…",
@@ -220,8 +271,20 @@ const KEADAAN: Record<string, { id: [string, string]; en: [string, string] }> = 
   },
 };
 
-function keadaan(status: string, bahasa: "id" | "en"): [string, string] {
-  return KEADAAN[status]?.[bahasa] ?? [status, ""];
+/**
+ * Keadaan sebuah klaim, sebagai [di mana, menunggu apa].
+ *
+ * "Sales/Agent" diganti kategori penerimanya yang sebenarnya — Sales Inhouse
+ * atau Agent — bila diketahui. Pada baris milik sales in-house, "Di
+ * Sales/Agent" menyebut dua pihak sekaligus padahal hanya satu yang memegang
+ * dokumennya, dan yang membaca harus menengok kolom lain untuk tahu yang mana.
+ */
+function keadaan(status: string, bahasa: "id" | "en",
+                 kategori?: string | null): [string, string] {
+  const [di, menunggu] = KEADAAN[status]?.[bahasa] ?? [status, ""];
+  if (!kategori) return [di, menunggu];
+  return [di.replace("Sales/Agent", kategori),
+          menunggu.replace("Sales/Agent", kategori)];
 }
 
 /**
@@ -254,6 +317,29 @@ const MENUNGGU_TAUTAN = ["tax_verified", "signature_link_sent",
 /** Keadaan yang dianggap belum bergerak ke mana pun. */
 const DIAM = ["draft", "submitted", "pending_admin_review"];
 const SELESAI = ["completed", "paid", "rejected", "cancelled", "clawback"];
+
+/**
+ * Warna lencana keadaan.
+ *
+ * Hijau berarti datanya sudah benar dan pengajuannya sudah disetujui; merah
+ * berarti tertahan atau tidak jadi. Sebelumnya keduanya sama-sama hijau —
+ * SELESAI memuat 'rejected', 'cancelled', dan 'clawback' bersama 'paid' dan
+ * 'completed' — sehingga klaim yang DITOLAK tampil dengan warna yang sama
+ * dengan klaim yang sudah dibayar. Satu-satunya pembedanya kalimat kecil di
+ * bawahnya, yang justru tidak dibaca orang yang sedang menyapu satu layar
+ * penuh.
+ */
+const DISETUJUI = ["approved", "awaiting_settlement_date", "partially_paid",
+                   "paid", "completed"];
+const TERTAHAN = ["returned", "rejected", "cancelled", "clawback",
+                  "signature_review_required"];
+
+function warnaKeadaan(status: string) {
+  if (DISETUJUI.includes(status)) return "ok";
+  if (TERTAHAN.includes(status)) return "stop";
+  if (DIAM.includes(status)) return "warn";
+  return "";
+}
 
 type Saring = "semua" | "diam" | "jalan" | "selesai";
 
@@ -361,6 +447,21 @@ export default function PersetujuanPage() {
     return true;
   });
 
+  /**
+   * Dua angka pada kepala panel: yang masih berjalan dan yang sudah selesai.
+   *
+   * Dihitung dari SELURUH klaim project ini, bukan dari yang sedang tampil:
+   * angka yang ikut berubah mengikuti saringan akan berbunyi "0 Progress"
+   * begitu saringannya dipasang ke "sudah selesai", padahal yang berjalan
+   * tetap ada — hanya sedang tidak ditampilkan.
+   *
+   * Batas "selesai" memakai daftar SELESAI yang sama dengan saringannya.
+   * Dibuatkan daftar kedua yang khusus untuk angka ini, satu layar akan
+   * memuat dua arti "selesai" yang berbeda.
+   */
+  const selesai = klaim.filter((c) => SELESAI.includes(c.status)).length;
+  const jalan = klaim.length - selesai;
+
   return (
     <Kerangka sesi={sesi} lebar judul={
       <div>
@@ -390,43 +491,67 @@ export default function PersetujuanPage() {
       <div className="panel">
         <h2>
           {k.daftar}
-          <span className="pill">{k.jumlah(terlihat.length)}</span>
+          <span>
+            {/* Unduhan, bukan tombol: berkasnya dibangkitkan server dan
+                langsung disimpan peramban, tanpa layar perantara. Sejajar
+                dengan layar Dokumentasi Memo, yang sudah memakai bentuk ini. */}
+            {terlihat.length > 0 && (
+              <a className="tautan-klaim" href="/api/claims/rekap"
+                 style={{ marginRight: 8 }}>
+                {k.unduhRekap}
+              </a>
+            )}
+            <span className="pill">{k.pProgress(jalan)}</span>
+            <span className="pill">{k.pFinish(selesai)}</span>
+          </span>
         </h2>
 
-        <div className="tscroll">
+        <div className="tscroll persetujuan">
           <table className="tabel-penjualan"><tbody>
             <tr>
-              <th>{k.thNomor}</th>
-              <th>{k.thJenis}</th>
-              <th>{k.thUnit}</th>
+              <th className="sel-no">{k.thNo}</th>
+              <th>{k.thTanggal}</th>
+              <th>{k.thPerihal}</th>
+              <th>{k.thKategori}</th>
               <th className="sel-penerima">{k.thPenerima}</th>
+              <th>{k.thPengaju}</th>
               <th>{k.thBruto}</th>
+              <th>{k.thPpn}</th>
               <th>{k.thPph}</th>
               <th>{k.thBersih}</th>
               <th className="sel-keadaan">{k.thStatus}</th>
               <th style={{ width: 140 }}>{k.thDokumen}</th>
             </tr>
 
-            {terlihat.map((c) => (
+            {terlihat.map((c, i) => (
               <tr key={c.id}>
+                <td className="sel-no">{i + 1}</td>
                 <td>
-                  <b>{c.claim_number}</b><br />
-                  <span style={{ color: "var(--mut)" }}>
-                    {tgl(c.created_at)}
+                  {tglPendek(c.created_at)}
+                  {/* Nomor klaim dan unitnya tidak punya kolom sendiri lagi,
+                      tetapi tidak dibuang: nomor itulah yang dipakai menyebut
+                      klaim ini di seluruh layar lain, dan tanpa unitnya satu
+                      penerima dengan dua klaim serupa tidak dapat dibedakan. */}
+                  <span className="sisip">
+                    {c.claim_number}
+                    {c.unit?.code ? ` · ${c.unit.code}` : ""}
                   </span>
                 </td>
                 <td>{namaJenis(c.claim_type, bahasa)}</td>
-                <td className="sel-unit">{c.unit?.code ?? "—"}</td>
+                <td>{kategori(c, k, bahasa) ?? "—"}</td>
                 <td className="sel-penerima">{c.marketing?.full_name ?? "—"}</td>
+                <td>{pengaju(c)}</td>
                 <td className="n">{rp(c.gross_amount)}</td>
+                <td className="n">{rp(c.vat)}</td>
                 <td className="n">{rp(c.withholding_tax)}</td>
                 <td className="n"><b>{rp(c.net_amount)}</b></td>
                 <td className="sel-keadaan">
-                  <span className={`pill ${SELESAI.includes(c.status) ? "ok"
-                                   : DIAM.includes(c.status) ? "warn" : ""}`}>
-                    {keadaan(c.status, bahasa)[0]}
+                  <span className={`pill ${warnaKeadaan(c.status)}`}>
+                    {keadaan(c.status, bahasa, kategori(c, k, bahasa))[0]}
                   </span>
-                  <div className="menunggu">{keadaan(c.status, bahasa)[1]}</div>
+                  <div className="menunggu">
+                    {keadaan(c.status, bahasa, kategori(c, k, bahasa))[1]}
+                  </div>
 
                   {/* Pengiriman tautan ke Sales/Agent, di dalam kolom Status
                       dan hanya untuk Admin Sales — merekalah yang berhubungan
@@ -488,12 +613,12 @@ export default function PersetujuanPage() {
 
             {!terlihat.length && !busy && (
               <tr>
-                <td colSpan={9} style={{ color: "var(--mut)" }}>{k.kosong}</td>
+                <td colSpan={12} style={{ color: "var(--mut)" }}>{k.kosong}</td>
               </tr>
             )}
             {busy && (
               <tr>
-                <td colSpan={9} style={{ color: "var(--mut)" }}>{k.memuat}</td>
+                <td colSpan={12} style={{ color: "var(--mut)" }}>{k.memuat}</td>
               </tr>
             )}
           </tbody></table>
