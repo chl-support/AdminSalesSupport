@@ -141,8 +141,8 @@ const KATA = {
     waLihat: "Lihat tautannya",
     waAlamat: "Alamat tautan",
     waTutup: "Tutup",
-    ringkasTutup: "Kecilkan",
-    ringkasBuka: "Tampilkan semua",
+    ringkasTutup: "Ringkas kembali",
+    ringkasBuka: "Tampilkan seluruh langkah",
   },
   en: {
     judul: "Approval Status",
@@ -208,8 +208,8 @@ const KATA = {
     waLihat: "Show the link",
     waAlamat: "Link address",
     waTutup: "Close",
-    ringkasTutup: "Collapse",
-    ringkasBuka: "Show all",
+    ringkasTutup: "Collapse again",
+    ringkasBuka: "Show every step",
   },
 };
 
@@ -396,15 +396,19 @@ export default function PersetujuanPage() {
   const [gerak, setGerak] = useState<string | null>(null);
 
   /**
-   * Baris yang kolom Statusnya sedang diringkas.
+   * Baris yang kolom Statusnya sedang dibentangkan.
    *
+   * Bawaannya ringkas: hanya langkah yang sedang berjalan yang terlihat.
    * Empat langkah dengan kalimatnya masing-masing membuat satu baris setinggi
-   * hampir dua ratus piksel; satu layar hanya memuat tiga atau empat baris.
-   * Yang sedang menyapu banyak baris sekaligus tidak selalu memerlukan
-   * seluruh perjalanannya — cukup langkah yang sedang berjalan. Karena itu
-   * yang diringkas menyisakan langkah itu, bukan mengosongkan kolomnya.
+   * hampir dua ratus tujuh puluh piksel, sehingga satu layar hanya memuat tiga
+   * baris — dan yang sedang menyapu banyak baris hampir selalu hanya perlu
+   * tahu sebuah pengajuan sedang di mana.
+   *
+   * Yang ingin melihat seluruh perjalanannya menekan panah di atas kotaknya.
+   * Pilihannya per baris dan tidak tersimpan: ia mengatur tampilan sesaat,
+   * bukan data.
    */
-  const [ringkas, setRingkas] = useState<Record<string, boolean>>({});
+  const [bentang, setBentang] = useState<Record<string, boolean>>({});
   /** Klaim yang sedang diunggahkan dokumen full sign-nya. */
   const [fsUntuk, setFsUntuk] = useState<string | null>(null);
   const [fsBerkas, setFsBerkas] = useState<File | null>(null);
@@ -723,21 +727,27 @@ export default function PersetujuanPage() {
                     tebal berbingkai gelap, yang belum sampai redup, dan yang
                     tertahan merah. */}
                 <td className="sel-keadaan">
+                  {/* Panah pembentang. Hanya panah, tanpa tulisan: ia
+                      berdiri di atas empat kotak yang semuanya bertulisan,
+                      dan tulisan kelima akan ikut terbaca sebagai langkah. */}
                   <button className="kecilkan" type="button"
-                          aria-expanded={!ringkas[c.id]}
-                          onClick={() => setRingkas((r) =>
+                          aria-expanded={Boolean(bentang[c.id])}
+                          title={bentang[c.id] ? k.ringkasTutup : k.ringkasBuka}
+                          aria-label={bentang[c.id] ? k.ringkasTutup
+                                                    : k.ringkasBuka}
+                          onClick={() => setBentang((r) =>
                             ({ ...r, [c.id]: !r[c.id] }))}>
-                    {ringkas[c.id] ? k.ringkasBuka : k.ringkasTutup}
+                    <span aria-hidden="true">{bentang[c.id] ? "\u25B4" : "\u25BE"}</span>
                   </button>
 
                   {LANGKAH.map((l, i) => {
                     const semua = keadaanLangkah(c.status);
                     const ling = semua[i];
-                    // Yang diringkas menyisakan langkah yang sedang berjalan.
-                    // Bila tidak ada yang berjalan — pengajuan sudah tuntas —
-                    // yang disisakan langkah terakhir, supaya kolomnya tidak
-                    // pernah kosong sama sekali.
-                    if (ringkas[c.id]) {
+                    // Selama belum dibentangkan, yang tersisa hanya langkah
+                    // yang sedang berjalan. Bila tidak ada yang berjalan —
+                    // pengajuan sudah tuntas — yang disisakan langkah
+                    // terakhir, supaya kolomnya tidak pernah kosong.
+                    if (!bentang[c.id]) {
                       const jalan = semua.findIndex((x) => x === "kini" ||
                                                            x === "stop");
                       if (i !== (jalan < 0 ? semua.length - 1 : jalan)) {
