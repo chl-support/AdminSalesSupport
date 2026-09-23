@@ -557,6 +557,70 @@ export async function ubahNomor(
 }
 
 /**
+ * Hapus satu baris Data Marketing.
+ *
+ * Untuk satu keadaan saja: salah input. Nama yang sama terketik dua kali —
+ * "Conny Yulita Lie" di samping "Conny Yunita Lie" — dan yang keliru menjadi
+ * baris mati yang muncul di setiap pemilih nama, menunggu dipilih orang yang
+ * tidak tahu bahwa ia bukan orangnya.
+ *
+ * Yang sudah dipakai TIDAK dihapus, dan penolakannya menyebut apa yang masih
+ * menunjuk kepadanya. Sebabnya bukan kehati-hatian belaka: units menunjuk ke
+ * marketings dengan ON DELETE SET NULL, sehingga menghapus orang yang tercatat
+ * pada sebuah penjualan akan mengosongkan kolom Sales pada penjualan itu —
+ * diam-diam, tanpa galat, dan tanpa jalan mengembalikannya. Klaim menahannya
+ * dengan galat basis data; penjualan tidak.
+ *
+ * Yang ikut terhapus hanyalah yang memang miliknya sendiri dan tidak berarti
+ * tanpa dia: rekening, spesimen tanda tangan, dan sesi pendaftarannya.
+ *
+ * Barisnya disalin utuh ke jejak audit sebelum hilang. Sesudah ini tidak ada
+ * lagi tempat bertanya siapa yang dihapus — kecuali di sana.
+ */
+export async function hapusMarketing(
+  marketingId: string, aktor: string, projectId?: string,
+) {
+  const mkt = await one<Record<string, unknown>>(
+    "SELECT * FROM marketings WHERE id=$1 AND ($2::uuid IS NULL OR project_id=$2)",
+    [marketingId, projectId ?? null]);
+  if (!mkt) throw new WorkflowError("Marketing tidak ditemukan.", "not_found", 404);
+
+  const pakai = await one<{
+    klaim: number; unit: number; sesi: number; overriding: number;
+  }>(
+    `SELECT
+       (SELECT COUNT(*)::int FROM claims WHERE marketing_id=$1) AS klaim,
+       (SELECT COUNT(*)::int FROM units
+         WHERE marketing_id=$1 OR sub_coordinator_id=$1
+            OR coordinator_id=$1) AS unit,
+       (SELECT COUNT(*)::int FROM signing_sessions WHERE marketing_id=$1) AS sesi,
+       (SELECT COUNT(*)::int FROM overriding_batches WHERE recipient_id=$1)
+         AS overriding`,
+    [marketingId]);
+
+  const sebab: string[] = [];
+  if (pakai!.klaim) sebab.push(`${pakai!.klaim} pengajuan fee`);
+  if (pakai!.unit) sebab.push(`${pakai!.unit} data penjualan`);
+  if (pakai!.sesi) sebab.push(`${pakai!.sesi} sesi tanda tangan`);
+  if (pakai!.overriding) sebab.push(`${pakai!.overriding} batch overriding`);
+  if (sebab.length) {
+    throw new WorkflowError(
+      `${mkt.full_name} masih dipakai oleh ${sebab.join(", ")}, jadi tidak ` +
+      `dapat dihapus. Menghapusnya akan mengosongkan data yang menunjuk ` +
+      `kepadanya. Bila orangnya memang keliru, betulkan datanya di sana ` +
+      `lebih dulu.`, "masih_dipakai", 409, pakai as any);
+  }
+
+  await audit({
+    entityType: "marketing", entityId: marketingId, action: "deleted",
+    actor: aktor, before: mkt,
+    after: { alasan: "salah input, belum dipakai di mana pun" },
+  });
+  await query("DELETE FROM marketings WHERE id=$1", [marketingId]);
+  return { deleted: true, full_name: mkt.full_name };
+}
+
+/**
  * Kategori penerima fee seseorang.
  *
  * Yang masuk dari berkas penjualan hanya mengenal dua kategori — agent dan
