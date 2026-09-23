@@ -1209,7 +1209,8 @@ a.tautan-klaim:hover { border-color: var(--ink); }
 .rekap-memo td:nth-child(9) > button { display: block; width: 100%; }
 .rekap-memo td:nth-child(9) > button + button { margin-top: 6px; }
 
-.rekap-memo td.no { text-align: center; font-weight: 650; color: var(--ink); }
+/* Nomor urut tidak ditebalkan: ia penunjuk baris, bukan isi yang dibaca. */
+.rekap-memo td.no { text-align: center; color: var(--ink); }
 /* Nomor memo panjang dan tidak pernah dibaca sebagai kalimat: dikecilkan dan
    diizinkan patah di mana saja, supaya tidak memaksa kolomnya melebar. */
 .rekap-memo td.nomor { font-size: 11px; overflow-wrap: anywhere; }
@@ -1427,8 +1428,9 @@ td.sel-keadaan .menunggu {
 .tscroll.persetujuan .tabel-penjualan th:nth-child(10) { width: 132px; } /* Dibayarkan */
 .tscroll.persetujuan .tabel-penjualan th:nth-child(11) { width: 186px; } /* Status */
 .tscroll.persetujuan .tabel-penjualan th:nth-child(12) { width: 128px; } /* Tindakan */
+/* Nomor urut tidak ditebalkan: ia penunjuk baris, bukan isi yang dibaca. */
 .tscroll.persetujuan .tabel-penjualan td.sel-no {
-  text-align: center; font-weight: 650; color: var(--ink);
+  text-align: center; color: var(--ink);
 }
 /* Nomor klaim dan kode unitnya, di bawah tanggalnya. */
 .tscroll.persetujuan .tabel-penjualan .sisip {
