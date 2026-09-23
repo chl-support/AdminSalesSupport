@@ -1,6 +1,7 @@
 import { handler, projectAktif } from "@/lib/api";
 import { query } from "@/lib/db";
 import { dapatDiklaim, eligibility, type ClaimType } from "@/lib/calc";
+import { ensureKolomMarketing } from "@/lib/kolom";
 
 /**
  * Data penjualan, dan — bila diminta untuk satu jenis klaim — keadaan klaimnya.
@@ -95,6 +96,13 @@ export const GET = handler(async (req) => {
      "commission", "overriding"];
   const semuaJenis = (eligibleFor as string) === "all";
   const diminta: ClaimType[] = semuaJenis ? SEMUA : [eligibleFor];
+
+  // 'continuity_reward' hanya ditambahkan ke enum claim_type lewat
+  // db/schema.sql, yang tidak pernah dijalankan ulang setelah pemasangan
+  // pertama. Tanpa nilainya baris di bawah ini gagal dengan
+  // `invalid input value for enum claim_type` dan seluruh daftar penjualan
+  // tidak dapat dibuka. Lihat src/lib/kolom.ts.
+  await ensureKolomMarketing();
 
   const klaim = await query<{
     unit_id: string; claim_type: ClaimType; id: string; claim_number: string;

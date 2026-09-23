@@ -118,7 +118,7 @@ const KATA = {
     thPpn: "PPN", thPph: "PPh", thBersih: "Komisi Yang Dibayarkan",
     thStatus: "Status", thDokumen: "Tindakan",
     katInhouse: "Sales Inhouse", katAgent: "Agent",
-    pratinjau: "Lihat pratinjau",
+    pratinjau: "Tinjau Dokumen",
     kosong: "Belum ada pengajuan pada project ini.",
     memuat: "Memuat…",
     kabarJudul: "Dokumen sudah dikirim ke tim pajak",
@@ -183,7 +183,7 @@ const KATA = {
     thPenerima: "Recipient", thBruto: "Commission amount",
     thPph: "Withholding",
     thBersih: "Commission paid", thStatus: "Status", thDokumen: "Action",
-    pratinjau: "View preview",
+    pratinjau: "Review Document",
     kosong: "No submissions on this project yet.",
     memuat: "Loading…",
     kabarJudul: "Sent to the tax team",
@@ -731,8 +731,13 @@ export default function PersetujuanPage() {
                 <td className="n">{rp(c.vat)}</td>
                 <td className="n">{rp(c.withholding_tax)}</td>
                 <td className="n"><b>{rp(c.net_amount)}</b></td>
-                <td className="sel-keadaan">
-                  <span className={`pill ${warnaKeadaan(c.status)}`}>
+                {/* Kolom Status: kotak keadaan di atas, kalimat tunggunya di
+                    bawah. Warnanya melekat pada sel, bukan hanya pada
+                    kotaknya, supaya kalimat di bawahnya ikut berwarna sama —
+                    hijau bila datanya sudah benar dan disetujui, merah bila
+                    tertahan. */}
+                <td className={`sel-keadaan ${warnaKeadaan(c.status)}`}>
+                  <span className={`kotak-keadaan ${warnaKeadaan(c.status)}`}>
                     {keadaan(c.status, bahasa, kategori(c, k, bahasa))[0]}
                   </span>
                   <div className="menunggu">
@@ -811,7 +816,7 @@ export default function PersetujuanPage() {
                     layar Pengajuan Fee: yang dibuka adalah dokumen untuk
                     diperiksa dan dicetak, dan mencetaknya dari dalam layar ini
                     berarti ikut mencetak menu dan seluruh tabelnya. */}
-                <td>
+                <td className="sel-tindakan">
                   <button onClick={() => window.open(
                             `/klaim/pratinjau?ids=${c.id}`, "_blank")}>
                     {k.pratinjau}
