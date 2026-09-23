@@ -63,6 +63,9 @@ const KATA = {
     lampiranLihat: "Lihat", lampiranUnduh: "Unduh",
     lampiranTakTersimpan: "isi tidak tersimpan",
     lampiranTutup: "Tutup",
+    selesaiFullSign: "Dokumen full sign",
+    selesaiBukti: "Bukti transfer",
+    selesaiTanggal: "Tanggal pembayaran",
   },
   en: {
     judul: "Submission form preview",
@@ -100,6 +103,9 @@ const KATA = {
     lampiranLihat: "View", lampiranUnduh: "Download",
     lampiranTakTersimpan: "contents not stored",
     lampiranTutup: "Close",
+    selesaiFullSign: "Fully signed document",
+    selesaiBukti: "Transfer proof",
+    selesaiTanggal: "Payment date",
   },
 };
 
@@ -149,6 +155,20 @@ function kabarkanPembuka(jumlah: number): boolean {
  * mencetak formulirnya untuk diedarkan dan ditandatangani di atas kertas.
  * "Kirim ke Pajak" di situ menawarkan pekerjaan yang sudah selesai dikerjakan.
  */
+/** Tanggal ISO menjadi bentuk yang dibaca orang: 23/09/2026. */
+function tglPanjang(iso: string) {
+  const [t, b, h] = String(iso).slice(0, 10).split("-");
+  return h && b && t ? `${h}/${b}/${t}` : String(iso);
+}
+
+/**
+ * Lampiran yang menandai sebuah klaim selesai, menurut kode checklist-nya.
+ *
+ * Kodenya ditulis endpoint yang menyimpannya — full-sign dan pembayaran —
+ * bukan ditebak dari nama berkasnya, yang dipilih orang yang mengunggah.
+ */
+const ITEM_PENTING = ["dokumen_full_sign", "bukti_transfer"];
+
 const SESUDAH_TTD = [
   "signed", "crosscheck_in_progress", "ready_to_print", "printed",
   "circulating_head_finance", "circulating_management", "awaiting_scan_upload",
@@ -167,6 +187,18 @@ export default function PratinjauPage() {
   const [ceklis, setCeklis] = useState<Record<string, boolean>>({});
   /** Berkas yang dilampirkan, berkunci sama dengan centangnya. */
   const [berkas, setBerkas] = useState<Record<string, File>>({});
+  /**
+   * Dokumen full sign dan bukti transfernya, masing-masing dengan sebutan
+   * yang dibaca orang — bukan kode checklist-nya.
+   */
+  const dokPenting = (c: any): [string, any][] =>
+    ITEM_PENTING.flatMap((item) => {
+      const d = (c?.documents ?? []).find((x: any) => x.checklist_item === item);
+      if (!d) return [];
+      return [[item === "dokumen_full_sign" ? k.selesaiFullSign : k.selesaiBukti,
+               d] as [string, any]];
+    });
+
   /** Dialog cetak: klaim yang sedang disiapkan cetakannya. */
   const [siapCetakDialog, setSiapCetakDialog] = useState<string | null>(null);
   /** Pilihan dalam dialog cetak: formulirnya, dan lampiran mana saja. */
@@ -532,6 +564,45 @@ export default function PratinjauPage() {
               <p className="pengantar" style={{ margin: "0 0 10px" }}>
                 <b>{c?.claim_number}</b>
               </p>
+
+              {/* Dokumen yang sudah lengkap tanda tangannya, bukti transfernya,
+                  dan tanggal uang keluar: tiga hal yang dicari orang ketika
+                  menengok sebuah klaim yang sudah selesai. Ketiganya dulu
+                  tenggelam di antara lampiran lain, berjudul nama berkas dan
+                  kode checklist-nya — tidak ada yang menyebut mana yang
+                  dokumen finalnya dan mana pindaian biasa. */}
+              {(dokPenting(c).length > 0 || c?.tanggal_bayar) && (
+                <div className="ringkas-selesai">
+                  {dokPenting(c).map(([sebutan, d]: any) => (
+                    <div className="baris" key={d.id}>
+                      <span className="lbl">{sebutan}</span>
+                      {d.has_content ? (
+                        <span className="meta">
+                          <a href={`/api/claims/${c.id}/documents/${d.id}?pratinjau=1`}
+                             target="_blank" rel="noreferrer">
+                            {k.lampiranLihat}
+                          </a>
+                          <a className="unduh"
+                             href={`/api/claims/${c.id}/documents/${d.id}`}>
+                            {k.lampiranUnduh}
+                          </a>
+                        </span>
+                      ) : (
+                        <span className="meta">{k.lampiranTakTersimpan}</span>
+                      )}
+                    </div>
+                  ))}
+                  {c?.tanggal_bayar && (
+                    <div className="baris">
+                      <span className="lbl">{k.selesaiTanggal}</span>
+                      <span className="nilai">
+                        {tglPanjang(c.tanggal_bayar)}
+                        {c.rujukan_bayar ? ` · ${c.rujukan_bayar}` : ""}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {daftar.length ? (
                 <ul className="lampiran">

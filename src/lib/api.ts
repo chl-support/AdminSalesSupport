@@ -208,8 +208,35 @@ export async function claimView(claim: any) {
       ORDER BY a.occurred_at LIMIT 1`,
     [String(claim.id)]);
 
+  // Tanggal pembayaran, bila uangnya sudah keluar. Tersimpan di settlements,
+  // bukan pada klaimnya: satu transfer dapat melunasi beberapa klaim sekaligus,
+  // dan tanggal yang benar adalah tanggal uang keluar menurut bukti bank.
+  //
+  // Yang terakhir yang diambil. Sebuah klaim yang dibayar bertahap punya lebih
+  // dari satu pelunasan, dan yang dicari orang saat membuka pratinjau adalah
+  // tanggal pelunasannya — bukan tanggal cicilan pertamanya.
+  const bayar = await one<{ transfer_date: any; reference_number: string | null }>(
+    `SELECT s.transfer_date, s.reference_number
+       FROM settlements s
+       JOIN settlement_lines sl ON sl.settlement_id = s.id
+       JOIN payment_instructions pi ON pi.id = sl.instruction_id
+      WHERE pi.claim_id = $1
+      ORDER BY s.transfer_date DESC, s.recorded_at DESC LIMIT 1`,
+    [claim.id]);
+
+  // pg mengembalikan DATE sebagai objek Date bertimezone; yang dikirim ke layar
+  // harus tanggal apa adanya, supaya tidak bergeser sehari di peramban yang
+  // zona waktunya di belakang UTC.
+  const tglBayar = bayar?.transfer_date
+    ? (bayar.transfer_date instanceof Date
+        ? bayar.transfer_date.toISOString().slice(0, 10)
+        : String(bayar.transfer_date).slice(0, 10))
+    : null;
+
   return {
     ...claim, unit, marketing: mkt, bank_account: bank,
+    tanggal_bayar: tglBayar,
+    rujukan_bayar: bayar?.reference_number ?? null,
     project: proyek,
     diajukan_oleh: pengaju?.actor ?? null,
     diajukan_oleh_nama: pengaju?.full_name ?? null,
