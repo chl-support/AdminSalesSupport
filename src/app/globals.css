@@ -331,10 +331,6 @@ ul.ceklis input { width: auto; margin: 0; }
     var(--line) 20px, var(--line) 21px);
   background-size: 100% 21px;
 }
-/* Komisi hanya punya satu baris isian pada aslinya. Minimum, bukan tinggi
-   tetap: penjelasan yang panjang tetap terbaca utuh — memotongnya berarti
-   mencetak dokumen resmi yang kalimatnya hilang separuh. */
-.cetak .penjelasan.sebaris { min-height: 21px; }
 ul.cetak-ceklis .kotak { display: inline-block; }
 ul.cetak-ceklis .kotak { border: 1px solid var(--ink); width: 14px; height: 14px;
                          line-height: 13px; text-align: center; font-size: 10px;
@@ -1399,7 +1395,6 @@ td.sel-keadaan .menunggu {
                          to bottom, transparent 0 13px,
                          var(--line) 13px, var(--line) 14px);
                        background-size: 100% 14px; }
-  .cetak .penjelasan.sebaris { min-height: 14px; }
   .baris-project { font-size: 10px; }
 
   ul.ceklis { font-size: 9.5px; }

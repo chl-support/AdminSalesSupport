@@ -192,15 +192,16 @@ export function FormPengajuan(
 
       <div className="form-blok">
         <h3>PENJELASAN PENGAJUAN {nama.toUpperCase()}</h3>
-        {/* Satu baris isian untuk keempat jenis, mengikuti formulir Komisi.
-            Cetakan Closing Fee dan Cash Reward menyediakan tiga baris; yang
-            tiga itu dihapus atas permintaan kantor, supaya blok penjelasan pada
-            keempat formulir setinggi dan seletak sama.
+        {/* Tiga baris titik-titik untuk keempat jenis, mengikuti formulir
+            Closing Fee dan Cash Reward. Cetakan Komisi hanya menyediakan satu
+            baris; bentuk yang satu baris itu dihapus atas permintaan kantor,
+            supaya blok penjelasan pada keempat formulir setinggi dan seletak
+            sama.
 
             Minimum, bukan tinggi tetap: penjelasan yang panjang tetap terbaca
             utuh — memotongnya berarti mencetak dokumen resmi yang kalimatnya
             hilang separuh. */}
-        <p className="penjelasan sebaris">
+        <p className="penjelasan">
           {klaim.notes?.trim() || ""}
         </p>
       </div>
@@ -258,22 +259,22 @@ export function FormPengajuan(
         <h3>TUJUAN TRANSFER</h3>
         {bank ? (
           <>
-            {/* Satu bentuk untuk keempat jenis fee, mengikuti formulir Komisi:
-                nama barisnya "Nama (yang tercantum di Rekening Bank)", dan
-                No. Rekening berdiri di atas BANK.
+            {/* Satu bentuk untuk keempat jenis fee, mengikuti formulir Closing
+                Fee dan Cash Reward: nama barisnya "Nama Penerima", dan BANK
+                berdiri di atas No. Rekening.
 
-                Cetakan Closing Fee dan Cash Reward memang menuliskannya
-                berbeda — "Nama Penerima", dengan BANK lebih dulu — dan
-                perbedaan itu sengaja dihapus atas permintaan kantor: blok yang
-                sama pada dokumen yang sama-sama ditandatangani sebaiknya juga
-                terbaca sama. */}
+                Cetakan Komisi memang menuliskannya berbeda — "Nama (yang
+                tercantum di Rekening Bank)", dengan No. Rekening lebih dulu —
+                dan perbedaan itu sengaja dihapus atas permintaan kantor: blok
+                yang sama pada dokumen yang sama-sama ditandatangani sebaiknya
+                juga terbaca sama. */}
             <table><tbody>
               <tr>
-                <td>Nama (yang tercantum di Rekening Bank)</td>
+                <td>Nama Penerima</td>
                 <td>{bank.holder_name}</td>
               </tr>
-              <tr><td>No. Rekening</td><td>{bank.account_number}</td></tr>
               <tr><td>BANK</td><td>{bank.bank_name}</td></tr>
+              <tr><td>No. Rekening</td><td>{bank.account_number}</td></tr>
               <tr><td>Kantor Cabang</td><td>{bank.branch ?? "—"}</td></tr>
             </tbody></table>
           </>
