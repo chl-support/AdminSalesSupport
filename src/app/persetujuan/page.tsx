@@ -53,6 +53,12 @@ const pengaju = (c: any) => {
   return nama ? `${nama} (${masuk})` : masuk;
 };
 
+/** Kategori penerimanya: Sales Inhouse atau Agent. */
+const kategori = (c: any, k: { katAgent: string; katInhouse: string }) =>
+  c.marketing?.marketing_type === "agent" ? k.katAgent
+  : c.marketing?.marketing_type === "inhouse" ? k.katInhouse
+  : null;
+
 const KATA = {
   id: {
     judul: "Approval / Persetujuan",
@@ -244,8 +250,20 @@ const KEADAAN: Record<string, { id: [string, string]; en: [string, string] }> = 
   },
 };
 
-function keadaan(status: string, bahasa: "id" | "en"): [string, string] {
-  return KEADAAN[status]?.[bahasa] ?? [status, ""];
+/**
+ * Keadaan sebuah klaim, sebagai [di mana, menunggu apa].
+ *
+ * "Sales/Agent" diganti kategori penerimanya yang sebenarnya — Sales Inhouse
+ * atau Agent — bila diketahui. Pada baris milik sales in-house, "Di
+ * Sales/Agent" menyebut dua pihak sekaligus padahal hanya satu yang memegang
+ * dokumennya, dan yang membaca harus menengok kolom lain untuk tahu yang mana.
+ */
+function keadaan(status: string, bahasa: "id" | "en",
+                 kategori?: string | null): [string, string] {
+  const [di, menunggu] = KEADAAN[status]?.[bahasa] ?? [status, ""];
+  if (!kategori) return [di, menunggu];
+  return [di.replace("Sales/Agent", kategori),
+          menunggu.replace("Sales/Agent", kategori)];
 }
 
 /**
@@ -278,6 +296,29 @@ const MENUNGGU_TAUTAN = ["tax_verified", "signature_link_sent",
 /** Keadaan yang dianggap belum bergerak ke mana pun. */
 const DIAM = ["draft", "submitted", "pending_admin_review"];
 const SELESAI = ["completed", "paid", "rejected", "cancelled", "clawback"];
+
+/**
+ * Warna lencana keadaan.
+ *
+ * Hijau berarti datanya sudah benar dan pengajuannya sudah disetujui; merah
+ * berarti tertahan atau tidak jadi. Sebelumnya keduanya sama-sama hijau —
+ * SELESAI memuat 'rejected', 'cancelled', dan 'clawback' bersama 'paid' dan
+ * 'completed' — sehingga klaim yang DITOLAK tampil dengan warna yang sama
+ * dengan klaim yang sudah dibayar. Satu-satunya pembedanya kalimat kecil di
+ * bawahnya, yang justru tidak dibaca orang yang sedang menyapu satu layar
+ * penuh.
+ */
+const DISETUJUI = ["approved", "awaiting_settlement_date", "partially_paid",
+                   "paid", "completed"];
+const TERTAHAN = ["returned", "rejected", "cancelled", "clawback",
+                  "signature_review_required"];
+
+function warnaKeadaan(status: string) {
+  if (DISETUJUI.includes(status)) return "ok";
+  if (TERTAHAN.includes(status)) return "stop";
+  if (DIAM.includes(status)) return "warn";
+  return "";
+}
 
 type Saring = "semua" | "diam" | "jalan" | "selesai";
 
@@ -449,9 +490,7 @@ export default function PersetujuanPage() {
                   </span>
                 </td>
                 <td>{namaJenis(c.claim_type, bahasa)}</td>
-                <td>{c.marketing?.marketing_type === "agent" ? k.katAgent
-                     : c.marketing?.marketing_type === "inhouse" ? k.katInhouse
-                     : "—"}</td>
+                <td>{kategori(c, k) ?? "—"}</td>
                 <td className="sel-penerima">{c.marketing?.full_name ?? "—"}</td>
                 <td>{pengaju(c)}</td>
                 <td className="n">{rp(c.gross_amount)}</td>
@@ -459,11 +498,12 @@ export default function PersetujuanPage() {
                 <td className="n">{rp(c.withholding_tax)}</td>
                 <td className="n"><b>{rp(c.net_amount)}</b></td>
                 <td className="sel-keadaan">
-                  <span className={`pill ${SELESAI.includes(c.status) ? "ok"
-                                   : DIAM.includes(c.status) ? "warn" : ""}`}>
-                    {keadaan(c.status, bahasa)[0]}
+                  <span className={`pill ${warnaKeadaan(c.status)}`}>
+                    {keadaan(c.status, bahasa, kategori(c, k))[0]}
                   </span>
-                  <div className="menunggu">{keadaan(c.status, bahasa)[1]}</div>
+                  <div className="menunggu">
+                    {keadaan(c.status, bahasa, kategori(c, k))[1]}
+                  </div>
 
                   {/* Pengiriman tautan ke Sales/Agent, di dalam kolom Status
                       dan hanya untuk Admin Sales — merekalah yang berhubungan
