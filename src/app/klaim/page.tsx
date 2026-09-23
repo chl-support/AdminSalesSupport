@@ -325,6 +325,16 @@ export default function PengajuanFeePage() {
     useState<{ unit: Unit; jenis: Jenis[] } | null>(null);
   const [penjelasan, setPenjelasan] = useState<Record<string, string>>({});
   /**
+   * Galat pengajuan, ditampilkan DI DALAM dialognya.
+   *
+   * Sebelumnya ia hanya muncul sebagai pita di kepala layar, sementara
+   * dialognya menutup diri dan centangnya ikut hilang. Dari tempat duduk orang
+   * yang menekan "Ajukan", yang terjadi adalah: jendelanya hilang, centangnya
+   * hilang, dan tidak ada klaim baru — persis seperti tombolnya tidak bekerja.
+   * Pesannya ada, jauh di atas layar, di luar pandangan.
+   */
+  const [galatDialog, setGalatDialog] = useState<string | null>(null);
+  /**
    * Tujuan transfer per fee, bukan satu untuk seluruh unit.
    *
    * Overriding dibayarkan kepada tingkat di atas yang menjual — orang lain,
@@ -437,8 +447,18 @@ export default function PengajuanFeePage() {
     const pen: Record<string, string> = {};
     for (const slug of daftar) {
       const r = u.fees[slug]?.recipient;
-      const awal = kategoriAwal(slug, r?.category ?? null);
+      let awal = kategoriAwal(slug, r?.category ?? null);
       if (!awal) continue;
+      // Kategori yang tidak punya satu pun nama terdaftar adalah jalan buntu:
+      // dialognya terbuka pada kategori itu, pemilih namanya kosong, dan yang
+      // membuka harus menebak sendiri kategori mana yang ada isinya. Kalau
+      // kategori yang tercatat kosong, dipilih kategori sah pertama yang
+      // memang ada orangnya.
+      if (!orangKategori(awal).length) {
+        const berisi = (KATEGORI_JENIS[slug] ?? [])
+          .find((kd) => orangKategori(kd).length);
+        if (berisi) awal = berisi;
+      }
       kat[slug] = awal;
       pen[slug] = namaAwal(orangKategori(awal), r?.id ?? null);
     }
@@ -534,6 +554,7 @@ export default function PengajuanFeePage() {
 
     const dibuat: string[] = [];
     const gagal: string[] = [];
+    const berhasil: Jenis[] = [];
     try {
       for (const slug of jenisTerpilih) {
         const f = u.fees[slug];
@@ -542,7 +563,14 @@ export default function PengajuanFeePage() {
         // ia benar pada sebagian besar pengajuan — tetapi Markom, Sales
         // Manager, Sales Koordinator, dan BGB tidak pernah tertulis di sana.
         const kat = kategori[slug] ?? "";
-        const idPenerima = penerima[slug] || f?.recipient?.id;
+        // Hanya nama yang benar-benar dipilih. Dulu di sini ada cadangan ke
+        // penerima yang tercatat pada data penjualan — dan cadangan itu
+        // mengirim pengajuan atas nama orang yang tidak pernah dipilih siapa
+        // pun, lalu ditolak server dengan kalimat yang tidak menyebut sebab
+        // yang sebenarnya ("Marketing belum aktif" atas nama yang tidak
+        // terlihat di layar). Yang tercatat tetap menjadi pilihan awal, tetapi
+        // lewat pemilihnya — di sana ia terlihat dan dapat diganti.
+        const idPenerima = penerima[slug];
         if (!idPenerima) {
           // Dua sebab yang berbeda: kategorinya memang belum punya orang sama
           // sekali, atau orangnya ada tetapi belum dipilih. Satu kalimat untuk
@@ -582,6 +610,7 @@ export default function PengajuanFeePage() {
           continue;
         }
         dibuat.push(b.id);
+        berhasil.push(slug);
 
         // Buku rekening yang tadi dibaca ikut menempel pada klaimnya. Ia
         // memang dokumen yang diminta checklist Komisi, dan yang barusan
@@ -605,27 +634,40 @@ export default function PengajuanFeePage() {
         }
       }
 
-      if (gagal.length) setGalat(`${k.gagalAjukan} — ${gagal.join(" · ")}`);
-
+      // Yang berhasil dilepas centangnya; yang gagal dipertahankan apa adanya.
+      // Membersihkan seluruhnya berarti yang hendak mencoba lagi harus
+      // menyusun ulang pilihan yang tadi sudah benar.
       setPilih((lama) => {
         const baru = { ...lama };
-        for (const slug of jenisTerpilih) delete baru[`${u.id}:${slug}`];
+        for (const slug of berhasil) delete baru[`${u.id}:${slug}`];
         return baru;
       });
+
+      if (gagal.length) {
+        // Dialognya tetap terbuka, menyisakan jenis yang gagal saja, dengan
+        // sebabnya tertulis di dalamnya. Isian yang sudah diketik — penjelasan,
+        // tujuan transfer, kategori, nama — sengaja tidak dihapus: yang gagal
+        // biasanya gagal karena satu hal yang perlu dibetulkan, bukan karena
+        // seluruh isiannya keliru.
+        setGalatDialog(gagal.join(" · "));
+        setSiapkan({ unit: u, jenis: jenisTerpilih.filter(
+          (j) => !berhasil.includes(j)) });
+        await muat();
+        return;
+      }
+
       setSiapkan(null);
+      setGalatDialog(null);
       setPenjelasan({});
       setTransfer({});
       setKategori({});
       setPenerima({});
       setBuku({});
 
-      // Berpindah hanya bila memang ada yang jadi. Kalau seluruhnya gagal,
-      // yang perlu dibaca adalah pesan galatnya di layar ini — bukan daftar
-      // kosong di layar lain.
-      if (dibuat.length && !gagal.length) { location.href = "/persetujuan"; return; }
+      if (dibuat.length) { location.href = "/persetujuan"; return; }
       await muat();
     } catch (e: any) {
-      setGalat(String(e?.message ?? e));
+      setGalatDialog(String(e?.message ?? e));
     } finally { setMengajukan(null); }
   };
 
@@ -836,6 +878,7 @@ export default function PengajuanFeePage() {
                                     setKategori(kat);
                                     setPenerima(pen);
                                     setBuku({});
+                                    setGalatDialog(null);
                                     setSiapkan({ unit: u, jenis: daftar });
                                   }}>
                             {mengajukan === u.id ? k.mengajukan
@@ -953,13 +996,26 @@ export default function PengajuanFeePage() {
               </h2>
               <button className="tautan" aria-label={k.dialogTutup}
                       disabled={Boolean(mengajukan)}
-                      onClick={() => setSiapkan(null)}>✕</button>
+                      onClick={() => { setSiapkan(null); setGalatDialog(null); }}>
+                ✕
+              </button>
             </div>
 
             <div className="popup-isi">
               <p className="hint" style={{ textAlign: "left", margin: "0 0 12px" }}>
                 {k.dialogPengantar}
               </p>
+
+              {/* Sebab kegagalan berdiri di dalam dialognya, tepat di atas
+                  isian yang perlu dibetulkan — bukan sebagai pita di kepala
+                  layar, yang letaknya di luar pandangan orang yang sedang
+                  menatap dialog ini. */}
+              {galatDialog && (
+                <div className="banner stop" style={{ marginBottom: 12 }}>
+                  <b>{k.gagalAjukan}</b>
+                  {galatDialog}
+                </div>
+              )}
 
               {siapkan.jenis.map((slug, i) => {
                 const pen = siapkan.unit.fees[slug]?.recipient;
@@ -1131,7 +1187,9 @@ export default function PengajuanFeePage() {
                   {mengajukan ? k.mengajukan : k.dialogAjukan}
                 </button>
                 <button disabled={Boolean(mengajukan)}
-                        onClick={() => setSiapkan(null)}>{k.dialogBatal}</button>
+                        onClick={() => { setSiapkan(null); setGalatDialog(null); }}>
+                  {k.dialogBatal}
+                </button>
               </div>
             </div>
           </div>
