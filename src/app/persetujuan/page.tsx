@@ -618,8 +618,8 @@ export default function PersetujuanPage() {
    */
   const bolehTahap = ["admin_sales", "admin_system", "finance_manager",
                       "head_finance"].includes(sesi.role);
-  const bolehBayar = ["finance_payment", "finance_manager", "head_finance",
-                      "admin_system"].includes(sesi.role);
+  const bolehBayar = ["admin_sales", "finance_payment", "finance_manager",
+                      "head_finance", "admin_system"].includes(sesi.role);
 
   const selesai = klaim.filter((c) => SELESAI.includes(c.status)).length;
   const jalan = klaim.length - selesai;
