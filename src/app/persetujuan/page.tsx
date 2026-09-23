@@ -398,17 +398,16 @@ export default function PersetujuanPage() {
   /**
    * Baris yang kolom Statusnya sedang dibentangkan.
    *
-   * Bawaannya ringkas: hanya langkah yang sedang berjalan yang terlihat.
-   * Empat langkah dengan kalimatnya masing-masing membuat satu baris setinggi
-   * hampir dua ratus tujuh puluh piksel, sehingga satu layar hanya memuat tiga
-   * baris — dan yang sedang menyapu banyak baris hampir selalu hanya perlu
-   * tahu sebuah pengajuan sedang di mana.
+   * Bawaannya tetap terbentang — keempat langkahnya terlihat, seperti
+   * sebelum panah ini ada. Panahnya hanya tambahan: yang sedang menyapu
+   * banyak baris dapat meringkas sebuah baris menjadi langkah yang sedang
+   * berjalan saja, sebab empat langkah dengan kalimatnya masing-masing
+   * membuat satu baris setinggi hampir dua ratus tujuh puluh piksel.
    *
-   * Yang ingin melihat seluruh perjalanannya menekan panah di atas kotaknya.
    * Pilihannya per baris dan tidak tersimpan: ia mengatur tampilan sesaat,
    * bukan data.
    */
-  const [bentang, setBentang] = useState<Record<string, boolean>>({});
+  const [ringkas, setRingkas] = useState<Record<string, boolean>>({});
   /** Klaim yang sedang diunggahkan dokumen full sign-nya. */
   const [fsUntuk, setFsUntuk] = useState<string | null>(null);
   const [fsBerkas, setFsBerkas] = useState<File | null>(null);
@@ -727,27 +726,27 @@ export default function PersetujuanPage() {
                     tebal berbingkai gelap, yang belum sampai redup, dan yang
                     tertahan merah. */}
                 <td className="sel-keadaan">
-                  {/* Panah pembentang. Hanya panah, tanpa tulisan: ia
-                      berdiri di atas empat kotak yang semuanya bertulisan,
-                      dan tulisan kelima akan ikut terbaca sebagai langkah. */}
+                  {/* Panah peringkas. Hanya panah, tanpa tulisan: ia berdiri
+                      di atas empat kotak yang semuanya bertulisan, dan tulisan
+                      kelima akan ikut terbaca sebagai langkah. */}
                   <button className="kecilkan" type="button"
-                          aria-expanded={Boolean(bentang[c.id])}
-                          title={bentang[c.id] ? k.ringkasTutup : k.ringkasBuka}
-                          aria-label={bentang[c.id] ? k.ringkasTutup
-                                                    : k.ringkasBuka}
-                          onClick={() => setBentang((r) =>
+                          aria-expanded={!ringkas[c.id]}
+                          title={ringkas[c.id] ? k.ringkasBuka : k.ringkasTutup}
+                          aria-label={ringkas[c.id] ? k.ringkasBuka
+                                                    : k.ringkasTutup}
+                          onClick={() => setRingkas((r) =>
                             ({ ...r, [c.id]: !r[c.id] }))}>
-                    <span aria-hidden="true">{bentang[c.id] ? "\u25B4" : "\u25BE"}</span>
+                    <span aria-hidden="true">{ringkas[c.id] ? "\u25BE" : "\u25B4"}</span>
                   </button>
 
                   {LANGKAH.map((l, i) => {
                     const semua = keadaanLangkah(c.status);
                     const ling = semua[i];
-                    // Selama belum dibentangkan, yang tersisa hanya langkah
-                    // yang sedang berjalan. Bila tidak ada yang berjalan —
-                    // pengajuan sudah tuntas — yang disisakan langkah
-                    // terakhir, supaya kolomnya tidak pernah kosong.
-                    if (!bentang[c.id]) {
+                    // Yang diringkas menyisakan langkah yang sedang berjalan.
+                    // Bila tidak ada yang berjalan — pengajuan sudah tuntas —
+                    // yang disisakan langkah terakhir, supaya kolomnya tidak
+                    // pernah kosong sama sekali.
+                    if (ringkas[c.id]) {
                       const jalan = semua.findIndex((x) => x === "kini" ||
                                                            x === "stop");
                       if (i !== (jalan < 0 ? semua.length - 1 : jalan)) {
