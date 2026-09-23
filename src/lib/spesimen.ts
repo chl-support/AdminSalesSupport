@@ -337,7 +337,13 @@ export async function daftarMarketing(projectId: string) {
             m.reference_signature_source, m.reference_signature_at,
             e.token AS sesi_token, e.state AS sesi_state, e.captured, e.target,
             e.consistency, e.set_id AS sesi_set_id, e.expires_at,
-            e.ktp_at AS sesi_ktp_at, e.revision_reason
+            e.ktp_at AS sesi_ktp_at, e.revision_reason,
+            -- Kode verifikasi dan keadaannya ikut, supaya tautan yang masih
+            -- hidup dapat dikirim ulang. Sebelumnya keduanya hanya terlihat
+            -- sekali, pada jawaban penerbitannya: yang memuat ulang halaman
+            -- kehilangan kodenya, dan satu-satunya jalan adalah menerbitkan
+            -- tautan baru yang mematikan tautan yang sudah dikirim.
+            e.otp_code AS sesi_otp, e.otp_verified AS sesi_otp_terverifikasi
        FROM marketings m
        LEFT JOIN agencies a ON a.id = m.agency_id
        LEFT JOIN signature_specimens s ON s.marketing_id = m.id
@@ -348,7 +354,7 @@ export async function daftarMarketing(projectId: string) {
       WHERE m.project_id = $1
       GROUP BY m.id, a.name, e.token, e.state, e.captured, e.target,
                e.consistency, e.set_id, e.expires_at, e.ktp_at,
-               e.revision_reason
+               e.revision_reason, e.otp_code, e.otp_verified
       ORDER BY m.full_name`, [projectId]);
 }
 

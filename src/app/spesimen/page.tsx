@@ -33,6 +33,7 @@ type Baris = {
   captured: number | null; target: number | null; consistency: number | null;
   sesi_set_id: string | null; expires_at: string | null;
   sesi_ktp_at: string | null; revision_reason: string | null;
+  sesi_otp: string | null; sesi_otp_terverifikasi: boolean | null;
 };
 
 const PILL: Record<string, string> = {
@@ -86,6 +87,15 @@ const KATA = {
     ktpDiunggah: "KTP sudah diunggah", ktpBelum: "belum mengunggah KTP",
     tutup: "Tutup", periksaTtd: "Periksa tanda tangan",
     tautanMasihBerlaku: "Tautan sudah dikirim dan masih berlaku.",
+    tautanAlamat: "Tautan pendaftaran",
+    tautanKode: "Kode verifikasi",
+    tautanSampai: (sampai: string) => `Berlaku sampai ${sampai}`,
+    tautanSalin: "Salin", tautanWa: "Kirim lewat WhatsApp",
+    tautanTersalin: "Tautan tersalin.",
+    tautanSudahDiverifikasi:
+      "Kode sudah dipakai — yang perlu dikirim ulang hanya tautannya.",
+    tautanHabis:
+      "Tautan sudah lewat masa berlakunya. Terbitkan yang baru.",
     phAlasanRevisi: "Alasan revisi, minimal 10 karakter",
     terbitkanRevisi: "Terbitkan tautan revisi",
     sudahTerdaftar: "sudah terdaftar", mintaRevisi: "Minta revisi",
@@ -211,6 +221,14 @@ const KATA = {
     ktpDiunggah: "ID card uploaded", ktpBelum: "ID card not uploaded yet",
     tutup: "Close", periksaTtd: "Review signature",
     tautanMasihBerlaku: "The link has been sent and is still valid.",
+    tautanAlamat: "Registration link",
+    tautanKode: "Verification code",
+    tautanSampai: (sampai: string) => `Valid until ${sampai}`,
+    tautanSalin: "Copy", tautanWa: "Send by WhatsApp",
+    tautanTersalin: "Link copied.",
+    tautanSudahDiverifikasi:
+      "The code has been used — only the link needs resending.",
+    tautanHabis: "The link has expired. Issue a new one.",
     phAlasanRevisi: "Reason for the revision, at least 10 characters",
     terbitkanRevisi: "Issue revision link",
     sudahTerdaftar: "registered", mintaRevisi: "Request revision",
@@ -586,7 +604,15 @@ export default function SpesimenPage() {
                     <th style={{ width: 250 }}>{k.thTindakan}</th>
                   </tr>
 
-                  {terlihat.map((b) => (
+                  {terlihat.map((b) => {
+                  /* Tautan yang lewat masa berlakunya tetap berkeadaan 'sent'
+                     di basis data — yang menolaknya adalah halaman
+                     pendaftarannya, bukan daftar ini. Tanpa pemeriksaan di
+                     sini, barisnya menulis "masih berlaku" atas tautan yang
+                     sudah mati. */
+                  const kedaluwarsa = Boolean(
+                    b.expires_at && new Date(b.expires_at).getTime() < Date.now());
+                  return (
                     <tr key={b.id}>
                       <td>
                         <b>{b.full_name}</b><br />
@@ -688,10 +714,59 @@ export default function SpesimenPage() {
                                   onClick={() => void bukaSet(b.sesi_set_id!)}>
                             {lihat === b.sesi_set_id ? k.tutup : k.periksaTtd}
                           </button>
-                        ) : ["sent", "opened", "capturing"].includes(b.sesi_state ?? "") ? (
-                          <span style={{ fontSize: 11.5, color: "var(--mut)" }}>
-                            {k.tautanMasihBerlaku}
-                          </span>
+                        ) : ["sent", "opened", "capturing"].includes(b.sesi_state ?? "")
+                             && !kedaluwarsa ? (
+                          /* Tautannya tetap terlihat selama masih hidup.
+                             Sebelumnya di sini hanya tertulis "sudah dikirim
+                             dan masih berlaku": yang perlu mengirim ulang
+                             karena orangnya belum juga membuka tidak punya
+                             apa-apa untuk dikirim, dan satu-satunya jalan
+                             adalah menerbitkan tautan baru — yang justru
+                             mematikan tautan yang sudah telanjur dikirim.
+
+                             Kodenya ikut selama belum dipakai. Ia memang sudah
+                             pernah tampil di halaman ini saat diterbitkan, dan
+                             yang melihatnya tetap hanya Admin Sales dan Admin
+                             IT; yang berubah adalah ia tidak lagi hilang
+                             begitu halamannya dimuat ulang. */
+                          <div className="tautan-hidup">
+                            <div className="lbl">{k.tautanAlamat}</div>
+                            <div className="alamat-tautan">
+                              {`${asal}/daftar-ttd/${b.sesi_token}`}
+                            </div>
+                            {b.sesi_otp && !b.sesi_otp_terverifikasi ? (
+                              <div className="kode-tautan">
+                                {k.tautanKode} <b>{b.sesi_otp}</b>
+                              </div>
+                            ) : (
+                              <div className="kode-tautan pudar">
+                                {k.tautanSudahDiverifikasi}
+                              </div>
+                            )}
+                            {b.expires_at && (
+                              <div className="kode-tautan pudar">
+                                {k.tautanSampai(
+                                  String(b.expires_at).slice(0, 16).replace("T", " "))}
+                              </div>
+                            )}
+                            <div className="row" style={{ margin: "6px 0 0" }}>
+                              <button onClick={() => {
+                                navigator.clipboard?.writeText(
+                                  `${asal}/daftar-ttd/${b.sesi_token}`);
+                                setKabar({ kind: "ok",
+                                           html: `<b>${k.tautanTersalin}</b>` });
+                              }}>{k.tautanSalin}</button>
+                              {b.phone && (
+                                <a className="tombol-berkas"
+                                   href={`https://wa.me/${b.phone}?text=${
+                                     encodeURIComponent(
+                                       `${asal}/daftar-ttd/${b.sesi_token}`)}`}
+                                   target="_blank" rel="noreferrer">
+                                  {k.tautanWa}
+                                </a>
+                              )}
+                            </div>
+                          </div>
                         ) : b.spesimen > 0 ? (
                           /* Sudah punya spesimen: tautannya tidak muncul lagi.
                              Spesimen adalah pembanding pembayaran orang ini —
@@ -731,14 +806,27 @@ export default function SpesimenPage() {
                             {k.nomorKosong}
                           </span>
                         ) : (
-                          <button className="pri" disabled={busy}
-                                  onClick={() => void kirimTautan(b)}>
-                            {k.kirimTautan}
-                          </button>
+                          <>
+                            {/* Yang tautannya baru saja mati perlu tahu
+                                sebabnya: tombol yang sama muncul kembali tanpa
+                                keterangan terbaca seperti tautan yang tadi
+                                tidak pernah terkirim. */}
+                            {kedaluwarsa && (
+                              <div style={{ fontSize: 11.5, color: "var(--mut)",
+                                            marginBottom: 6 }}>
+                                {k.tautanHabis}
+                              </div>
+                            )}
+                            <button className="pri" disabled={busy}
+                                    onClick={() => void kirimTautan(b)}>
+                              {k.kirimTautan}
+                            </button>
+                          </>
                         )}
                       </td>
                     </tr>
-                  ))}
+                  );
+                  })}
 
                   {!terlihat.length && (
                     <tr>
