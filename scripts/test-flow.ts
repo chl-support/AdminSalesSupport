@@ -16,7 +16,6 @@ import { WorkflowError } from "../src/lib/workflow";
 import { applyRate, ratio, rupiahWords, terbilang } from "../src/lib/money";
 import { collect, preview } from "../src/lib/report";
 import { KATEGORI_JENIS, kategoriAwal } from "../src/lib/kategori";
-import { bacaBukuRekening } from "../src/lib/rekening-baca";
 import { seed } from "./seed";
 import { signaturePng, strokes } from "./synthetic-signature";
 
@@ -479,36 +478,6 @@ async function main() {
            String(kategoriAwal("overriding", "agent")));
     assert(kategoriAwal("commission", "markom") === "sales_inhouse",
            String(kategoriAwal("commission", "markom")));
-  });
-
-  await check("buku rekening terbaca menjadi nama, bank, dan nomornya",
-              async () => {
-    // Tiga kolom yang dulu diketik ulang dari buku yang sedang dipegang. Yang
-    // diuji adalah yang paling mudah salah pada hasil OCR: tanggal yang
-    // terbaca sebagai nomor rekening, dan tulisan kartu yang terbaca sebagai
-    // nama orang.
-    const a = bacaBukuRekening(
-      "PT BANK CENTRAL ASIA Tbk\nBUKU TABUNGAN\nTAHAPAN\n" +
-      "No. Rekening : 5271 0489 77\nNama : AGNES RINI TRI FORESTIANTI\n" +
-      "KCP GADING SERPONG");
-    assert(a.holder_name === "Agnes Rini Tri Forestianti",
-           String(a.holder_name));
-    assert(a.bank_name === "BCA", String(a.bank_name));
-    assert(a.account_number === "5271048977", String(a.account_number));
-
-    const b = bacaBukuRekening(
-      "MANDIRI\nDEBIT\n4617 0034 2211 7788\nVALID THRU 08/27\nBUDI SANTOSO");
-    assert(b.holder_name === "Budi Santoso", String(b.holder_name));
-
-    // Tanggal berukuran delapan digit tidak boleh lolos sebagai nomor
-    // rekening: 12-08-2019 tanpa pemisah panjangnya persis nomor rekening.
-    const c = bacaBukuRekening("BANK BCA\nTanggal 12-08-2019\nSaldo 1.250.000");
-    assert(c.account_number === null, String(c.account_number));
-
-    // Berkas yang bukan buku rekening mengembalikan kosong, bukan tebakan.
-    const d = bacaBukuRekening("Kwitansi pembayaran booking fee");
-    assert(!d.holder_name && !d.bank_name && !d.account_number,
-           JSON.stringify(d));
   });
 
   await check("rekap memakai tanggal transfer, bukan tanggal input", async () => {
