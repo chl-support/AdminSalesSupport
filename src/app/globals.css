@@ -861,6 +861,13 @@ ul.cetak-ceklis .kotak { border: 1px solid var(--ink); width: 14px; height: 14px
 /* Tombol yang tampil sebagai tautan: perilakunya tombol (membuka isi di
    halaman yang sama), jadi elemennya tetap <button> demi papan ketik dan
    pembaca layar. */
+/* Angka yang sedang diperiksa tim pajak: label di kiri, nilai rata kanan,
+   supaya digitnya berbaris dan dua angka yang berdekatan dapat dibandingkan
+   sekilas. */
+.angka-pajak { width: 100%; font-size: 12.5px; }
+.angka-pajak td { padding: 3px 0; border: none; }
+.angka-pajak td:last-child { text-align: right; }
+
 /* Tautan pendaftaran yang masih hidup, di dalam sel Tindakan.
    Selnya sempit, jadi alamatnya dipatahkan di mana saja — alamat yang
    melebarkan kolom akan mendorong seluruh tabel keluar layar. */
