@@ -217,9 +217,16 @@ export async function imporAgen(
       // bahwa tanda tangannya sudah terdaftar.
       if (!dryRun) {
         marketingId = (await query<{ id: string }>(
-          `INSERT INTO marketings (full_name, marketing_type, agency_id, npwp,
+          // Kategori penerima fee mengikuti jenis marketingnya — hanya itu
+          // yang tertulis pada laporan keagenan. Markom, Sales Manager, Sales
+          // Koordinator, dan BGB ditetapkan Admin Sales di layar Data
+          // Marketing.
+          `INSERT INTO marketings (full_name, marketing_type, category,
+             agency_id, npwp,
              npwp_type, recipient_type, phone, email, status, project_id)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'draft',$9) RETURNING id`,
+           VALUES ($1,$2,
+                   CASE WHEN $2='agent' THEN 'agent' ELSE 'sales_inhouse' END,
+                   $3,$4,$5,$6,$7,$8,'draft',$9) RETURNING id`,
           [b.nama, jenisDari(b), agencyId, b.npwp,
            b.npwp ? (b.agensi ? "company" : "personal") : "none",
            b.agensi ? "company" : "individual",
@@ -238,6 +245,15 @@ export async function imporAgen(
         await query(
           `UPDATE marketings SET
              marketing_type=$2,
+             -- Kategori ikut hanya selama ia masih salah satu dari dua yang
+             -- dapat disimpulkan dari laporan. Yang sudah ditetapkan sebagai
+             -- Markom, Sales Manager, Sales Koordinator, atau BGB tidak boleh
+             -- dikembalikan oleh unggahan laporan berikutnya — laporan itu
+             -- memang tidak mengenal keempatnya.
+             category=CASE
+               WHEN category IN ('agent','sales_inhouse')
+                 THEN CASE WHEN $2='agent' THEN 'agent' ELSE 'sales_inhouse' END
+               ELSE category END,
              agency_id=COALESCE($3, agency_id),
              npwp=COALESCE($4, npwp),
              phone=CASE WHEN $5::text IS NULL THEN phone ELSE $5 END,

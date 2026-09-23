@@ -32,11 +32,13 @@ export const GET = handler(async (req) => {
            m.full_name AS marketing_name, m.marketing_type,
            m.status AS marketing_status, a.name AS agency_name,
            m.npwp AS marketing_npwp, m.phone AS marketing_phone,
-           m.email AS marketing_email,
+           m.email AS marketing_email, m.category AS marketing_category,
            a.address AS agency_address,
            sk.full_name AS sub_coordinator_name, sk.status AS sub_coordinator_status,
            sk.npwp AS sub_coordinator_npwp, sk.phone AS sub_coordinator_phone,
            sk.email AS sub_coordinator_email, sk.marketing_type AS sub_coordinator_type,
+           sk.category AS sub_coordinator_category,
+           ko.category AS coordinator_category,
            ska.name AS sub_coordinator_agency, ska.address AS sub_coordinator_agency_address,
            ko.full_name AS coordinator_name, ko.status AS coordinator_status
       FROM units u
@@ -125,6 +127,8 @@ export const GET = handler(async (req) => {
           jenis: u.sub_coordinator_type,
           npwp: u.sub_coordinator_npwp, telepon: u.sub_coordinator_phone,
           email: u.sub_coordinator_email,
+          kategori: u.sub_coordinator_id ? u.sub_coordinator_category
+                                         : u.coordinator_category,
           kantor: u.sub_coordinator_agency,
           alamat_kantor: u.sub_coordinator_agency_address }
       : { id: u.marketing_id, nama: u.marketing_name,
@@ -132,6 +136,7 @@ export const GET = handler(async (req) => {
           jenis: u.marketing_type,
           npwp: u.marketing_npwp, telepon: u.marketing_phone,
           email: u.marketing_email,
+          kategori: u.marketing_category,
           kantor: u.agency_name, alamat_kantor: u.agency_address };
 
   /** Keadaan satu unit untuk satu jenis klaim. */
@@ -150,7 +155,10 @@ export const GET = handler(async (req) => {
       // sini supaya layar dan formulir tidak menyusun ulang aturannya sendiri.
       recipient: {
         id: p.id, name: p.nama, status: p.status, source: p.peran,
-        type: p.jenis ?? null, npwp: p.npwp ?? null, phone: p.telepon ?? null,
+        type: p.jenis ?? null,
+        // Kategori penerima fee — bukan jenis marketing. Dialog pengajuan
+        // memakainya sebagai pilihan awal pemilih kategorinya.
+        category: p.kategori ?? null, npwp: p.npwp ?? null, phone: p.telepon ?? null,
         email: p.email ?? null, office: p.kantor ?? null,
         office_address: p.alamat_kantor ?? null,
         bank: (p.id && perRekening.get(p.id)) || null,
