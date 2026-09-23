@@ -141,6 +141,8 @@ const KATA = {
     waLihat: "Lihat tautannya",
     waAlamat: "Alamat tautan",
     waTutup: "Tutup",
+    ringkasTutup: "Ringkas kembali",
+    ringkasBuka: "Tampilkan seluruh langkah",
   },
   en: {
     judul: "Approval Status",
@@ -206,6 +208,8 @@ const KATA = {
     waLihat: "Show the link",
     waAlamat: "Link address",
     waTutup: "Close",
+    ringkasTutup: "Collapse again",
+    ringkasBuka: "Show every step",
   },
 };
 
@@ -390,6 +394,20 @@ export default function PersetujuanPage() {
   const [mengirim, setMengirim] = useState<string | null>(null);
   /** Klaim yang tahapnya sedang dipindahkan. */
   const [gerak, setGerak] = useState<string | null>(null);
+
+  /**
+   * Baris yang kolom Statusnya sedang dibentangkan.
+   *
+   * Bawaannya tetap terbentang — keempat langkahnya terlihat, seperti
+   * sebelum panah ini ada. Panahnya hanya tambahan: yang sedang menyapu
+   * banyak baris dapat meringkas sebuah baris menjadi langkah yang sedang
+   * berjalan saja, sebab empat langkah dengan kalimatnya masing-masing
+   * membuat satu baris setinggi hampir dua ratus tujuh puluh piksel.
+   *
+   * Pilihannya per baris dan tidak tersimpan: ia mengatur tampilan sesaat,
+   * bukan data.
+   */
+  const [ringkas, setRingkas] = useState<Record<string, boolean>>({});
   /** Klaim yang sedang diunggahkan dokumen full sign-nya. */
   const [fsUntuk, setFsUntuk] = useState<string | null>(null);
   const [fsBerkas, setFsBerkas] = useState<File | null>(null);
@@ -690,17 +708,7 @@ export default function PersetujuanPage() {
             {terlihat.map((c, i) => (
               <tr key={c.id}>
                 <td className="sel-no">{i + 1}</td>
-                <td>
-                  {tglPendek(c.created_at)}
-                  {/* Nomor klaim dan unitnya tidak punya kolom sendiri lagi,
-                      tetapi tidak dibuang: nomor itulah yang dipakai menyebut
-                      klaim ini di seluruh layar lain, dan tanpa unitnya satu
-                      penerima dengan dua klaim serupa tidak dapat dibedakan. */}
-                  <span className="sisip">
-                    {c.claim_number}
-                    {c.unit?.code ? ` · ${c.unit.code}` : ""}
-                  </span>
-                </td>
+                <td>{tglPendek(c.created_at)}</td>
                 <td>{namaJenis(c.claim_type, bahasa)}</td>
                 <td>{kategori(c, k, bahasa) ?? "—"}</td>
                 <td className="sel-penerima">{c.marketing?.full_name ?? "—"}</td>
@@ -718,8 +726,33 @@ export default function PersetujuanPage() {
                     tebal berbingkai gelap, yang belum sampai redup, dan yang
                     tertahan merah. */}
                 <td className="sel-keadaan">
+                  {/* Panah peringkas. Hanya panah, tanpa tulisan: ia berdiri
+                      di atas empat kotak yang semuanya bertulisan, dan tulisan
+                      kelima akan ikut terbaca sebagai langkah. */}
+                  <button className="kecilkan" type="button"
+                          aria-expanded={!ringkas[c.id]}
+                          title={ringkas[c.id] ? k.ringkasBuka : k.ringkasTutup}
+                          aria-label={ringkas[c.id] ? k.ringkasBuka
+                                                    : k.ringkasTutup}
+                          onClick={() => setRingkas((r) =>
+                            ({ ...r, [c.id]: !r[c.id] }))}>
+                    <span aria-hidden="true">{ringkas[c.id] ? "\u25BE" : "\u25B4"}</span>
+                  </button>
+
                   {LANGKAH.map((l, i) => {
-                    const ling = keadaanLangkah(c.status)[i];
+                    const semua = keadaanLangkah(c.status);
+                    const ling = semua[i];
+                    // Yang diringkas menyisakan langkah yang sedang berjalan.
+                    // Bila tidak ada yang berjalan — pengajuan sudah tuntas —
+                    // yang disisakan langkah terakhir, supaya kolomnya tidak
+                    // pernah kosong sama sekali.
+                    if (ringkas[c.id]) {
+                      const jalan = semua.findIndex((x) => x === "kini" ||
+                                                           x === "stop");
+                      if (i !== (jalan < 0 ? semua.length - 1 : jalan)) {
+                        return null;
+                      }
+                    }
                     // Langkah ketiga menyebut kategori penerimanya yang
                     // sebenarnya — Sales Inhouse atau Agent — bukan
                     // "Sales/Agent" yang menyebut dua pihak sekaligus
