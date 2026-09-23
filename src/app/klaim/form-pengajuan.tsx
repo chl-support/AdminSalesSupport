@@ -192,12 +192,15 @@ export function FormPengajuan(
 
       <div className="form-blok">
         <h3>PENJELASAN PENGAJUAN {nama.toUpperCase()}</h3>
-        {/* Titik-titik isian seperti pada formulir aslinya — satu baris pada
-            Komisi, tiga pada Closing Fee dan Cash Reward. Tingginya tetap
-            berapa pun panjang penjelasannya, supaya cetakan selalu satu
-            halaman dan bloknya tidak berubah tinggi dari satu klaim ke klaim
-            berikutnya. */}
-        <p className={`penjelasan${jenis === "commission" ? " sebaris" : ""}`}>
+        {/* Satu baris isian untuk keempat jenis, mengikuti formulir Komisi.
+            Cetakan Closing Fee dan Cash Reward menyediakan tiga baris; yang
+            tiga itu dihapus atas permintaan kantor, supaya blok penjelasan pada
+            keempat formulir setinggi dan seletak sama.
+
+            Minimum, bukan tinggi tetap: penjelasan yang panjang tetap terbaca
+            utuh — memotongnya berarti mencetak dokumen resmi yang kalimatnya
+            hilang separuh. */}
+        <p className="penjelasan sebaris">
           {klaim.notes?.trim() || ""}
         </p>
       </div>
@@ -255,27 +258,22 @@ export function FormPengajuan(
         <h3>TUJUAN TRANSFER</h3>
         {bank ? (
           <>
-            {/* Komisi menamai barisnya "Nama (yang tercantum di Rekening Bank)"
-                dan menaruh No. Rekening di atas BANK; Closing Fee dan Cash
-                Reward sebaliknya. */}
+            {/* Satu bentuk untuk keempat jenis fee, mengikuti formulir Komisi:
+                nama barisnya "Nama (yang tercantum di Rekening Bank)", dan
+                No. Rekening berdiri di atas BANK.
+
+                Cetakan Closing Fee dan Cash Reward memang menuliskannya
+                berbeda — "Nama Penerima", dengan BANK lebih dulu — dan
+                perbedaan itu sengaja dihapus atas permintaan kantor: blok yang
+                sama pada dokumen yang sama-sama ditandatangani sebaiknya juga
+                terbaca sama. */}
             <table><tbody>
               <tr>
-                <td>{jenis === "commission"
-                      ? "Nama (yang tercantum di Rekening Bank)"
-                      : "Nama Penerima"}</td>
+                <td>Nama (yang tercantum di Rekening Bank)</td>
                 <td>{bank.holder_name}</td>
               </tr>
-              {jenis === "commission" ? (
-                <>
-                  <tr><td>No. Rekening</td><td>{bank.account_number}</td></tr>
-                  <tr><td>BANK</td><td>{bank.bank_name}</td></tr>
-                </>
-              ) : (
-                <>
-                  <tr><td>BANK</td><td>{bank.bank_name}</td></tr>
-                  <tr><td>No. Rekening</td><td>{bank.account_number}</td></tr>
-                </>
-              )}
+              <tr><td>No. Rekening</td><td>{bank.account_number}</td></tr>
+              <tr><td>BANK</td><td>{bank.bank_name}</td></tr>
               <tr><td>Kantor Cabang</td><td>{bank.branch ?? "—"}</td></tr>
             </tbody></table>
           </>
