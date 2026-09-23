@@ -31,6 +31,7 @@ import { useBahasa, useKata } from "../bahasa";
 import { Kerangka, MemeriksaSesi } from "../kerangka";
 import { useSesi } from "../session";
 import { namaJenis } from "../klaim/jenis";
+import { TAHAP, bolehGerak, tahapDari } from "@/lib/tahap";
 
 const rp = (n?: number | null) => `Rp ${(n ?? 0).toLocaleString("id-ID")}`;
 const tgl = (v?: string | null) => (v ? String(v).slice(0, 10) : "—");
@@ -65,14 +66,37 @@ const KATA = {
     pengantar: "Rincian dokumen pengajuan pada project ini. Pratinjau " +
                "formulirnya dibuka dari kolom paling kanan.",
     galat: "Data klaim tidak dapat dibaca",
-    tampilkan: "Tampilkan", semua: "semua klaim",
+    tampilkan: "Tampilkan data", semua: "semua klaim",
+    grupRingkas: "Ringkas", grupStatus: "Menurut status",
     belumJalan: "belum diteruskan", berjalan: "sedang berjalan",
     selesai: "sudah selesai",
     jumlah: (n: number) => `${n} klaim`,
     unduhRekap: "Download (.xlsx)",
     pProgress: (n: number) => `🔄 ${n} Progress`,
     pFinish: (n: number) => `🏁 ${n} Finish`,
-    daftar: "Dokumen pengajuan",
+    tahapJudul: "Tahap peredaran",
+    tahapBelum: "Belum beredar",
+    tahapGerak: "Memindahkan…",
+    tahapPindah: (t: string) => `Dokumen berpindah ke tahap "${t}".`,
+    fsTombol: "Unggah dokumen full sign",
+    fsJudul: "Dokumen full sign",
+    fsBerkas: "Berkas dokumen yang sudah lengkap tanda tangannya",
+    fsKirim: "Unggah lalu setujui", fsMengirim: "Mengunggah…",
+    fsSelesai: "Dokumen full sign tersimpan. Klaim maju ke Persetujuan Final.",
+    fsCatatan: "Keasliannya tidak dicocokkan dengan dokumen terbitan sistem. " +
+               "Jejak audit mencatat bahwa persetujuan ini berdasar berkas " +
+               "yang diunggah.",
+    fsLihat: "Lihat dokumen full sign",
+    byrTombol: "Catat pembayaran",
+    byrJudul: "Pembayaran",
+    byrTanggal: "Tanggal pembayaran",
+    byrBukti: "Bukti transfer",
+    byrRujukan: "Nomor rujukan (boleh kosong)",
+    byrAlasan: "Alasan tanggal mundur (bila diminta)",
+    byrKirim: "Catat pembayaran", byrMengirim: "Menyimpan…",
+    byrSelesai: "Pembayaran tercatat beserta bukti transfernya.",
+    batal: "Batal",
+    daftar: "Pengajuan & Dokumen",
     thNo: "No.", thTanggal: "Tanggal Pengajuan", thPerihal: "Perihal/Topik",
     thKategori: "Kategori", thPenerima: "Penerima",
     thPengaju: "Diajukan Oleh", thBruto: "Jumlah Komisi",
@@ -107,14 +131,37 @@ const KATA = {
     pengantar: "Submission details for this project. The form preview opens " +
                "from the rightmost column.",
     galat: "Claim data could not be read",
-    tampilkan: "Show", semua: "all claims",
+    tampilkan: "Show data", semua: "all claims",
+    grupRingkas: "Summary", grupStatus: "By status",
     belumJalan: "not yet forwarded", berjalan: "in progress",
     selesai: "completed",
     jumlah: (n: number) => `${n} claims`,
     unduhRekap: "Download (.xlsx)",
     pProgress: (n: number) => `🔄 ${n} Progress`,
     pFinish: (n: number) => `🏁 ${n} Finish`,
-    daftar: "Submission documents",
+    tahapJudul: "Circulation stage",
+    tahapBelum: "Not circulating yet",
+    tahapGerak: "Moving…",
+    tahapPindah: (t: string) => `The document moved to "${t}".`,
+    fsTombol: "Upload the fully signed document",
+    fsJudul: "Fully signed document",
+    fsBerkas: "The file of the document with every signature on it",
+    fsKirim: "Upload and approve", fsMengirim: "Uploading…",
+    fsSelesai: "The signed document is stored. The claim moved to Final approval.",
+    fsCatatan: "Its authenticity is not matched against the document the " +
+               "system issued. The audit trail records that this approval " +
+               "rests on an uploaded file.",
+    fsLihat: "Open the signed document",
+    byrTombol: "Record the payment",
+    byrJudul: "Payment",
+    byrTanggal: "Payment date",
+    byrBukti: "Transfer proof",
+    byrRujukan: "Reference number (optional)",
+    byrAlasan: "Reason for the back-dated payment (when asked for)",
+    byrKirim: "Record the payment", byrMengirim: "Saving…",
+    byrSelesai: "The payment is recorded together with its transfer proof.",
+    batal: "Cancel",
+    daftar: "Submissions & documents",
     thNo: "No.", thTanggal: "Submitted on", thPerihal: "Subject / topic",
     thKategori: "Category", thPengaju: "Submitted by",
     thPpn: "VAT", katInhouse: "In-house sales", katAgent: "Agent",
@@ -326,7 +373,13 @@ function warnaKeadaan(status: string) {
   return "";
 }
 
-type Saring = "semua" | "diam" | "jalan" | "selesai";
+/**
+ * Saringan: tiga kelompok ringkas, atau satu status tertentu.
+ *
+ * Status tunggal ditulis berawalan "s:" supaya keduanya muat dalam satu
+ * pemilih tanpa dua keadaan terpisah yang harus dijaga tetap sejalan.
+ */
+type Saring = "semua" | "diam" | "jalan" | "selesai" | `s:${string}`;
 
 export default function PersetujuanPage() {
   const { sesi, memuat } = useSesi();
@@ -342,6 +395,17 @@ export default function PersetujuanPage() {
   /** Tautan yang sudah terbit pada layar ini, berkunci id klaim. */
   const [tautan, setTautan] = useState<Record<string, any>>({});
   const [mengirim, setMengirim] = useState<string | null>(null);
+  /** Klaim yang tahapnya sedang dipindahkan. */
+  const [gerak, setGerak] = useState<string | null>(null);
+  /** Klaim yang sedang diunggahkan dokumen full sign-nya. */
+  const [fsUntuk, setFsUntuk] = useState<string | null>(null);
+  const [fsBerkas, setFsBerkas] = useState<File | null>(null);
+  /** Klaim yang sedang dicatat pembayarannya. */
+  const [byrUntuk, setByrUntuk] = useState<string | null>(null);
+  const [byrTgl, setByrTgl] = useState("");
+  const [byrBukti, setByrBukti] = useState<File | null>(null);
+  const [byrRujukan, setByrRujukan] = useState("");
+  const [byrAlasan, setByrAlasan] = useState("");
   /**
    * Klaim yang tautannya sedang diperlihatkan.
    *
@@ -423,7 +487,96 @@ export default function PersetujuanPage() {
 
   if (memuat || !sesi) return <MemeriksaSesi />;
 
+  /** Berkas menjadi data URL, bentuk yang diterima jalur lampiran. */
+  const keDataUrl = (f: File) => new Promise<string>((selesai, gagal) => {
+    const r = new FileReader();
+    r.onload = () => selesai(String(r.result));
+    r.onerror = () => gagal(new Error("Berkas tidak terbaca."));
+    r.readAsDataURL(f);
+  });
+
+  const pindahTahap = async (c: any, n: number) => {
+    setGerak(c.id); setGalat(null); setKabar(null);
+    try {
+      const res = await fetch(`/api/claims/${c.id}/tahap`, {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ tahap: n }),
+      });
+      if (res.status === 401) { location.href = "/login"; return; }
+      const b = await res.json().catch(() => ({}));
+      if (!res.ok) { setGalat(b.detail ?? `HTTP ${res.status}`); return; }
+      setKabar(k.tahapPindah(TAHAP.find((t) => t.n === n)?.nama ?? ""));
+      await muat();
+    } catch (e: any) {
+      setGalat(String(e?.message ?? e));
+    } finally { setGerak(null); }
+  };
+
+  const unggahFullSign = async (c: any) => {
+    if (!fsBerkas) return;
+    setGerak(c.id); setGalat(null); setKabar(null);
+    try {
+      const res = await fetch(`/api/claims/${c.id}/full-sign`, {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          file_name: fsBerkas.name, content_type: fsBerkas.type,
+          content_base64: await keDataUrl(fsBerkas),
+        }),
+      });
+      if (res.status === 401) { location.href = "/login"; return; }
+      const b = await res.json().catch(() => ({}));
+      if (!res.ok) { setGalat(b.detail ?? `HTTP ${res.status}`); return; }
+      setKabar(k.fsSelesai);
+      setFsUntuk(null); setFsBerkas(null);
+      await muat();
+    } catch (e: any) {
+      setGalat(String(e?.message ?? e));
+    } finally { setGerak(null); }
+  };
+
+  const catatPembayaran = async (c: any) => {
+    setGerak(c.id); setGalat(null); setKabar(null);
+    try {
+      const res = await fetch(`/api/claims/${c.id}/pembayaran`, {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          transfer_date: byrTgl,
+          reference_number: byrRujukan || null,
+          backdate_reason: byrAlasan || null,
+          file_name: byrBukti?.name,
+          content_type: byrBukti?.type,
+          content_base64: byrBukti ? await keDataUrl(byrBukti) : null,
+        }),
+      });
+      if (res.status === 401) { location.href = "/login"; return; }
+      const b = await res.json().catch(() => ({}));
+      if (!res.ok) { setGalat(b.detail ?? `HTTP ${res.status}`); return; }
+      setKabar(k.byrSelesai);
+      setByrUntuk(null); setByrTgl(""); setByrBukti(null);
+      setByrRujukan(""); setByrAlasan("");
+      await muat();
+    } catch (e: any) {
+      setGalat(String(e?.message ?? e));
+    } finally { setGerak(null); }
+  };
+
+  /** Lampiran dokumen full sign sebuah klaim, bila sudah ada. */
+  const dokFullSign = (c: any) =>
+    (c.documents ?? []).find((d: any) => d.checklist_item === "dokumen_full_sign");
+
+  /**
+   * Status yang benar-benar ada pada project ini, beserta jumlahnya.
+   *
+   * Urutannya mengikuti KEADAAN, yang disusun menurut perjalanan dokumennya —
+   * bukan menurut abjad, yang akan menaruh "Ditolak" di antara "Di tim pajak"
+   * dan "Di Finance".
+   */
+  const statusAda = Object.keys(KEADAAN)
+    .map((st) => [st, klaim.filter((c) => c.status === st).length] as const)
+    .filter(([, n]) => n > 0);
+
   const terlihat = klaim.filter((c) => {
+    if (saring.startsWith("s:")) return c.status === saring.slice(2);
     if (saring === "diam") return DIAM.includes(c.status);
     if (saring === "selesai") return SELESAI.includes(c.status);
     if (saring === "jalan") {
@@ -444,6 +597,19 @@ export default function PersetujuanPage() {
    * Dibuatkan daftar kedua yang khusus untuk angka ini, satu layar akan
    * memuat dua arti "selesai" yang berbeda.
    */
+  /**
+   * Peran yang boleh menggerakkan tahap peredaran, dan yang boleh mencatat
+   * pembayaran. Keduanya TIDAK sama, dan disamakan sekali di sini lalu
+   * dipakai bersama, Admin Sales akan melihat tombol pembayaran yang pasti
+   * ditolak endpoint-nya — tombol yang memberi harapan lalu galat.
+   *
+   * Daftarnya persis daftar yang diterima masing-masing endpoint.
+   */
+  const bolehTahap = ["admin_sales", "admin_system", "finance_manager",
+                      "head_finance"].includes(sesi.role);
+  const bolehBayar = ["finance_payment", "finance_manager", "head_finance",
+                      "admin_system"].includes(sesi.role);
+
   const selesai = klaim.filter((c) => SELESAI.includes(c.status)).length;
   const jalan = klaim.length - selesai;
 
@@ -462,12 +628,32 @@ export default function PersetujuanPage() {
         <div className="filters">
           <div>
             <div className="lbl">{k.tampilkan}</div>
+            {/* Tiga kelompok ringkas di atas, lalu tiap status satu per satu.
+                Kelompoknya menjawab "mana yang masih jalan"; daftar statusnya
+                menjawab "mana yang tersangkut di tanda tangan" — pertanyaan
+                yang tidak terjawab oleh kelompok mana pun.
+
+                Hanya status yang memang ada pada project ini yang ditawarkan:
+                dua puluh empat pilihan yang dua puluh di antaranya kosong
+                membuat yang mencari harus mencoba satu per satu. */}
             <select value={saring}
                     onChange={(e) => setSaring(e.target.value as Saring)}>
-              <option value="semua">{k.semua}</option>
-              <option value="diam">{k.belumJalan}</option>
-              <option value="jalan">{k.berjalan}</option>
-              <option value="selesai">{k.selesai}</option>
+              <optgroup label={k.grupRingkas}>
+                <option value="semua">{k.semua}</option>
+                <option value="diam">{k.belumJalan}</option>
+                <option value="jalan">{k.berjalan}</option>
+                <option value="selesai">{k.selesai}</option>
+              </optgroup>
+              {statusAda.length > 0 && (
+                <optgroup label={k.grupStatus}>
+                  {statusAda.map(([st, n]) => (
+                    <option key={st} value={`s:${st}`}>
+                      {keadaan(st, bahasa)[0]} — {keadaan(st, bahasa)[1] || st}
+                      {` (${n})`}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
             </select>
           </div>
         </div>
@@ -538,6 +724,29 @@ export default function PersetujuanPage() {
                     {keadaan(c.status, bahasa, kategori(c, k))[1]}
                   </div>
 
+                  {/* Pemilih tahap peredaran dokumen. Hanya muncul setelah
+                      dokumennya ditandatangani — keempat tahap ini memang
+                      menggambarkan peredaran dokumen fisik, yang baru bermula
+                      setelah tanda tangan ada.
+
+                      Dua tahap terakhir tidak dapat dipilih dari sini:
+                      keduanya membawa serta berkasnya masing-masing, dan
+                      tombolnya ada di kolom Tindakan. */}
+                  {bolehTahap && bolehGerak(c.status) && (
+                    <select className="pilih-tahap" disabled={gerak === c.id}
+                            value={tahapDari(c.status) ?? ""}
+                            onChange={(e) =>
+                              void pindahTahap(c, Number(e.target.value))}>
+                      {TAHAP.map((t) => (
+                        <option key={t.n} value={t.n}
+                                disabled={t.n >= 3 ||
+                                          t.n <= (tahapDari(c.status) ?? 0)}>
+                          {t.n}. {bahasa === "en" ? t.en : t.nama}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+
                   {/* Pengiriman tautan ke Sales/Agent, di dalam kolom Status
                       dan hanya untuk Admin Sales — merekalah yang berhubungan
                       dengan Sales/Agent, dan endpoint-nya pun menolak peran
@@ -592,6 +801,35 @@ export default function PersetujuanPage() {
                             `/klaim/pratinjau?ids=${c.id}`, "_blank")}>
                     {k.pratinjau}
                   </button>
+
+                  {/* Dokumen full sign: tombol unggahnya muncul selama klaim
+                      masih beredar, dan berganti menjadi tautan begitu
+                      berkasnya ada — pratinjau yang dibuka setelah itu
+                      memperlihatkan dokumen yang sudah lengkap tanda
+                      tangannya. */}
+                  {dokFullSign(c) ? (
+                    <a className="tautan-klaim"
+                       href={`/api/claims/${c.id}/documents/${dokFullSign(c).id}`}
+                       target="_blank" rel="noreferrer">
+                      {k.fsLihat}
+                    </a>
+                  ) : bolehTahap && bolehGerak(c.status) &&
+                      (tahapDari(c.status) ?? 0) < 3 ? (
+                    <button disabled={gerak === c.id}
+                            onClick={() => { setFsUntuk(c.id); setFsBerkas(null); }}>
+                      {k.fsTombol}
+                    </button>
+                  ) : null}
+
+                  {/* Pembayaran: hanya setelah Persetujuan Final, dan hanya
+                      selama belum tercatat lunas. */}
+                  {bolehBayar && (tahapDari(c.status) ?? 0) === 3 && (
+                    <button disabled={gerak === c.id}
+                            onClick={() => { setByrUntuk(c.id); setByrTgl("");
+                                             setByrBukti(null); }}>
+                      {k.byrTombol}
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}
@@ -613,6 +851,92 @@ export default function PersetujuanPage() {
       {/* Tautannya diperlihatkan di pop-up, bukan di dalam selnya: alamat
           tautan sepanjang tujuh puluh karakter di dalam sel tabel melebarkan
           kolomnya, dan kolom yang melebar mendorong sembilan kolom lainnya. */}
+      {/* Unggah dokumen full sign. Jendela tersendiri, bukan isian di dalam
+          sel: selnya sempit, dan yang mengunggah perlu membaca catatan tentang
+          keaslian dokumennya sebelum menekan tombolnya. */}
+      {fsUntuk && (() => {
+        const c = klaim.find((x) => x.id === fsUntuk);
+        if (!c) return null;
+        return (
+          <div className="tirai"
+               onMouseDown={(e) => {
+                 if (e.target === e.currentTarget) setFsUntuk(null);
+               }}>
+            <div className="popup" role="dialog" aria-modal="true"
+                 aria-label={k.fsJudul} style={{ maxWidth: 460 }}>
+              <h2 style={{ margin: "0 0 4px" }}>{k.fsJudul}</h2>
+              <p className="pengantar" style={{ margin: "0 0 10px" }}>
+                <b>{c.claim_number}</b> · {c.marketing?.full_name ?? "—"}
+              </p>
+
+              <div className="lbl">{k.fsBerkas}</div>
+              <input type="file" style={{ width: "100%" }}
+                     accept=".pdf,.jpg,.jpeg,.png,.webp"
+                     onChange={(e) => setFsBerkas(e.target.files?.[0] ?? null)} />
+              <p className="catatan-sunting">{k.fsCatatan}</p>
+
+              <div className="row" style={{ marginTop: 10, marginBottom: 0 }}>
+                <button className="pri"
+                        disabled={!fsBerkas || gerak === c.id}
+                        onClick={() => void unggahFullSign(c)}>
+                  {gerak === c.id ? k.fsMengirim : k.fsKirim}
+                </button>
+                <button disabled={gerak === c.id}
+                        onClick={() => setFsUntuk(null)}>{k.batal}</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Pencatatan pembayaran. Tanggal dan bukti transfernya wajib —
+          aturannya ditegakkan settle() di server, tidak diulang di sini. */}
+      {byrUntuk && (() => {
+        const c = klaim.find((x) => x.id === byrUntuk);
+        if (!c) return null;
+        return (
+          <div className="tirai"
+               onMouseDown={(e) => {
+                 if (e.target === e.currentTarget) setByrUntuk(null);
+               }}>
+            <div className="popup" role="dialog" aria-modal="true"
+                 aria-label={k.byrJudul} style={{ maxWidth: 460 }}>
+              <h2 style={{ margin: "0 0 4px" }}>{k.byrJudul}</h2>
+              <p className="pengantar" style={{ margin: "0 0 10px" }}>
+                <b>{c.claim_number}</b> · {rp(c.net_amount)}
+              </p>
+
+              <div className="lbl">{k.byrTanggal}</div>
+              <input type="date" value={byrTgl} style={{ width: "100%" }}
+                     onChange={(e) => setByrTgl(e.target.value)} />
+
+              <div className="lbl" style={{ marginTop: 10 }}>{k.byrBukti}</div>
+              <input type="file" style={{ width: "100%" }}
+                     accept=".pdf,.jpg,.jpeg,.png,.webp"
+                     onChange={(e) => setByrBukti(e.target.files?.[0] ?? null)} />
+
+              <div className="lbl" style={{ marginTop: 10 }}>{k.byrRujukan}</div>
+              <input value={byrRujukan} style={{ width: "100%" }}
+                     onChange={(e) => setByrRujukan(e.target.value)} />
+
+              <div className="lbl" style={{ marginTop: 10 }}>{k.byrAlasan}</div>
+              <input value={byrAlasan} style={{ width: "100%" }}
+                     onChange={(e) => setByrAlasan(e.target.value)} />
+
+              <div className="row" style={{ marginTop: 10, marginBottom: 0 }}>
+                <button className="pri"
+                        disabled={!byrTgl || !byrBukti || gerak === c.id}
+                        onClick={() => void catatPembayaran(c)}>
+                  {gerak === c.id ? k.byrMengirim : k.byrKirim}
+                </button>
+                <button disabled={gerak === c.id}
+                        onClick={() => setByrUntuk(null)}>{k.batal}</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {lihatTautan && tautan[lihatTautan] && (() => {
         const t = tautan[lihatTautan];
         const c = klaim.find((x) => x.id === lihatTautan);
