@@ -141,6 +141,8 @@ const KATA = {
     waLihat: "Lihat tautannya",
     waAlamat: "Alamat tautan",
     waTutup: "Tutup",
+    ringkasTutup: "Kecilkan",
+    ringkasBuka: "Tampilkan semua",
   },
   en: {
     judul: "Approval Status",
@@ -206,6 +208,8 @@ const KATA = {
     waLihat: "Show the link",
     waAlamat: "Link address",
     waTutup: "Close",
+    ringkasTutup: "Collapse",
+    ringkasBuka: "Show all",
   },
 };
 
@@ -390,6 +394,17 @@ export default function PersetujuanPage() {
   const [mengirim, setMengirim] = useState<string | null>(null);
   /** Klaim yang tahapnya sedang dipindahkan. */
   const [gerak, setGerak] = useState<string | null>(null);
+
+  /**
+   * Baris yang kolom Statusnya sedang diringkas.
+   *
+   * Empat langkah dengan kalimatnya masing-masing membuat satu baris setinggi
+   * hampir dua ratus piksel; satu layar hanya memuat tiga atau empat baris.
+   * Yang sedang menyapu banyak baris sekaligus tidak selalu memerlukan
+   * seluruh perjalanannya — cukup langkah yang sedang berjalan. Karena itu
+   * yang diringkas menyisakan langkah itu, bukan mengosongkan kolomnya.
+   */
+  const [ringkas, setRingkas] = useState<Record<string, boolean>>({});
   /** Klaim yang sedang diunggahkan dokumen full sign-nya. */
   const [fsUntuk, setFsUntuk] = useState<string | null>(null);
   const [fsBerkas, setFsBerkas] = useState<File | null>(null);
@@ -708,8 +723,27 @@ export default function PersetujuanPage() {
                     tebal berbingkai gelap, yang belum sampai redup, dan yang
                     tertahan merah. */}
                 <td className="sel-keadaan">
+                  <button className="kecilkan" type="button"
+                          aria-expanded={!ringkas[c.id]}
+                          onClick={() => setRingkas((r) =>
+                            ({ ...r, [c.id]: !r[c.id] }))}>
+                    {ringkas[c.id] ? k.ringkasBuka : k.ringkasTutup}
+                  </button>
+
                   {LANGKAH.map((l, i) => {
-                    const ling = keadaanLangkah(c.status)[i];
+                    const semua = keadaanLangkah(c.status);
+                    const ling = semua[i];
+                    // Yang diringkas menyisakan langkah yang sedang berjalan.
+                    // Bila tidak ada yang berjalan — pengajuan sudah tuntas —
+                    // yang disisakan langkah terakhir, supaya kolomnya tidak
+                    // pernah kosong sama sekali.
+                    if (ringkas[c.id]) {
+                      const jalan = semua.findIndex((x) => x === "kini" ||
+                                                           x === "stop");
+                      if (i !== (jalan < 0 ? semua.length - 1 : jalan)) {
+                        return null;
+                      }
+                    }
                     // Langkah ketiga menyebut kategori penerimanya yang
                     // sebenarnya — Sales Inhouse atau Agent — bukan
                     // "Sales/Agent" yang menyebut dua pihak sekaligus

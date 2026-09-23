@@ -1324,6 +1324,16 @@ td.sel-keadaan { text-align: center; }
 /* Empat langkah bertumpuk dalam satu sel, masing-masing kotak dan kalimatnya.
    Jarak antarlangkah lebih besar daripada jarak kotak ke kalimatnya sendiri,
    supaya keduanya terbaca sebagai satu kesatuan, bukan delapan baris lepas. */
+/* Tombol peringkas, di atas kotak langkah pertama. Sengaja lebih kecil dan
+   lebih redup daripada kotak-kotak di bawahnya: ia mengatur tampilan, bukan
+   menyebut keadaan, dan tidak boleh ikut terbaca sebagai langkah kelima. */
+.kecilkan {
+  display: block; width: 100%; margin-bottom: 7px; padding: 1px 6px;
+  border: 1px solid var(--line); background: var(--fill);
+  font-size: 10.5px; color: var(--sub); cursor: pointer; line-height: 1.5;
+}
+.kecilkan:hover { border-color: var(--mut); color: var(--ink); }
+
 .langkah-keadaan { margin-bottom: 9px; }
 .langkah-keadaan:last-child { margin-bottom: 0; }
 
