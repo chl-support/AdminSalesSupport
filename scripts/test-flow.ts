@@ -650,6 +650,18 @@ async function main() {
              `${b.judul}: total selisih ${b.total.selisih_net}`);
     }
 
+    // Unit yang kolom koordinatornya kosong tetap masuk rekap, asalkan ada
+    // klaim Overriding atas nama orang ini. Sejak penerimanya dipilih sendiri
+    // saat mengajukan, itulah keadaan yang lazim — dan mencari unit hanya
+    // lewat kolom koordinator membuat rekapnya kosong justru pada klaim yang
+    // barusan dibuat.
+    await query("UPDATE units SET sub_coordinator_id=NULL, coordinator_id=NULL " +
+                "WHERE id=$1", [unit]);
+    const tetap = await rekapOverriding(c.id);
+    const unitnya = tetap!.bagian.flatMap((b) => b.baris)
+      .some((r) => r.amount > 0);
+    assert(unitnya, "unit tanpa koordinator tetap harus muncul lewat klaimnya");
+
     // Klaim jenis lain tidak punya rekap: dokumennya memang lembar per unit.
     const bukan = await rekapOverriding(cid);
     assert(bukan === null, "klaim non-Overriding seharusnya tanpa rekap");
