@@ -11,8 +11,7 @@
  * baris TOTAL-nya sendiri.
  *
  * Yang menandatangani pun berbeda: tidak ada kolom Pemohon di sini. Yang ada
- * Dibuat Oleh, Diperiksa Oleh, dan tiga Disetujui Oleh, persis seperti pada
- * berkas acuannya.
+ * Dibuat Oleh, Diperiksa Oleh, dan satu Disetujui Oleh.
  *
  * Tabelnya lebar — tiga puluh kolom lebih — jadi lembarnya melintang. Itu
  * memang bentuk aslinya; memaksanya tegak berarti mengecilkan hurufnya sampai
@@ -260,13 +259,16 @@ export function RekapOverriding({ rekap }: { rekap: Rekap }) {
         </div>
       )}
 
-      {/* Lima blok tanda tangan, sebagaimana pada acuannya. Namanya sengaja
-          tidak diisi: yang menandatangani berbeda menurut periodenya, dan nama
-          yang tercetak sendiri mengundang lembar ditandatangani orang lain
-          atas nama yang tertulis. */}
+      {/* Tiga blok tanda tangan. Acuannya memuat tiga "Disetujui Oleh"
+          berjajar; dua di antaranya dibuang atas permintaan kantor — yang
+          menyetujui rekap ini satu orang, dan dua kotak kosong di kiri dan
+          kanannya hanya menunggu diisi orang yang tidak pernah datang.
+
+          Namanya sengaja tidak dicetak: yang menandatangani berbeda menurut
+          periodenya, dan nama yang tercetak sendiri mengundang lembar
+          ditandatangani orang lain atas nama yang tertulis. */}
       <div className="ttd-rekap">
-        {["Dibuat Oleh,", "Diperiksa Oleh,", "Disetujui Oleh,",
-          "Disetujui Oleh,", "Disetujui Oleh,"].map((t, i) => (
+        {["Dibuat Oleh,", "Diperiksa Oleh,", "Disetujui Oleh,"].map((t, i) => (
           <div key={i}>
             <span className="peran">{t}</span>
             <div className="kotak-ttd" />
