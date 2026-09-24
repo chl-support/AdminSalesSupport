@@ -22,6 +22,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 
 import { FormPengajuan } from "../../klaim/form-pengajuan";
+import { RekapOverriding } from "../../klaim/rekap-overriding";
 import { KanvasTtd, usePadTtd } from "../../ttd-pad";
 
 const rp = (n?: number | null) => `Rp ${(n ?? 0).toLocaleString("id-ID")}`;
@@ -216,6 +217,15 @@ export default function SignPage() {
 
   const claim = ctx?.claim;
   const tv = ctx?.tax_verification;
+  /**
+   * Overriding ditandatangani di atas Detail Perhitungan per periode.
+   *
+   * Layar ini dulu selalu menggambar Form Pengajuan, jenis apa pun klaimnya —
+   * sehingga Sales Manager menandatangani lembar per unit, sementara yang
+   * diperiksa pajak dan disetujui manajemen adalah rekap per periode. Dua
+   * dokumen berbeda dengan satu tanda tangan di bawahnya.
+   */
+  const rekapOr = ctx?.rekap_overriding ?? null;
 
   const punya = (item: string) => dokumen.filter((d) => d.checklist_item === item);
   const kurang = BERKAS.filter((b) => b.wajib && !punya(b.item).length);
@@ -283,9 +293,13 @@ export default function SignPage() {
             </div>
           )}
 
-          <div className="lbl">Form Pengajuan — hanya untuk dibaca</div>
+          <div className="lbl">
+            {rekapOr ? "Detail Perhitungan Overiding" : "Form Pengajuan"}
+            {" "}— hanya untuk dibaca
+          </div>
           <div className="form-lihat">
-            <FormPengajuan klaim={claim} />
+            {rekapOr ? <RekapOverriding rekap={rekapOr} />
+                     : <FormPengajuan klaim={claim} />}
           </div>
 
           {/* Tanpa ringkasan nominal di bawah formulirnya. Keempat angkanya —
@@ -424,8 +438,9 @@ export default function SignPage() {
                dangerouslySetInnerHTML={{ __html: done.html }} />
           {done.kind === "ok" && claim && (
             <div className="form-lihat" style={{ marginTop: 12 }}>
-              <FormPengajuan klaim={{ ...claim, documents: dokumen }}
-                             ttdPemohon={pratinjauTtd} />
+              {rekapOr ? <RekapOverriding rekap={rekapOr} />
+                       : <FormPengajuan klaim={{ ...claim, documents: dokumen }}
+                                        ttdPemohon={pratinjauTtd} />}
             </div>
           )}
         </section>
