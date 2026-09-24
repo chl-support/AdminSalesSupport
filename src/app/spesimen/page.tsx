@@ -81,6 +81,19 @@ const KATA = {
     ubahNomor: "Ubah nomor telepon", tanpaNomor: "tanpa nomor telepon",
     phNomor: "08xxxxxxxxxx", simpan: "Simpan", batal: "Batal",
     ubahKategori: "Ubah kategori penerima fee",
+    hapus: "Hapus data marketing",
+    hapusJudul: (nama: string) => `Hapus ${nama}?`,
+    hapusIsi:
+      "Untuk baris yang salah input — nama yang sama terketik dua kali. " +
+      "Rekening, spesimen tanda tangan, dan sesi pendaftarannya ikut hilang, " +
+      "dan tidak dapat dikembalikan. Yang sudah dipakai pengajuan fee atau " +
+      "data penjualan akan ditolak.",
+    hapusYa: "Ya, hapus", hapusMenghapus: "Menghapus…",
+    kHapusSelesai: (nama: string) => `${nama} dihapus`,
+    kHapusSelesaiIsi:
+      "Barisnya tersimpan pada jejak audit — di sanalah dapat dilihat kembali " +
+      "siapa yang dihapus dan oleh siapa.",
+    kHapusGagal: "Baris ini tidak dapat dihapus",
     rekamanLama: "rekaman lama", dariKtp: "dari KTP", ada: "ada",
     menungguDiperiksa: "menunggu diperiksa", ttdPadaKtp: "tanda tangan pada KTP",
     tautanTerbuka: "tautan terbuka",
@@ -215,6 +228,19 @@ const KATA = {
     ubahNomor: "Change phone number", tanpaNomor: "no phone number",
     phNomor: "08xxxxxxxxxx", simpan: "Save", batal: "Cancel",
     ubahKategori: "Change fee recipient category",
+    hapus: "Delete this marketing record",
+    hapusJudul: (nama: string) => `Delete ${nama}?`,
+    hapusIsi:
+      "For rows entered twice by mistake. Their bank account, signature " +
+      "specimens, and enrolment sessions go with them, and cannot be " +
+      "restored. Anyone already used by a fee submission or by sales data " +
+      "will be refused.",
+    hapusYa: "Yes, delete", hapusMenghapus: "Deleting…",
+    kHapusSelesai: (nama: string) => `${nama} deleted`,
+    kHapusSelesaiIsi:
+      "The row is kept on the audit trail — that is where who was deleted, " +
+      "and by whom, can be read back.",
+    kHapusGagal: "This row could not be deleted",
     rekamanLama: "old screen capture", dariKtp: "from the ID card", ada: "present",
     menungguDiperiksa: "awaiting review", ttdPadaKtp: "signature on the ID card",
     tautanTerbuka: "link opened",
@@ -342,6 +368,8 @@ export default function SpesimenPage() {
    * bersama dialognya, dan enam state terpisah berarti enam tempat yang harus
    * diingat untuk dikosongkan kembali.
    */
+  /** Baris yang sedang ditanyakan penghapusannya. */
+  const [hapus, setHapus] = useState<Baris | null>(null);
   const [tambah, setTambah] = useState<{
     full_name: string; category: string; marketing_type: string;
     phone: string; email: string; npwp: string;
@@ -429,6 +457,30 @@ export default function SpesimenPage() {
    * aktif" ia tersimpan dengan benar tetapi tidak terlihat sama sekali — dan
    * yang menyimpannya akan mengira penyimpanannya gagal.
    */
+  /**
+   * Hapus satu baris, sesudah ditanyakan.
+   *
+   * Penolakan server ditampilkan apa adanya: ia menyebut apa yang masih
+   * menunjuk kepada orang itu — berapa pengajuan fee, berapa data penjualan —
+   * dan kalimat itulah yang memberi tahu apa yang harus dibetulkan lebih
+   * dulu.
+   */
+  const jalankanHapus = async () => {
+    if (!hapus) return;
+    setBusy(true); setKabar(null);
+    try {
+      const r = await api(`/marketings/${hapus.id}`, { method: "DELETE" });
+      setKabar({ kind: "ok", html:
+        `<b>${k.kHapusSelesai(r.full_name ?? hapus.full_name)}</b>${k.kHapusSelesaiIsi}` });
+      setHapus(null);
+      await muat();
+    } catch (e: any) {
+      setKabar({ kind: "stop", html:
+        `<b>${k.kHapusGagal}</b>${e.body?.detail ?? ""}` });
+      setHapus(null);
+    } finally { setBusy(false); }
+  };
+
   const simpanTambah = async () => {
     if (!tambah) return;
     setBusy(true); setKabar(null);
@@ -823,6 +875,24 @@ export default function SpesimenPage() {
                             </button>
                           </>
                         )}
+
+                        {/* Hapus berdiri terpisah di bawah, dipisahkan garis,
+                            bukan berjajar dengan tindakan lain: yang lain
+                            menggerakkan pendaftaran, yang ini menghilangkan
+                            barisnya, dan keduanya tidak boleh berjajar dalam
+                            satu baris tombol yang ditekan cepat-cepat.
+
+                            Tulisannya menyebut apa yang dihapus. "Hapus"
+                            saja, berdiri tepat di bawah "Kirim tautan
+                            pendaftaran", terbaca sebagai penghapus tautan itu
+                            — padahal yang hilang adalah orangnya dari daftar
+                            ini. */}
+                        <div className="hapus-baris">
+                          <button className="tautan" disabled={busy}
+                                  onClick={() => setHapus(b)}>
+                            {k.hapus}
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -839,6 +909,42 @@ export default function SpesimenPage() {
               </table>
             </div>
           </div>
+
+          {/* Penghapusan ditanyakan lebih dulu, dan pertanyaannya menyebut
+              namanya. Tombol hapus yang langsung bekerja pada tabel berisi
+              nama-nama yang mirip — persis keadaan yang membuat baris ini
+              perlu dihapus — akan menghapus orang yang salah. */}
+          {hapus && (
+            <div className="tirai"
+                 onMouseDown={(e) => {
+                   if (e.target === e.currentTarget && !busy) setHapus(null);
+                 }}>
+              <div className="popup" role="dialog" aria-modal="true"
+                   style={{ maxWidth: 430 }}
+                   aria-label={k.hapusJudul(hapus.full_name)}>
+                <h2 style={{ margin: "0 0 4px" }}>
+                  {k.hapusJudul(hapus.full_name)}
+                </h2>
+                <p className="pengantar" style={{ margin: "0 0 10px" }}>
+                  {hapus.marketing_type === "agent" ? "Agent" : "Inhouse"}
+                  {hapus.agency_name ? ` · ${hapus.agency_name}` : ""}
+                  {hapus.phone ? ` · ${hapus.phone}` : ""}
+                </p>
+                <p className="hint" style={{ textAlign: "left", margin: 0 }}>
+                  {k.hapusIsi}
+                </p>
+
+                <div className="row" style={{ marginTop: 12, marginBottom: 0 }}>
+                  <button className="pri" disabled={busy}
+                          onClick={() => void jalankanHapus()}>
+                    {busy ? k.hapusMenghapus : k.hapusYa}
+                  </button>
+                  <button disabled={busy}
+                          onClick={() => setHapus(null)}>{k.batal}</button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Pop-up "+ Add". Kategorinya berdiri paling atas sesudah nama:
               ia yang menentukan jenisnya, dan yang mengisi perlu melihatnya
