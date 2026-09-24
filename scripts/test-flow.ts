@@ -591,6 +591,64 @@ async function main() {
     assert(Boolean(masih), "yang terpakai seharusnya tetap ada");
   });
 
+  await check("pengajuan salah input dapat dihapus, yang sudah dibayar tidak",
+              async () => {
+    // Salah input: unitnya keliru, orangnya keliru, jenis feenya keliru.
+    // Mesin alur hanya mengenal pembatalan dari draft, jadi yang sudah
+    // berjalan tidak punya jalan pulang — dan inilah jalannya.
+    const salah = await wf.createClaim({
+      unitId: unit, marketingId: inhouseId, claimType: "cash_reward",
+      recipientRole: "sales_inhouse", actor: "admin" });
+    // Bukan draft: yang perlu dihapus justru pengajuan yang sudah berjalan.
+    // Statusnya ditulis langsung, bukan ditempuh lewat alur, karena yang diuji
+    // di sini penghapusannya — bukan jalan menuju status itu.
+    await query("UPDATE claims SET status='awaiting_signature' WHERE id=$1",
+                [salah.id]);
+
+    // Alasan wajib: penghapusan yang tidak dapat dijelaskan tidak dapat
+    // ditelusuri lagi setelah barisnya hilang.
+    let tanpaAlasan = "";
+    try {
+      await wf.hapusKlaim(salah.id, "admin", "singkat");
+    } catch (e: any) { tanpaAlasan = String(e?.message ?? ""); }
+    assert(/minimal 10 karakter/.test(tanpaAlasan),
+           tanpaAlasan || "alasan pendek seharusnya ditolak");
+
+    const hasil = await wf.hapusKlaim(
+      salah.id, "admin", "Salah unit, diajukan ulang atas unit yang benar.");
+    assert(hasil.deleted, "seharusnya terhapus");
+    assert(!await one("SELECT id FROM claims WHERE id=$1", [salah.id]),
+           "barisnya seharusnya sudah tidak ada");
+
+    // Jejak auditnya tetap tinggal: ia append-only dan tidak menunjuk ke
+    // baris klaim lewat foreign key. Tanpa ini, penghapusan tidak
+    // meninggalkan bukti apa pun bahwa pengajuan itu pernah ada.
+    const jejak = await one<{ actor: string; reason: string }>(
+      `SELECT actor, reason FROM audit_log
+        WHERE entity_type='claim' AND entity_id=$1 AND action='deleted'`,
+      [salah.id]);
+    assert(Boolean(jejak), "jejak audit penghapusan seharusnya tersimpan");
+    assert(/Salah unit/.test(jejak!.reason ?? ""), "alasannya seharusnya ikut");
+
+    // Yang uangnya sudah keluar ditolak. Menghapusnya berarti menghapus
+    // catatan atas transfer yang benar-benar terjadi, dan rekap pembayaran
+    // yang memuatnya berubah diam-diam.
+    const dibayar = await wf.createClaim({
+      unitId: unit, marketingId: inhouseId, claimType: "cash_reward",
+      recipientRole: "sales_inhouse", actor: "admin" });
+    await query("UPDATE claims SET status='paid' WHERE id=$1", [dibayar.id]);
+    let tertolak = "";
+    try {
+      await wf.hapusKlaim(dibayar.id, "admin",
+                          "Uji: seharusnya ditolak karena sudah dibayar.");
+    } catch (e: any) { tertolak = String(e?.message ?? ""); }
+    assert(/sudah masuk pembayaran/.test(tertolak),
+           tertolak || "yang sudah dibayar seharusnya ditolak");
+    assert(Boolean(await one("SELECT id FROM claims WHERE id=$1", [dibayar.id])),
+           "yang sudah dibayar seharusnya tetap ada");
+    await query("DELETE FROM claims WHERE id=$1", [dibayar.id]);
+  });
+
   await check("rekap Overriding memilah unit menurut keadaannya", async () => {
     // Overriding dicetak sebagai Detail Perhitungan per periode, bukan lembar
     // per unit. Yang diuji di sini pemilahannya — unit batal tidak boleh

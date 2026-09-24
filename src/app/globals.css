@@ -887,6 +887,14 @@ ul.cetak-ceklis .kotak { border: 1px solid var(--ink); width: 14px; height: 14px
                              font-size: 11.5px; }
 .hapus-baris button.tautan:hover { color: var(--stop); }
 
+/* Tombol hapus pada kolom Tindakan. Sengaja tidak semenonjol tombol di
+   sebelahnya: ia satu-satunya tindakan di kolom itu yang tidak dapat
+   dibatalkan, dan tombol yang menarik mata adalah tombol yang tertekan tanpa
+   sengaja. Warnanya baru menjadi merah saat disentuh. */
+button.hapus-klaim { color: var(--mut); font-weight: 500; }
+button.hapus-klaim:hover:not(:disabled) {
+  color: var(--stop); border-color: var(--stop); }
+
 /* ---- Detail Perhitungan Overiding -------------------------------------- */
 /* Tabelnya tiga puluh kolom lebih; lembarnya melintang, dan hurufnya kecil
    karena memang begitu bentuk aslinya. Yang tidak boleh terjadi adalah angka
