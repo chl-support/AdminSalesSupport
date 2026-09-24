@@ -958,6 +958,20 @@ button.hapus-klaim:hover:not(:disabled) {
 .catatan-rekap ul { margin: 4px 0 0; padding-left: 16px; }
 .catatan-rekap .nilai { margin-left: 8px; font-weight: 650; }
 
+/* Perbandingan tanda tangan di dalam kotak tinjauan: goresan tiap percobaan di
+   satu lajur, spesimen tersimpan di lajur sebelahnya. Dua lajur, bukan satu
+   deret: yang dikerjakan orang di sana membandingkan, dan membandingkan
+   menuntut keduanya terlihat bersamaan tanpa digulir. */
+.banding-ttd { display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+               margin: 10px 0 0; }
+.banding-ttd .lbl { margin-bottom: 4px; }
+.petak-goresan { border: 1px solid var(--line); background: #fff;
+                 border-radius: 4px; padding: 4px; margin-bottom: 6px; }
+.petak-goresan img { display: block; width: 100%; height: 64px;
+                     object-fit: contain; }
+.petak-goresan span { display: block; margin-top: 2px; font-size: 10.5px;
+                      color: var(--mut); text-align: center; }
+
 /* Empat ruang tanda tangan berjajar di bawah tiga sebutan; yang ketiga
    membentang di atas dua ruang terakhir — lihat keterangannya di komponennya.
 
