@@ -83,13 +83,34 @@ export const GET = handler(async (req) => {
     ["PPN", 16, (c) => Number(c.vat ?? 0)],
     ["PPh", 16, (c) => Number(c.withholding_tax ?? 0)],
     ["Komisi Yang Dibayarkan", 22, (c) => Number(c.net_amount ?? 0)],
+    // Tanggal uang keluar menurut bukti bank, bukan tanggal persetujuannya.
+    // Kosong selama belum ada pelunasan yang tercatat: pada lembar kerja,
+    // sel kosong lebih berguna daripada tanda pisah yang dipakai di layar —
+    // ia tidak ikut terbaca saat kolomnya disaring atau diurutkan.
+    ["Tanggal Pembayaran", 20, (c) => tgl(c.tanggal_bayar)],
     ["Status", 26, (c) => KEADAAN[c.status] ?? c.status],
-    // Nomor klaim dan unitnya tercetak kecil di bawah tanggal pada layar;
-    // di sini keduanya mendapat kolomnya sendiri, sebab lembar kerja tidak
-    // mengenal baris kecil di dalam sel.
+    // Nomor klaim tercetak kecil di bawah tanggal pada layar; di sini ia
+    // mendapat kolomnya sendiri, sebab lembar kerja tidak mengenal baris kecil
+    // di dalam sel. Unit kini punya kolomnya sendiri pula di layar, di antara
+    // Tanggal Pengajuan dan Perihal; di sini ia masih berdiri di ujung kanan,
+    // supaya rekap yang sudah telanjur dipakai orang tidak bergeser kolomnya.
     ["Nomor Klaim", 22, (c) => c.claim_number ?? ""],
     ["Unit", 16, (c) => c.unit?.code ?? ""],
   ];
+
+  /**
+   * Kolom yang isinya rupiah, dicari dari judulnya.
+   *
+   * Dulu nomornya ditulis tangan sebagai [7, 8, 9, 10]. Nomor semacam itu
+   * diam-diam salah begitu ada yang menyisipkan satu kolom di sebelah kiri —
+   * formatnya berpindah ke kolom tetangga, dan yang membuka rekapnya melihat
+   * tanggal berformat ribuan sementara angka rupiahnya kehilangan pemisahnya.
+   * Tidak ada yang gagal, tidak ada yang memberi tahu.
+   */
+  const kolomUang = KOLOM
+    .map(([judul], i) => ["Jumlah Komisi", "PPN", "PPh",
+                          "Komisi Yang Dibayarkan"].includes(judul) ? i + 1 : 0)
+    .filter((n) => n > 0);
 
   const wb = new ExcelJS.Workbook();
   const ws = wb.addWorksheet("Dokumen Pengajuan");
@@ -108,7 +129,7 @@ export const GET = handler(async (req) => {
     r.alignment = { vertical: "top", wrapText: true };
     // Angka rupiah diberi format ribuan, bukan ditulis sebagai teks: yang
     // membuka rekap ini menjumlah kolomnya.
-    for (const kol of [7, 8, 9, 10]) r.getCell(kol).numFmt = "#,##0";
+    for (const kol of kolomUang) r.getCell(kol).numFmt = "#,##0";
   });
 
   const tepi = { style: "thin" as const, color: { argb: "FFBFBFBF" } };
