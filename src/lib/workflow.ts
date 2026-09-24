@@ -911,3 +911,77 @@ export async function scanReturn(params: {
 
   return updated;
 }
+
+/**
+ * Menghapus sebuah pengajuan fee.
+ *
+ * Untuk pengajuan yang terlanjur dibuat salah — unit keliru, penerima keliru,
+ * jenis fee keliru. Pembatalan lewat mesin alur hanya tersedia dari `draft`;
+ * yang sudah berjalan tidak punya jalan pulang, dan selama ini satu-satunya
+ * cara membereskannya adalah membiarkannya tergantung di daftar selamanya.
+ *
+ * Yang ikut terhapus mengikuti ON DELETE CASCADE pada skemanya: dokumen,
+ * sesi tanda tangan beserta percobaannya, paket cetak, serah terima, dan
+ * instruksi transfer yang belum dibayar. Jejak auditnya TIDAK ikut — ia
+ * append-only, tidak menunjuk ke baris klaim lewat foreign key, dan justru
+ * di sanalah tersimpan bahwa pengajuan ini pernah ada dan siapa yang
+ * menghapusnya.
+ *
+ * Satu hal yang tidak dapat dihapus: pengajuan yang uangnya sudah keluar.
+ * Menghapusnya berarti menghapus catatan atas uang yang benar-benar
+ * ditransfer, dan rekap pembayaran yang memuatnya akan berubah diam-diam.
+ * Yang keliru setelah dibayar dibereskan lewat clawback, bukan lewat tombol
+ * hapus.
+ */
+export async function hapusKlaim(
+  claimId: string, actor: string, alasan: string, projectId?: string,
+) {
+  const claim = await one<Record<string, any>>(
+    "SELECT * FROM claims WHERE id=$1 AND ($2::uuid IS NULL OR project_id=$2)",
+    [claimId, projectId ?? null]);
+  if (!claim) {
+    throw new WorkflowError("Pengajuan tidak ditemukan.", "not_found", 404);
+  }
+  if ((alasan ?? "").trim().length < 10) {
+    throw new WorkflowError("Alasan wajib diisi minimal 10 karakter.",
+                            "reason_required", 422);
+  }
+
+  const SUDAH_BAYAR = ["partially_paid", "paid", "completed"];
+  const uang = await one<{ dibayar: number; pelunasan: number }>(
+    `SELECT
+       (SELECT COALESCE(SUM(paid_amount),0)::bigint FROM payment_instructions
+         WHERE claim_id=$1) AS dibayar,
+       (SELECT COUNT(*)::int FROM settlement_lines sl
+          JOIN payment_instructions pi ON pi.id = sl.instruction_id
+         WHERE pi.claim_id=$1) AS pelunasan`,
+    [claimId]);
+  if (SUDAH_BAYAR.includes(claim.status) ||
+      Number(uang?.dibayar ?? 0) > 0 || Number(uang?.pelunasan ?? 0) > 0) {
+    throw new WorkflowError(
+      `${claim.claim_number} sudah masuk pembayaran, jadi tidak dapat ` +
+      "dihapus. Menghapusnya menghapus catatan atas uang yang sudah keluar " +
+      "dan mengubah rekap pembayaran yang memuatnya. Yang keliru setelah " +
+      "dibayar dibereskan lewat clawback.", "sudah_dibayar", 409);
+  }
+
+  // Dihitung sebelum dihapus: setelah DELETE, tidak ada lagi yang dapat
+  // memberi tahu berapa banyak yang ikut terbawa.
+  const ikut = await one<Record<string, number>>(
+    `SELECT
+       (SELECT COUNT(*)::int FROM claim_documents WHERE claim_id=$1) AS dokumen,
+       (SELECT COUNT(*)::int FROM signing_sessions WHERE claim_id=$1) AS sesi,
+       (SELECT COUNT(*)::int FROM print_packages WHERE claim_id=$1) AS cetak,
+       (SELECT COUNT(*)::int FROM payment_instructions WHERE claim_id=$1)
+         AS instruksi`,
+    [claimId]);
+
+  await audit({
+    entityType: "claim", entityId: claimId, action: "deleted",
+    actor, reason: alasan.trim(),
+    before: claim,
+    after: { status_saat_dihapus: claim.status, ikut_terhapus: ikut },
+  });
+  await query("DELETE FROM claims WHERE id=$1", [claimId]);
+  return { deleted: true, claim_number: claim.claim_number };
+}
