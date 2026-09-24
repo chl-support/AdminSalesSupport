@@ -33,7 +33,14 @@ import { useSesi } from "../session";
 import { namaJenis } from "../klaim/jenis";
 import { namaKategori } from "@/lib/kategori";
 import { TAHAP, bolehGerak, tahapDari } from "@/lib/tahap";
-import { LANGKAH, keadaanLangkah, sebutanLangkah, warnaLangkah } from "@/lib/langkah";
+import { LANGKAH, keadaanLangkah, sebutanLangkah, warnaLangkah }
+  from "@/lib/langkah";
+// Pemecah berkas yang sudah terbukti pada memo. Mekanismenya tidak
+// memo-spesifik — ia hanya menjaga agar satu permintaan tidak pernah melampaui
+// batas fungsi serverless — dan menyalinnya ke sini berarti dua salinan yang
+// akan berbeda perilaku begitu salah satunya diperbaiki.
+import { BATAS_FULL_SIGN, periksaUkuran, perluDipecah, titipBerkas }
+  from "../memo/kirim";
 
 const rp = (n?: number | null) => `Rp ${(n ?? 0).toLocaleString("id-ID")}`;
 const tgl = (v?: string | null) => (v ? String(v).slice(0, 10) : "—");
@@ -98,6 +105,11 @@ const KATA = {
     fsJudul: "Dokumen full sign",
     fsBerkas: "Berkas dokumen yang sudah lengkap tanda tangannya",
     fsKirim: "Unggah lalu setujui", fsMengirim: "Mengunggah…",
+    fsKemajuan: (n: number) => `Mengunggah… ${n}%`,
+    fsTerlaluBesar:
+      "Berkas ditolak karena terlalu besar untuk satu permintaan. " +
+      "Perkecil dulu berkasnya, misalnya dengan memindai pada resolusi " +
+      "yang lebih rendah.",
     fsSelesai: "Dokumen full sign tersimpan. Klaim maju ke Persetujuan Final.",
     fsCatatan: "Keasliannya tidak dicocokkan dengan dokumen terbitan sistem. " +
                "Jejak audit mencatat bahwa persetujuan ini berdasar berkas " +
@@ -187,6 +199,10 @@ const KATA = {
     fsJudul: "Fully signed document",
     fsBerkas: "The file of the document with every signature on it",
     fsKirim: "Upload and approve", fsMengirim: "Uploading…",
+    fsKemajuan: (n: number) => `Uploading… ${n}%`,
+    fsTerlaluBesar:
+      "The file was rejected as too large for a single request. Shrink it " +
+      "first, for instance by scanning at a lower resolution.",
     fsSelesai: "The signed document is stored. The claim moved to Final approval.",
     fsCatatan: "Its authenticity is not matched against the document the " +
                "system issued. The audit trail records that this approval " +
@@ -455,6 +471,14 @@ export default function PersetujuanPage() {
   /** Klaim yang sedang diunggahkan dokumen full sign-nya. */
   const [fsUntuk, setFsUntuk] = useState<string | null>(null);
   const [fsBerkas, setFsBerkas] = useState<File | null>(null);
+  /**
+   * Berapa persen berkas full sign sudah terkirim.
+   *
+   * Pindaian sepuluh megabita berjalan berpuluh detik pada sambungan kantor,
+   * dan tombol yang hanya bertuliskan "Mengunggah…" selama itu tidak dapat
+   * dibedakan dari layar yang menggantung.
+   */
+  const [fsKemajuan, setFsKemajuan] = useState<number | null>(null);
   /** Klaim yang sedang dicatat pembayarannya. */
   /**
    * Klaim yang sedang diverifikasi tim pajak.
@@ -580,26 +604,60 @@ export default function PersetujuanPage() {
     } finally { setGerak(null); }
   };
 
+  /**
+   * Unggah dokumen full sign.
+   *
+   * Berkasnya dulu selalu dikirim utuh sebagai data URL di dalam satu badan
+   * permintaan. Base64 membengkakkan berkas sepertiga, sehingga pindaian 10 MB
+   * menjadi 13 MB di kawat — jauh di atas batas 4,5 MB yang berlaku bagi satu
+   * permintaan, dan diputus di tepi jaringan sebelum mencapai kode server.
+   * Yang sampai ke layar hanya "HTTP 413": kode telanjang tanpa keterangan,
+   * yang tampak seperti datanya tidak terbaca padahal berkasnya tidak pernah
+   * tiba.
+   *
+   * Kini berkas di atas satu megabita dititipkan sepotong demi sepotong lebih
+   * dulu, lalu yang dikirim ke sini tinggal pengenal titipannya. Berkas kecil
+   * tetap menempuh jalan lama — satu permintaan, tanpa perjalanan tambahan.
+   */
   const unggahFullSign = async (c: any) => {
     if (!fsBerkas) return;
-    setGerak(c.id); setGalat(null); setKabar(null);
+    // Ditolak di sini, sebelum satu bita pun terkirim. Mengunggah belasan
+    // megabita hanya untuk diberi tahu bahwa ia terlalu besar adalah menit
+    // yang terbuang percuma.
+    const tolak = periksaUkuran(fsBerkas, BATAS_FULL_SIGN);
+    if (tolak) { setGalat(tolak); return; }
+
+    setGerak(c.id); setGalat(null); setKabar(null); setFsKemajuan(null);
     try {
+      const titipan = perluDipecah(fsBerkas)
+        ? await titipBerkas(fsBerkas, ({ terkirim, dari }) =>
+            setFsKemajuan(Math.round((terkirim / dari) * 100)))
+        : null;
+
       const res = await fetch(`/api/claims/${c.id}/full-sign`, {
         method: "POST", headers: { "content-type": "application/json" },
         body: JSON.stringify({
           file_name: fsBerkas.name, content_type: fsBerkas.type,
-          content_base64: await keDataUrl(fsBerkas),
+          ...(titipan ? { unggah_id: titipan }
+                      : { content_base64: await keDataUrl(fsBerkas) }),
         }),
       });
       if (res.status === 401) { location.href = "/login"; return; }
       const b = await res.json().catch(() => ({}));
-      if (!res.ok) { setGalat(b.detail ?? `HTTP ${res.status}`); return; }
+      // Jawaban 413 yang lolos ke sini datang dari tepi jaringan, bukan dari
+      // kode server, dan berupa halaman HTML tanpa medan detail. "HTTP 413"
+      // apa adanya tidak memberi tahu apa pun kepada yang membacanya.
+      if (!res.ok) {
+        setGalat(b.detail ?? (res.status === 413 ? k.fsTerlaluBesar
+                                                 : `HTTP ${res.status}`));
+        return;
+      }
       setKabar(k.fsSelesai);
       setFsUntuk(null); setFsBerkas(null);
       await muat();
     } catch (e: any) {
       setGalat(String(e?.message ?? e));
-    } finally { setGerak(null); }
+    } finally { setGerak(null); setFsKemajuan(null); }
   };
 
   /**
@@ -1094,7 +1152,9 @@ export default function PersetujuanPage() {
                 <button className="pri"
                         disabled={!fsBerkas || gerak === c.id}
                         onClick={() => void unggahFullSign(c)}>
-                  {gerak === c.id ? k.fsMengirim : k.fsKirim}
+                  {gerak !== c.id ? k.fsKirim
+                    : fsKemajuan !== null ? k.fsKemajuan(fsKemajuan)
+                    : k.fsMengirim}
                 </button>
                 <button disabled={gerak === c.id}
                         onClick={() => setFsUntuk(null)}>{k.batal}</button>
