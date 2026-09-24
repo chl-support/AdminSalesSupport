@@ -1053,8 +1053,11 @@ button.hapus-klaim:hover:not(:disabled) {
   .rekap-or { padding: 0; }
   .rekap-or .tscroll { overflow: visible; }
   .tscroll > .tabel-rekap { min-width: 0; }
-  .tabel-rekap { font-size: 6.5px; }
-  .tabel-rekap th { font-size: 6px; }
+  /* Hurufnya dibesarkan dari 6,5px. Ukuran itu dipilih ketika tabelnya harus
+     muat pada margin 8mm dan belum ada yang pernah membacanya di atas kertas;
+     yang membacanya kemudian melaporkan angka rupiahnya tidak terbaca. */
+  .tabel-rekap { font-size: 7.5px; }
+  .tabel-rekap th { font-size: 7px; }
   .tabel-rekap th, .tabel-rekap td { padding: 1px 2px; }
   /* Baris tidak dipatahkan di tengah halaman, dan judul bagian tidak pernah
      berdiri sendiri di kaki halaman tanpa satu baris pun di bawahnya. */
@@ -1700,9 +1703,13 @@ td.sel-keadaan .menunggu.stop { color: var(--stop); }
    membuatnya tampak seperti cetakan sistem, bukan dokumen kantor — dan tepi
    kiri yang sempit hilang sebagian begitu lembarnya dijilid.
 
-   Tabelnya tidak kehilangan kolom karenanya: lebarnya 100% halaman, jadi ia
-   menyesuaikan diri terhadap ruang yang tersisa. */
-@page rekap-melintang { size: A4 landscape; margin: 1in; }
+   Satu inci di atas dan di bawah, setengah inci di kiri dan kanan. Tabelnya
+   tiga puluh lima kolom dan lebarnya 100% halaman: tiap seperempat inci yang
+   diambil dari tepi kiri dan kanan langsung menjadi ruang bagi angka rupiah
+   yang kalau tidak, dipatahkan menjadi dua baris. Tepi atas dan bawah tidak
+   menambah ruang bagi kolom mana pun, jadi ia tetap satu inci sebagaimana
+   surat kantor. */
+@page rekap-melintang { size: A4 landscape; margin: 1in 0.5in; }
 .rekap-or { page: rekap-melintang; }
 
 @media print {
