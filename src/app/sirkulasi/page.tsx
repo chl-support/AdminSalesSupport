@@ -164,7 +164,7 @@ export default function SirkulasiPage() {
                     {/* Tindakannya ada pada klaimnya — serah terima, unggah
                         pindaian — jadi layar ini menunjuk ke sana alih-alih
                         menyalin tombolnya dan berisiko berbeda perilaku. */}
-                    <Link className="tautan-klaim" href={`/konsol?klaim=${b.id}`}>
+                    <Link className="tautan-klaim" href={`/persetujuan?klaim=${b.id}`}>
                       {k.buka}
                     </Link>
                   </td>

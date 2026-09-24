@@ -7,7 +7,7 @@ export const GET = handler(async (req) => {
   const url = new URL(req.url);
   const status = url.searchParams.get("status");
   const claimType = url.searchParams.get("claim_type");
-  // Konsol klaim hanya menampilkan klaim project yang sedang dikerjakan.
+  // Hanya klaim project yang sedang dikerjakan.
   const args: any[] = [await projectAktif(req)];
   const conds: string[] = ["project_id = $1"];
   if (status) { args.push(status.split(",")); conds.push(`status = ANY($${args.length}::claim_status[])`); }
