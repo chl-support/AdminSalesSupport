@@ -149,6 +149,7 @@ const KATA = {
     thKategori: "Kategori", thPenerima: "Penerima",
     thPengaju: "Diajukan Oleh", thBruto: "Jumlah Komisi",
     thPpn: "PPN", thPph: "PPh", thBersih: "Komisi Yang Dibayarkan",
+    thTglBayar: "Tanggal Pembayaran",
     thStatus: "Status", thDokumen: "Tindakan",
     katInhouse: "Sales Inhouse", katAgent: "Agent",
     pratinjau: "Tinjau Dokumen",
@@ -241,7 +242,8 @@ const KATA = {
     thPpn: "VAT", katInhouse: "In-house sales", katAgent: "Agent",
     thPenerima: "Recipient", thBruto: "Commission amount",
     thPph: "Withholding",
-    thBersih: "Commission paid", thStatus: "Status", thDokumen: "Action",
+    thBersih: "Commission paid", thTglBayar: "Payment date",
+    thStatus: "Status", thDokumen: "Action",
     pratinjau: "Review Document",
     kosong: "No submissions on this project yet.",
     memuat: "Loading…",
@@ -732,6 +734,7 @@ export default function PersetujuanPage() {
               <th>{k.thPpn}</th>
               <th>{k.thPph}</th>
               <th>{k.thBersih}</th>
+              <th>{k.thTglBayar}</th>
               <th className="sel-keadaan">{k.thStatus}</th>
               <th style={{ width: 140 }}>{k.thDokumen}</th>
             </tr>
@@ -753,6 +756,12 @@ export default function PersetujuanPage() {
                 <td className="n">{rp(c.vat)}</td>
                 <td className="n">{rp(c.withholding_tax)}</td>
                 <td className="n"><b>{rp(c.net_amount)}</b></td>
+                {/* Tanggal uang keluar menurut bukti bank, bukan tanggal
+                    klaimnya disetujui: ia tersimpan di settlements, sebab satu
+                    transfer dapat melunasi beberapa klaim sekaligus. Kosong
+                    selama belum ada pelunasan yang tercatat — dan itu memang
+                    keadaan sebagian besar baris pada layar ini. */}
+                <td>{c.tanggal_bayar ? tglPendek(c.tanggal_bayar) : "—"}</td>
                 {/* Kolom Status: keempat langkah perjalanan pengajuan
                     berdiri bersama, bukan satu keadaan saja. Yang membaca
                     ingin tahu sudah lewat mana dan tinggal apa — pertanyaan
@@ -979,12 +988,12 @@ export default function PersetujuanPage() {
 
             {!terlihat.length && !busy && (
               <tr>
-                <td colSpan={13} style={{ color: "var(--mut)" }}>{k.kosong}</td>
+                <td colSpan={14} style={{ color: "var(--mut)" }}>{k.kosong}</td>
               </tr>
             )}
             {busy && (
               <tr>
-                <td colSpan={13} style={{ color: "var(--mut)" }}>{k.memuat}</td>
+                <td colSpan={14} style={{ color: "var(--mut)" }}>{k.memuat}</td>
               </tr>
             )}
           </tbody></table>

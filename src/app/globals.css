@@ -1538,10 +1538,10 @@ td.sel-keadaan .menunggu.stop { color: var(--stop); }
 }
 
 /* ---- Dokumen pengajuan: kolom mengikuti bentuk acuannya ------------- */
-/* Tiga belas kolom, jauh lebih banyak daripada sebelumnya. Lebarnya dipatok
+/* Empat belas kolom, jauh lebih banyak daripada sebelumnya. Lebarnya dipatok
    supaya satu perihal yang panjang tidak memipihkan kolom angka pada seluruh
    baris lain; .tscroll di sekelilingnya yang menyediakan gulirannya. */
-.tscroll.persetujuan .tabel-penjualan { min-width: 1640px; table-layout: fixed; }
+.tscroll.persetujuan .tabel-penjualan { min-width: 1772px; table-layout: fixed; }
 .tscroll.persetujuan .tabel-penjualan th:nth-child(1)  { width: 44px; }  /* No. */
 .tscroll.persetujuan .tabel-penjualan th:nth-child(2)  { width: 132px; } /* Tanggal */
 .tscroll.persetujuan .tabel-penjualan th:nth-child(3)  { width: 118px; } /* Unit */
@@ -1553,8 +1553,9 @@ td.sel-keadaan .menunggu.stop { color: var(--stop); }
 .tscroll.persetujuan .tabel-penjualan th:nth-child(9)  { width: 104px; } /* PPN */
 .tscroll.persetujuan .tabel-penjualan th:nth-child(10) { width: 104px; } /* PPh */
 .tscroll.persetujuan .tabel-penjualan th:nth-child(11) { width: 132px; } /* Dibayarkan */
-.tscroll.persetujuan .tabel-penjualan th:nth-child(12) { width: 186px; } /* Status */
-.tscroll.persetujuan .tabel-penjualan th:nth-child(13) { width: 150px; } /* Tindakan */
+.tscroll.persetujuan .tabel-penjualan th:nth-child(12) { width: 132px; } /* Tgl bayar */
+.tscroll.persetujuan .tabel-penjualan th:nth-child(13) { width: 186px; } /* Status */
+.tscroll.persetujuan .tabel-penjualan th:nth-child(14) { width: 150px; } /* Tindakan */
 /* Nomor urut tidak ditebalkan: ia penunjuk baris, bukan isi yang dibaca. */
 .tscroll.persetujuan .tabel-penjualan td.sel-no {
   text-align: center; color: var(--ink);
