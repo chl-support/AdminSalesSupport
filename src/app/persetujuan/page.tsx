@@ -307,14 +307,24 @@ const SELESAI = ["completed", "paid", "rejected", "cancelled", "clawback"];
  * selesai", sedangkan selusin butir status di bawahnya membuat keduanya harus
  * dicari dulu.
  *
+ * "" adalah keadaan awal: belum ada yang dipilih. Pemilihnya tampil kosong dan
+ * tabelnya utuh, seperti membuka layar ini tanpa saringan sama sekali. Ia
+ * sengaja tetap berada di dalam daftar, bukan disembunyikan sesudah dipilih —
+ * tanpa itu, yang sudah memilih "Selesai" tidak punya jalan kembali ke tabel
+ * penuh selain memuat ulang halaman.
+ *
  * "unit" tidak menyaring apa pun; ia menyusun barisnya menurut kode unit,
- * supaya pengajuan atas unit yang sama berkumpul. Pembatasan "diam" (draft,
- * submitted, pending_admin_review) melebur ke "jalan": keduanya sama-sama
- * belum selesai, dan pemisahannya tidak pernah dipakai. Batas itu kini sama
- * persis dengan yang dipakai kedua angka pada kepala panel — "Progress" dan
- * "Finish" — sehingga pemilih dan angkanya tidak lagi dapat berbeda arti.
+ * supaya pengajuan atas unit yang sama berkumpul. Urutan itu hanya berlaku
+ * padanya — keadaan awal pun tetap memakai urutan dari server, yaitu tanggal
+ * pengajuan.
+ *
+ * Pembatasan "diam" (draft, submitted, pending_admin_review) melebur ke
+ * "jalan": keduanya sama-sama belum selesai, dan pemisahannya tidak pernah
+ * dipakai. Batas itu kini sama persis dengan yang dipakai kedua angka pada
+ * kepala panel — "Progress" dan "Finish" — sehingga pemilih dan angkanya tidak
+ * lagi dapat berbeda arti.
  */
-type Saring = "unit" | "jalan" | "selesai";
+type Saring = "" | "unit" | "jalan" | "selesai";
 
 export default function PersetujuanPage() {
   const { sesi, memuat } = useSesi();
@@ -324,7 +334,7 @@ export default function PersetujuanPage() {
   const [busy, setBusy] = useState(true);
   const [galat, setGalat] = useState<string | null>(null);
   const [kabar, setKabar] = useState<string | null>(null);
-  const [saring, setSaring] = useState<Saring>("unit");
+  const [saring, setSaring] = useState<Saring>("");
   /** Jumlah klaim yang baru saja dikirim ke pajak dari jendela pratinjau. */
   const [terkirim, setTerkirim] = useState<number | null>(null);
   /** Tautan yang sudah terbit pada layar ini, berkunci id klaim. */
@@ -618,9 +628,10 @@ export default function PersetujuanPage() {
       return true;
     })
     // Urutan bawaan dari server menurut tanggal pengajuan, dan itulah yang
-    // dipakai kedua tampilan lain. "Unit" menggantinya dengan urutan kode
-    // unit supaya pengajuan atas unit yang sama berdampingan — tanpa itu,
-    // pilihan ini tidak berbeda sama sekali dari menampilkan seluruhnya.
+    // dipakai seluruh tampilan lain, keadaan awal termasuk. Hanya "Unit" yang
+    // menggantinya dengan urutan kode unit, supaya pengajuan atas unit yang
+    // sama berdampingan — tanpa itu, pilihan ini tidak berbeda sama sekali
+    // dari menampilkan seluruhnya.
     .sort((a, b) => saring !== "unit" ? 0
       : String(a.unit?.code ?? "").localeCompare(String(b.unit?.code ?? ""),
                                                  "id", { numeric: true }));
@@ -673,9 +684,14 @@ export default function PersetujuanPage() {
             {/* Tiga pilihan, tanpa pengelompokan. Daftar status satu per satu
                 beserta jumlahnya dulu berdiri di bawahnya; ia dibuang atas
                 permintaan kantor — yang ditanyakan sehari-hari hanya mana yang
-                masih berjalan dan mana yang sudah selesai. */}
+                masih berjalan dan mana yang sudah selesai.
+
+                Butir kosong di puncak adalah keadaan awalnya: pemilihnya tampil
+                kosong sampai ada yang dipilih. Ia tetap dapat dipilih kembali,
+                sebab itulah satu-satunya jalan pulang ke tabel penuh. */}
             <select value={saring}
                     onChange={(e) => setSaring(e.target.value as Saring)}>
+              <option value=""></option>
               <option value="unit">{k.sUnit}</option>
               <option value="jalan">{k.sJalan}</option>
               <option value="selesai">{k.sSelesai}</option>
