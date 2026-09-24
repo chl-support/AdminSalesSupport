@@ -628,6 +628,28 @@ async function main() {
     assert(r0.dpp_nilai_lain === Math.round(r0.nilai_excl * 11 / 12),
            `${r0.dpp_nilai_lain} vs ${Math.round(r0.nilai_excl * 11 / 12)}`);
 
+    // Selisih Overiding: bagian hak yang belum terbayar, mengikuti rumus pada
+    // berkas acuannya. Yang belum menghasilkan pembayaran sama sekali membawa
+    // seluruh haknya ke sini; PPh-nya 2,5% dan yang dipotong PPh 21, bukan
+    // PPh 23 seperti pada blok di sebelahnya.
+    const semua = rekap!.bagian.flatMap((b) => b.baris);
+    const belumBayar = semua.filter((r) => r.net === 0 && r.selisih_persen);
+    for (const r of belumBayar) {
+      assert(r.selisih_amount ===
+               Math.round(r.nilai_excl * Number(r.selisih_persen)),
+             `selisih ${r.unit}: ${r.selisih_amount}`);
+      assert(r.selisih_pph21 === Math.round(r.selisih_amount * 0.025),
+             `pph21 ${r.unit}: ${r.selisih_pph21}`);
+      assert(r.selisih_net === r.selisih_amount - r.selisih_pph21,
+             `net selisih ${r.unit}: ${r.selisih_net}`);
+    }
+    // Totalnya dijumlah per bagian, sama seperti kolom lainnya.
+    for (const b of rekap!.bagian) {
+      assert(b.total.selisih_net ===
+               b.baris.reduce((t, r) => t + r.selisih_net, 0),
+             `${b.judul}: total selisih ${b.total.selisih_net}`);
+    }
+
     // Klaim jenis lain tidak punya rekap: dokumennya memang lembar per unit.
     const bukan = await rekapOverriding(cid);
     assert(bukan === null, "klaim non-Overriding seharusnya tanpa rekap");

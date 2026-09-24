@@ -16,6 +16,7 @@
  * tebakan, ia akan terbaca sebagai perhitungan yang sudah dilakukan.
  */
 
+import { findScheme } from "./calc";
 import { one, query } from "./db";
 import { ratio, stripVat } from "./money";
 
@@ -28,6 +29,20 @@ import { ratio, stripVat } from "./money";
  * siapa pun.
  */
 const DPP_NILAI_LAIN = 11 / 12;
+
+/**
+ * Tarif PPh atas Selisih Overiding: 2,5%.
+ *
+ * Diambil dari berkas acuannya, yang menuliskannya sebagai angka tetap
+ * (AH = AG × 2,5%) — bukan dari tabel tarif pajak sistem ini. Keduanya dapat
+ * berbeda, dan yang dicetak pada dokumen ini harus sama dengan yang dihitung
+ * kantor di berkasnya; kalau tidak, dua lembar yang menghitung hal yang sama
+ * akan menyebut dua angka.
+ *
+ * Perhatikan: PPh 21, bukan PPh 23 seperti pada blok Skema Overiding di
+ * sebelahnya. Itu memang berbeda pada acuannya.
+ */
+const PPH_SELISIH = 0.025;
 
 export type BarisRekap = {
   no: number;
@@ -59,13 +74,28 @@ export type BarisRekap = {
   pph23: number;
   net: number;
   tgl_transfer: string | null;
+  /**
+   * Selisih Overiding: bagian hak yang belum terbayar.
+   *
+   * Pada berkas acuannya persennya = Total % Overiding dikurangi % skema yang
+   * sudah dipakai — dan bila unit itu belum menghasilkan pembayaran sama
+   * sekali, seluruh haknya yang menjadi selisih. Dari situ nilainya dihitung
+   * atas nilai kontrak tanpa PPN, dipotong PPh 21.
+   */
+  selisih_persen: string | null;
+  selisih_amount: number;
+  selisih_pph21: number;
+  selisih_net: number;
   keterangan: string | null;
 };
 
 export type BagianRekap = {
   judul: string;
   baris: BarisRekap[];
-  total: { amount: number; dpp: number; ppn: number; pph23: number; net: number };
+  total: {
+    amount: number; dpp: number; ppn: number; pph23: number; net: number;
+    selisih_amount: number; selisih_pph21: number; selisih_net: number;
+  };
 };
 
 export type Rekap = {
@@ -101,7 +131,15 @@ const STATUS_UNIT: Record<string, string> = {
   management: "Management",
 };
 
-function barisDari(r: any, urut: number): BarisRekap {
+/**
+ * Satu baris tabel.
+ *
+ * `persenTotal` adalah hak penuh orang itu atas unit ini menurut memo skema —
+ * kolom "Total % Overiding" pada acuannya. Dicari terpisah dan diberikan dari
+ * luar, sebab ia berlaku juga bagi unit yang belum punya klaim sama sekali:
+ * justru unit-unit itulah yang seluruh haknya menjadi Selisih Overiding.
+ */
+function barisDari(r: any, urut: number, persenTotal: number | null): BarisRekap {
   const incl = Number(r.contract_value_incl_vat ?? 0);
   // Tarif PPN mengikuti tanggal kontraknya, sebagaimana seluruh sistem ini:
   // penjualan sebelum 1 April 2022 memakai 10%.
@@ -136,7 +174,7 @@ function barisDari(r: any, urut: number): BarisRekap {
     penerimaan_persen: ratio(Number(r.received_amount ?? 0), incl),
     // Persen dan skemanya diambil dari snapshot klaimnya — itulah tarif yang
     // benar-benar dipakai menghitung, bukan tarif yang berlaku hari ini.
-    persen_overriding: r.snapshot?.rate ?? r.snapshot?.percentage ?? null,
+    persen_overriding: persenTotal !== null ? String(persenTotal) : null,
     sign_ppjb: Boolean(r.ppjb_signed),
     skema: r.snapshot?.scheme_type === "progressive" ? "Progresif"
       : r.claim_id ? "Reguler" : null,
@@ -146,7 +184,43 @@ function barisDari(r: any, urut: number): BarisRekap {
     pph23: Number(r.withholding_tax ?? 0),
     net: Number(r.net_amount ?? 0),
     tgl_transfer: tgl(r.transfer_date),
+    ...selisih(r, excl, persenTotal),
     keterangan: r.remarks ?? null,
+  };
+}
+
+/**
+ * Selisih Overiding, mengikuti rumus pada berkas acuannya:
+ *
+ *   %      = bila Net skema nol, seluruh Total % Overiding;
+ *            selain itu Total % Overiding dikurangi % yang sudah dipakai
+ *   Amount = Nilai Kontrak (Exclude PPN) × %
+ *   PPh 21 = Amount × 2,5%
+ *   Net    = Amount − PPh 21
+ *
+ * Artinya: bagian hak yang belum terbayar. Unit yang belum memenuhi syarat —
+ * penerimaan di bawah 20%, atau PPJB belum ditandatangani — tidak menghasilkan
+ * pembayaran apa pun, jadi seluruh haknya masih tertunggak dan tercatat di
+ * sini.
+ */
+function selisih(r: any, excl: number, persenTotal: number | null) {
+  const net = Number(r.net_amount ?? 0);
+  const terpakai = Number(r.snapshot?.rate ?? r.snapshot?.percentage ?? 0);
+  if (persenTotal === null) {
+    return { selisih_persen: null, selisih_amount: 0, selisih_pph21: 0,
+             selisih_net: 0 };
+  }
+  const p = net === 0 ? persenTotal : persenTotal - terpakai;
+  // Selisih negatif berarti yang sudah dibayar melampaui haknya. Itu bukan
+  // tunggakan, dan mencetaknya sebagai angka minus pada kolom yang berjudul
+  // "yang masih harus dibayar" hanya membingungkan. Dinolkan, dan selisih
+  // sebenarnya tetap terbaca pada kedua kolom persen di sebelahnya.
+  const persen = p > 0 ? p : 0;
+  const amount = Math.round(excl * persen);
+  const pph = Math.round(amount * PPH_SELISIH);
+  return {
+    selisih_persen: String(persen),
+    selisih_amount: amount, selisih_pph21: pph, selisih_net: amount - pph,
   };
 }
 
@@ -169,7 +243,11 @@ function totalkan(baris: BarisRekap[]) {
   return baris.reduce((t, b) => ({
     amount: t.amount + b.amount, dpp: t.dpp + b.dpp, ppn: t.ppn + b.ppn,
     pph23: t.pph23 + b.pph23, net: t.net + b.net,
-  }), { amount: 0, dpp: 0, ppn: 0, pph23: 0, net: 0 });
+    selisih_amount: t.selisih_amount + b.selisih_amount,
+    selisih_pph21: t.selisih_pph21 + b.selisih_pph21,
+    selisih_net: t.selisih_net + b.selisih_net,
+  }), { amount: 0, dpp: 0, ppn: 0, pph23: 0, net: 0,
+        selisih_amount: 0, selisih_pph21: 0, selisih_net: 0 });
 }
 
 /**
@@ -252,9 +330,48 @@ export async function rekapOverriding(claimId: string): Promise<Rekap | null> {
     perBulan.get(kunci)!.push(r);
   }
 
+  /**
+   * Hak penuh orang ini atas sebuah unit, menurut memo skema yang berlaku
+   * pada tanggal kontraknya.
+   *
+   * Dicari per unit, bukan sekali untuk seluruh tabel: memo berganti, dan
+   * sebuah rekap lazim memuat unit dari dua masa berlaku sekaligus — unit
+   * 2024 di bagian "sudah dibayar" berdampingan dengan unit tahun ini.
+   * Memakai satu tarif untuk keduanya akan menuliskan tunggakan yang tidak
+   * pernah ada.
+   *
+   * Hasilnya disimpan per tanggal supaya satu rekap tidak memanggil pencarian
+   * yang sama sepuluh kali.
+   */
+  const peran = klaim.recipient_role ?? null;
+  // Tingkat overriding tidak punya kolomnya sendiri pada tabel claims — ia
+  // tersimpan di dalam snapshot perhitungannya, bersama konteks pajak yang
+  // dipakai saat itu. Membacanya dari sana, bukan dari kolom yang tidak ada,
+  // yang membuat pencarian tarifnya menemukan baris memo yang benar.
+  const tingkat = klaim.snapshot?.recipient_context?.overriding_level ?? null;
+  const tarif = new Map<string, number | null>();
+  async function persenTotal(r: any): Promise<number | null> {
+    const t = tgl(r.contract_date) ?? "";
+    if (!tarif.has(t)) {
+      const skema = await findScheme("overriding", peran, tingkat,
+                                     t || null, undefined,
+                                     klaim.project_id ?? null);
+      tarif.set(t, skema?.percentage != null ? Number(skema.percentage) : null);
+    }
+    return tarif.get(t) ?? null;
+  }
+
+  async function susun(isi: any[]): Promise<BarisRekap[]> {
+    const hasil: BarisRekap[] = [];
+    for (let i = 0; i < isi.length; i++) {
+      hasil.push(barisDari(isi[i], i + 1, await persenTotal(isi[i])));
+    }
+    return hasil;
+  }
+
   const bagian: BagianRekap[] = [];
   for (const [kunci, isi] of [...perBulan.entries()].sort()) {
-    const b = isi.map((r, i) => barisDari(r, i + 1));
+    const b = await susun(isi);
     bagian.push({
       judul: `PERIODE ${namaBulan(kunci ? `${kunci}-01` : null)}`,
       baris: b, total: totalkan(b),
@@ -266,7 +383,7 @@ export async function rekapOverriding(claimId: string): Promise<Rekap | null> {
     ["BATAL", batal],
   ] as [string, any[]][]) {
     if (!isi.length) continue;
-    const b = isi.map((r, i) => barisDari(r, i + 1));
+    const b = await susun(isi);
     bagian.push({ judul, baris: b, total: totalkan(b) });
   }
 
