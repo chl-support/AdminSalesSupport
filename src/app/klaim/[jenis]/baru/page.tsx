@@ -157,7 +157,7 @@ const KATA = {
       "Berikut Form Pengajuan yang terisi. Nominalnya dihitung sistem dan " +
       "belum dikunci — Finance (Pajak) yang memverifikasinya.",
     cetak: "Cetak formulir", ajukanLain: "Ajukan klaim lain",
-    bukaKonsol: "Buka konsol klaim",
+    bukaKonsol: "Buka Approval / Persetujuan",
   },
   en: {
     judul: (jenis: string) => `${jenis} Submission Form`,
@@ -237,7 +237,7 @@ const KATA = {
       "Here is the filled-in Submission Form. The amount is computed by the " +
       "system and is not locked yet — Finance (Tax) verifies it.",
     cetak: "Print the form", ajukanLain: "Submit another claim",
-    bukaKonsol: "Open the claim console",
+    bukaKonsol: "Open Approval Status",
   },
 };
 
@@ -655,7 +655,7 @@ export default function FormKlaimPage() {
                 <Link href={`/klaim/${jenis.slug}`}>
                   <button>{k.ajukanLain}</button>
                 </Link>
-                <Link href="/konsol">
+                <Link href="/persetujuan">
                   <button className="pri">{k.bukaKonsol}</button>
                 </Link>
               </div>

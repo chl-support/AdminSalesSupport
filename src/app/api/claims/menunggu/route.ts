@@ -34,7 +34,15 @@ const MENUNGGU: Record<string, string[]> = {
   admin_system: [],
 };
 
-/** Layar tempat pekerjaan itu dikerjakan. */
+/**
+ * Layar tempat pekerjaan itu dikerjakan.
+ *
+ * Yang tidak disebut di sini diantar ke Approval / Persetujuan. Dulu ke
+ * /konsol — layar yang tidak pernah ada butir menunya, sehingga tim pajak
+ * hanya dapat kembali ke pekerjaannya lewat pemberitahuan saat masuk; sekali
+ * ditutup, jalannya hilang. Layar itu kini dibuang, dan pemeriksaan pajak
+ * berdiri di layar yang sama dengan yang dibaca Admin Sales.
+ */
 const LAYAR: Record<string, string> = {
   // Pengajuan Fee: di sana fee yang sudah dapat diklaim diajukan, dan di sana
   // pula tautan tanda tangan dikirim ke Sales/Agent setelah pajak selesai.
@@ -89,7 +97,7 @@ async function siapDiklaim(projectId: string): Promise<number> {
 export const GET = handler(async (req) => {
   const user = await currentUser(req);
   const status = MENUNGGU[user.role] ?? [];
-  const layar = LAYAR[user.role] ?? "/konsol";
+  const layar = LAYAR[user.role] ?? "/persetujuan";
   const projectId = await projectAktif(req);
 
   const rincian = status.length
