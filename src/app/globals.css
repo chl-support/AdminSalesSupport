@@ -1028,7 +1028,10 @@ button.hapus-klaim:hover:not(:disabled) {
              margin-top: 22px; font-size: 10.5px; text-align: center; }
 .ttd-rekap .peran { color: var(--sub); }
 .ttd-rekap .peran.dua { grid-column: span 2; }
-.ttd-rekap .kotak-ttd { height: 56px; }
+/* Ruang goresan setinggi dua baris lebih daripada semula: nama dan garisnya
+   turun menjauh dari sebutannya, dan tanda tangan basah yang dibubuhkan dengan
+   tangan tidak berhimpit dengan tulisan "Dibuat Oleh," di atasnya. */
+.ttd-rekap .kotak-ttd { height: 80px; }
 /* Nama di ATAS garisnya, bukan di bawah — begitu lembar acuan kantor ditulis.
    Yang membubuhkan tanda tangan sudah ditentukan jabatannya, jadi namanya
    berdiri lebih dulu dan goresannya jatuh di ruang kosong di atasnya. */
@@ -1071,7 +1074,7 @@ button.hapus-klaim:hover:not(:disabled) {
      tertinggal di kaki lembar yang sudah penuh cukup untuk mendorongnya ke
      halaman kedua. */
   .lembar { margin-bottom: 0; }
-  .ttd-rekap .kotak-ttd { height: 44px; }
+  .ttd-rekap .kotak-ttd { height: 68px; }
   .ttd-rekap .nama-ttd { font-size: 9px; }
 
   /* Kepala lembarnya dirapatkan supaya tabel, catatan, dan ruang tanda tangan
