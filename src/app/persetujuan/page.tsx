@@ -102,7 +102,7 @@ const KATA = {
     fsTombol: "Submit Dokumen Final",
     fsJudul: "Dokumen full sign",
     fsBerkas: "Berkas dokumen yang sudah lengkap tanda tangannya",
-    fsKirim: "Unggah lalu setujui", fsMengirim: "Mengunggah…",
+    fsKirim: "Unggah & Finalisasi", fsMengirim: "Mengunggah…",
     fsKemajuan: (n: number) => `Mengunggah… ${n}%`,
     fsTerlaluBesar:
       "Berkas ditolak karena terlalu besar untuk satu permintaan. " +
