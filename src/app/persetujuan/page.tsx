@@ -134,6 +134,32 @@ const KATA = {
     pjkSelesaiSetuju: "Nilai terkunci, dokumen berjalan ke Admin Sales.",
     pjkSelesaiKoreksi: "Koreksi tersimpan dan nilai terkunci.",
     pjkSelesaiKembali: "Dokumen dikembalikan ke Admin Sales.",
+    ttdTombol: "Tinjau Tanda Tangan",
+    ttdJudul: "Tinjau tanda tangan",
+    ttdPengantar:
+      "Goresan Sales/Agent tidak cukup mirip dengan spesimennya, jadi " +
+      "dokumen ini berhenti untuk diperiksa orang. Bandingkan dengan " +
+      "spesimen yang tersimpan sebelum memutuskan.",
+    ttdSkor: "Skor kemiripan",
+    ttdAlasan: "Alasan (minimal 10 karakter, tercatat pada jejak audit)",
+    ttdSetuju: "Setujui tanda tangannya",
+    ttdTolak: "Tolak klaimnya",
+    ttdMengirim: "Menyimpan…",
+    ttdSelesai: "Tanda tangan disetujui; dokumen lanjut ke crosscheck.",
+    ttdSelesaiTolak: "Klaim ditolak.",
+    ccTombol: "Crosscheck",
+    ccJudul: "Crosscheck sebelum cetak",
+    ccPengantar:
+      "Dua pihak memeriksa dokumen yang sudah ditandatangani sebelum ia " +
+      "dicetak. Dokumen baru dapat dicetak setelah keduanya selesai.",
+    ccAdmin: "Admin Sales", ccFinance: "Finance",
+    ccSudah: "Selesai", ccBelum: "Belum",
+    ccSelesaikan: "Tandai selesai",
+    ccMengirim: "Menyimpan…",
+    ccBeres: (pihak: string) => `Crosscheck ${pihak} selesai.`,
+    ccBeresSemua: "Kedua crosscheck selesai; dokumen siap dicetak.",
+    fokusSatu: "Menampilkan satu pengajuan.",
+    fokusSemua: "Tampilkan semuanya",
     byrTombol: "Catat pembayaran",
     byrJudul: "Pembayaran",
     byrTanggal: "Tanggal pembayaran",
@@ -226,6 +252,32 @@ const KATA = {
     pjkSelesaiSetuju: "Figures locked; the document moves on to the Sales Admin.",
     pjkSelesaiKoreksi: "The correction is saved and the figures are locked.",
     pjkSelesaiKembali: "The document has been returned to the Sales Admin.",
+    ttdTombol: "Review the signature",
+    ttdJudul: "Signature review",
+    ttdPengantar:
+      "The Sales/Agent's strokes are not close enough to their specimen, so " +
+      "this document stopped for a person to look at. Compare it with the " +
+      "stored specimen before deciding.",
+    ttdSkor: "Similarity score",
+    ttdAlasan: "Reason (at least 10 characters, kept in the audit trail)",
+    ttdSetuju: "Approve the signature",
+    ttdTolak: "Reject the claim",
+    ttdMengirim: "Saving…",
+    ttdSelesai: "Signature approved; the document moves on to crosscheck.",
+    ttdSelesaiTolak: "The claim has been rejected.",
+    ccTombol: "Crosscheck",
+    ccJudul: "Crosscheck before printing",
+    ccPengantar:
+      "Two parties check the signed document before it is printed. It can " +
+      "only be printed once both are done.",
+    ccAdmin: "Sales Admin", ccFinance: "Finance",
+    ccSudah: "Done", ccBelum: "Not yet",
+    ccSelesaikan: "Mark as done",
+    ccMengirim: "Saving…",
+    ccBeres: (pihak: string) => `The ${pihak} crosscheck is done.`,
+    ccBeresSemua: "Both crosschecks are done; the document is ready to print.",
+    fokusSatu: "Showing a single submission.",
+    fokusSemua: "Show all of them",
     byrTombol: "Record the payment",
     byrJudul: "Payment",
     byrTanggal: "Payment date",
@@ -383,6 +435,35 @@ export default function PersetujuanPage() {
   const [pjkPpn, setPjkPpn] = useState("");
   const [pjkPph, setPjkPph] = useState("");
   const [pjkAlasan, setPjkAlasan] = useState("");
+  /**
+   * Klaim yang tanda tangannya sedang ditinjau, dan yang sedang di-crosscheck.
+   *
+   * Keduanya dulu hanya ada di layar /konsol, yang tidak pernah punya butir
+   * menu dan kini dibuang. Tanpa dipindahkan ke sini, klaim yang jatuh ke
+   * pemeriksaan tanda tangan manual maupun yang sedang crosscheck tidak punya
+   * satu pun layar tempat menindaklanjutinya — ia berhenti di sana selamanya,
+   * terbaca statusnya tetapi tak tersentuh.
+   */
+  /**
+   * Satu klaim yang diminta lewat ?klaim=<id>, bila ada.
+   *
+   * Sirkulasi Dokumen menunjuk kemari dari barisnya: tindakan atas sebuah
+   * dokumen ada di layar ini, dan yang datang dari sana datang untuk satu
+   * dokumen tertentu — bukan untuk seluruh daftar, tempat barisnya harus
+   * dicari lagi.
+   *
+   * Dibaca dari location, bukan dari useSearchParams: yang terakhir menuntut
+   * seluruh layar dibungkus <Suspense>, dan satu parameter opsional tidak
+   * sepadan dengan itu.
+   */
+  const [fokus, setFokus] = useState<string | null>(null);
+  useEffect(() => {
+    const q = new URLSearchParams(location.search).get("klaim");
+    if (q) setFokus(q);
+  }, []);
+  const [ttdUntuk, setTtdUntuk] = useState<string | null>(null);
+  const [ttdAlasan, setTtdAlasan] = useState("");
+  const [ccUntuk, setCcUntuk] = useState<string | null>(null);
   const [byrUntuk, setByrUntuk] = useState<string | null>(null);
   const [byrTgl, setByrTgl] = useState("");
   const [byrBukti, setByrBukti] = useState<File | null>(null);
@@ -593,6 +674,59 @@ export default function PersetujuanPage() {
     } finally { setGerak(null); }
   };
 
+  /**
+   * Tinjauan tanda tangan manual.
+   *
+   * Aturannya ditegakkan signatureReview() di server — alasan wajib, dan
+   * hanya klaim yang memang berhenti pada pemeriksaan manual yang menerima
+   * keputusan ini. Layar hanya memastikan tombolnya tidak muncul di tempat
+   * yang pasti ditolak.
+   */
+  const tinjauTtd = async (c: any, keputusan: string) => {
+    setGerak(c.id); setGalat(null); setKabar(null);
+    try {
+      const res = await fetch(`/api/claims/${c.id}/signature-review`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ decision: keputusan,
+                               reason: ttdAlasan.trim() || undefined }),
+      });
+      if (res.status === 401) { location.href = "/login"; return; }
+      const b = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(b.detail ?? b.title ?? `HTTP ${res.status}`);
+      setKabar(keputusan === "reject" ? k.ttdSelesaiTolak : k.ttdSelesai);
+      setTtdUntuk(null); setTtdAlasan("");
+      await muat();
+    } catch (e: any) {
+      setGalat(String(e?.message ?? e));
+    } finally { setGerak(null); }
+  };
+
+  /**
+   * Menyelesaikan crosscheck satu pihak.
+   *
+   * Pihak keduanya selesai, server sendiri yang memajukan klaim ke "siap
+   * cetak" — layar ini tidak memutuskannya, hanya membaca kabarnya.
+   */
+  const selesaikanCrosscheck = async (c: any, pihak: string) => {
+    setGerak(c.id); setGalat(null); setKabar(null);
+    try {
+      const res = await fetch(`/api/claims/${c.id}/crosscheck`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ party: pihak, decision: "complete" }),
+      });
+      if (res.status === 401) { location.href = "/login"; return; }
+      const b = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(b.detail ?? b.title ?? `HTTP ${res.status}`);
+      const beres = b.status && b.status !== "crosscheck_in_progress";
+      setKabar(beres ? k.ccBeresSemua
+                     : k.ccBeres(pihak === "finance" ? k.ccFinance : k.ccAdmin));
+      if (beres) setCcUntuk(null);
+      await muat();
+    } catch (e: any) {
+      setGalat(String(e?.message ?? e));
+    } finally { setGerak(null); }
+  };
+
   const catatPembayaran = async (c: any) => {
     setGerak(c.id); setGalat(null); setKabar(null);
     try {
@@ -625,6 +759,7 @@ export default function PersetujuanPage() {
 
   const terlihat = klaim
     .filter((c) => {
+      if (fokus) return c.id === fokus;
       if (saring === "selesai") return SELESAI.includes(c.status);
       if (saring === "jalan") return !SELESAI.includes(c.status);
       return true;
@@ -664,6 +799,14 @@ export default function PersetujuanPage() {
                       "head_finance", "admin_system"].includes(sesi.role);
   // Persis daftar yang diterima /api/claims/[id]/tax-verification.
   const bolehPajak = ["finance_tax", "finance_manager"].includes(sesi.role);
+  // Persis daftar yang diterima /api/claims/[id]/signature-review.
+  const bolehTtd = sesi.role === "admin_sales";
+  // Crosscheck: endpoint-nya hanya menuntut sesi yang sah, sebab pembagian
+  // pihaknya urusan kantor dan bukan urusan pagar. Yang dipisah di sini hanya
+  // siapa yang pantas menekan yang mana.
+  const bolehCcAdmin = ["admin_sales", "admin_system"].includes(sesi.role);
+  const bolehCcFinance = ["finance_manager", "finance_payment", "head_finance",
+                          "admin_system"].includes(sesi.role);
 
   const selesai = klaim.filter((c) => SELESAI.includes(c.status)).length;
   const jalan = klaim.length - selesai;
@@ -678,6 +821,18 @@ export default function PersetujuanPage() {
 
       {galat && <div className="banner stop"><b>{k.galat}</b>{galat}</div>}
       {kabar && <div className="banner ok">{kabar}</div>}
+      {/* Jalan pulang dari ?klaim=: tanpa tombol ini, yang datang dari
+          Sirkulasi Dokumen terkurung pada satu baris dan hanya dapat kembali
+          ke daftar penuh dengan menyunting alamatnya. */}
+      {fokus && (
+        <div className="banner">
+          {k.fokusSatu}{" "}
+          <button className="tautan" onClick={() => {
+            setFokus(null);
+            history.replaceState(null, "", location.pathname);
+          }}>{k.fokusSemua}</button>
+        </div>
+      )}
 
       <div className="panel sp">
         <div className="filters">
@@ -954,6 +1109,26 @@ export default function PersetujuanPage() {
                     </button>
                   )}
 
+                  {/* Tanda tangan yang jatuh ke pemeriksaan manual, dan
+                      crosscheck sebelum cetak. Keduanya pindah kemari dari
+                      layar /konsol yang dibuang; tanpa keduanya klaim berhenti
+                      di dua tempat yang tidak punya tombol apa pun. */}
+                  {bolehTtd && c.status === "signature_review_required" && (
+                    <button className="pri" disabled={gerak === c.id}
+                            onClick={() => { setTtdUntuk(c.id);
+                                             setTtdAlasan(""); }}>
+                      {k.ttdTombol}
+                    </button>
+                  )}
+
+                  {(bolehCcAdmin || bolehCcFinance) &&
+                   c.status === "crosscheck_in_progress" && (
+                    <button disabled={gerak === c.id}
+                            onClick={() => setCcUntuk(c.id)}>
+                      {k.ccTombol}
+                    </button>
+                  )}
+
                   {/* Dokumen full sign: tombol unggahnya muncul selama klaim
                       masih beredar, dan berganti menjadi tautan begitu
                       berkasnya ada — pratinjau yang dibuka setelah itu
@@ -1137,6 +1312,112 @@ export default function PersetujuanPage() {
                 </button>
                 <button disabled={gerak === c.id}
                         onClick={() => setPjkUntuk(null)}>{k.batal}</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Tinjauan tanda tangan manual. */}
+      {ttdUntuk && (() => {
+        const c = klaim.find((x) => x.id === ttdUntuk);
+        if (!c) return null;
+        return (
+          <div className="tirai"
+               onMouseDown={(e) => {
+                 if (e.target === e.currentTarget && !gerak) setTtdUntuk(null);
+               }}>
+            <div className="popup" role="dialog" aria-modal="true"
+                 aria-label={k.ttdJudul} style={{ maxWidth: 460 }}>
+              <h2 style={{ margin: "0 0 4px" }}>{k.ttdJudul}</h2>
+              <p className="pengantar" style={{ margin: "0 0 4px" }}>
+                <b>{c.claim_number}</b> · {namaJenis(c.claim_type, bahasa)} ·{" "}
+                {c.marketing?.full_name ?? "—"}
+              </p>
+              <p className="hint" style={{ textAlign: "left", margin: "0 0 10px" }}>
+                {k.ttdPengantar}
+              </p>
+
+              {c.signature_score != null && (
+                <div className="kode-tautan">
+                  {k.ttdSkor}: <b>{c.signature_score}</b>
+                </div>
+              )}
+
+              <div className="lbl" style={{ marginTop: 12 }}>{k.ttdAlasan}</div>
+              <textarea value={ttdAlasan} style={{ width: "100%", minHeight: 56 }}
+                        onChange={(e) => setTtdAlasan(e.target.value)} />
+
+              <div className="row" style={{ marginTop: 10, marginBottom: 0 }}>
+                <button className="pri"
+                        disabled={gerak === c.id || ttdAlasan.trim().length < 10}
+                        onClick={() => void tinjauTtd(c, "approve_manually")}>
+                  {gerak === c.id ? k.ttdMengirim : k.ttdSetuju}
+                </button>
+                <button disabled={gerak === c.id || ttdAlasan.trim().length < 10}
+                        onClick={() => void tinjauTtd(c, "reject")}>
+                  {k.ttdTolak}
+                </button>
+                <button disabled={gerak === c.id}
+                        onClick={() => setTtdUntuk(null)}>{k.batal}</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Crosscheck sebelum cetak. Dua pihak, dua tombol — masing-masing
+          hilang begitu pihaknya selesai, sehingga yang tersisa di layar
+          selalu pekerjaan yang memang belum dikerjakan. */}
+      {ccUntuk && (() => {
+        const c = klaim.find((x) => x.id === ccUntuk);
+        if (!c) return null;
+        const baris = [
+          { pihak: "admin_sales", nama: k.ccAdmin,
+            sudah: c.crosscheck_admin === "completed", boleh: bolehCcAdmin },
+          { pihak: "finance", nama: k.ccFinance,
+            sudah: c.crosscheck_finance === "completed", boleh: bolehCcFinance },
+        ];
+        return (
+          <div className="tirai"
+               onMouseDown={(e) => {
+                 if (e.target === e.currentTarget && !gerak) setCcUntuk(null);
+               }}>
+            <div className="popup" role="dialog" aria-modal="true"
+                 aria-label={k.ccJudul} style={{ maxWidth: 420 }}>
+              <h2 style={{ margin: "0 0 4px" }}>{k.ccJudul}</h2>
+              <p className="pengantar" style={{ margin: "0 0 4px" }}>
+                <b>{c.claim_number}</b> · {namaJenis(c.claim_type, bahasa)} ·{" "}
+                {c.marketing?.full_name ?? "—"}
+              </p>
+              <p className="hint" style={{ textAlign: "left", margin: "0 0 10px" }}>
+                {k.ccPengantar}
+              </p>
+
+              <table className="angka-pajak"><tbody>
+                {baris.map((b) => (
+                  <tr key={b.pihak}>
+                    <td>{b.nama}</td>
+                    <td>
+                      {b.sudah ? (
+                        <span className="pill ok">{k.ccSudah}</span>
+                      ) : b.boleh ? (
+                        <button disabled={gerak === c.id}
+                                onClick={() => void selesaikanCrosscheck(
+                                  c, b.pihak)}>
+                          {gerak === c.id ? k.ccMengirim : k.ccSelesaikan}
+                        </button>
+                      ) : (
+                        <span className="pill warn">{k.ccBelum}</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody></table>
+
+              <div className="row" style={{ marginTop: 10, marginBottom: 0 }}>
+                <button disabled={gerak === c.id}
+                        onClick={() => setCcUntuk(null)}>{k.batal}</button>
               </div>
             </div>
           </div>
