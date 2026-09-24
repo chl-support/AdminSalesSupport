@@ -138,8 +138,7 @@ const KATA = {
     byrJudul: "Pembayaran",
     byrTanggal: "Tanggal pembayaran",
     byrBukti: "Bukti transfer",
-    byrRujukan: "Nomor rujukan (boleh kosong)",
-    byrAlasan: "Alasan tanggal mundur (bila diminta)",
+    byrAlasan: "Keterangan",
     byrKirim: "Catat pembayaran", byrMengirim: "Menyimpan…",
     byrSelesai: "Pembayaran tercatat beserta bukti transfernya.",
     batal: "Batal",
@@ -230,8 +229,7 @@ const KATA = {
     byrJudul: "Payment",
     byrTanggal: "Payment date",
     byrBukti: "Transfer proof",
-    byrRujukan: "Reference number (optional)",
-    byrAlasan: "Reason for the back-dated payment (when asked for)",
+    byrAlasan: "Notes",
     byrKirim: "Record the payment", byrMengirim: "Saving…",
     byrSelesai: "The payment is recorded together with its transfer proof.",
     batal: "Cancel",
@@ -386,7 +384,16 @@ export default function PersetujuanPage() {
   const [byrUntuk, setByrUntuk] = useState<string | null>(null);
   const [byrTgl, setByrTgl] = useState("");
   const [byrBukti, setByrBukti] = useState<File | null>(null);
-  const [byrRujukan, setByrRujukan] = useState("");
+  /**
+   * Keterangan bebas yang menyertai pembayaran.
+   *
+   * Dikirim sebagai backdate_reason, dan namanya di server tetap begitu:
+   * settle() mewajibkannya hanya ketika tanggal transfernya mundur melampaui
+   * toleransi, dan menolak dengan sebutan yang menyebut angka harinya sendiri.
+   * Labelnya di layar sengaja tidak menyebut syarat itu — yang mengisi kotak
+   * ini paling sering tidak sedang memundurkan tanggal, dan pesan penolakannya
+   * sudah cukup jelas bagi yang memang sedang melakukannya.
+   */
   const [byrAlasan, setByrAlasan] = useState("");
   /**
    * Klaim yang tautannya sedang diperlihatkan.
@@ -600,7 +607,6 @@ export default function PersetujuanPage() {
         method: "POST", headers: { "content-type": "application/json" },
         body: JSON.stringify({
           transfer_date: byrTgl,
-          reference_number: byrRujukan || null,
           backdate_reason: byrAlasan || null,
           file_name: byrBukti?.name,
           content_type: byrBukti?.type,
@@ -612,7 +618,7 @@ export default function PersetujuanPage() {
       if (!res.ok) { setGalat(b.detail ?? `HTTP ${res.status}`); return; }
       setKabar(k.byrSelesai);
       setByrUntuk(null); setByrTgl(""); setByrBukti(null);
-      setByrRujukan(""); setByrAlasan("");
+      setByrAlasan("");
       await muat();
     } catch (e: any) {
       setGalat(String(e?.message ?? e));
@@ -1168,10 +1174,6 @@ export default function PersetujuanPage() {
               <input type="file" style={{ width: "100%" }}
                      accept=".pdf,.jpg,.jpeg,.png,.webp"
                      onChange={(e) => setByrBukti(e.target.files?.[0] ?? null)} />
-
-              <div className="lbl" style={{ marginTop: 10 }}>{k.byrRujukan}</div>
-              <input value={byrRujukan} style={{ width: "100%" }}
-                     onChange={(e) => setByrRujukan(e.target.value)} />
 
               <div className="lbl" style={{ marginTop: 10 }}>{k.byrAlasan}</div>
               <input value={byrAlasan} style={{ width: "100%" }}
