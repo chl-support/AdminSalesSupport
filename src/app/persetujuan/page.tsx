@@ -139,7 +139,7 @@ const KATA = {
     byrTanggal: "Tanggal pembayaran",
     byrBukti: "Bukti transfer",
     byrAlasan: "Keterangan",
-    byrKirim: "Catat pembayaran", byrMengirim: "Menyimpan…",
+    byrKirim: "Input Data Pembayaran", byrMengirim: "Menyimpan…",
     byrSelesai: "Pembayaran tercatat beserta bukti transfernya.",
     batal: "Batal",
     daftar: "Pengajuan & Dokumen",
