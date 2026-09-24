@@ -27,6 +27,8 @@ import { DOKUMEN, DOKUMEN_KODE, type Jenis } from "../jenis";
 import { useKata } from "../../bahasa";
 import { MemeriksaSesi } from "../../kerangka";
 import { useSesi } from "../../session";
+import { BATAS_FULL_SIGN, periksaUkuran, perluDipecah, titipBerkas }
+  from "../../memo/kirim";
 
 const KATA = {
   id: {
@@ -62,7 +64,14 @@ const KATA = {
     lampiranTombol: (n: number) => `Pratinjau lampiran (${n})`,
     lampiranKosong: "Belum ada lampiran pada klaim ini.",
     lampiranJudul: "Lampiran klaim",
-    lampiranLihat: "Lihat", lampiranUnduh: "Unduh",
+    lampiranLihat: "Lihat", lampiranUnduh: "Unduh", lampiranGanti: "Edit",
+    lampiranGantiBantu:
+      "Unggah berkas pengganti; yang lama akan dihapus dan digantikan.",
+    lampiranMengganti: "Mengunggah…",
+    lampiranTerganti: (nama: string) => `Berkas diganti dengan ${nama}.`,
+    lampiranTerlaluBesar:
+      "Berkas ditolak karena terlalu besar. Perkecil dulu berkasnya, " +
+      "misalnya dengan memindai pada resolusi yang lebih rendah.",
     lampiranTakTersimpan: "isi tidak tersimpan",
     lampiranTutup: "Tutup",
     selesaiFullSign: "Dokumen Full Sign",
@@ -102,7 +111,14 @@ const KATA = {
     lampiranTombol: (n: number) => `Preview attachments (${n})`,
     lampiranKosong: "No attachments on this claim yet.",
     lampiranJudul: "Claim attachments",
-    lampiranLihat: "View", lampiranUnduh: "Download",
+    lampiranLihat: "View", lampiranUnduh: "Download", lampiranGanti: "Edit",
+    lampiranGantiBantu:
+      "Upload a replacement; the old file is removed and replaced by it.",
+    lampiranMengganti: "Uploading…",
+    lampiranTerganti: (nama: string) => `The file was replaced with ${nama}.`,
+    lampiranTerlaluBesar:
+      "The file was rejected for being too large. Shrink it first, for " +
+      "instance by scanning at a lower resolution.",
     lampiranTakTersimpan: "contents not stored",
     lampiranTutup: "Close",
     selesaiFullSign: "Fully Signed Document",
@@ -251,6 +267,61 @@ export default function PratinjauPage() {
 
   /** Hanya Admin Sales yang mengirim klaim ke tim pajak — lihat /api/.../submit. */
   const bolehKirim = sesi?.role === "admin_sales";
+  /**
+   * Siapa yang boleh mengganti berkas yang sudah terunggah.
+   *
+   * Persis daftar yang diterima PUT /api/claims/[id]/documents/[docId]. Tautan
+   * yang selalu berakhir 403 bukan pembatasan — itu jebakan.
+   */
+  const bolehGanti = ["admin_sales", "admin_system"].includes(sesi?.role ?? "");
+  /** Lampiran yang sedang diganti berkasnya, agar tautannya dapat dimatikan. */
+  const [mengganti, setMengganti] = useState<string | null>(null);
+
+  const keDataUrl = (f: File) => new Promise<string>((selesai, gagal) => {
+    const r = new FileReader();
+    r.onload = () => selesai(String(r.result));
+    r.onerror = () => gagal(new Error("Berkas tidak terbaca."));
+    r.readAsDataURL(f);
+  });
+
+  /**
+   * Mengganti berkas sebuah lampiran dengan yang baru dipilih.
+   *
+   * Berkas besar dititipkan sepotong demi sepotong lebih dulu — pindaian
+   * dokumen full sign belasan halaman tidak pernah muat dalam satu permintaan.
+   * Jalannya sama persis dengan unggahan pertamanya; yang berbeda hanya baris
+   * yang ditulisi.
+   */
+  const gantiBerkas = async (c: any, d: any, berkas: File) => {
+    const tolak = periksaUkuran(berkas, BATAS_FULL_SIGN);
+    if (tolak) { setGalat(tolak); return; }
+
+    setMengganti(d.id); setGalat(null); setKabar(null);
+    try {
+      const titipan = perluDipecah(berkas) ? await titipBerkas(berkas) : null;
+      const res = await fetch(`/api/claims/${c.id}/documents/${d.id}`, {
+        method: "PUT", headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          file_name: berkas.name, content_type: berkas.type,
+          ...(titipan ? { unggah_id: titipan }
+                      : { content_base64: await keDataUrl(berkas) }),
+        }),
+      });
+      if (res.status === 401) { location.href = "/login"; return; }
+      const b = await res.json().catch(() => ({}));
+      // 413 yang lolos ke sini datang dari tepi jaringan, bukan dari kode
+      // server, dan berupa halaman HTML tanpa medan detail.
+      if (!res.ok) {
+        setGalat(b.detail ?? (res.status === 413 ? k.lampiranTerlaluBesar
+                                                 : `HTTP ${res.status}`));
+        return;
+      }
+      setKabar(k.lampiranTerganti(berkas.name));
+      await muat();
+    } catch (e: any) {
+      setGalat(String(e?.message ?? e));
+    } finally { setMengganti(null); }
+  };
 
   const muat = useCallback(async () => {
     const ids = (new URLSearchParams(window.location.search).get("ids") ?? "")
@@ -531,20 +602,48 @@ export default function PratinjauPage() {
               {dokPenting(c).map(([sebutan, d]: any) => (
                 <div className="baris" key={d.id}>
                   <span className="lbl">{sebutan}</span>
-                  {d.has_content ? (
-                    <span className="meta">
-                      <a href={`/api/claims/${c.id}/documents/${d.id}?pratinjau=1`}
-                         target="_blank" rel="noreferrer">
-                        {k.lampiranLihat}
-                      </a>
-                      <a className="unduh"
-                         href={`/api/claims/${c.id}/documents/${d.id}`}>
-                        {k.lampiranUnduh}
-                      </a>
-                    </span>
-                  ) : (
-                    <span className="meta">{k.lampiranTakTersimpan}</span>
-                  )}
+                  <span className="meta">
+                    {d.has_content ? (
+                      <>
+                        <a href={`/api/claims/${c.id}/documents/${d.id}?pratinjau=1`}
+                           target="_blank" rel="noreferrer">
+                          {k.lampiranLihat}
+                        </a>
+                        <a className="unduh"
+                           href={`/api/claims/${c.id}/documents/${d.id}`}>
+                          {k.lampiranUnduh}
+                        </a>
+                      </>
+                    ) : k.lampiranTakTersimpan}
+
+                    {/* Unggah ulang atas salah unggah — bukti transfer klaim
+                        lain, halaman yang tertukar, pindaian yang ternyata
+                        kosong. Berkasnya benar-benar diganti, bukan ditambah
+                        di sebelahnya: dua berkas pada satu penanda checklist
+                        membuat layar yang mencarinya mengambil salah satu,
+                        biasanya yang lebih dulu — yang justru salah.
+
+                        Isian berkasnya disembunyikan di balik label, sebab
+                        isian berkas bawaan peramban menampilkan tombol beserta
+                        tulisan "No file chosen" yang tidak dapat diatur, dan
+                        itu terlalu ramai untuk satu baris ringkasan. */}
+                    {bolehGanti && (
+                      <label className="ganti-berkas" title={k.lampiranGantiBantu}>
+                        {mengganti === d.id ? k.lampiranMengganti
+                                            : k.lampiranGanti}
+                        <input type="file" disabled={mengganti !== null}
+                               onChange={(e) => {
+                                 const f = e.target.files?.[0];
+                                 // Dikosongkan supaya berkas yang sama dapat
+                                 // dipilih lagi setelah unggahannya gagal;
+                                 // tanpa ini peramban tidak memunculkan
+                                 // peristiwa apa pun pada pilihan yang sama.
+                                 e.target.value = "";
+                                 if (f) void gantiBerkas(c, d, f);
+                               }} />
+                      </label>
+                    )}
+                  </span>
                 </div>
               ))}
               {c.tanggal_bayar && (

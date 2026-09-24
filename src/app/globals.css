@@ -975,6 +975,19 @@ button.hapus-klaim:hover:not(:disabled) {
 .catatan-rekap ul { margin: 4px 0 0; padding-left: 16px; }
 .catatan-rekap .nilai { margin-left: 8px; font-weight: 650; }
 
+/* Tautan "Edit" pada ringkasan klaim selesai: label yang menyembunyikan isian
+   berkas di baliknya. Isian berkas bawaan peramban menampilkan tombol beserta
+   tulisan "No file chosen" yang tidak dapat diatur — terlalu ramai untuk satu
+   baris ringkasan, dan tidak sejajar dengan tautan Lihat dan Unduh di
+   sebelahnya. */
+.ganti-berkas { margin-left: 12px; color: var(--ink); font-weight: 600;
+                text-decoration: underline; text-underline-offset: 2px;
+                cursor: pointer; }
+.ganti-berkas:hover { color: var(--note); }
+.ganti-berkas input { display: none; }
+.ganti-berkas:has(input:disabled) { color: var(--mut); cursor: default;
+                                    text-decoration: none; }
+
 /* Perbandingan tanda tangan di dalam kotak tinjauan: goresan tiap percobaan di
    satu lajur, spesimen tersimpan di lajur sebelahnya. Dua lajur, bukan satu
    deret: yang dikerjakan orang di sana membandingkan, dan membandingkan
