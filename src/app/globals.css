@@ -1029,6 +1029,11 @@ button.hapus-klaim:hover:not(:disabled) {
 .ttd-rekap .peran { color: var(--sub); }
 .ttd-rekap .peran.dua { grid-column: span 2; }
 .ttd-rekap .kotak-ttd { height: 56px; }
+/* Nama di ATAS garisnya, bukan di bawah — begitu lembar acuan kantor ditulis.
+   Yang membubuhkan tanda tangan sudah ditentukan jabatannya, jadi namanya
+   berdiri lebih dulu dan goresannya jatuh di ruang kosong di atasnya. */
+.ttd-rekap .nama-ttd { display: block; font-weight: 600; color: var(--ink);
+                       line-height: 1.3; }
 .ttd-rekap .garis-nama { border-top: 1px solid var(--ink); margin-top: 2px; }
 
 @media print {
@@ -1038,13 +1043,57 @@ button.hapus-klaim:hover:not(:disabled) {
   .tscroll > .tabel-rekap { min-width: 0; }
   .tabel-rekap { font-size: 6.5px; }
   .tabel-rekap th { font-size: 6px; }
-  .tabel-rekap th, .tabel-rekap td { padding: 1.5px 2px; }
+  .tabel-rekap th, .tabel-rekap td { padding: 1px 2px; }
   /* Baris tidak dipatahkan di tengah halaman, dan judul bagian tidak pernah
      berdiri sendiri di kaki halaman tanpa satu baris pun di bawahnya. */
   .tabel-rekap tr { page-break-inside: avoid; }
   .tabel-rekap .judul-bagian { page-break-after: avoid; }
   .tabel-rekap thead { display: table-header-group; }
-  .ttd-rekap { page-break-inside: avoid; }
+
+  /* Ruang tanda tangan turun ke kaki halaman, bukan menempel di bawah baris
+     TOTAL.
+
+     margin-top: auto, bukan jarak tetap: lembarnya dibuat setinggi halaman,
+     dan ruang yang tersisa berapa pun jatuh seluruhnya di atas blok tanda
+     tangan. Jarak tetap memakan tinggi yang belum tentu ada — dan begitu
+     tabelnya bertambah sebaris, jarak itulah yang mendorong lembarnya menjadi
+     dua halaman. Dengan auto, yang berkurang justru jaraknya, dan lembarnya
+     tetap satu halaman.
+
+     Kotaknya ditinggikan pula: tanda tangan basah dibubuhkan dengan tangan di
+     atas kertas dan memakan tempat lebih banyak daripada yang terlihat di
+     layar.
+
+     Tinggi lembarnya ditulis dalam inci, bukan 100vh: pada pencetakan, vh
+     tetap mengikuti tinggi jendela peramban, bukan tinggi halaman kertas — dan
+     jendela yang lebih tinggi daripada kertasnya membuat lembar ini meluap ke
+     halaman kedua justru karena aturan yang dimaksudkan menahannya. Angkanya
+     tinggi A4 melintang dikurangi kedua marginnya, disisakan sedikit.
+
+     Margin bawah .lembar ikut dinolkan: ia pemisah antarlembar di layar, dan
+     pada kertas pemisahnya page-break, bukan jarak. */
+  .rekap-or { display: flex; flex-direction: column; min-height: 6.1in; }
+  .lembar { margin-bottom: 0; }
+  .ttd-rekap { page-break-inside: avoid; margin-top: auto; }
+  /* Kotaknya dipendekkan sebanyak baris nama yang kini berdiri di atas
+     garisnya — tinggi blok tanda tangannya tetap sama, dan lembarnya tetap
+     satu halaman. Ruang goresannya masih 12mm di atas kertas. */
+  .ttd-rekap .kotak-ttd { height: 44px; }
+  .ttd-rekap .nama-ttd { font-size: 9px; }
+
+  /* Kepala lembarnya dirapatkan supaya tabel, catatan, dan ruang tanda tangan
+     tetap muat pada satu halaman setelah marginnya dilebarkan menjadi satu
+     inci. Yang dikecilkan keterangan di sekelilingnya, bukan angkanya: yang
+     dibaca orang pada lembar ini deretan rupiahnya. */
+  .rekap-or .kop { padding-bottom: 2px; margin-bottom: 3px; }
+  .rekap-or .kop h1 { font-size: 11.5px; }
+  .rekap-or .judul-rekap { font-size: 11.5px; margin: 2px 0 2px; }
+  .rekap-or .kepala-rekap { font-size: 9px; line-height: 1.3; }
+  .rekap-or .sm-rekap { margin: 4px 0 3px; font-size: 10px; }
+  .rekap-or .sm-rekap > span:first-child { font-size: 9px; }
+  .catatan-rekap { margin-top: 5px; font-size: 8px; line-height: 1.35; }
+  .catatan-rekap ul { margin: 2px 0 0; }
+  .ttd-rekap { font-size: 9px; }
 }
 
 /* Bilah penyaring layar Data Marketing: tindakan di kiri, penyaring di kanan.
@@ -1634,7 +1683,15 @@ td.sel-keadaan .menunggu.stop { color: var(--stop); }
 /* Rekap Overiding melintang. Halaman bernama, bukan @page global kedua:
    satu jendela pratinjau dapat memuat formulir tegak dan rekap melintang
    sekaligus, dan @page global akan memutar keduanya. */
-@page rekap-melintang { size: A4 landscape; margin: 8mm 8mm; }
+/* Margin satu inci, sebagaimana surat kantor pada umumnya, bukan 8mm yang
+   dipilih demi memberi tabelnya ruang selebar mungkin. Lembar ini beredar
+   sampai ke tangan direksi dan ditandatangani di atas kertas; tepi yang sempit
+   membuatnya tampak seperti cetakan sistem, bukan dokumen kantor — dan tepi
+   kiri yang sempit hilang sebagian begitu lembarnya dijilid.
+
+   Tabelnya tidak kehilangan kolom karenanya: lebarnya 100% halaman, jadi ia
+   menyesuaikan diri terhadap ruang yang tersisa. */
+@page rekap-melintang { size: A4 landscape; margin: 1in; }
 .rekap-or { page: rekap-melintang; }
 
 @media print {
