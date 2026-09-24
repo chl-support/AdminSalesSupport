@@ -471,15 +471,15 @@ export default function PratinjauPage() {
               sebagai lembar per unit — lihat @/lib/overriding. Selama rekapnya
               belum terbaca, yang tampil keterangan singkat, bukan formulir
               jenis lain yang kebetulan lebih dulu ada. */}
-          {/* Klaim yang pembayarannya sudah tercatat tidak lagi memperlihatkan
-              formulir pengajuannya di layar: yang dicari orang pada klaim
-              selesai adalah dokumen finalnya, dan itu ada di blok di bawah.
+          {/* Klaim yang pembayarannya sudah tercatat tidak lagi merakit formulir
+              pengajuannya sama sekali: yang dicari orang pada klaim selesai
+              adalah dokumen finalnya, dan itu ada di blok di bawah.
 
-              Disembunyikan, bukan dibuang. Tombol Cetak Form memanggil
-              window.print() atas halaman ini juga; formulir yang dilepas dari
-              DOM akan membuatnya mencetak kertas kosong. Lihat .hanya-cetak. */}
-          <div className={lunas(c) ? "hanya-cetak" : undefined}>
-          {c.claim_type === "overriding" ? (
+              Dibuang, bukan sekadar disembunyikan. Formulir pengajuan klaim
+              lunas memang tidak dicetak lagi — itu sebabnya tombol cetaknya
+              pun hilang — jadi menahannya di halaman hanya menyisakan lembar
+              yang tidak pernah dibaca maupun dicetak siapa pun. */}
+          {!lunas(c) && (c.claim_type === "overriding" ? (
             rekap[c.id]
               ? <RekapOverriding rekap={rekap[c.id]} />
               : <p className="hint">{k.memuat}</p>
@@ -513,8 +513,7 @@ export default function PratinjauPage() {
                   }
                 }
               : undefined} />
-          )}
-          </div>
+          ))}
 
           {/* Dokumen full sign, bukti transfer, dan tanggal uang keluar:
               tiga hal yang dicari orang ketika menengok klaim yang sudah
