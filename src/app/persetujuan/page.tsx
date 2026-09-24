@@ -629,6 +629,22 @@ export default function PersetujuanPage() {
   const dokFullSign = (c: any) =>
     (c.documents ?? []).find((d: any) => d.checklist_item === "dokumen_full_sign");
 
+  /**
+   * Klaim yang perjalanannya sudah tuntas: dokumen finalnya terkirim dan
+   * pembayarannya tercatat.
+   *
+   * Pada baris seperti ini kolom Tindakan menyisakan satu tombol saja,
+   * Preview Dokumen. Tombol "Lihat dokumen full sign" di sebelahnya menjadi
+   * mubazir begitu klaimnya tuntas: layar pratinjau sudah memuat dokumen itu
+   * beserta bukti transfer dan tanggal pembayarannya dalam satu blok, lengkap
+   * dengan tautan lihat dan unduhnya masing-masing. Dua jalan ke berkas yang
+   * sama membuat yang membacanya menduga keduanya berisi hal yang berbeda.
+   *
+   * Yang belum tuntas tidak kehilangan apa pun — tombolnya tetap di tempatnya
+   * selama masih ada yang harus dikerjakan atas baris itu.
+   */
+  const tuntas = (c: any) => Boolean(c.tanggal_bayar) && Boolean(dokFullSign(c));
+
   const terlihat = klaim
     .filter((c) => {
       if (saring === "selesai") return SELESAI.includes(c.status);
@@ -964,8 +980,10 @@ export default function PersetujuanPage() {
                       masih beredar, dan berganti menjadi tautan begitu
                       berkasnya ada — pratinjau yang dibuka setelah itu
                       memperlihatkan dokumen yang sudah lengkap tanda
-                      tangannya. */}
-                  {dokFullSign(c) ? (
+                      tangannya.
+
+                      Keduanya hilang begitu klaimnya tuntas; lihat tuntas(). */}
+                  {tuntas(c) ? null : dokFullSign(c) ? (
                     <a className="tautan-klaim"
                        href={`/api/claims/${c.id}/documents/${dokFullSign(c).id}`}
                        target="_blank" rel="noreferrer">
