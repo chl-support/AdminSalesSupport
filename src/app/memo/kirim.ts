@@ -1,5 +1,7 @@
 "use client";
 
+import { BATAS_MEMO } from "@/lib/batas";
+
 /**
  * Mengirim berkas ke server tanpa pernah melampaui batas satu permintaan.
  *
@@ -30,6 +32,10 @@
  * batas.
  */
 export const AMBANG_LANGSUNG = 1024 * 1024;
+
+// Diteruskan supaya layar yang memakai pemecah ini tidak perlu mengimpor dari
+// dua tempat sekaligus untuk satu unggahan.
+export { BATAS_FULL_SIGN } from "@/lib/batas";
 
 /** Besar tiap potong bagi berkas yang dipecah. */
 const BESAR_POTONG = 2 * 1024 * 1024;
@@ -92,8 +98,8 @@ export function pasangBerkas(fd: FormData, berkas: File, titipan: string | null)
   else fd.append("file", berkas);
 }
 
-/** Batas ukuran berkas, sama dengan yang dipakai server. */
-export const BATAS_BERKAS = 10 * 1024 * 1024;
+/** Batas ukuran berkas memo, sama dengan yang dipakai server. */
+export const BATAS_BERKAS = BATAS_MEMO;
 
 /**
  * Menolak berkas yang pasti ditolak server, sebelum satu bita pun terkirim.
@@ -102,10 +108,12 @@ export const BATAS_BERKAS = 10 * 1024 * 1024;
  * adalah menit yang terbuang, dan pada sambungan lambat menit itu terasa
  * seperti sistem yang menggantung.
  */
-export function periksaUkuran(berkas: File): string | null {
-  if (berkas.size <= BATAS_BERKAS) return null;
+export function periksaUkuran(
+  berkas: File, batas: number = BATAS_BERKAS,
+): string | null {
+  if (berkas.size <= batas) return null;
   const mb = (n: number) => (n / 1024 / 1024).toFixed(1).replace(".", ",");
   return `Berkas ${mb(berkas.size)} MB melebihi batas ` +
-         `${mb(BATAS_BERKAS)} MB. Perkecil dulu berkasnya, ` +
+         `${mb(batas)} MB. Perkecil dulu berkasnya, ` +
          `misalnya dengan memindai pada resolusi yang lebih rendah.`;
 }

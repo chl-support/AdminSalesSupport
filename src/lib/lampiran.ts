@@ -11,18 +11,12 @@
  * dari /api/health.
  */
 
+import { BATAS_FULL_SIGN, BATAS_LANGSUNG } from "./batas";
 import { one, query } from "./db";
 import { WorkflowError } from "./workflow";
 
-/**
- * Batas bagi berkas yang dikirim utuh dalam satu permintaan.
- *
- * Tiga megabita, dan alasannya bukan kolomnya melainkan jalannya: badan
- * permintaan di Vercel berhenti di 4,5 MB, sedangkan base64 membengkakkan
- * berkas sepertiga. Berkas 3 MB menjadi 4 MB di kawat — sudah mepet, dan
- * apa pun di atasnya diputus di tepi jaringan sebelum mencapai kode ini.
- */
-export const BATAS_BYTE = 3 * 1024 * 1024;
+/** Batas bagi berkas yang dikirim utuh dalam satu permintaan. */
+export const BATAS_BYTE = BATAS_LANGSUNG;
 
 /**
  * Batas bagi berkas yang datang bertahap, sepotong demi sepotong.
@@ -30,13 +24,12 @@ export const BATAS_BYTE = 3 * 1024 * 1024;
  * Berkas yang dititipkan lewat /api/memos/bagian tidak pernah melewati batas
  * badan permintaan: tiap potongnya permintaan tersendiri, dan yang dirakit di
  * server sudah berupa Buffer. Karena itu batasnya tidak lagi ditentukan besar
- * satu permintaan, melainkan aturan aplikasi — sepuluh megabita, sama dengan
- * yang berlaku bagi lampiran memo.
+ * satu permintaan, melainkan aturan aplikasi.
  *
  * Dokumen full sign adalah pindaian belasan halaman bertanda tangan basah;
  * tiga megabita menolak hampir semuanya.
  */
-export const BATAS_TITIPAN = 10 * 1024 * 1024;
+export const BATAS_TITIPAN = BATAS_FULL_SIGN;
 
 /**
  * Jenis berkas yang diterima.

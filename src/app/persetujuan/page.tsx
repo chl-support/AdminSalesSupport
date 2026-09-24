@@ -38,7 +38,8 @@ import { LANGKAH, keadaanLangkah, warnaLangkah } from "@/lib/langkah";
 // memo-spesifik — ia hanya menjaga agar satu permintaan tidak pernah melampaui
 // batas fungsi serverless — dan menyalinnya ke sini berarti dua salinan yang
 // akan berbeda perilaku begitu salah satunya diperbaiki.
-import { periksaUkuran, perluDipecah, titipBerkas } from "../memo/kirim";
+import { BATAS_FULL_SIGN, periksaUkuran, perluDipecah, titipBerkas }
+  from "../memo/kirim";
 
 const rp = (n?: number | null) => `Rp ${(n ?? 0).toLocaleString("id-ID")}`;
 const tgl = (v?: string | null) => (v ? String(v).slice(0, 10) : "—");
@@ -622,7 +623,7 @@ export default function PersetujuanPage() {
     // Ditolak di sini, sebelum satu bita pun terkirim. Mengunggah belasan
     // megabita hanya untuk diberi tahu bahwa ia terlalu besar adalah menit
     // yang terbuang percuma.
-    const tolak = periksaUkuran(fsBerkas);
+    const tolak = periksaUkuran(fsBerkas, BATAS_FULL_SIGN);
     if (tolak) { setGalat(tolak); return; }
 
     setGerak(c.id); setGalat(null); setKabar(null); setFsKemajuan(null);
