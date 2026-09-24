@@ -11,8 +11,8 @@
  * baris TOTAL-nya sendiri.
  *
  * Yang menandatangani pun berbeda: tidak ada kolom Pemohon di sini. Yang ada
- * Dibuat Oleh, Diperiksa Oleh, dan tiga Disetujui Oleh, persis seperti pada
- * berkas acuannya.
+ * Dibuat Oleh, Diperiksa Oleh, dan Disetujui Oleh — yang terakhir membentang
+ * di atas dua ruang tanda tangan berdampingan.
  *
  * Tabelnya lebar — tiga puluh kolom lebih — jadi lembarnya melintang. Itu
  * memang bentuk aslinya; memaksanya tegak berarti mengecilkan hurufnya sampai
@@ -20,6 +20,7 @@
  */
 
 import type { Rekap } from "@/lib/overriding";
+import { penandatanganRekap } from "@/lib/penandatangan";
 
 const rp = (n?: number | null) => (n ?? 0).toLocaleString("id-ID");
 
@@ -116,15 +117,19 @@ const KUMPULAN = KOLOM.reduce<
 
 export function RekapOverriding({ rekap }: { rekap: Rekap }) {
   const sm = rekap.sales_manager;
+  const ttd = penandatanganRekap(rekap.project?.slug);
   return (
     <div className="cetak rekap-or">
       <div className="kop">
         <h1>{rekap.project?.company_name ?? rekap.project?.name ?? "—"}</h1>
       </div>
 
-      <h2 className="judul-rekap">
-        Detail Perhitungan Overiding ({rekap.nomor})
-      </h2>
+      {/* Tanpa nomor klaim di belakang judulnya. Yang menandai lembar ini
+          bagi yang membacanya adalah klusternya, periodenya, dan nama Sales
+          Manager-nya — ketiganya tertulis tepat di bawah sini. Nomor klaim
+          penanda di dalam sistem, dan pada dokumen yang beredar ke tangan
+          direksi ia hanya deret yang tidak berarti apa-apa. */}
+      <h2 className="judul-rekap">Detail Perhitungan Overiding</h2>
       <div className="kepala-rekap">
         <div>Cluster {atau(rekap.cluster)}</div>
         <div>
@@ -260,16 +265,36 @@ export function RekapOverriding({ rekap }: { rekap: Rekap }) {
         </div>
       )}
 
-      {/* Lima blok tanda tangan, sebagaimana pada acuannya. Namanya sengaja
-          tidak diisi: yang menandatangani berbeda menurut periodenya, dan nama
-          yang tercetak sendiri mengundang lembar ditandatangani orang lain
-          atas nama yang tertulis. */}
+      {/* Empat ruang tanda tangan, tiga sebutan.
+
+          Sebutan ketiga — "Disetujui Oleh," — membentang di atas dua ruang
+          terakhir dan berdiri di tengah keduanya: yang menyetujui rekap ini
+          dua orang yang menandatangani berdampingan, bukan dua jabatan yang
+          masing-masing perlu disebut. Acuannya menulisnya tiga kali; dua di
+          antaranya dibuang atas permintaan kantor.
+
+          Karena itu barisnya dua: sebaris sebutan, sebaris ruang tanda
+          tangannya. Sebutan yang membentang tidak dapat digambar sebagai
+          bagian dari satu blok — ia harus melintasi dua lajur sekaligus, dan
+          hanya petak yang dapat melakukannya.
+
+          Namanya dicetak di atas garisnya, ditentukan projectnya — lihat
+          penandatanganRekap(). Yang kosong tetap bergaris: pemeriksanya belum
+          ditetapkan untuk sebagian project, dan garis tanpa nama masih dapat
+          diisi tangan, sedangkan nama yang ditebak tidak dapat ditarik kembali
+          setelah lembarnya beredar. */}
       <div className="ttd-rekap">
-        {["Dibuat Oleh,", "Diperiksa Oleh,", "Disetujui Oleh,",
-          "Disetujui Oleh,", "Disetujui Oleh,"].map((t, i) => (
+        <span className="peran">Dibuat Oleh,</span>
+        <span className="peran">Diperiksa Oleh,</span>
+        <span className="peran dua">Disetujui Oleh,</span>
+        {[ttd.dibuat, ttd.diperiksa, ttd.disetujui[0], ttd.disetujui[1]]
+          .map((nama, i) => (
           <div key={i}>
-            <span className="peran">{t}</span>
             <div className="kotak-ttd" />
+            {/* Spasi mati, bukan span hampa: yang hampa tidak setinggi apa pun,
+                dan garis di bawahnya naik sebaris lebih tinggi daripada
+                tetangganya yang bernama. */}
+            <span className="nama-ttd">{nama || "\u00A0"}</span>
             <div className="garis-nama" />
           </div>
         ))}

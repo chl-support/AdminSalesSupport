@@ -18,6 +18,7 @@ import { collect, preview } from "../src/lib/report";
 import { KATEGORI_JENIS, kategoriAwal } from "../src/lib/kategori";
 import { hapusMarketing, tambahMarketing } from "../src/lib/spesimen";
 import { rekapOverriding } from "../src/lib/overriding";
+import { penandatanganRekap } from "../src/lib/penandatangan";
 import { seed } from "./seed";
 import { signaturePng, strokes } from "./synthetic-signature";
 
@@ -591,7 +592,39 @@ async function main() {
     assert(Boolean(masih), "yang terpakai seharusnya tetap ada");
   });
 
-  await check("pengajuan salah input dapat dihapus, yang sudah dibayar tidak",
+  await check("penandatangan rekap Overiding mengikuti projectnya", async () => {
+    // Empat project di bawah PT. Serpong Bangun Cipta: pemeriksanya belum
+    // ditetapkan, jadi garisnya sengaja kosong.
+    for (const slug of ["banara-serpong", "naraya-serpong",
+                        "marchand-hype-station", "mazenta-residence"]) {
+      const t = penandatanganRekap(slug);
+      assert(t.dibuat === "Anneke Aprilia", `${slug}: ${t.dibuat}`);
+      assert(t.diperiksa === "", `${slug} seharusnya tanpa pemeriksa`);
+      assert(t.disetujui[0] === "Setia Iskandar", `${slug}: ${t.disetujui[0]}`);
+      assert(t.disetujui[1] === "Al Imron", `${slug}: ${t.disetujui[1]}`);
+    }
+
+    for (const slug of ["bio-district", "permai-indah"]) {
+      const t = penandatanganRekap(slug);
+      assert(t.dibuat === "Anneke Aprilia", `${slug}: ${t.dibuat}`);
+      assert(t.diperiksa === "Sugino", `${slug}: ${t.diperiksa}`);
+      assert(t.disetujui[0] === "Andreas Audyanto", `${slug}: ${t.disetujui[0]}`);
+      assert(t.disetujui[1] === "Al Imron", `${slug}: ${t.disetujui[1]}`);
+    }
+
+    // Project yang belum ditetapkan penandatangannya mendapat garis kosong,
+    // bukan nama rumpun terdekat. Nama yang ditebak tidak dapat ditarik
+    // kembali setelah lembarnya beredar dan ditandatangani.
+    const asing = penandatanganRekap("project-yang-belum-ada");
+    assert(asing.dibuat === "" && asing.diperiksa === "" &&
+           asing.disetujui[0] === "" && asing.disetujui[1] === "",
+           "project asing seharusnya tanpa nama");
+    assert(penandatanganRekap(null).dibuat === "",
+           "project kosong seharusnya tanpa nama");
+  });
+
+  await check("pengajuan salah input dapat dihapus; yang sudah dibayar " +
+              "hanya oleh Admin IT",
               async () => {
     // Salah input: unitnya keliru, orangnya keliru, jenis feenya keliru.
     // Mesin alur hanya mengenal pembatalan dari draft, jadi yang sudah
@@ -646,7 +679,35 @@ async function main() {
            tertolak || "yang sudah dibayar seharusnya ditolak");
     assert(Boolean(await one("SELECT id FROM claims WHERE id=$1", [dibayar.id])),
            "yang sudah dibayar seharusnya tetap ada");
-    await query("DELETE FROM claims WHERE id=$1", [dibayar.id]);
+
+    // Admin IT tetap dapat menghapusnya — jalan darurat untuk salah input yang
+    // terlanjur dibayar — dan baris pelunasannya ikut dilepas. Tanpa pelepasan
+    // itu, basis data menolak penghapusannya: settlement_lines.instruction_id
+    // sengaja tanpa ON DELETE CASCADE.
+    const instruksi = await one<{ id: string }>(
+      `INSERT INTO payment_instructions (claim_id, recipient_name, amount,
+                                         paid_amount, status)
+       VALUES ($1,'Uji',1000000,1000000,'paid') RETURNING id`, [dibayar.id]);
+    const pelunasan = await one<{ id: string }>(
+      `INSERT INTO settlements (transfer_date, recap_period, proof_file)
+       VALUES (CURRENT_DATE, '2026-09', 'uji.pdf') RETURNING id`);
+    await query(
+      `INSERT INTO settlement_lines (settlement_id, instruction_id, amount)
+       VALUES ($1,$2,1000000)`, [pelunasan!.id, instruksi!.id]);
+
+    const olehIt = await wf.hapusKlaim(
+      dibayar.id, "sysadmin",
+      "Salah input yang terlanjur dibayar, dibereskan Admin IT.",
+      undefined, true);
+    assert(olehIt.deleted, "Admin IT seharusnya dapat menghapusnya");
+    assert(olehIt.sudah_dibayar, "seharusnya ditandai sudah dibayar");
+    assert(olehIt.pelunasan_dilepas === 1,
+           `pelunasannya seharusnya ikut dilepas, bukan ${olehIt.pelunasan_dilepas}`);
+    assert(!await one("SELECT id FROM claims WHERE id=$1", [dibayar.id]),
+           "barisnya seharusnya sudah tidak ada");
+    assert(!await one("SELECT id FROM settlement_lines WHERE instruction_id=$1",
+                      [instruksi!.id]),
+           "baris pelunasannya seharusnya ikut terhapus");
   });
 
   await check("rekap Overriding memilah unit menurut keadaannya", async () => {

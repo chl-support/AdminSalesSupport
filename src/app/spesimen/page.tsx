@@ -75,7 +75,7 @@ const KATA = {
     fMenunggu: "Menunggu diperiksa", fAktif: "Sudah aktif",
     muatUlang: "Muat ulang",
     mintaRevisiLama: (n: number) => `Minta revisi ${n} spesimen lama`,
-    thMarketing: "Marketing", thStatus: "Status", thSpesimen: "Spesimen",
+    thMarketing: "Marketing", thStatus: "Status",
     thJangkar: "Jangkar KTP", thPendaftaran: "Pendaftaran berjalan",
     thTindakan: "Tindakan",
     ubahNomor: "Ubah nomor telepon", tanpaNomor: "tanpa nomor telepon",
@@ -94,7 +94,7 @@ const KATA = {
       "Barisnya tersimpan pada jejak audit — di sanalah dapat dilihat kembali " +
       "siapa yang dihapus dan oleh siapa.",
     kHapusGagal: "Baris ini tidak dapat dihapus",
-    rekamanLama: "rekaman lama", dariKtp: "dari KTP", ada: "ada",
+    ada: "ada",
     menungguDiperiksa: "menunggu diperiksa", ttdPadaKtp: "tanda tangan pada KTP",
     tautanTerbuka: "tautan terbuka",
     ktpDiunggah: "KTP sudah diunggah", ktpBelum: "belum mengunggah KTP",
@@ -222,7 +222,7 @@ const KATA = {
     fMenunggu: "Awaiting review", fAktif: "Active",
     muatUlang: "Reload",
     mintaRevisiLama: (n: number) => `Request revision of ${n} old specimens`,
-    thMarketing: "Marketing", thStatus: "Status", thSpesimen: "Specimens",
+    thMarketing: "Marketing", thStatus: "Status",
     thJangkar: "ID card anchor", thPendaftaran: "Registration in progress",
     thTindakan: "Action",
     ubahNomor: "Change phone number", tanpaNomor: "no phone number",
@@ -241,7 +241,7 @@ const KATA = {
       "The row is kept on the audit trail — that is where who was deleted, " +
       "and by whom, can be read back.",
     kHapusGagal: "This row could not be deleted",
-    rekamanLama: "old screen capture", dariKtp: "from the ID card", ada: "present",
+    ada: "present",
     menungguDiperiksa: "awaiting review", ttdPadaKtp: "signature on the ID card",
     tautanTerbuka: "link opened",
     ktpDiunggah: "ID card uploaded", ktpBelum: "ID card not uploaded yet",
@@ -650,7 +650,6 @@ export default function SpesimenPage() {
                   <tr>
                     <th>{k.thMarketing}</th>
                     <th>{k.thStatus}</th>
-                    <th style={{ textAlign: "right" }}>{k.thSpesimen}</th>
                     <th>{k.thJangkar}</th>
                     <th>{k.thPendaftaran}</th>
                     <th style={{ width: 250 }}>{k.thTindakan}</th>
@@ -719,17 +718,6 @@ export default function SpesimenPage() {
                         <span className={`pill ${PILL[b.status] ?? ""}`}>
                           {b.status}
                         </span>
-                      </td>
-                      <td className="n">
-                        {b.spesimen}
-                        {b.spesimen > 0 && (
-                          <>
-                            <br />
-                            <span style={{ fontSize: 10.5, color: "var(--mut)" }}>
-                              {b.spesimen_lama > 0 ? k.rekamanLama : k.dariKtp}
-                            </span>
-                          </>
-                        )}
                       </td>
                       <td>
                         {b.punya_ktp ? (
@@ -900,7 +888,7 @@ export default function SpesimenPage() {
 
                   {!terlihat.length && (
                     <tr>
-                      <td colSpan={6} style={{ color: "var(--mut)" }}>
+                      <td colSpan={5} style={{ color: "var(--mut)" }}>
                         {k.takAdaMarketing}
                       </td>
                     </tr>

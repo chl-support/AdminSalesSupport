@@ -141,6 +141,15 @@ const KATA = {
       "dokumen ini berhenti untuk diperiksa orang. Bandingkan dengan " +
       "spesimen yang tersimpan sebelum memutuskan.",
     ttdSkor: "Skor kemiripan",
+    ttdMemuat: "Memuat tanda tangannya…",
+    ttdGoresan: "Goresan yang baru dibuat",
+    ttdSpesimen: "Spesimen tersimpan",
+    ttdTanpaSpesimen: "Belum ada spesimen tersimpan untuk dibandingkan.",
+    ttdPerbesar: "Perbesar gambarnya",
+    ttdTutupGambar: "Tutup",
+    ttdPercobaan: (n: number) => `Percobaan ke-${n}`,
+    ttdAmbang: (skor: number | null, ambang: number) =>
+      `Skor ${skor ?? "—"} dari ambang ${ambang}`,
     ttdAlasan: "Alasan (minimal 10 karakter, tercatat pada jejak audit)",
     ttdSetuju: "Setujui tanda tangannya",
     ttdTolak: "Tolak klaimnya",
@@ -170,6 +179,11 @@ const KATA = {
     hapAlasan: "Alasan (minimal 10 karakter, tercatat pada jejak audit)",
     hapKirim: "Hapus pengajuan ini", hapMengirim: "Menghapus…",
     hapSelesai: (no: string) => `Pengajuan ${no} dihapus.`,
+    hapSudahBayar:
+      "Pengajuan ini SUDAH DIBAYAR. Menghapusnya menghapus catatan atas uang " +
+      "yang benar-benar keluar: baris pelunasannya ikut dilepas, dan rekap " +
+      "pembayaran periode itu berkurang sebanyak nilai di atas — termasuk " +
+      "bila periodenya sudah ditutup dan laporannya sudah dicetak.",
     byrTombol: "Input Data Pembayaran",
     byrJudul: "Pembayaran",
     byrTanggal: "Tanggal pembayaran",
@@ -268,6 +282,15 @@ const KATA = {
       "this document stopped for a person to look at. Compare it with the " +
       "stored specimen before deciding.",
     ttdSkor: "Similarity score",
+    ttdMemuat: "Loading the signatures…",
+    ttdGoresan: "The strokes just made",
+    ttdSpesimen: "Stored specimens",
+    ttdTanpaSpesimen: "There is no stored specimen to compare against.",
+    ttdPerbesar: "Enlarge this image",
+    ttdTutupGambar: "Close",
+    ttdPercobaan: (n: number) => `Attempt ${n}`,
+    ttdAmbang: (skor: number | null, ambang: number) =>
+      `Score ${skor ?? "—"} against a threshold of ${ambang}`,
     ttdAlasan: "Reason (at least 10 characters, kept in the audit trail)",
     ttdSetuju: "Approve the signature",
     ttdTolak: "Reject the claim",
@@ -296,6 +319,11 @@ const KATA = {
     hapAlasan: "Reason (at least 10 characters, kept in the audit trail)",
     hapKirim: "Delete this submission", hapMengirim: "Deleting…",
     hapSelesai: (no: string) => `Submission ${no} has been deleted.`,
+    hapSudahBayar:
+      "This submission has ALREADY BEEN PAID. Deleting it removes the record " +
+      "of money that actually left: its settlement lines go with it, and the " +
+      "payment recap for that period drops by the amount above — even if the " +
+      "period is closed and its report has been printed.",
     byrTombol: "Record the payment",
     byrJudul: "Payment",
     byrTanggal: "Payment date",
@@ -364,6 +392,17 @@ function nomorWa(hp?: string | null): string {
  * tidak dapat diperlihatkan lagi maupun diterbitkan ulang, sehingga klaimnya
  * menggantung di situ tanpa satu pun jalan untuk menindaklanjuti.
  */
+/**
+ * Menyamakan dua bentuk tanda tangan tersimpan menjadi satu alamat gambar.
+ *
+ * Goresan dari kanvas datang lengkap dengan awalan `data:`, sedangkan spesimen
+ * yang dibangkitkan di server hanya base64 telanjang. Tanpa disamakan, separuh
+ * gambarnya tampil sebagai ikon rusak — dan yang rusak justru sebagian, jadi
+ * mudah dikira memang tidak ada tanda tangannya.
+ */
+const gambarTtd = (png?: string | null) =>
+  !png ? null : png.startsWith("data:") ? png : `data:image/png;base64,${png}`;
+
 const MENUNGGU_TAUTAN = ["tax_verified", "signature_link_sent",
                          "awaiting_signature"];
 
@@ -480,6 +519,36 @@ export default function PersetujuanPage() {
   }, []);
   const [ttdUntuk, setTtdUntuk] = useState<string | null>(null);
   const [ttdAlasan, setTtdAlasan] = useState("");
+  /**
+   * Goresan dan spesimen klaim yang sedang ditinjau.
+   *
+   * Kotaknya dulu hanya bertanya "setuju atau tolak" tanpa memperlihatkan apa
+   * pun — yang ditinjau adalah tanda tangan, dan yang meninjau tidak pernah
+   * melihatnya. Gambarnya berat, jadi diambil hanya ketika kotaknya dibuka,
+   * bukan ikut dalam daftar klaim yang dimuat tiap kali layar ini dibuka.
+   */
+  const [ttdBukti, setTtdBukti] = useState<any>(null);
+  /**
+   * Gambar yang sedang diperbesar.
+   *
+   * Goresan di dalam kotak tinjauan tingginya 64 piksel — cukup untuk tahu ada
+   * tanda tangannya, tidak cukup untuk memutuskan ia goresan orang yang sama.
+   * Yang diminta di sana justru keputusan itu.
+   */
+  const [ttdZoom, setTtdZoom] = useState<string | null>(null);
+  useEffect(() => {
+    if (!ttdUntuk) { setTtdBukti(null); return; }
+    let batal = false;
+    void (async () => {
+      try {
+        const res = await fetch(`/api/claims/${ttdUntuk}/signature-attempts`);
+        if (!res.ok) return;
+        const b = await res.json();
+        if (!batal) setTtdBukti(b);
+      } catch { /* kotaknya tetap dapat dipakai tanpa gambarnya */ }
+    })();
+    return () => { batal = true; };
+  }, [ttdUntuk]);
   const [ccUntuk, setCcUntuk] = useState<string | null>(null);
   /** Klaim yang sedang dihapus karena salah input. */
   const [hapUntuk, setHapUntuk] = useState<string | null>(null);
@@ -885,6 +954,15 @@ export default function PersetujuanPage() {
    * tombol yang tidak ada.
    */
   const SUDAH_BAYAR = ["partially_paid", "paid", "completed"];
+  /**
+   * Yang uangnya sudah keluar hanya dapat dihapus Admin IT.
+   *
+   * Bukan soal kepercayaan: penghapusan seperti itu mengubah rekap pembayaran
+   * periode yang mungkin sudah ditutup dan laporannya sudah dicetak. Ia jalan
+   * darurat, dan jalan darurat tidak berdiri di tangan yang sehari-hari
+   * memasukkan pengajuan.
+   */
+  const bolehHapusDibayar = sesi.role === "admin_system";
 
   const selesai = klaim.filter((c) => SELESAI.includes(c.status)).length;
   const jalan = klaim.length - selesai;
@@ -1116,50 +1194,6 @@ export default function PersetujuanPage() {
                     );
                   })}
 
-                  {/* Pengiriman tautan ke Sales/Agent, di dalam kolom Status
-                      dan hanya untuk Admin Sales — merekalah yang berhubungan
-                      dengan Sales/Agent, dan endpoint-nya pun menolak peran
-                      lain. Muncul hanya pada baris yang memang sedang menunggu
-                      tautannya; pada baris lain kolom ini tetap keterangan
-                      keadaan, bukan deretan tombol yang tak dapat ditekan. */}
-                  {/* Tautan yang sudah terbit pada layar ini tetap dapat
-                      dibuka, berapa pun statusnya sekarang — termasuk setelah
-                      Sales/Agent membukanya dan klaimnya berpindah ke
-                      "menunggu tanda tangan". Sebelumnya tombolnya ikut hilang
-                      pada perpindahan itu: tautannya masih berlaku, masih
-                      ditunggu tanda tangannya, tetapi tidak ada lagi yang
-                      dapat memperlihatkannya — statusnya menggantung tanpa
-                      satu pun jalan untuk menindaklanjuti.
-
-                      Dibuka kembali, bukan diterbitkan ulang: menerbitkan
-                      ulang menggugurkan tautan yang sudah ada di tangan
-                      Sales/Agent. */}
-                  {sesi.role === "admin_sales" &&
-                   (MENUNGGU_TAUTAN.includes(c.status) || tautan[c.id]) && (
-                    <div className="row" style={{ margin: "6px 0 0", gap: 6 }}>
-                      {MENUNGGU_TAUTAN.includes(c.status) && (
-                        c.marketing?.phone ? (
-                          <button disabled={mengirim !== null}
-                                  onClick={() => void kirimTautan(c)}>
-                            {mengirim === c.id ? k.waMengirim
-                              : c.status === "tax_verified" ? k.waKirim
-                              : k.waUlang}
-                          </button>
-                        ) : (
-                          <div className="menunggu"
-                               style={{ color: "var(--stop)" }}>
-                            {k.waTanpaHp}
-                          </div>
-                        )
-                      )}
-                      {tautan[c.id] && (
-                        <button className="tautan"
-                                onClick={() => setLihatTautan(c.id)}>
-                          {k.waLihat}
-                        </button>
-                      )}
-                    </div>
-                  )}
                 </td>
                 {/* Pratinjau dibuka di jendela tersendiri, sama seperti dari
                     layar Pengajuan Fee: yang dibuka adalah dokumen untuk
@@ -1170,6 +1204,46 @@ export default function PersetujuanPage() {
                             `/klaim/pratinjau?ids=${c.id}`, "_blank")}>
                     {k.pratinjau}
                   </button>
+
+                  {/* Pengiriman tautan ke Sales/Agent, hanya untuk Admin Sales
+                      — merekalah yang berhubungan dengan Sales/Agent, dan
+                      endpoint-nya pun menolak peran lain. Muncul hanya pada
+                      baris yang memang sedang menunggu tautannya.
+
+                      Letaknya di kolom Tindakan bersama tombol lain, bukan
+                      lagi di bawah keterangan tahap pada kolom Status. Kolom
+                      Status menceritakan keadaan; yang dapat ditekan orang
+                      berkumpul di satu tempat, supaya tidak ada tombol yang
+                      harus dicari di antara kalimat.
+
+                      Tautan yang sudah terbit tetap dapat dibuka, berapa pun
+                      statusnya sekarang — termasuk setelah Sales/Agent
+                      membukanya dan klaimnya berpindah ke "menunggu tanda
+                      tangan". Dibuka kembali, bukan diterbitkan ulang:
+                      menerbitkan ulang menggugurkan tautan yang sudah ada di
+                      tangan Sales/Agent. */}
+                  {sesi.role === "admin_sales" &&
+                   MENUNGGU_TAUTAN.includes(c.status) && (
+                    c.marketing?.phone ? (
+                      <button disabled={mengirim !== null}
+                              onClick={() => void kirimTautan(c)}>
+                        {mengirim === c.id ? k.waMengirim
+                          : c.status === "tax_verified" ? k.waKirim
+                          : k.waUlang}
+                      </button>
+                    ) : (
+                      <div className="menunggu"
+                           style={{ color: "var(--stop)", margin: "0 0 6px" }}>
+                        {k.waTanpaHp}
+                      </div>
+                    )
+                  )}
+
+                  {sesi.role === "admin_sales" && tautan[c.id] && (
+                    <button onClick={() => setLihatTautan(c.id)}>
+                      {k.waLihat}
+                    </button>
+                  )}
 
                   {/* Verifikasi pajak: hanya pada baris yang memang sedang
                       menunggunya, dan hanya bagi yang endpoint-nya menerima.
@@ -1212,7 +1286,8 @@ export default function PersetujuanPage() {
                       alur hanya mengenal pembatalan dari draft — melainkan
                       penghapusan barisnya beserta berkas dan sesi tanda
                       tangannya, dengan jejak audit yang tetap tinggal. */}
-                  {bolehHapus && !SUDAH_BAYAR.includes(c.status) && (
+                  {bolehHapus &&
+                   (bolehHapusDibayar || !SUDAH_BAYAR.includes(c.status)) && (
                     <button className="hapus-klaim" disabled={gerak === c.id}
                             onClick={() => { setHapUntuk(c.id);
                                              setHapAlasan(""); }}>
@@ -1437,6 +1512,59 @@ export default function PersetujuanPage() {
                 </div>
               )}
 
+              {/* Yang ditinjau, diperlihatkan. Goresan tiap percobaan di
+                  sebelah kiri beserta skornya, spesimen tersimpan di sebelah
+                  kanan — membandingkan keduanya memang pekerjaan yang diminta
+                  di sini, dan tanpa gambarnya pertanyaannya tidak dapat
+                  dijawab. */}
+              {!ttdBukti ? (
+                <p className="hint" style={{ textAlign: "left" }}>
+                  {k.ttdMemuat}
+                </p>
+              ) : (
+                <div className="banding-ttd">
+                  <div>
+                    <div className="lbl">{k.ttdGoresan}</div>
+                    {(ttdBukti.attempts ?? []).map((a: any) => (
+                      <div key={a.id} className="petak-goresan">
+                        <img src={gambarTtd(a.image_png)!} alt=""
+                             title={k.ttdPerbesar}
+                             onClick={() => setTtdZoom(gambarTtd(a.image_png))} />
+                        <span>
+                          {k.ttdPercobaan(a.attempt_number)} ·{" "}
+                          {k.ttdAmbang(a.score,
+                                       a.threshold_at_time ?? ttdBukti.threshold)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  <div>
+                    <div className="lbl">{k.ttdSpesimen}</div>
+                    {(() => {
+                      const sp = (ttdBukti.baseline_specimens ?? []).length
+                        ? ttdBukti.baseline_specimens
+                        : ttdBukti.reference_signature?.reference_signature_png
+                          ? [{ sequence: null,
+                               image_png: ttdBukti.reference_signature
+                                            .reference_signature_png }]
+                          : [];
+                      if (!sp.length) {
+                        return <p className="hint" style={{ textAlign: "left" }}>
+                          {k.ttdTanpaSpesimen}
+                        </p>;
+                      }
+                      return sp.map((x: any, i: number) => (
+                        <div key={i} className="petak-goresan">
+                          <img src={gambarTtd(x.image_png)!} alt=""
+                               title={k.ttdPerbesar}
+                               onClick={() => setTtdZoom(gambarTtd(x.image_png))} />
+                        </div>
+                      ));
+                    })()}
+                  </div>
+                </div>
+              )}
+
               <div className="lbl" style={{ marginTop: 12 }}>{k.ttdAlasan}</div>
               <textarea value={ttdAlasan} style={{ width: "100%", minHeight: 56 }}
                         onChange={(e) => setTtdAlasan(e.target.value)} />
@@ -1458,6 +1586,25 @@ export default function PersetujuanPage() {
           </div>
         );
       })()}
+
+      {/* Gambar yang diperbesar, di atas kotak tinjauan yang membukanya.
+
+          Tirai tersendiri dengan lapisan lebih tinggi: kotak tinjauannya tetap
+          terbuka di belakang, sehingga menutup gambarnya mengembalikan orang
+          ke tempat ia berhenti — bukan ke daftar, dengan alasan yang sudah
+          diketik ikut hilang.
+
+          Ditutup dengan menekan di mana saja. Tidak ada yang dapat dilakukan
+          di lapisan ini selain melihat, jadi setiap tekanan berarti sudah
+          selesai melihat. */}
+      {ttdZoom && (
+        <div className="tirai zoom-ttd" onMouseDown={() => setTtdZoom(null)}>
+          <img src={ttdZoom} alt="" />
+          <button className="pri" onClick={() => setTtdZoom(null)}>
+            {k.ttdTutupGambar}
+          </button>
+        </div>
+      )}
 
       {/* Crosscheck sebelum cetak. Dua pihak, dua tombol — masing-masing
           hilang begitu pihaknya selesai, sehingga yang tersisa di layar
@@ -1540,6 +1687,12 @@ export default function PersetujuanPage() {
               <p className="hint" style={{ textAlign: "left", margin: "0 0 10px" }}>
                 {k.hapPengantar}
               </p>
+
+              {SUDAH_BAYAR.includes(c.status) && (
+                <div className="banner stop" style={{ marginBottom: 10 }}>
+                  {k.hapSudahBayar}
+                </div>
+              )}
 
               <div className="lbl">{k.hapAlasan}</div>
               <textarea value={hapAlasan} style={{ width: "100%", minHeight: 56 }}

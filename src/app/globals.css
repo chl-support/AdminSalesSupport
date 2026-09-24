@@ -902,10 +902,14 @@ button.hapus-klaim:hover:not(:disabled) {
    rupiah terpotong — jadi kolom angka tidak pernah dipatahkan. */
 /* display: block, bukan sekadar text-align: `.panel h2` di atas menjadikan
    judul ini kotak flex, dan pada kotak flex text-align tidak berpengaruh apa
-   pun terhadap satu-satunya isinya — selama ini ia tertulis rata tengah tetapi
-   tampil rata kiri. Sekarang rata kirinya disengaja. */
+   pun terhadap satu-satunya isinya.
+
+   Garis bawahnya pun dari sana, dan dicabut di sini: judul ini sudah diikuti
+   keterangan kluster, periode, dan cut off, dan garis di antara keduanya
+   memisahkan yang justru harus terbaca bersama. */
 .rekap-or .judul-rekap { display: block; margin: 10px 0 2px; font-size: 14px;
-                         text-align: left; }
+                         text-align: left; padding-bottom: 0;
+                         border-bottom: none; }
 /* Rata kiri, bukan rata tengah: keterangan kluster, periode, dan cut off
    berdiri sejajar dengan judul rekap dan dengan tepi kiri tabelnya, sehingga
    ketiganya terbaca sebagai satu lajur — bukan satu blok mengambang di tengah
@@ -941,10 +945,23 @@ button.hapus-klaim:hover:not(:disabled) {
 .tabel-rekap th, .tabel-rekap td { overflow-wrap: anywhere; }
 .tabel-rekap th, .tabel-rekap td { border: 1px solid var(--line);
                                    padding: 3px 4px; vertical-align: top; }
+/* Kepala tabelnya rata tengah, seluruhnya.
+   
+   Judul kolom di sini berdiri di atas kolom sempit dan hampir selalu patah
+   dua atau tiga baris — "Nama Konsumen", "Skema Cara Bayar". Rata kiri
+   membuat baris keduanya menggantung di tepi kiri sementara barisnya sendiri
+   lebih pendek daripada kolomnya, sehingga judul-judulnya tidak lagi terbaca
+   sebagai satu deret yang sejajar. Isinya tetap seperti semula: teks rata
+   kiri, angka rata kanan. */
 .tabel-rekap th { background: var(--fill); font-size: 8.5px; font-weight: 650;
-                  color: var(--sub); text-align: left; line-height: 1.3; }
+                  color: var(--sub); text-align: center; line-height: 1.3; }
 .tabel-rekap th .sub { font-weight: 500; color: var(--mut); }
-.tabel-rekap td.angka, .tabel-rekap th.angka { text-align: right; }
+.tabel-rekap td.angka { text-align: right; }
+/* Ditulis terpisah dan sesudahnya supaya tidak menarik kembali kolom angka
+   pada kepala tabel ke tepi kanan: `.tabel-rekap th.angka` lebih khusus
+   daripada `.tabel-rekap th`, dan menggabungkannya dengan td.angka di satu
+   baris akan mengalahkan rata tengah di atas tanpa tanda apa pun. */
+.tabel-rekap th.angka { text-align: center; }
 /* Angka rupiah tidak dipatahkan di tengah — "185.000." di satu baris dan
    "000" di baris berikutnya bukan angka lagi. Kolomnya sudah dipatok cukup
    lebar untuk menampungnya utuh. */
@@ -958,12 +975,65 @@ button.hapus-klaim:hover:not(:disabled) {
 .catatan-rekap ul { margin: 4px 0 0; padding-left: 16px; }
 .catatan-rekap .nilai { margin-left: 8px; font-weight: 650; }
 
-/* Lima blok tanda tangan berjajar, masing-masing dengan kotak dan garis nama
-   yang dibiarkan kosong — lihat keterangannya di komponennya. */
-.ttd-rekap { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px;
+/* Tautan "Edit" pada ringkasan klaim selesai: label yang menyembunyikan isian
+   berkas di baliknya. Isian berkas bawaan peramban menampilkan tombol beserta
+   tulisan "No file chosen" yang tidak dapat diatur — terlalu ramai untuk satu
+   baris ringkasan, dan tidak sejajar dengan tautan Lihat dan Unduh di
+   sebelahnya. */
+.ganti-berkas { margin-left: 12px; color: var(--ink); font-weight: 600;
+                text-decoration: underline; text-underline-offset: 2px;
+                cursor: pointer; }
+.ganti-berkas:hover { color: var(--note); }
+.ganti-berkas input { display: none; }
+.ganti-berkas:has(input:disabled) { color: var(--mut); cursor: default;
+                                    text-decoration: none; }
+
+/* Perbandingan tanda tangan di dalam kotak tinjauan: goresan tiap percobaan di
+   satu lajur, spesimen tersimpan di lajur sebelahnya. Dua lajur, bukan satu
+   deret: yang dikerjakan orang di sana membandingkan, dan membandingkan
+   menuntut keduanya terlihat bersamaan tanpa digulir. */
+.banding-ttd { display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+               margin: 10px 0 0; }
+.banding-ttd .lbl { margin-bottom: 4px; }
+.petak-goresan { border: 1px solid var(--line); background: #fff;
+                 border-radius: 4px; padding: 4px; margin-bottom: 6px; }
+.petak-goresan img { display: block; width: 100%; height: 64px;
+                     object-fit: contain; cursor: zoom-in; }
+
+/* Gambar yang diperbesar. Lapisannya di atas tirai kotak tinjauan — yang
+   membukanya tetap terbuka di belakang — dan gambarnya dibiarkan sebesar yang
+   muat di layar, sebab 64 piksel itulah yang membuat orang menekannya. */
+.tirai.zoom-ttd { z-index: 70; flex-direction: column; gap: 12px;
+                  background: rgba(21, 23, 26, .72); }
+/* width dan height, bukan max-width dan max-height: berkas goresannya sendiri
+   hanya beberapa ratus piksel, dan batas atas tidak pernah memperbesar apa
+   pun — ia hanya mengecilkan yang kelewat besar. Gambarnya lalu terbuka nyaris
+   sebesar aslinya, dan menekan "perbesar" tidak mengubah apa-apa.
+   object-fit: contain menjaga bandingannya, jadi pindaian KTP yang melebar
+   tetap utuh di dalam kotak yang sama. */
+.tirai.zoom-ttd img { width: 92vw; height: 80vh; object-fit: contain;
+                      background: #fff; border-radius: 4px; padding: 10px;
+                      box-shadow: 0 14px 40px rgba(21, 23, 26, .35); }
+.petak-goresan span { display: block; margin-top: 2px; font-size: 10.5px;
+                      color: var(--mut); text-align: center; }
+
+/* Empat ruang tanda tangan berjajar di bawah tiga sebutan; yang ketiga
+   membentang di atas dua ruang terakhir — lihat keterangannya di komponennya.
+
+   Dua baris, bukan satu: sebaris sebutan lalu sebaris ruangnya. Jarak
+   antarbarisnya dibuat kecil supaya sebutannya tetap terbaca sebagai judul
+   ruang di bawahnya, bukan sebagai baris yang berdiri sendiri. */
+.ttd-rekap { display: grid; grid-template-columns: repeat(4, 1fr);
+             column-gap: 14px; row-gap: 2px;
              margin-top: 22px; font-size: 10.5px; text-align: center; }
 .ttd-rekap .peran { color: var(--sub); }
+.ttd-rekap .peran.dua { grid-column: span 2; }
 .ttd-rekap .kotak-ttd { height: 56px; }
+/* Nama di ATAS garisnya, bukan di bawah — begitu lembar acuan kantor ditulis.
+   Yang membubuhkan tanda tangan sudah ditentukan jabatannya, jadi namanya
+   berdiri lebih dulu dan goresannya jatuh di ruang kosong di atasnya. */
+.ttd-rekap .nama-ttd { display: block; font-weight: 600; color: var(--ink);
+                       line-height: 1.3; }
 .ttd-rekap .garis-nama { border-top: 1px solid var(--ink); margin-top: 2px; }
 
 @media print {
@@ -973,13 +1043,50 @@ button.hapus-klaim:hover:not(:disabled) {
   .tscroll > .tabel-rekap { min-width: 0; }
   .tabel-rekap { font-size: 6.5px; }
   .tabel-rekap th { font-size: 6px; }
-  .tabel-rekap th, .tabel-rekap td { padding: 1.5px 2px; }
+  .tabel-rekap th, .tabel-rekap td { padding: 1px 2px; }
   /* Baris tidak dipatahkan di tengah halaman, dan judul bagian tidak pernah
      berdiri sendiri di kaki halaman tanpa satu baris pun di bawahnya. */
   .tabel-rekap tr { page-break-inside: avoid; }
   .tabel-rekap .judul-bagian { page-break-after: avoid; }
   .tabel-rekap thead { display: table-header-group; }
-  .ttd-rekap { page-break-inside: avoid; }
+
+  /* Ruang tanda tangan diberi jarak tetap dari catatan kaki, bukan didorong ke
+     kaki halaman.
+
+     Sempat dikerjakan dengan margin-top: auto di atas lembar setinggi halaman,
+     supaya sisa ruang berapa pun jatuh di atas tanda tangan. Ia menuntut satu
+     hal yang tidak dapat diketahui dari sini: tinggi halaman cetaknya. Margin
+     kertas ditentukan kotak cetak peramban, bukan CSS — orang yang memilih
+     "Custom" pada kotak itu mendapat tinggi halaman yang sama sekali lain
+     daripada yang ditulis @page. Lembar setinggi 6,1 inci pada halaman yang
+     ternyata tersisa 5,6 inci mendorong blok tanda tangannya ke halaman kedua,
+     dan itu benar-benar terjadi di meja orang: satu lembar berisi tabel yang
+     separuh kosong, satu lembar lagi berisi tanda tangan saja.
+
+     Jarak tetap tidak pernah tahu tinggi halaman, dan karena itu tidak pernah
+     salah menebaknya. Lembarnya setinggi isinya. */
+  .ttd-rekap { page-break-inside: avoid; margin-top: 18px; }
+  /* Margin bawah .lembar dinolkan: ia pemisah antarlembar di layar, dan pada
+     kertas pemisahnya page-break, bukan jarak. Delapan belas piksel yang
+     tertinggal di kaki lembar yang sudah penuh cukup untuk mendorongnya ke
+     halaman kedua. */
+  .lembar { margin-bottom: 0; }
+  .ttd-rekap .kotak-ttd { height: 44px; }
+  .ttd-rekap .nama-ttd { font-size: 9px; }
+
+  /* Kepala lembarnya dirapatkan supaya tabel, catatan, dan ruang tanda tangan
+     tetap muat pada satu halaman setelah marginnya dilebarkan menjadi satu
+     inci. Yang dikecilkan keterangan di sekelilingnya, bukan angkanya: yang
+     dibaca orang pada lembar ini deretan rupiahnya. */
+  .rekap-or .kop { padding-bottom: 2px; margin-bottom: 3px; }
+  .rekap-or .kop h1 { font-size: 11.5px; }
+  .rekap-or .judul-rekap { font-size: 11.5px; margin: 2px 0 2px; }
+  .rekap-or .kepala-rekap { font-size: 9px; line-height: 1.3; }
+  .rekap-or .sm-rekap { margin: 4px 0 3px; font-size: 10px; }
+  .rekap-or .sm-rekap > span:first-child { font-size: 9px; }
+  .catatan-rekap { margin-top: 5px; font-size: 8px; line-height: 1.35; }
+  .catatan-rekap ul { margin: 2px 0 0; }
+  .ttd-rekap { font-size: 9px; }
 }
 
 /* Bilah penyaring layar Data Marketing: tindakan di kiri, penyaring di kanan.
@@ -1569,7 +1676,15 @@ td.sel-keadaan .menunggu.stop { color: var(--stop); }
 /* Rekap Overiding melintang. Halaman bernama, bukan @page global kedua:
    satu jendela pratinjau dapat memuat formulir tegak dan rekap melintang
    sekaligus, dan @page global akan memutar keduanya. */
-@page rekap-melintang { size: A4 landscape; margin: 8mm 8mm; }
+/* Margin satu inci, sebagaimana surat kantor pada umumnya, bukan 8mm yang
+   dipilih demi memberi tabelnya ruang selebar mungkin. Lembar ini beredar
+   sampai ke tangan direksi dan ditandatangani di atas kertas; tepi yang sempit
+   membuatnya tampak seperti cetakan sistem, bukan dokumen kantor — dan tepi
+   kiri yang sempit hilang sebagian begitu lembarnya dijilid.
+
+   Tabelnya tidak kehilangan kolom karenanya: lebarnya 100% halaman, jadi ia
+   menyesuaikan diri terhadap ruang yang tersisa. */
+@page rekap-melintang { size: A4 landscape; margin: 1in; }
 .rekap-or { page: rekap-melintang; }
 
 @media print {

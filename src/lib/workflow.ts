@@ -935,6 +935,16 @@ export async function scanReturn(params: {
  */
 export async function hapusKlaim(
   claimId: string, actor: string, alasan: string, projectId?: string,
+  /**
+   * Boleh menghapus yang uangnya sudah keluar.
+   *
+   * Hanya Admin IT, sebagai jalan darurat untuk salah input yang terlanjur
+   * dibayar. Pagarnya tetap berdiri bagi peran lain: bukan karena Admin Sales
+   * kurang dipercaya, melainkan karena penghapusan seperti ini mengubah rekap
+   * pembayaran bulan yang sudah ditutup, dan itu keputusan yang tidak boleh
+   * diambil sambil lalu dari kolom Tindakan.
+   */
+  bolehSetelahDibayar = false,
 ) {
   const claim = await one<Record<string, any>>(
     "SELECT * FROM claims WHERE id=$1 AND ($2::uuid IS NULL OR project_id=$2)",
@@ -956,13 +966,16 @@ export async function hapusKlaim(
           JOIN payment_instructions pi ON pi.id = sl.instruction_id
          WHERE pi.claim_id=$1) AS pelunasan`,
     [claimId]);
-  if (SUDAH_BAYAR.includes(claim.status) ||
-      Number(uang?.dibayar ?? 0) > 0 || Number(uang?.pelunasan ?? 0) > 0) {
+  const sudahBayar = SUDAH_BAYAR.includes(claim.status) ||
+                     Number(uang?.dibayar ?? 0) > 0 ||
+                     Number(uang?.pelunasan ?? 0) > 0;
+  if (sudahBayar && !bolehSetelahDibayar) {
     throw new WorkflowError(
       `${claim.claim_number} sudah masuk pembayaran, jadi tidak dapat ` +
-      "dihapus. Menghapusnya menghapus catatan atas uang yang sudah keluar " +
-      "dan mengubah rekap pembayaran yang memuatnya. Yang keliru setelah " +
-      "dibayar dibereskan lewat clawback.", "sudah_dibayar", 409);
+      "dihapus dari sini. Menghapusnya menghapus catatan atas uang yang " +
+      "sudah keluar dan mengubah rekap pembayaran yang memuatnya. Yang " +
+      "keliru setelah dibayar dibereskan lewat clawback, atau dihapus Admin " +
+      "IT.", "sudah_dibayar", 409);
   }
 
   // Dihitung sebelum dihapus: setelah DELETE, tidak ada lagi yang dapat
@@ -976,12 +989,43 @@ export async function hapusKlaim(
          AS instruksi`,
     [claimId]);
 
+  // Baris pelunasan yang menunjuk ke instruksi transfer klaim ini.
+  //
+  // settlement_lines.instruction_id sengaja tanpa ON DELETE CASCADE: pelunasan
+  // adalah catatan uang keluar, dan basis data menolak ia hilang diam-diam
+  // mengikuti baris lain. Penghapusan oleh Admin IT harus melepaskannya
+  // sendiri — dan mencatat apa yang dilepaskannya, sebab setelah ini rekap
+  // periode itu berkurang sebanyak nilai tersebut.
+  const pelunasan = bolehSetelahDibayar
+    ? await query<{ id: string; settlement_id: string; amount: string }>(
+        `SELECT sl.id, sl.settlement_id, sl.amount
+           FROM settlement_lines sl
+           JOIN payment_instructions pi ON pi.id = sl.instruction_id
+          WHERE pi.claim_id = $1`, [claimId])
+    : [];
+
   await audit({
     entityType: "claim", entityId: claimId, action: "deleted",
     actor, reason: alasan.trim(),
     before: claim,
-    after: { status_saat_dihapus: claim.status, ikut_terhapus: ikut },
+    after: {
+      status_saat_dihapus: claim.status, ikut_terhapus: ikut,
+      sudah_dibayar: sudahBayar,
+      pelunasan_dilepas: pelunasan.map((l) => ({
+        settlement_id: l.settlement_id, amount: l.amount })),
+    },
   });
-  await query("DELETE FROM claims WHERE id=$1", [claimId]);
-  return { deleted: true, claim_number: claim.claim_number };
+
+  await tx(async (c) => {
+    if (pelunasan.length) {
+      await c.query(
+        `DELETE FROM settlement_lines WHERE id = ANY($1::uuid[])`,
+        [pelunasan.map((l) => l.id)]);
+    }
+    await c.query("DELETE FROM claims WHERE id=$1", [claimId]);
+  });
+  return {
+    deleted: true, claim_number: claim.claim_number,
+    sudah_dibayar: sudahBayar, pelunasan_dilepas: pelunasan.length,
+  };
 }

@@ -101,7 +101,7 @@ export type BagianRekap = {
 
 export type Rekap = {
   nomor: string;
-  project: { name: string; company_name: string | null } | null;
+  project: { slug: string; name: string; company_name: string | null } | null;
   cluster: string | null;
   periode_awal: string | null;
   periode_akhir: string | null;
@@ -283,7 +283,9 @@ export async function rekapOverriding(claimId: string): Promise<Rekap | null> {
     "SELECT id, full_name, marketing_type FROM marketings WHERE id=$1",
     [klaim.marketing_id]);
   const proyek = klaim.project_id
-    ? await one<any>("SELECT name, company_name FROM projects WHERE id=$1",
+    // slug ikut: penandatangan lembar ini ditentukan projectnya, dan slug-lah
+    // penanda project yang tidak berubah saat namanya diperbaiki.
+    ? await one<any>("SELECT slug, name, company_name FROM projects WHERE id=$1",
                      [klaim.project_id])
     : null;
 
