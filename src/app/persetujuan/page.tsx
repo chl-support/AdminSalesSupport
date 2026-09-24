@@ -160,6 +160,16 @@ const KATA = {
     ccBeresSemua: "Kedua crosscheck selesai; dokumen siap dicetak.",
     fokusSatu: "Menampilkan satu pengajuan.",
     fokusSemua: "Tampilkan semuanya",
+    hapTombol: "Hapus",
+    hapJudul: "Hapus pengajuan",
+    hapPengantar:
+      "Untuk pengajuan yang terlanjur salah input — unit, penerima, atau " +
+      "jenis feenya keliru. Yang terhapus beserta seluruh berkas, sesi tanda " +
+      "tangan, dan instruksi transfernya yang belum dibayar. Jejak auditnya " +
+      "tetap tersimpan.",
+    hapAlasan: "Alasan (minimal 10 karakter, tercatat pada jejak audit)",
+    hapKirim: "Hapus pengajuan ini", hapMengirim: "Menghapus…",
+    hapSelesai: (no: string) => `Pengajuan ${no} dihapus.`,
     byrTombol: "Input Data Pembayaran",
     byrJudul: "Pembayaran",
     byrTanggal: "Tanggal pembayaran",
@@ -277,6 +287,15 @@ const KATA = {
     ccBeresSemua: "Both crosschecks are done; the document is ready to print.",
     fokusSatu: "Showing a single submission.",
     fokusSemua: "Show all of them",
+    hapTombol: "Delete",
+    hapJudul: "Delete the submission",
+    hapPengantar:
+      "For a submission entered wrongly — the wrong unit, recipient or fee " +
+      "type. It goes together with its files, signing sessions and any " +
+      "unpaid transfer instruction. The audit trail stays.",
+    hapAlasan: "Reason (at least 10 characters, kept in the audit trail)",
+    hapKirim: "Delete this submission", hapMengirim: "Deleting…",
+    hapSelesai: (no: string) => `Submission ${no} has been deleted.`,
     byrTombol: "Record the payment",
     byrJudul: "Payment",
     byrTanggal: "Payment date",
@@ -462,6 +481,9 @@ export default function PersetujuanPage() {
   const [ttdUntuk, setTtdUntuk] = useState<string | null>(null);
   const [ttdAlasan, setTtdAlasan] = useState("");
   const [ccUntuk, setCcUntuk] = useState<string | null>(null);
+  /** Klaim yang sedang dihapus karena salah input. */
+  const [hapUntuk, setHapUntuk] = useState<string | null>(null);
+  const [hapAlasan, setHapAlasan] = useState("");
   const [byrUntuk, setByrUntuk] = useState<string | null>(null);
   const [byrTgl, setByrTgl] = useState("");
   const [byrBukti, setByrBukti] = useState<File | null>(null);
@@ -734,6 +756,32 @@ export default function PersetujuanPage() {
     } finally { setGerak(null); }
   };
 
+  /**
+   * Menghapus pengajuan yang salah input.
+   *
+   * Aturannya ditegakkan hapusKlaim() di server — alasan wajib, dan pengajuan
+   * yang uangnya sudah keluar ditolak. Yang dikerjakan layar hanya
+   * menyembunyikan tombolnya pada baris yang sudah pasti ditolak, supaya
+   * tidak ada yang menekan tombol yang berakhir galat.
+   */
+  const hapusKlaim = async (c: any) => {
+    setGerak(c.id); setGalat(null); setKabar(null);
+    try {
+      const res = await fetch(`/api/claims/${c.id}`, {
+        method: "DELETE", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason: hapAlasan.trim() }),
+      });
+      if (res.status === 401) { location.href = "/login"; return; }
+      const b = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(b.detail ?? b.title ?? `HTTP ${res.status}`);
+      setKabar(k.hapSelesai(c.claim_number));
+      setHapUntuk(null); setHapAlasan("");
+      await muat();
+    } catch (e: any) {
+      setGalat(String(e?.message ?? e));
+    } finally { setGerak(null); }
+  };
+
   const catatPembayaran = async (c: any) => {
     setGerak(c.id); setGalat(null); setKabar(null);
     try {
@@ -829,6 +877,14 @@ export default function PersetujuanPage() {
   const bolehCcAdmin = ["admin_sales", "admin_system"].includes(sesi.role);
   const bolehCcFinance = ["finance_manager", "finance_payment", "head_finance",
                           "admin_system"].includes(sesi.role);
+  // Persis daftar yang diterima DELETE /api/claims/[id].
+  const bolehHapus = ["admin_sales", "admin_system"].includes(sesi.role);
+  /**
+   * Pengajuan yang uangnya sudah keluar tidak dapat dihapus — endpoint-nya
+   * menolaknya, dan tombol yang selalu berakhir galat lebih buruk daripada
+   * tombol yang tidak ada.
+   */
+  const SUDAH_BAYAR = ["partially_paid", "paid", "completed"];
 
   const selesai = klaim.filter((c) => SELESAI.includes(c.status)).length;
   const jalan = klaim.length - selesai;
@@ -1151,6 +1207,19 @@ export default function PersetujuanPage() {
                     </button>
                   )}
 
+                  {/* Hapus, paling kanan dan paling akhir: pengajuan yang
+                      terlanjur salah input. Bukan pembatalan alur — mesin
+                      alur hanya mengenal pembatalan dari draft — melainkan
+                      penghapusan barisnya beserta berkas dan sesi tanda
+                      tangannya, dengan jejak audit yang tetap tinggal. */}
+                  {bolehHapus && !SUDAH_BAYAR.includes(c.status) && (
+                    <button className="hapus-klaim" disabled={gerak === c.id}
+                            onClick={() => { setHapUntuk(c.id);
+                                             setHapAlasan(""); }}>
+                      {k.hapTombol}
+                    </button>
+                  )}
+
                   {/* Dokumen full sign: tombol unggahnya muncul selama klaim
                       masih beredar, dan berganti menjadi tautan begitu
                       berkasnya ada — pratinjau yang dibuka setelah itu
@@ -1442,6 +1511,48 @@ export default function PersetujuanPage() {
               <div className="row" style={{ marginTop: 10, marginBottom: 0 }}>
                 <button disabled={gerak === c.id}
                         onClick={() => setCcUntuk(null)}>{k.batal}</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Penghapusan pengajuan yang salah input. Alasan wajib, dan namanya
+          disebut lengkap di dalam kotaknya: yang ditekan dari kolom yang
+          berisi belasan baris mudah tertuju ke baris yang salah, dan
+          penghapusan tidak punya jalan pulang. */}
+      {hapUntuk && (() => {
+        const c = klaim.find((x) => x.id === hapUntuk);
+        if (!c) return null;
+        return (
+          <div className="tirai"
+               onMouseDown={(e) => {
+                 if (e.target === e.currentTarget && !gerak) setHapUntuk(null);
+               }}>
+            <div className="popup" role="dialog" aria-modal="true"
+                 aria-label={k.hapJudul} style={{ maxWidth: 440 }}>
+              <h2 style={{ margin: "0 0 4px" }}>{k.hapJudul}</h2>
+              <p className="pengantar" style={{ margin: "0 0 4px" }}>
+                <b>{c.claim_number}</b> · {namaJenis(c.claim_type, bahasa)} ·{" "}
+                {c.unit?.code ?? "—"} · {c.marketing?.full_name ?? "—"} ·{" "}
+                {rp(c.net_amount)}
+              </p>
+              <p className="hint" style={{ textAlign: "left", margin: "0 0 10px" }}>
+                {k.hapPengantar}
+              </p>
+
+              <div className="lbl">{k.hapAlasan}</div>
+              <textarea value={hapAlasan} style={{ width: "100%", minHeight: 56 }}
+                        onChange={(e) => setHapAlasan(e.target.value)} />
+
+              <div className="row" style={{ marginTop: 10, marginBottom: 0 }}>
+                <button className="hapus-klaim"
+                        disabled={gerak === c.id || hapAlasan.trim().length < 10}
+                        onClick={() => void hapusKlaim(c)}>
+                  {gerak === c.id ? k.hapMengirim : k.hapKirim}
+                </button>
+                <button disabled={gerak === c.id}
+                        onClick={() => setHapUntuk(null)}>{k.batal}</button>
               </div>
             </div>
           </div>
