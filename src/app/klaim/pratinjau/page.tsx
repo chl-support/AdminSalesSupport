@@ -201,6 +201,28 @@ export default function PratinjauPage() {
                d] as [string, any]];
     });
 
+  /**
+   * Klaim yang pembayarannya sudah tercatat.
+   *
+   * Pada klaim seperti ini layar pratinjau menyisakan dokumen finalnya saja:
+   * formulir pengajuannya, tombol cetaknya, penghitung formulirnya, dan tombol
+   * pratinjau lampirannya sama-sama tidak tampil. Semuanya melayani pekerjaan
+   * yang sudah selesai ditempuh — memeriksa, mencetak, lalu mengedarkan
+   * formulirnya — dan yang dicari orang pada klaim lunas tinggal berkas
+   * hasilnya.
+   */
+  const lunas = (c: any) => Boolean(c?.tanggal_bayar);
+
+  /**
+   * Seluruh klaim yang sedang ditampilkan sudah lunas.
+   *
+   * Bilah atas melayani seluruh lembar sekaligus, bukan satu klaim, jadi ia
+   * baru boleh hilang ketika tidak ada satu pun lembar yang masih membutuhkan
+   * pekerjaan itu. Pratinjau yang memuat klaim lunas dan klaim berjalan
+   * sekaligus tetap menyimpan tombolnya.
+   */
+  const semuaLunas = klaim.length > 0 && klaim.every(lunas);
+
   /** Dialog cetak: klaim yang sedang disiapkan cetakannya. */
   const [siapCetakDialog, setSiapCetakDialog] = useState<string | null>(null);
   /** Pilihan dalam dialog cetak: formulirnya, dan lampiran mana saja. */
@@ -395,7 +417,7 @@ export default function PratinjauPage() {
     <div className="wrap jendela-pratinjau">
       <div className="row sp jangan-cetak">
         <b style={{ marginRight: "auto" }}>{k.judul}</b>
-        {klaim.length > 0 && (
+        {klaim.length > 0 && !semuaLunas && (
           <span className="pill">{k.jumlah(klaim.length)}</span>
         )}
         {/* Satu tombol saja, dan tombolnya mengikuti keadaan klaimnya.
@@ -413,7 +435,7 @@ export default function PratinjauPage() {
             {kirim ? k.mengirim : k.kirim}
           </button>
         )}
-        {bolehKirim && !belumKePajak.length && siapCetak && (
+        {bolehKirim && !belumKePajak.length && siapCetak && !semuaLunas && (
           <button className="pri" onClick={() => {
             // Satu klaim per jendela pratinjau pada alur cetak; yang pertama
             // sudah lewat tanda tangan itulah yang disiapkan cetakannya.
@@ -439,7 +461,7 @@ export default function PratinjauPage() {
           memang masih ada formulir yang tampil. Pada klaim yang sudah lunas
           formulirnya disembunyikan, dan kalimat itu lalu menunjuk sesuatu yang
           tidak ada di layar. */}
-      {klaim.some((c) => !c.tanggal_bayar) && !bolehKirim && (
+      {!semuaLunas && !bolehKirim && (
         <div className="banner warn jangan-cetak">{k.bukanAdmin}</div>
       )}
 
@@ -456,7 +478,7 @@ export default function PratinjauPage() {
               Disembunyikan, bukan dibuang. Tombol Cetak Form memanggil
               window.print() atas halaman ini juga; formulir yang dilepas dari
               DOM akan membuatnya mencetak kertas kosong. Lihat .hanya-cetak. */}
-          <div className={c.tanggal_bayar ? "hanya-cetak" : undefined}>
+          <div className={lunas(c) ? "hanya-cetak" : undefined}>
           {c.claim_type === "overriding" ? (
             rekap[c.id]
               ? <RekapOverriding rekap={rekap[c.id]} />
@@ -539,13 +561,17 @@ export default function PratinjauPage() {
           )}
 
           {/* Lampiran selengkapnya diperiksa dari sini, di luar formulirnya,
-              lewat tombol yang tidak ikut tercetak. */}
-          <div className="row jangan-cetak" style={{ margin: "10px 0 0" }}>
-            <button onClick={() => setLihatLampiran(c.id)}>
-              {k.lampiranTombol(
-                (c.documents ?? []).filter((d: any) => d.file_name).length)}
-            </button>
-          </div>
+              lewat tombol yang tidak ikut tercetak. Pada klaim lunas tombolnya
+              hilang: berkas yang dicari sudah berdiri sendiri di blok di atas,
+              lengkap dengan tautan lihat dan unduhnya. */}
+          {!lunas(c) && (
+            <div className="row jangan-cetak" style={{ margin: "10px 0 0" }}>
+              <button onClick={() => setLihatLampiran(c.id)}>
+                {k.lampiranTombol(
+                  (c.documents ?? []).filter((d: any) => d.file_name).length)}
+              </button>
+            </div>
+          )}
         </div>
       ))}
 
