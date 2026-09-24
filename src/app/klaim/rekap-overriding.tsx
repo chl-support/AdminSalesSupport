@@ -11,7 +11,8 @@
  * baris TOTAL-nya sendiri.
  *
  * Yang menandatangani pun berbeda: tidak ada kolom Pemohon di sini. Yang ada
- * Dibuat Oleh, Diperiksa Oleh, dan satu Disetujui Oleh.
+ * Dibuat Oleh, Diperiksa Oleh, dan Disetujui Oleh — yang terakhir membentang
+ * di atas dua ruang tanda tangan berdampingan.
  *
  * Tabelnya lebar — tiga puluh kolom lebih — jadi lembarnya melintang. Itu
  * memang bentuk aslinya; memaksanya tegak berarti mengecilkan hurufnya sampai
@@ -259,18 +260,28 @@ export function RekapOverriding({ rekap }: { rekap: Rekap }) {
         </div>
       )}
 
-      {/* Tiga blok tanda tangan. Acuannya memuat tiga "Disetujui Oleh"
-          berjajar; dua di antaranya dibuang atas permintaan kantor — yang
-          menyetujui rekap ini satu orang, dan dua kotak kosong di kiri dan
-          kanannya hanya menunggu diisi orang yang tidak pernah datang.
+      {/* Empat ruang tanda tangan, tiga sebutan.
+
+          Sebutan ketiga — "Disetujui Oleh," — membentang di atas dua ruang
+          terakhir dan berdiri di tengah keduanya: yang menyetujui rekap ini
+          dua orang yang menandatangani berdampingan, bukan dua jabatan yang
+          masing-masing perlu disebut. Acuannya menulisnya tiga kali; dua di
+          antaranya dibuang atas permintaan kantor.
+
+          Karena itu barisnya dua: sebaris sebutan, sebaris ruang tanda
+          tangannya. Sebutan yang membentang tidak dapat digambar sebagai
+          bagian dari satu blok — ia harus melintasi dua lajur sekaligus, dan
+          hanya petak yang dapat melakukannya.
 
           Namanya sengaja tidak dicetak: yang menandatangani berbeda menurut
           periodenya, dan nama yang tercetak sendiri mengundang lembar
           ditandatangani orang lain atas nama yang tertulis. */}
       <div className="ttd-rekap">
-        {["Dibuat Oleh,", "Diperiksa Oleh,", "Disetujui Oleh,"].map((t, i) => (
+        <span className="peran">Dibuat Oleh,</span>
+        <span className="peran">Diperiksa Oleh,</span>
+        <span className="peran dua">Disetujui Oleh,</span>
+        {[0, 1, 2, 3].map((i) => (
           <div key={i}>
-            <span className="peran">{t}</span>
             <div className="kotak-ttd" />
             <div className="garis-nama" />
           </div>

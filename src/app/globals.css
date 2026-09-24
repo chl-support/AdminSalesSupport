@@ -958,11 +958,31 @@ button.hapus-klaim:hover:not(:disabled) {
 .catatan-rekap ul { margin: 4px 0 0; padding-left: 16px; }
 .catatan-rekap .nilai { margin-left: 8px; font-weight: 650; }
 
-/* Tiga blok tanda tangan berjajar, masing-masing dengan kotak dan garis nama
-   yang dibiarkan kosong — lihat keterangannya di komponennya. */
-.ttd-rekap { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px;
+/* Perbandingan tanda tangan di dalam kotak tinjauan: goresan tiap percobaan di
+   satu lajur, spesimen tersimpan di lajur sebelahnya. Dua lajur, bukan satu
+   deret: yang dikerjakan orang di sana membandingkan, dan membandingkan
+   menuntut keduanya terlihat bersamaan tanpa digulir. */
+.banding-ttd { display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+               margin: 10px 0 0; }
+.banding-ttd .lbl { margin-bottom: 4px; }
+.petak-goresan { border: 1px solid var(--line); background: #fff;
+                 border-radius: 4px; padding: 4px; margin-bottom: 6px; }
+.petak-goresan img { display: block; width: 100%; height: 64px;
+                     object-fit: contain; }
+.petak-goresan span { display: block; margin-top: 2px; font-size: 10.5px;
+                      color: var(--mut); text-align: center; }
+
+/* Empat ruang tanda tangan berjajar di bawah tiga sebutan; yang ketiga
+   membentang di atas dua ruang terakhir — lihat keterangannya di komponennya.
+
+   Dua baris, bukan satu: sebaris sebutan lalu sebaris ruangnya. Jarak
+   antarbarisnya dibuat kecil supaya sebutannya tetap terbaca sebagai judul
+   ruang di bawahnya, bukan sebagai baris yang berdiri sendiri. */
+.ttd-rekap { display: grid; grid-template-columns: repeat(4, 1fr);
+             column-gap: 14px; row-gap: 2px;
              margin-top: 22px; font-size: 10.5px; text-align: center; }
 .ttd-rekap .peran { color: var(--sub); }
+.ttd-rekap .peran.dua { grid-column: span 2; }
 .ttd-rekap .kotak-ttd { height: 56px; }
 .ttd-rekap .garis-nama { border-top: 1px solid var(--ink); margin-top: 2px; }
 

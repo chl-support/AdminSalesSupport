@@ -141,6 +141,13 @@ const KATA = {
       "dokumen ini berhenti untuk diperiksa orang. Bandingkan dengan " +
       "spesimen yang tersimpan sebelum memutuskan.",
     ttdSkor: "Skor kemiripan",
+    ttdMemuat: "Memuat tanda tangannya…",
+    ttdGoresan: "Goresan yang baru dibuat",
+    ttdSpesimen: "Spesimen tersimpan",
+    ttdTanpaSpesimen: "Belum ada spesimen tersimpan untuk dibandingkan.",
+    ttdPercobaan: (n: number) => `Percobaan ke-${n}`,
+    ttdAmbang: (skor: number | null, ambang: number) =>
+      `Skor ${skor ?? "—"} dari ambang ${ambang}`,
     ttdAlasan: "Alasan (minimal 10 karakter, tercatat pada jejak audit)",
     ttdSetuju: "Setujui tanda tangannya",
     ttdTolak: "Tolak klaimnya",
@@ -273,6 +280,13 @@ const KATA = {
       "this document stopped for a person to look at. Compare it with the " +
       "stored specimen before deciding.",
     ttdSkor: "Similarity score",
+    ttdMemuat: "Loading the signatures…",
+    ttdGoresan: "The strokes just made",
+    ttdSpesimen: "Stored specimens",
+    ttdTanpaSpesimen: "There is no stored specimen to compare against.",
+    ttdPercobaan: (n: number) => `Attempt ${n}`,
+    ttdAmbang: (skor: number | null, ambang: number) =>
+      `Score ${skor ?? "—"} against a threshold of ${ambang}`,
     ttdAlasan: "Reason (at least 10 characters, kept in the audit trail)",
     ttdSetuju: "Approve the signature",
     ttdTolak: "Reject the claim",
@@ -374,6 +388,17 @@ function nomorWa(hp?: string | null): string {
  * tidak dapat diperlihatkan lagi maupun diterbitkan ulang, sehingga klaimnya
  * menggantung di situ tanpa satu pun jalan untuk menindaklanjuti.
  */
+/**
+ * Menyamakan dua bentuk tanda tangan tersimpan menjadi satu alamat gambar.
+ *
+ * Goresan dari kanvas datang lengkap dengan awalan `data:`, sedangkan spesimen
+ * yang dibangkitkan di server hanya base64 telanjang. Tanpa disamakan, separuh
+ * gambarnya tampil sebagai ikon rusak — dan yang rusak justru sebagian, jadi
+ * mudah dikira memang tidak ada tanda tangannya.
+ */
+const gambarTtd = (png?: string | null) =>
+  !png ? null : png.startsWith("data:") ? png : `data:image/png;base64,${png}`;
+
 const MENUNGGU_TAUTAN = ["tax_verified", "signature_link_sent",
                          "awaiting_signature"];
 
@@ -490,6 +515,28 @@ export default function PersetujuanPage() {
   }, []);
   const [ttdUntuk, setTtdUntuk] = useState<string | null>(null);
   const [ttdAlasan, setTtdAlasan] = useState("");
+  /**
+   * Goresan dan spesimen klaim yang sedang ditinjau.
+   *
+   * Kotaknya dulu hanya bertanya "setuju atau tolak" tanpa memperlihatkan apa
+   * pun — yang ditinjau adalah tanda tangan, dan yang meninjau tidak pernah
+   * melihatnya. Gambarnya berat, jadi diambil hanya ketika kotaknya dibuka,
+   * bukan ikut dalam daftar klaim yang dimuat tiap kali layar ini dibuka.
+   */
+  const [ttdBukti, setTtdBukti] = useState<any>(null);
+  useEffect(() => {
+    if (!ttdUntuk) { setTtdBukti(null); return; }
+    let batal = false;
+    void (async () => {
+      try {
+        const res = await fetch(`/api/claims/${ttdUntuk}/signature-attempts`);
+        if (!res.ok) return;
+        const b = await res.json();
+        if (!batal) setTtdBukti(b);
+      } catch { /* kotaknya tetap dapat dipakai tanpa gambarnya */ }
+    })();
+    return () => { batal = true; };
+  }, [ttdUntuk]);
   const [ccUntuk, setCcUntuk] = useState<string | null>(null);
   /** Klaim yang sedang dihapus karena salah input. */
   const [hapUntuk, setHapUntuk] = useState<string | null>(null);
@@ -1450,6 +1497,55 @@ export default function PersetujuanPage() {
               {c.signature_score != null && (
                 <div className="kode-tautan">
                   {k.ttdSkor}: <b>{c.signature_score}</b>
+                </div>
+              )}
+
+              {/* Yang ditinjau, diperlihatkan. Goresan tiap percobaan di
+                  sebelah kiri beserta skornya, spesimen tersimpan di sebelah
+                  kanan — membandingkan keduanya memang pekerjaan yang diminta
+                  di sini, dan tanpa gambarnya pertanyaannya tidak dapat
+                  dijawab. */}
+              {!ttdBukti ? (
+                <p className="hint" style={{ textAlign: "left" }}>
+                  {k.ttdMemuat}
+                </p>
+              ) : (
+                <div className="banding-ttd">
+                  <div>
+                    <div className="lbl">{k.ttdGoresan}</div>
+                    {(ttdBukti.attempts ?? []).map((a: any) => (
+                      <div key={a.id} className="petak-goresan">
+                        <img src={gambarTtd(a.image_png)!} alt="" />
+                        <span>
+                          {k.ttdPercobaan(a.attempt_number)} ·{" "}
+                          {k.ttdAmbang(a.score,
+                                       a.threshold_at_time ?? ttdBukti.threshold)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  <div>
+                    <div className="lbl">{k.ttdSpesimen}</div>
+                    {(() => {
+                      const sp = (ttdBukti.baseline_specimens ?? []).length
+                        ? ttdBukti.baseline_specimens
+                        : ttdBukti.reference_signature?.reference_signature_png
+                          ? [{ sequence: null,
+                               image_png: ttdBukti.reference_signature
+                                            .reference_signature_png }]
+                          : [];
+                      if (!sp.length) {
+                        return <p className="hint" style={{ textAlign: "left" }}>
+                          {k.ttdTanpaSpesimen}
+                        </p>;
+                      }
+                      return sp.map((x: any, i: number) => (
+                        <div key={i} className="petak-goresan">
+                          <img src={gambarTtd(x.image_png)!} alt="" />
+                        </div>
+                      ));
+                    })()}
+                  </div>
                 </div>
               )}
 
