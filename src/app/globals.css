@@ -1029,6 +1029,11 @@ button.hapus-klaim:hover:not(:disabled) {
 .ttd-rekap .peran { color: var(--sub); }
 .ttd-rekap .peran.dua { grid-column: span 2; }
 .ttd-rekap .kotak-ttd { height: 56px; }
+/* Nama di ATAS garisnya, bukan di bawah — begitu lembar acuan kantor ditulis.
+   Yang membubuhkan tanda tangan sudah ditentukan jabatannya, jadi namanya
+   berdiri lebih dulu dan goresannya jatuh di ruang kosong di atasnya. */
+.ttd-rekap .nama-ttd { display: block; font-weight: 600; color: var(--ink);
+                       line-height: 1.3; }
 .ttd-rekap .garis-nama { border-top: 1px solid var(--ink); margin-top: 2px; }
 
 @media print {
@@ -1070,7 +1075,11 @@ button.hapus-klaim:hover:not(:disabled) {
   .rekap-or { display: flex; flex-direction: column; min-height: 6.1in; }
   .lembar { margin-bottom: 0; }
   .ttd-rekap { page-break-inside: avoid; margin-top: auto; }
-  .ttd-rekap .kotak-ttd { height: 56px; }
+  /* Kotaknya dipendekkan sebanyak baris nama yang kini berdiri di atas
+     garisnya — tinggi blok tanda tangannya tetap sama, dan lembarnya tetap
+     satu halaman. Ruang goresannya masih 12mm di atas kertas. */
+  .ttd-rekap .kotak-ttd { height: 44px; }
+  .ttd-rekap .nama-ttd { font-size: 9px; }
 
   /* Kepala lembarnya dirapatkan supaya tabel, catatan, dan ruang tanda tangan
      tetap muat pada satu halaman setelah marginnya dilebarkan menjadi satu

@@ -20,6 +20,7 @@
  */
 
 import type { Rekap } from "@/lib/overriding";
+import { penandatanganRekap } from "@/lib/penandatangan";
 
 const rp = (n?: number | null) => (n ?? 0).toLocaleString("id-ID");
 
@@ -116,6 +117,7 @@ const KUMPULAN = KOLOM.reduce<
 
 export function RekapOverriding({ rekap }: { rekap: Rekap }) {
   const sm = rekap.sales_manager;
+  const ttd = penandatanganRekap(rekap.project?.slug);
   return (
     <div className="cetak rekap-or">
       <div className="kop">
@@ -276,16 +278,23 @@ export function RekapOverriding({ rekap }: { rekap: Rekap }) {
           bagian dari satu blok — ia harus melintasi dua lajur sekaligus, dan
           hanya petak yang dapat melakukannya.
 
-          Namanya sengaja tidak dicetak: yang menandatangani berbeda menurut
-          periodenya, dan nama yang tercetak sendiri mengundang lembar
-          ditandatangani orang lain atas nama yang tertulis. */}
+          Namanya dicetak di atas garisnya, ditentukan projectnya — lihat
+          penandatanganRekap(). Yang kosong tetap bergaris: pemeriksanya belum
+          ditetapkan untuk sebagian project, dan garis tanpa nama masih dapat
+          diisi tangan, sedangkan nama yang ditebak tidak dapat ditarik kembali
+          setelah lembarnya beredar. */}
       <div className="ttd-rekap">
         <span className="peran">Dibuat Oleh,</span>
         <span className="peran">Diperiksa Oleh,</span>
         <span className="peran dua">Disetujui Oleh,</span>
-        {[0, 1, 2, 3].map((i) => (
+        {[ttd.dibuat, ttd.diperiksa, ttd.disetujui[0], ttd.disetujui[1]]
+          .map((nama, i) => (
           <div key={i}>
             <div className="kotak-ttd" />
+            {/* Spasi mati, bukan span hampa: yang hampa tidak setinggi apa pun,
+                dan garis di bawahnya naik sebaris lebih tinggi daripada
+                tetangganya yang bernama. */}
+            <span className="nama-ttd">{nama || "\u00A0"}</span>
             <div className="garis-nama" />
           </div>
         ))}

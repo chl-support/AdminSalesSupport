@@ -18,6 +18,7 @@ import { collect, preview } from "../src/lib/report";
 import { KATEGORI_JENIS, kategoriAwal } from "../src/lib/kategori";
 import { hapusMarketing, tambahMarketing } from "../src/lib/spesimen";
 import { rekapOverriding } from "../src/lib/overriding";
+import { penandatanganRekap } from "../src/lib/penandatangan";
 import { seed } from "./seed";
 import { signaturePng, strokes } from "./synthetic-signature";
 
@@ -589,6 +590,37 @@ async function main() {
     assert(/tidak dapat dihapus/.test(tertolak), tertolak || "tidak menolak");
     const masih = await one("SELECT id FROM marketings WHERE id=$1", [inhouseId]);
     assert(Boolean(masih), "yang terpakai seharusnya tetap ada");
+  });
+
+  await check("penandatangan rekap Overiding mengikuti projectnya", async () => {
+    // Empat project di bawah PT. Serpong Bangun Cipta: pemeriksanya belum
+    // ditetapkan, jadi garisnya sengaja kosong.
+    for (const slug of ["banara-serpong", "naraya-serpong",
+                        "marchand-hype-station", "mazenta-residence"]) {
+      const t = penandatanganRekap(slug);
+      assert(t.dibuat === "Anneke Aprilia", `${slug}: ${t.dibuat}`);
+      assert(t.diperiksa === "", `${slug} seharusnya tanpa pemeriksa`);
+      assert(t.disetujui[0] === "Setia Iskandar", `${slug}: ${t.disetujui[0]}`);
+      assert(t.disetujui[1] === "Al Imron", `${slug}: ${t.disetujui[1]}`);
+    }
+
+    for (const slug of ["bio-district", "permai-indah"]) {
+      const t = penandatanganRekap(slug);
+      assert(t.dibuat === "Anneke Aprilia", `${slug}: ${t.dibuat}`);
+      assert(t.diperiksa === "Sugino", `${slug}: ${t.diperiksa}`);
+      assert(t.disetujui[0] === "Andreas Audyanto", `${slug}: ${t.disetujui[0]}`);
+      assert(t.disetujui[1] === "Al Imron", `${slug}: ${t.disetujui[1]}`);
+    }
+
+    // Project yang belum ditetapkan penandatangannya mendapat garis kosong,
+    // bukan nama rumpun terdekat. Nama yang ditebak tidak dapat ditarik
+    // kembali setelah lembarnya beredar dan ditandatangani.
+    const asing = penandatanganRekap("project-yang-belum-ada");
+    assert(asing.dibuat === "" && asing.diperiksa === "" &&
+           asing.disetujui[0] === "" && asing.disetujui[1] === "",
+           "project asing seharusnya tanpa nama");
+    assert(penandatanganRekap(null).dibuat === "",
+           "project kosong seharusnya tanpa nama");
   });
 
   await check("pengajuan salah input dapat dihapus; yang sudah dibayar " +
