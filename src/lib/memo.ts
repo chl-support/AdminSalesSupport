@@ -12,13 +12,14 @@
  * disetujui, padahal tidak.
  */
 
+import { BATAS_MEMO, PLAFON_TITIPAN } from "./batas";
 import { audit, one, query } from "./db";
 import { WorkflowError } from "./workflow";
 import type { BarisSkema } from "./memo-skema";
 
 /** Batas ukuran berkas memo. Lebih longgar daripada lampiran klaim: memo
  *  skema kerap berupa pindaian beberapa halaman. */
-export const BATAS = 10 * 1024 * 1024;
+export const BATAS = BATAS_MEMO;
 
 /**
  * Satu aturan berkas untuk memo dan lampirannya.
@@ -180,10 +181,16 @@ export async function simpanBagian(
   const besar = await one<{ n: string }>(
     `SELECT COALESCE(SUM(length(data)),0)::text AS n
        FROM memo_unggah_bagian WHERE unggah_id=$1`, [id]);
-  if (Number(besar!.n) + buf.length > BATAS) {
+  // Yang ditegakkan di sini plafon ruang titipannya, bukan batas memo. Ruang
+  // ini dipakai bersama — memo dan dokumen full sign menitip lewat jalur yang
+  // sama — dan batas memo yang dipasang di sini akan memutus pengiriman
+  // dokumen full sign di tengah jalan, dengan alasan yang bukan alasannya.
+  // Batas tiap fitur ditegakkan saat berkasnya disimpan.
+  if (Number(besar!.n) + buf.length > PLAFON_TITIPAN) {
     await query("DELETE FROM memo_unggah WHERE id=$1", [id]);
     throw new WorkflowError(
-      `Berkas melebihi batas ${BATAS / 1024 / 1024} MB.`, "file_too_large", 413);
+      `Berkas melebihi batas ${PLAFON_TITIPAN / 1024 / 1024} MB.`,
+      "file_too_large", 413);
   }
   await query(
     `INSERT INTO memo_unggah_bagian (unggah_id, urutan, data)

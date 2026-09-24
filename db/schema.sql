@@ -386,21 +386,22 @@ ALTER TABLE claim_documents ADD COLUMN IF NOT EXISTS source TEXT
   NOT NULL DEFAULT 'console';
 -- Batas ukuran lampiran, ditegakkan pula oleh basis data.
 --
--- Sepuluh megabita, naik dari tiga. Angka tiga dulu bukan pilihan melainkan
+-- Dua puluh megabita, naik dari tiga. Angka tiga dulu bukan pilihan melainkan
 -- pantulan: badan permintaan di Vercel berhenti di 4,5 MB dan base64
 -- membengkakkan berkas sepertiga, jadi berkas di atas tiga megabita memang
 -- tidak pernah sampai ke server. Sejak dokumen full sign dikirim bertahap —
--- lihat titipBerkas() dan BATAS_TITIPAN — batas itu tidak lagi berlaku, dan
+-- lihat titipBerkas() dan BATAS_FULL_SIGN — batas itu tidak lagi berlaku, dan
 -- yang tersisa hanyalah CHECK ini yang menolak pindaian belasan halaman
 -- dengan galat basis data, sesudah berkasnya susah payah terkirim utuh.
 --
--- Disamakan dengan BATAS_TITIPAN di src/lib/lampiran.ts. Keduanya harus
--- bergerak bersama: yang di sini menolak dengan galat basis data yang tidak
--- terbaca siapa pun, yang di sana dengan kalimat yang memberi tahu apa
--- yang harus dilakukan.
+-- 20971520 = BATAS_FULL_SIGN pada src/lib/batas.ts, dan harus bergerak
+-- bersamanya. SQL tidak dapat membaca TypeScript, jadi inilah satu-satunya
+-- salinan angka itu yang tidak dapat ikut ke berkas tersebut. Yang di sini
+-- menolak dengan galat basis data yang tidak terbaca siapa pun; yang di sana
+-- dengan kalimat yang memberi tahu apa yang harus dilakukan.
 ALTER TABLE claim_documents DROP CONSTRAINT IF EXISTS claim_documents_size_ck;
 ALTER TABLE claim_documents ADD CONSTRAINT claim_documents_size_ck
-  CHECK (size_bytes IS NULL OR size_bytes <= 10485760);
+  CHECK (size_bytes IS NULL OR size_bytes <= 20971520);
 
 CREATE INDEX IF NOT EXISTS idx_claim_documents_claim
   ON claim_documents(claim_id);
