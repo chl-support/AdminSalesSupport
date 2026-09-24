@@ -1135,50 +1135,6 @@ export default function PersetujuanPage() {
                     );
                   })}
 
-                  {/* Pengiriman tautan ke Sales/Agent, di dalam kolom Status
-                      dan hanya untuk Admin Sales — merekalah yang berhubungan
-                      dengan Sales/Agent, dan endpoint-nya pun menolak peran
-                      lain. Muncul hanya pada baris yang memang sedang menunggu
-                      tautannya; pada baris lain kolom ini tetap keterangan
-                      keadaan, bukan deretan tombol yang tak dapat ditekan. */}
-                  {/* Tautan yang sudah terbit pada layar ini tetap dapat
-                      dibuka, berapa pun statusnya sekarang — termasuk setelah
-                      Sales/Agent membukanya dan klaimnya berpindah ke
-                      "menunggu tanda tangan". Sebelumnya tombolnya ikut hilang
-                      pada perpindahan itu: tautannya masih berlaku, masih
-                      ditunggu tanda tangannya, tetapi tidak ada lagi yang
-                      dapat memperlihatkannya — statusnya menggantung tanpa
-                      satu pun jalan untuk menindaklanjuti.
-
-                      Dibuka kembali, bukan diterbitkan ulang: menerbitkan
-                      ulang menggugurkan tautan yang sudah ada di tangan
-                      Sales/Agent. */}
-                  {sesi.role === "admin_sales" &&
-                   (MENUNGGU_TAUTAN.includes(c.status) || tautan[c.id]) && (
-                    <div className="row" style={{ margin: "6px 0 0", gap: 6 }}>
-                      {MENUNGGU_TAUTAN.includes(c.status) && (
-                        c.marketing?.phone ? (
-                          <button disabled={mengirim !== null}
-                                  onClick={() => void kirimTautan(c)}>
-                            {mengirim === c.id ? k.waMengirim
-                              : c.status === "tax_verified" ? k.waKirim
-                              : k.waUlang}
-                          </button>
-                        ) : (
-                          <div className="menunggu"
-                               style={{ color: "var(--stop)" }}>
-                            {k.waTanpaHp}
-                          </div>
-                        )
-                      )}
-                      {tautan[c.id] && (
-                        <button className="tautan"
-                                onClick={() => setLihatTautan(c.id)}>
-                          {k.waLihat}
-                        </button>
-                      )}
-                    </div>
-                  )}
                 </td>
                 {/* Pratinjau dibuka di jendela tersendiri, sama seperti dari
                     layar Pengajuan Fee: yang dibuka adalah dokumen untuk
@@ -1189,6 +1145,46 @@ export default function PersetujuanPage() {
                             `/klaim/pratinjau?ids=${c.id}`, "_blank")}>
                     {k.pratinjau}
                   </button>
+
+                  {/* Pengiriman tautan ke Sales/Agent, hanya untuk Admin Sales
+                      — merekalah yang berhubungan dengan Sales/Agent, dan
+                      endpoint-nya pun menolak peran lain. Muncul hanya pada
+                      baris yang memang sedang menunggu tautannya.
+
+                      Letaknya di kolom Tindakan bersama tombol lain, bukan
+                      lagi di bawah keterangan tahap pada kolom Status. Kolom
+                      Status menceritakan keadaan; yang dapat ditekan orang
+                      berkumpul di satu tempat, supaya tidak ada tombol yang
+                      harus dicari di antara kalimat.
+
+                      Tautan yang sudah terbit tetap dapat dibuka, berapa pun
+                      statusnya sekarang — termasuk setelah Sales/Agent
+                      membukanya dan klaimnya berpindah ke "menunggu tanda
+                      tangan". Dibuka kembali, bukan diterbitkan ulang:
+                      menerbitkan ulang menggugurkan tautan yang sudah ada di
+                      tangan Sales/Agent. */}
+                  {sesi.role === "admin_sales" &&
+                   MENUNGGU_TAUTAN.includes(c.status) && (
+                    c.marketing?.phone ? (
+                      <button disabled={mengirim !== null}
+                              onClick={() => void kirimTautan(c)}>
+                        {mengirim === c.id ? k.waMengirim
+                          : c.status === "tax_verified" ? k.waKirim
+                          : k.waUlang}
+                      </button>
+                    ) : (
+                      <div className="menunggu"
+                           style={{ color: "var(--stop)", margin: "0 0 6px" }}>
+                        {k.waTanpaHp}
+                      </div>
+                    )
+                  )}
+
+                  {sesi.role === "admin_sales" && tautan[c.id] && (
+                    <button onClick={() => setLihatTautan(c.id)}>
+                      {k.waLihat}
+                    </button>
+                  )}
 
                   {/* Verifikasi pajak: hanya pada baris yang memang sedang
                       menunggunya, dan hanya bagi yang endpoint-nya menerima.
