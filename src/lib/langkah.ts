@@ -80,6 +80,42 @@ export const LANGKAH: {
   },
 ];
 
+/**
+ * Status sebelum sebuah pengajuan benar-benar sampai ke tim pajak.
+ *
+ * Langkah pertama berjudul "Pajak — Menunggu Verifikasi Data", dan itu benar
+ * hanya pada status terakhirnya. Klaim yang masih draft, baru terkirim, atau
+ * sedang diperiksa Admin Sales tampil dengan tulisan yang sama persis —
+ * sehingga yang membacanya mengira dokumennya sudah ada di tangan tim pajak,
+ * padahal tim pajak tidak melihatnya sama sekali dan pemberitahuan saat
+ * masuknya pun tidak menghitungnya.
+ *
+ * Keadaan itu nyata dan memakan waktu: yang menunggu jawaban pajak sebenarnya
+ * sedang menunggu dirinya sendiri menekan "Kirim ke Pajak".
+ */
+const BELUM_KE_PAJAK = ["draft", "submitted", "pending_admin_review"];
+
+/**
+ * Sebutan langkah menurut status klaimnya.
+ *
+ * Hanya langkah pertama yang berubah, dan hanya sebelum klaimnya sampai ke
+ * pajak. Sisanya mengikuti LANGKAH apa adanya.
+ */
+export function sebutanLangkah(
+  l: (typeof LANGKAH)[number], status: string,
+): { pihak: { id: string; en: string }; kerja: { id: string; en: string } } {
+  if (l.n !== 1 || !BELUM_KE_PAJAK.includes(status)) {
+    return { pihak: l.pihak, kerja: l.kerja };
+  }
+  return {
+    pihak: { id: "Admin Sales", en: "Sales Admin" },
+    kerja: status === "pending_admin_review"
+      ? { id: "Menunggu diteruskan ke Pajak",
+          en: "Awaiting forwarding to Tax" }
+      : { id: "Belum dikirim ke Pajak", en: "Not sent to Tax yet" },
+  };
+}
+
 export type Keadaan = "usai" | "kini" | "nanti" | "stop";
 
 /**

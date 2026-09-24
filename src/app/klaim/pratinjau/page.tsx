@@ -249,13 +249,34 @@ export default function PratinjauPage() {
   /** Dokumen yang wajib dicentang untuk satu klaim. */
   const wajib = (c: any): string[] => DOKUMEN[c.claim_type as Jenis] ?? [];
 
-  /** Klaim yang masih berupa draft — yang lain sudah berjalan, tidak dikirim lagi. */
+  /** Klaim yang masih berupa draft — checklist dokumennya diisi di sini. */
   const masihDraft = klaim.filter((c) => c.status === "draft");
+
+  /**
+   * Klaim yang belum sampai ke tim pajak.
+   *
+   * Termasuk yang sudah diajukan tetapi belum diteruskan. "Kirim ke Pajak"
+   * dua langkah; bila yang kedua gagal — jaringan putus, jendela tertutup —
+   * klaimnya berhenti di "menunggu diteruskan ke Pajak", dan sebelumnya
+   * tombolnya tidak muncul lagi untuk klaim itu sama sekali. Satu-satunya
+   * tempat penerusan itu dapat dilakukan adalah layar konsol, yang butir
+   * menunya sudah dibuang — jadi klaimnya benar-benar buntu.
+   */
+  const belumKePajak = klaim.filter(
+    (c) => c.status === "draft" || c.status === "pending_admin_review");
 
   /** Ada klaim yang sudah lewat tanda tangan — formulirnya siap dicetak. */
   const siapCetak = klaim.some((c) => SESUDAH_TTD.includes(c.status));
 
-  const lengkap = masihDraft.length > 0 &&
+  /**
+   * Checklist dokumennya sudah lengkap untuk yang akan dikirim.
+   *
+   * Yang dinilai hanya draft: klaim yang sudah diajukan melewati pemeriksaan
+   * checklist itu saat diajukan, dan dokumennya sudah tercatat. Tanpa satu pun
+   * draft di jendela ini — hanya yang tersangkut di "menunggu diteruskan" —
+   * tidak ada yang perlu dicentang, dan tombolnya harus tetap dapat ditekan.
+   */
+  const lengkap = belumKePajak.length > 0 &&
     masihDraft.every((c) => wajib(c).every((d) => ceklis[`${c.id}:${d}`]));
 
   /**
@@ -271,7 +292,7 @@ export default function PratinjauPage() {
     const gagal: string[] = [];
     let berhasil = 0;
     try {
-      for (const c of masihDraft) {
+      for (const c of belumKePajak) {
         try {
           const daftar = wajib(c);
           for (let i = 0; i < daftar.length; i++) {
@@ -303,9 +324,21 @@ export default function PratinjauPage() {
               }
             }
           }
-          const s1 = await fetch(`/api/claims/${c.id}/submit`, { method: "POST" });
-          const b1 = await s1.json().catch(() => ({}));
-          if (!s1.ok) throw new Error(b1.detail ?? b1.title ?? `HTTP ${s1.status}`);
+          // "Kirim ke Pajak" dua langkah: ajukan, lalu teruskan. Yang sudah
+          // melewati langkah pertama tidak mengulanginya — /submit hanya
+          // menerima klaim berstatus draft, dan mengulangnya atas klaim yang
+          // sudah diajukan berakhir dengan "perpindahan tidak diizinkan".
+          //
+          // Keadaan itu nyata: langkah pertama berhasil lalu yang kedua gagal
+          // — jaringan putus, jendela tertutup — dan klaimnya berhenti di
+          // "menunggu diteruskan ke Pajak". Tanpa perkecualian ini, menekan
+          // tombolnya lagi selalu gagal pada langkah yang sudah selesai, dan
+          // klaim itu tidak punya jalan lain ke tim pajak sama sekali.
+          if (c.status !== "pending_admin_review") {
+            const s1 = await fetch(`/api/claims/${c.id}/submit`, { method: "POST" });
+            const b1 = await s1.json().catch(() => ({}));
+            if (!s1.ok) throw new Error(b1.detail ?? b1.title ?? `HTTP ${s1.status}`);
+          }
 
           const s2 = await fetch(`/api/claims/${c.id}/admin-review`, {
             method: "POST", headers: { "Content-Type": "application/json" },
@@ -345,13 +378,13 @@ export default function PratinjauPage() {
 
             Tanpa tombol tutup di sebelahnya: tombol tutup mengundang jendela
             ditutup sebelum klaimnya berjalan ke mana pun. */}
-        {bolehKirim && masihDraft.length > 0 && (
+        {bolehKirim && belumKePajak.length > 0 && (
           <button className="pri" disabled={!lengkap || kirim}
                   onClick={() => void kirimKePajak()}>
             {kirim ? k.mengirim : k.kirim}
           </button>
         )}
-        {bolehKirim && !masihDraft.length && siapCetak && (
+        {bolehKirim && !belumKePajak.length && siapCetak && (
           <button className="pri" onClick={() => {
             // Satu klaim per jendela pratinjau pada alur cetak; yang pertama
             // sudah lewat tanda tangan itulah yang disiapkan cetakannya.

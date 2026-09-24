@@ -33,7 +33,8 @@ import { useSesi } from "../session";
 import { namaJenis } from "../klaim/jenis";
 import { namaKategori } from "@/lib/kategori";
 import { TAHAP, bolehGerak, tahapDari } from "@/lib/tahap";
-import { LANGKAH, keadaanLangkah, warnaLangkah } from "@/lib/langkah";
+import { LANGKAH, keadaanLangkah, sebutanLangkah, warnaLangkah }
+  from "@/lib/langkah";
 // Pemecah berkas yang sudah terbukti pada memo. Mekanismenya tidak
 // memo-spesifik — ia hanya menjaga agar satu permintaan tidak pernah melampaui
 // batas fungsi serverless — dan menyalinnya ke sini berarti dua salinan yang
@@ -779,13 +780,19 @@ export default function PersetujuanPage() {
                     const kat = kategori(c, k, bahasa);
                     const ganti = (t: string) =>
                       kat ? t.replace("Sales/Agent", kat) : t;
+                    // Langkah pertama menyebut Admin Sales, bukan Pajak,
+                    // selama dokumennya memang belum dikirim ke sana — lihat
+                    // sebutanLangkah().
+                    const sebutan = sebutanLangkah(l, c.status);
                     return (
                       <div className="langkah-keadaan" key={l.n}>
                         <span className={`kotak-keadaan ${warnaLangkah(ling)}`}>
-                          {ganti(bahasa === "en" ? l.pihak.en : l.pihak.id)}
+                          {ganti(bahasa === "en"
+                            ? sebutan.pihak.en : sebutan.pihak.id)}
                         </span>
                         <div className={`menunggu ${warnaLangkah(ling)}`}>
-                          {ganti(bahasa === "en" ? l.kerja.en : l.kerja.id)}
+                          {ganti(bahasa === "en"
+                            ? sebutan.kerja.en : sebutan.kerja.id)}
                         </div>
 
                         {/* Pemilih tahap peredaran dokumen, di dalam langkah
