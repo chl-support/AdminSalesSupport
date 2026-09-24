@@ -17,6 +17,7 @@ import { applyRate, ratio, rupiahWords, terbilang } from "../src/lib/money";
 import { collect, preview } from "../src/lib/report";
 import { KATEGORI_JENIS, kategoriAwal } from "../src/lib/kategori";
 import { hapusMarketing, tambahMarketing } from "../src/lib/spesimen";
+import { rekapOverriding } from "../src/lib/overriding";
 import { seed } from "./seed";
 import { signaturePng, strokes } from "./synthetic-signature";
 
@@ -588,6 +589,70 @@ async function main() {
     assert(/tidak dapat dihapus/.test(tertolak), tertolak || "tidak menolak");
     const masih = await one("SELECT id FROM marketings WHERE id=$1", [inhouseId]);
     assert(Boolean(masih), "yang terpakai seharusnya tetap ada");
+  });
+
+  await check("rekap Overriding memilah unit menurut keadaannya", async () => {
+    // Overriding dicetak sebagai Detail Perhitungan per periode, bukan lembar
+    // per unit. Yang diuji di sini pemilahannya — unit batal tidak boleh
+    // tercampur ke bagian yang sedang diajukan, dan totalnya dihitung per
+    // bagian, bukan seluruh tabel.
+    // Penerimanya tingkat di atas yang menjual — dan rekapnya disusun menurut
+    // unit-unit milik orang itu, jadi yang dipakai harus benar-benar
+    // koordinator unitnya, bukan sembarang marketing.
+    const ko = await one<{ id: string }>(
+      `SELECT COALESCE(sub_coordinator_id, coordinator_id) AS id
+         FROM units WHERE id=$1`, [unit]);
+    assert(Boolean(ko?.id), "unit contoh tidak punya koordinator");
+    const c = await wf.createClaim({
+      unitId: unit, marketingId: ko!.id, claimType: "overriding",
+      recipientRole: "sales_manager_inhouse",
+      overridingLevel: "sales_manager_inhouse", actor: "admin" });
+    const rekap = await rekapOverriding(c.id);
+    assert(Boolean(rekap), "rekapnya seharusnya ada");
+    assert(rekap!.nomor === c.claim_number, String(rekap!.nomor));
+    assert(rekap!.sales_manager?.full_name != null, "Sales Manager kosong");
+    assert(rekap!.bagian.length > 0, "tidak ada satu bagian pun");
+
+    // Setiap bagian menomori barisnya sendiri dari satu, seperti pada
+    // acuannya — bukan bernomor menerus sepanjang tabel.
+    for (const b of rekap!.bagian) {
+      assert(b.baris[0]?.no === 1, `${b.judul}: nomor pertama ${b.baris[0]?.no}`);
+      const jumlahNet = b.baris.reduce((t, r) => t + r.net, 0);
+      assert(b.total.net === jumlahNet,
+             `${b.judul}: total ${b.total.net} vs ${jumlahNet}`);
+    }
+
+    // DPP Nilai Lain adalah 11/12 dari nilai tanpa PPN — aturannya sendiri,
+    // bukan pembulatan.
+    const r0 = rekap!.bagian[0].baris[0];
+    assert(r0.dpp_nilai_lain === Math.round(r0.nilai_excl * 11 / 12),
+           `${r0.dpp_nilai_lain} vs ${Math.round(r0.nilai_excl * 11 / 12)}`);
+
+    // Selisih Overiding: bagian hak yang belum terbayar, mengikuti rumus pada
+    // berkas acuannya. Yang belum menghasilkan pembayaran sama sekali membawa
+    // seluruh haknya ke sini; PPh-nya 2,5% dan yang dipotong PPh 21, bukan
+    // PPh 23 seperti pada blok di sebelahnya.
+    const semua = rekap!.bagian.flatMap((b) => b.baris);
+    const belumBayar = semua.filter((r) => r.net === 0 && r.selisih_persen);
+    for (const r of belumBayar) {
+      assert(r.selisih_amount ===
+               Math.round(r.nilai_excl * Number(r.selisih_persen)),
+             `selisih ${r.unit}: ${r.selisih_amount}`);
+      assert(r.selisih_pph21 === Math.round(r.selisih_amount * 0.025),
+             `pph21 ${r.unit}: ${r.selisih_pph21}`);
+      assert(r.selisih_net === r.selisih_amount - r.selisih_pph21,
+             `net selisih ${r.unit}: ${r.selisih_net}`);
+    }
+    // Totalnya dijumlah per bagian, sama seperti kolom lainnya.
+    for (const b of rekap!.bagian) {
+      assert(b.total.selisih_net ===
+               b.baris.reduce((t, r) => t + r.selisih_net, 0),
+             `${b.judul}: total selisih ${b.total.selisih_net}`);
+    }
+
+    // Klaim jenis lain tidak punya rekap: dokumennya memang lembar per unit.
+    const bukan = await rekapOverriding(cid);
+    assert(bukan === null, "klaim non-Overriding seharusnya tanpa rekap");
   });
 
   await check("rekap memakai tanggal transfer, bukan tanggal input", async () => {

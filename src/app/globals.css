@@ -887,6 +887,66 @@ ul.cetak-ceklis .kotak { border: 1px solid var(--ink); width: 14px; height: 14px
                              font-size: 11.5px; }
 .hapus-baris button.tautan:hover { color: var(--stop); }
 
+/* ---- Detail Perhitungan Overiding -------------------------------------- */
+/* Tabelnya tiga puluh kolom lebih; lembarnya melintang, dan hurufnya kecil
+   karena memang begitu bentuk aslinya. Yang tidak boleh terjadi adalah angka
+   rupiah terpotong — jadi kolom angka tidak pernah dipatahkan. */
+.rekap-or .judul-rekap { margin: 10px 0 2px; font-size: 14px; text-align: center; }
+.rekap-or .kepala-rekap { text-align: center; font-size: 11.5px;
+                          color: var(--sub); line-height: 1.5; }
+.rekap-or .sm-rekap { display: flex; gap: 8px; align-items: baseline;
+                      margin: 12px 0 6px; font-size: 12.5px; }
+.rekap-or .sm-rekap > span:first-child { color: var(--sub); }
+.rekap-or .sm-rekap .jenis { color: var(--mut); font-size: 11.5px; }
+
+/* table-layout: fixed — lebar kolomnya dipatok colgroup, bukan ditentukan
+   isinya. Tanpa itu satu nama konsumen yang panjang melebarkan kolomnya pada
+   seluruh baris, dan kolom paling kanan terdorong keluar halaman. */
+.tabel-rekap { width: 100%; border-collapse: collapse; font-size: 9px;
+               table-layout: fixed; }
+.tabel-rekap th, .tabel-rekap td { overflow-wrap: anywhere; }
+.tabel-rekap th, .tabel-rekap td { border: 1px solid var(--line);
+                                   padding: 3px 4px; vertical-align: top; }
+.tabel-rekap th { background: var(--fill); font-size: 8.5px; font-weight: 650;
+                  color: var(--sub); text-align: left; line-height: 1.3; }
+.tabel-rekap th .sub { font-weight: 500; color: var(--mut); }
+.tabel-rekap td.angka, .tabel-rekap th.angka { text-align: right; }
+/* Angka rupiah tidak dipatahkan di tengah — "185.000." di satu baris dan
+   "000" di baris berikutnya bukan angka lagi. Kolomnya sudah dipatok cukup
+   lebar untuk menampungnya utuh. */
+.tabel-rekap td.angka { white-space: nowrap; }
+.tabel-rekap .judul-bagian td { background: var(--ink); color: #fff;
+                                font-weight: 650; font-size: 9.5px;
+                                letter-spacing: .02em; }
+.tabel-rekap .total-bagian td { background: var(--fill); font-weight: 700; }
+
+.catatan-rekap { margin-top: 10px; font-size: 10.5px; }
+.catatan-rekap ul { margin: 4px 0 0; padding-left: 16px; }
+.catatan-rekap .nilai { margin-left: 8px; font-weight: 650; }
+
+/* Lima blok tanda tangan berjajar, masing-masing dengan kotak dan garis nama
+   yang dibiarkan kosong — lihat keterangannya di komponennya. */
+.ttd-rekap { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px;
+             margin-top: 22px; font-size: 10.5px; text-align: center; }
+.ttd-rekap .peran { color: var(--sub); }
+.ttd-rekap .kotak-ttd { height: 56px; }
+.ttd-rekap .garis-nama { border-top: 1px solid var(--ink); margin-top: 2px; }
+
+@media print {
+  /* Melintang, dan hanya untuk lembar ini: formulir jenis lain tetap tegak. */
+  .rekap-or { padding: 0; }
+  .rekap-or .tscroll { overflow: visible; }
+  .tabel-rekap { font-size: 6.5px; }
+  .tabel-rekap th { font-size: 6px; }
+  .tabel-rekap th, .tabel-rekap td { padding: 1.5px 2px; }
+  /* Baris tidak dipatahkan di tengah halaman, dan judul bagian tidak pernah
+     berdiri sendiri di kaki halaman tanpa satu baris pun di bawahnya. */
+  .tabel-rekap tr { page-break-inside: avoid; }
+  .tabel-rekap .judul-bagian { page-break-after: avoid; }
+  .tabel-rekap thead { display: table-header-group; }
+  .ttd-rekap { page-break-inside: avoid; }
+}
+
 /* Bilah penyaring layar Data Marketing: tindakan di kiri, penyaring di kanan.
    Keduanya berjajar pada satu baris sampai layarnya sempit, lalu bertumpuk —
    pemilih yang terdorong keluar layar tidak dapat dipakai sama sekali. */
@@ -1471,6 +1531,11 @@ td.sel-keadaan .menunggu.stop { color: var(--stop); }
    dirapatkan di sini supaya muat. Angka-angkanya bukan tebakan: diukur dengan
    mencetak keempat jenis fee ke PDF A4 dan menghitung halamannya. */
 @page { size: A4 portrait; margin: 10mm 11mm; }
+/* Rekap Overiding melintang. Halaman bernama, bukan @page global kedua:
+   satu jendela pratinjau dapat memuat formulir tegak dan rekap melintang
+   sekaligus, dan @page global akan memutar keduanya. */
+@page rekap-melintang { size: A4 landscape; margin: 8mm 8mm; }
+.rekap-or { page: rekap-melintang; }
 
 @media print {
   html, body { font-size: 11px; }
