@@ -145,6 +145,8 @@ const KATA = {
     ttdGoresan: "Goresan yang baru dibuat",
     ttdSpesimen: "Spesimen tersimpan",
     ttdTanpaSpesimen: "Belum ada spesimen tersimpan untuk dibandingkan.",
+    ttdPerbesar: "Perbesar gambarnya",
+    ttdTutupGambar: "Tutup",
     ttdPercobaan: (n: number) => `Percobaan ke-${n}`,
     ttdAmbang: (skor: number | null, ambang: number) =>
       `Skor ${skor ?? "—"} dari ambang ${ambang}`,
@@ -284,6 +286,8 @@ const KATA = {
     ttdGoresan: "The strokes just made",
     ttdSpesimen: "Stored specimens",
     ttdTanpaSpesimen: "There is no stored specimen to compare against.",
+    ttdPerbesar: "Enlarge this image",
+    ttdTutupGambar: "Close",
     ttdPercobaan: (n: number) => `Attempt ${n}`,
     ttdAmbang: (skor: number | null, ambang: number) =>
       `Score ${skor ?? "—"} against a threshold of ${ambang}`,
@@ -524,6 +528,14 @@ export default function PersetujuanPage() {
    * bukan ikut dalam daftar klaim yang dimuat tiap kali layar ini dibuka.
    */
   const [ttdBukti, setTtdBukti] = useState<any>(null);
+  /**
+   * Gambar yang sedang diperbesar.
+   *
+   * Goresan di dalam kotak tinjauan tingginya 64 piksel — cukup untuk tahu ada
+   * tanda tangannya, tidak cukup untuk memutuskan ia goresan orang yang sama.
+   * Yang diminta di sana justru keputusan itu.
+   */
+  const [ttdZoom, setTtdZoom] = useState<string | null>(null);
   useEffect(() => {
     if (!ttdUntuk) { setTtdBukti(null); return; }
     let batal = false;
@@ -1515,7 +1527,9 @@ export default function PersetujuanPage() {
                     <div className="lbl">{k.ttdGoresan}</div>
                     {(ttdBukti.attempts ?? []).map((a: any) => (
                       <div key={a.id} className="petak-goresan">
-                        <img src={gambarTtd(a.image_png)!} alt="" />
+                        <img src={gambarTtd(a.image_png)!} alt=""
+                             title={k.ttdPerbesar}
+                             onClick={() => setTtdZoom(gambarTtd(a.image_png))} />
                         <span>
                           {k.ttdPercobaan(a.attempt_number)} ·{" "}
                           {k.ttdAmbang(a.score,
@@ -1541,7 +1555,9 @@ export default function PersetujuanPage() {
                       }
                       return sp.map((x: any, i: number) => (
                         <div key={i} className="petak-goresan">
-                          <img src={gambarTtd(x.image_png)!} alt="" />
+                          <img src={gambarTtd(x.image_png)!} alt=""
+                               title={k.ttdPerbesar}
+                               onClick={() => setTtdZoom(gambarTtd(x.image_png))} />
                         </div>
                       ));
                     })()}
@@ -1570,6 +1586,25 @@ export default function PersetujuanPage() {
           </div>
         );
       })()}
+
+      {/* Gambar yang diperbesar, di atas kotak tinjauan yang membukanya.
+
+          Tirai tersendiri dengan lapisan lebih tinggi: kotak tinjauannya tetap
+          terbuka di belakang, sehingga menutup gambarnya mengembalikan orang
+          ke tempat ia berhenti — bukan ke daftar, dengan alasan yang sudah
+          diketik ikut hilang.
+
+          Ditutup dengan menekan di mana saja. Tidak ada yang dapat dilakukan
+          di lapisan ini selain melihat, jadi setiap tekanan berarti sudah
+          selesai melihat. */}
+      {ttdZoom && (
+        <div className="tirai zoom-ttd" onMouseDown={() => setTtdZoom(null)}>
+          <img src={ttdZoom} alt="" />
+          <button className="pri" onClick={() => setTtdZoom(null)}>
+            {k.ttdTutupGambar}
+          </button>
+        </div>
+      )}
 
       {/* Crosscheck sebelum cetak. Dua pihak, dua tombol — masing-masing
           hilang begitu pihaknya selesai, sehingga yang tersisa di layar

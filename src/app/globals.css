@@ -902,10 +902,14 @@ button.hapus-klaim:hover:not(:disabled) {
    rupiah terpotong — jadi kolom angka tidak pernah dipatahkan. */
 /* display: block, bukan sekadar text-align: `.panel h2` di atas menjadikan
    judul ini kotak flex, dan pada kotak flex text-align tidak berpengaruh apa
-   pun terhadap satu-satunya isinya — selama ini ia tertulis rata tengah tetapi
-   tampil rata kiri. Sekarang rata kirinya disengaja. */
+   pun terhadap satu-satunya isinya.
+
+   Garis bawahnya pun dari sana, dan dicabut di sini: judul ini sudah diikuti
+   keterangan kluster, periode, dan cut off, dan garis di antara keduanya
+   memisahkan yang justru harus terbaca bersama. */
 .rekap-or .judul-rekap { display: block; margin: 10px 0 2px; font-size: 14px;
-                         text-align: left; }
+                         text-align: left; padding-bottom: 0;
+                         border-bottom: none; }
 /* Rata kiri, bukan rata tengah: keterangan kluster, periode, dan cut off
    berdiri sejajar dengan judul rekap dan dengan tepi kiri tabelnya, sehingga
    ketiganya terbaca sebagai satu lajur — bukan satu blok mengambang di tengah
@@ -941,10 +945,23 @@ button.hapus-klaim:hover:not(:disabled) {
 .tabel-rekap th, .tabel-rekap td { overflow-wrap: anywhere; }
 .tabel-rekap th, .tabel-rekap td { border: 1px solid var(--line);
                                    padding: 3px 4px; vertical-align: top; }
+/* Kepala tabelnya rata tengah, seluruhnya.
+   
+   Judul kolom di sini berdiri di atas kolom sempit dan hampir selalu patah
+   dua atau tiga baris — "Nama Konsumen", "Skema Cara Bayar". Rata kiri
+   membuat baris keduanya menggantung di tepi kiri sementara barisnya sendiri
+   lebih pendek daripada kolomnya, sehingga judul-judulnya tidak lagi terbaca
+   sebagai satu deret yang sejajar. Isinya tetap seperti semula: teks rata
+   kiri, angka rata kanan. */
 .tabel-rekap th { background: var(--fill); font-size: 8.5px; font-weight: 650;
-                  color: var(--sub); text-align: left; line-height: 1.3; }
+                  color: var(--sub); text-align: center; line-height: 1.3; }
 .tabel-rekap th .sub { font-weight: 500; color: var(--mut); }
-.tabel-rekap td.angka, .tabel-rekap th.angka { text-align: right; }
+.tabel-rekap td.angka { text-align: right; }
+/* Ditulis terpisah dan sesudahnya supaya tidak menarik kembali kolom angka
+   pada kepala tabel ke tepi kanan: `.tabel-rekap th.angka` lebih khusus
+   daripada `.tabel-rekap th`, dan menggabungkannya dengan td.angka di satu
+   baris akan mengalahkan rata tengah di atas tanpa tanda apa pun. */
+.tabel-rekap th.angka { text-align: center; }
 /* Angka rupiah tidak dipatahkan di tengah — "185.000." di satu baris dan
    "000" di baris berikutnya bukan angka lagi. Kolomnya sudah dipatok cukup
    lebar untuk menampungnya utuh. */
@@ -958,6 +975,19 @@ button.hapus-klaim:hover:not(:disabled) {
 .catatan-rekap ul { margin: 4px 0 0; padding-left: 16px; }
 .catatan-rekap .nilai { margin-left: 8px; font-weight: 650; }
 
+/* Tautan "Edit" pada ringkasan klaim selesai: label yang menyembunyikan isian
+   berkas di baliknya. Isian berkas bawaan peramban menampilkan tombol beserta
+   tulisan "No file chosen" yang tidak dapat diatur — terlalu ramai untuk satu
+   baris ringkasan, dan tidak sejajar dengan tautan Lihat dan Unduh di
+   sebelahnya. */
+.ganti-berkas { margin-left: 12px; color: var(--ink); font-weight: 600;
+                text-decoration: underline; text-underline-offset: 2px;
+                cursor: pointer; }
+.ganti-berkas:hover { color: var(--note); }
+.ganti-berkas input { display: none; }
+.ganti-berkas:has(input:disabled) { color: var(--mut); cursor: default;
+                                    text-decoration: none; }
+
 /* Perbandingan tanda tangan di dalam kotak tinjauan: goresan tiap percobaan di
    satu lajur, spesimen tersimpan di lajur sebelahnya. Dua lajur, bukan satu
    deret: yang dikerjakan orang di sana membandingkan, dan membandingkan
@@ -968,7 +998,22 @@ button.hapus-klaim:hover:not(:disabled) {
 .petak-goresan { border: 1px solid var(--line); background: #fff;
                  border-radius: 4px; padding: 4px; margin-bottom: 6px; }
 .petak-goresan img { display: block; width: 100%; height: 64px;
-                     object-fit: contain; }
+                     object-fit: contain; cursor: zoom-in; }
+
+/* Gambar yang diperbesar. Lapisannya di atas tirai kotak tinjauan — yang
+   membukanya tetap terbuka di belakang — dan gambarnya dibiarkan sebesar yang
+   muat di layar, sebab 64 piksel itulah yang membuat orang menekannya. */
+.tirai.zoom-ttd { z-index: 70; flex-direction: column; gap: 12px;
+                  background: rgba(21, 23, 26, .72); }
+/* width dan height, bukan max-width dan max-height: berkas goresannya sendiri
+   hanya beberapa ratus piksel, dan batas atas tidak pernah memperbesar apa
+   pun — ia hanya mengecilkan yang kelewat besar. Gambarnya lalu terbuka nyaris
+   sebesar aslinya, dan menekan "perbesar" tidak mengubah apa-apa.
+   object-fit: contain menjaga bandingannya, jadi pindaian KTP yang melebar
+   tetap utuh di dalam kotak yang sama. */
+.tirai.zoom-ttd img { width: 92vw; height: 80vh; object-fit: contain;
+                      background: #fff; border-radius: 4px; padding: 10px;
+                      box-shadow: 0 14px 40px rgba(21, 23, 26, .35); }
 .petak-goresan span { display: block; margin-top: 2px; font-size: 10.5px;
                       color: var(--mut); text-align: center; }
 

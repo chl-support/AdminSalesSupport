@@ -122,9 +122,12 @@ export function RekapOverriding({ rekap }: { rekap: Rekap }) {
         <h1>{rekap.project?.company_name ?? rekap.project?.name ?? "—"}</h1>
       </div>
 
-      <h2 className="judul-rekap">
-        Detail Perhitungan Overiding ({rekap.nomor})
-      </h2>
+      {/* Tanpa nomor klaim di belakang judulnya. Yang menandai lembar ini
+          bagi yang membacanya adalah klusternya, periodenya, dan nama Sales
+          Manager-nya — ketiganya tertulis tepat di bawah sini. Nomor klaim
+          penanda di dalam sistem, dan pada dokumen yang beredar ke tangan
+          direksi ia hanya deret yang tidak berarti apa-apa. */}
+      <h2 className="judul-rekap">Detail Perhitungan Overiding</h2>
       <div className="kepala-rekap">
         <div>Cluster {atau(rekap.cluster)}</div>
         <div>

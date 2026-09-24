@@ -169,3 +169,48 @@ export async function daftarLampiran(claimId: string) {
        FROM claim_documents WHERE claim_id=$1 ORDER BY uploaded_at`,
     [claimId]);
 }
+
+/**
+ * Mengganti isi sebuah lampiran, bukan menambah yang baru di sebelahnya.
+ *
+ * Untuk berkas yang terlanjur salah diunggah: bukti transfer klaim lain,
+ * halaman yang tertukar, pindaian yang ternyata kosong. Menambahkan yang benar
+ * di sebelahnya membuat dua berkas berdiri pada satu penanda checklist, dan
+ * layar yang mencarinya mengambil salah satu — biasanya yang lebih dulu, yang
+ * justru salah.
+ *
+ * Yang lama dikembalikan supaya pemanggilnya dapat mencatatnya di jejak audit.
+ * Isinya tidak ikut: yang perlu tercatat namanya, jenisnya, dan besarnya —
+ * menyalin berkas belasan megabita ke dalam jejak audit membuat tabel yang
+ * tidak pernah dihapus tumbuh sebesar seluruh lampiran yang pernah diganti.
+ */
+export async function gantiLampiran(
+  claimId: string, docId: string, p: BerkasMasuk,
+  meta: { source: string; uploadedBy: string | null } & OpsiBerkas,
+) {
+  const lama = await one<any>(
+    `SELECT id, checklist_item, file_name, content_type, size_bytes,
+            uploaded_by, uploaded_at
+       FROM claim_documents WHERE id=$1 AND claim_id=$2`, [docId, claimId]);
+  if (!lama) {
+    throw new WorkflowError("Lampiran tidak ditemukan.", "not_found", 404);
+  }
+
+  // Penanda checklist-nya diambil dari baris yang lama, bukan dari badan
+  // permintaan: yang diganti adalah berkas pada penanda itu, dan membiarkan
+  // penandanya ikut berganti berarti satu permintaan "ganti" dapat memindahkan
+  // bukti transfer menjadi dokumen full sign.
+  const { nama, tipe, buf } = bacaBerkas(
+    { ...p, checklist_item: lama.checklist_item }, meta);
+
+  const baru = await one(
+    `UPDATE claim_documents
+        SET file_name=$3, content=$4, content_type=$5, size_bytes=$6,
+            uploaded_by=$7, source=$8, uploaded_at=now()
+      WHERE id=$1 AND claim_id=$2
+      RETURNING id, checklist_item, file_name, content_type, size_bytes,
+                source, uploaded_by, uploaded_at`,
+    [docId, claimId, nama, buf, tipe, buf.length, meta.uploadedBy, meta.source]);
+
+  return { lama, baru };
+}
