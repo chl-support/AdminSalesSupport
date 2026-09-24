@@ -991,7 +991,11 @@ export default function PersetujuanPage() {
       )}
 
       <div className="panel sp">
-        <div className="filters">
+        {/* "cari" hanya penanda gaya: sebutan "Search" di sini berdiri sendiri
+            sebagai judul satu-satunya pemilih pada layar ini, bukan satu dari
+            sederet label saringan seperti di layar lain, jadi ia dibaca lebih
+            besar. Lihat .filters.cari. */}
+        <div className="filters cari">
           <div>
             <div className="lbl">{k.tampilkan}</div>
             {/* Tiga pilihan, tanpa pengelompokan. Daftar status satu per satu
