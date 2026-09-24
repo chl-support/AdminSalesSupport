@@ -21,6 +21,8 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { FormPengajuan } from "../form-pengajuan";
+import { RekapOverriding } from "../rekap-overriding";
+import type { Rekap } from "@/lib/overriding";
 import { DOKUMEN, DOKUMEN_KODE, type Jenis } from "../jenis";
 import { useKata } from "../../bahasa";
 import { MemeriksaSesi } from "../../kerangka";
@@ -214,6 +216,16 @@ export default function PratinjauPage() {
    * dokumen yang akan ditandatangani, lalu ikut tercetak bersamanya.
    */
   const [lihatLampiran, setLihatLampiran] = useState<string | null>(null);
+  /**
+   * Rekap Overriding per klaim Overriding yang terbuka.
+   *
+   * Overriding tidak punya lembar per unit — dokumennya satu tabel per
+   * periode untuk satu Sales Manager. Rekapnya diambil terpisah karena ia
+   * membaca seluruh unit milik orang itu, bukan hanya unit klaim ini, dan
+   * membawanya serta pada setiap pemuatan daftar klaim berarti mengangkut
+   * tabel itu untuk klaim jenis lain yang tidak memerlukannya.
+   */
+  const [rekap, setRekap] = useState<Record<string, Rekap>>({});
 
   /** Hanya Admin Sales yang mengirim klaim ke tim pajak — lihat /api/.../submit. */
   const bolehKirim = sesi?.role === "admin_sales";
@@ -245,6 +257,23 @@ export default function PratinjauPage() {
   }, []);
 
   useEffect(() => { if (sesi) void muat(); }, [sesi, muat]);
+
+  // Rekap Overriding menyusul setelah klaimnya terbaca. Gagalnya tidak
+  // menghentikan layar: yang hilang hanya tabelnya, dan formulir jenis lain
+  // di jendela yang sama tetap tercetak.
+  useEffect(() => {
+    for (const c of klaim) {
+      if (c.claim_type !== "overriding" || rekap[c.id]) continue;
+      void (async () => {
+        try {
+          const r = await fetch(`/api/claims/${c.id}/rekap-overriding`);
+          if (!r.ok) return;
+          const b = await r.json();
+          setRekap((lama) => ({ ...lama, [c.id]: b }));
+        } catch { /* biar — lihat alasannya di atas */ }
+      })();
+    }
+  }, [klaim, rekap]);
 
   /** Dokumen yang wajib dicentang untuk satu klaim. */
   const wajib = (c: any): string[] => DOKUMEN[c.claim_type as Jenis] ?? [];
@@ -412,6 +441,15 @@ export default function PratinjauPage() {
 
       {klaim.map((c) => (
         <div key={c.id} className="panel sp lembar">
+          {/* Overriding dicetak sebagai Detail Perhitungan per periode, bukan
+              sebagai lembar per unit — lihat @/lib/overriding. Selama rekapnya
+              belum terbaca, yang tampil keterangan singkat, bukan formulir
+              jenis lain yang kebetulan lebih dulu ada. */}
+          {c.claim_type === "overriding" ? (
+            rekap[c.id]
+              ? <RekapOverriding rekap={rekap[c.id]} />
+              : <p className="hint">{k.memuat}</p>
+          ) : (
           <FormPengajuan
             klaim={c}
             ceklis={c.status === "draft" && bolehKirim
@@ -441,6 +479,7 @@ export default function PratinjauPage() {
                   }
                 }
               : undefined} />
+          )}
 
           {/* Dokumen full sign, bukti transfer, dan tanggal uang keluar:
               tiga hal yang dicari orang ketika menengok klaim yang sudah
