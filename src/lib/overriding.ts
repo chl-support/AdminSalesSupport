@@ -139,7 +139,8 @@ const STATUS_UNIT: Record<string, string> = {
  * luar, sebab ia berlaku juga bagi unit yang belum punya klaim sama sekali:
  * justru unit-unit itulah yang seluruh haknya menjadi Selisih Overiding.
  */
-function barisDari(r: any, urut: number, persenTotal: number | null): BarisRekap {
+function barisDari(r: any, urut: number, persenTotal: number | null,
+                   namaPenerima: string | null = null): BarisRekap {
   const incl = Number(r.contract_value_incl_vat ?? 0);
   // Tarif PPN mengikuti tanggal kontraknya, sebagaimana seluruh sistem ini:
   // penjualan sebelum 1 April 2022 memakai 10%.
@@ -150,7 +151,12 @@ function barisDari(r: any, urut: number, persenTotal: number | null): BarisRekap
     no: urut,
     // "Sales Group": agensi yang menaungi penjualannya, atau — pada penjualan
     // inhouse — Sales Manager-nya sendiri, persis seperti pada acuannya.
-    sales_group: r.agency_name ?? r.coordinator_name ?? null,
+    //
+    // Yang dipakai untuk yang kedua adalah penerima dokumen ini, bukan kolom
+    // koordinator pada unitnya: sejak penerimanya dipilih saat mengajukan,
+    // kolom itu kerap kosong, dan barisnya lalu tidak menyebut kelompok mana
+    // pun padahal dokumen ini justru dokumen kelompoknya.
+    sales_group: r.agency_name ?? r.coordinator_name ?? namaPenerima,
     no_kontrak: r.contract_number ?? null,
     tgl_kontrak: t,
     unit: r.code,
@@ -295,10 +301,15 @@ export async function rekapOverriding(claimId: string): Promise<Rekap | null> {
        LEFT JOIN agencies    a ON a.id = m.agency_id
        LEFT JOIN marketings ko ON ko.id = COALESCE(u.sub_coordinator_id,
                                                    u.coordinator_id)
+       -- Klaim Overriding unit ini; yang atas nama orang ini didahulukan.
+       -- Satu unit dapat punya klaim Overriding lebih dari satu sepanjang
+       -- waktu — ditolak lalu diajukan ulang atas nama orang lain — dan yang
+       -- berhak muncul pada rekap ini miliknya, bukan yang kebetulan paling
+       -- baru.
        LEFT JOIN LATERAL (
          SELECT * FROM claims c2
           WHERE c2.unit_id = u.id AND c2.claim_type = 'overriding'
-          ORDER BY c2.created_at DESC LIMIT 1
+          ORDER BY (c2.marketing_id = $1) DESC, c2.created_at DESC LIMIT 1
        ) c ON TRUE
        LEFT JOIN LATERAL (
          SELECT st.transfer_date
@@ -308,7 +319,20 @@ export async function rekapOverriding(claimId: string): Promise<Rekap | null> {
           WHERE pi.claim_id = c.id
           ORDER BY st.transfer_date DESC LIMIT 1
        ) s ON TRUE
-      WHERE COALESCE(u.sub_coordinator_id, u.coordinator_id) = $1
+      -- Dua jalan sebuah unit masuk ke rekap ini, dan keduanya perlu.
+      --
+      -- Yang pertama: orang ini tercatat sebagai tingkat di atas penjualnya
+      -- pada data penjualan. Itulah jalan yang dulu satu-satunya, dan ia yang
+      -- membawa serta unit yang belum diklaim maupun yang batal — dua bagian
+      -- yang justru tidak akan pernah punya klaim.
+      --
+      -- Yang kedua: ada klaim Overriding atas namanya pada unit itu. Sejak
+      -- penerima Overriding dipilih sendiri saat mengajukan — bukan lagi
+      -- diambil dari kolom koordinator — klaim yang sah lazim berdiri pada
+      -- unit yang kolom koordinatornya kosong. Tanpa jalan kedua ini,
+      -- rekapnya kosong melompong justru pada klaim yang barusan dibuat.
+      WHERE (COALESCE(u.sub_coordinator_id, u.coordinator_id) = $1
+             OR c.marketing_id = $1)
         AND ($2::uuid IS NULL OR u.project_id = $2)
       ORDER BY u.contract_date, u.code`,
     [klaim.marketing_id, klaim.project_id ?? null]);
@@ -364,7 +388,8 @@ export async function rekapOverriding(claimId: string): Promise<Rekap | null> {
   async function susun(isi: any[]): Promise<BarisRekap[]> {
     const hasil: BarisRekap[] = [];
     for (let i = 0; i < isi.length; i++) {
-      hasil.push(barisDari(isi[i], i + 1, await persenTotal(isi[i])));
+      hasil.push(barisDari(isi[i], i + 1, await persenTotal(isi[i]),
+                           penerima?.full_name ?? null));
     }
     return hasil;
   }
