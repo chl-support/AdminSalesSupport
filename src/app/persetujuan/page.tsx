@@ -170,6 +170,11 @@ const KATA = {
     hapAlasan: "Alasan (minimal 10 karakter, tercatat pada jejak audit)",
     hapKirim: "Hapus pengajuan ini", hapMengirim: "Menghapus…",
     hapSelesai: (no: string) => `Pengajuan ${no} dihapus.`,
+    hapSudahBayar:
+      "Pengajuan ini SUDAH DIBAYAR. Menghapusnya menghapus catatan atas uang " +
+      "yang benar-benar keluar: baris pelunasannya ikut dilepas, dan rekap " +
+      "pembayaran periode itu berkurang sebanyak nilai di atas — termasuk " +
+      "bila periodenya sudah ditutup dan laporannya sudah dicetak.",
     byrTombol: "Input Data Pembayaran",
     byrJudul: "Pembayaran",
     byrTanggal: "Tanggal pembayaran",
@@ -296,6 +301,11 @@ const KATA = {
     hapAlasan: "Reason (at least 10 characters, kept in the audit trail)",
     hapKirim: "Delete this submission", hapMengirim: "Deleting…",
     hapSelesai: (no: string) => `Submission ${no} has been deleted.`,
+    hapSudahBayar:
+      "This submission has ALREADY BEEN PAID. Deleting it removes the record " +
+      "of money that actually left: its settlement lines go with it, and the " +
+      "payment recap for that period drops by the amount above — even if the " +
+      "period is closed and its report has been printed.",
     byrTombol: "Record the payment",
     byrJudul: "Payment",
     byrTanggal: "Payment date",
@@ -885,6 +895,15 @@ export default function PersetujuanPage() {
    * tombol yang tidak ada.
    */
   const SUDAH_BAYAR = ["partially_paid", "paid", "completed"];
+  /**
+   * Yang uangnya sudah keluar hanya dapat dihapus Admin IT.
+   *
+   * Bukan soal kepercayaan: penghapusan seperti itu mengubah rekap pembayaran
+   * periode yang mungkin sudah ditutup dan laporannya sudah dicetak. Ia jalan
+   * darurat, dan jalan darurat tidak berdiri di tangan yang sehari-hari
+   * memasukkan pengajuan.
+   */
+  const bolehHapusDibayar = sesi.role === "admin_system";
 
   const selesai = klaim.filter((c) => SELESAI.includes(c.status)).length;
   const jalan = klaim.length - selesai;
@@ -1212,7 +1231,8 @@ export default function PersetujuanPage() {
                       alur hanya mengenal pembatalan dari draft — melainkan
                       penghapusan barisnya beserta berkas dan sesi tanda
                       tangannya, dengan jejak audit yang tetap tinggal. */}
-                  {bolehHapus && !SUDAH_BAYAR.includes(c.status) && (
+                  {bolehHapus &&
+                   (bolehHapusDibayar || !SUDAH_BAYAR.includes(c.status)) && (
                     <button className="hapus-klaim" disabled={gerak === c.id}
                             onClick={() => { setHapUntuk(c.id);
                                              setHapAlasan(""); }}>
@@ -1540,6 +1560,12 @@ export default function PersetujuanPage() {
               <p className="hint" style={{ textAlign: "left", margin: "0 0 10px" }}>
                 {k.hapPengantar}
               </p>
+
+              {SUDAH_BAYAR.includes(c.status) && (
+                <div className="banner stop" style={{ marginBottom: 10 }}>
+                  {k.hapSudahBayar}
+                </div>
+              )}
 
               <div className="lbl">{k.hapAlasan}</div>
               <textarea value={hapAlasan} style={{ width: "100%", minHeight: 56 }}
