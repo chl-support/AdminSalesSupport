@@ -1028,7 +1028,10 @@ button.hapus-klaim:hover:not(:disabled) {
              margin-top: 22px; font-size: 10.5px; text-align: center; }
 .ttd-rekap .peran { color: var(--sub); }
 .ttd-rekap .peran.dua { grid-column: span 2; }
-.ttd-rekap .kotak-ttd { height: 56px; }
+/* Ruang goresan setinggi dua baris lebih daripada semula: nama dan garisnya
+   turun menjauh dari sebutannya, dan tanda tangan basah yang dibubuhkan dengan
+   tangan tidak berhimpit dengan tulisan "Dibuat Oleh," di atasnya. */
+.ttd-rekap .kotak-ttd { height: 80px; }
 /* Nama di ATAS garisnya, bukan di bawah — begitu lembar acuan kantor ditulis.
    Yang membubuhkan tanda tangan sudah ditentukan jabatannya, jadi namanya
    berdiri lebih dulu dan goresannya jatuh di ruang kosong di atasnya. */
@@ -1066,12 +1069,18 @@ button.hapus-klaim:hover:not(:disabled) {
      Jarak tetap tidak pernah tahu tinggi halaman, dan karena itu tidak pernah
      salah menebaknya. Lembarnya setinggi isinya. */
   .ttd-rekap { page-break-inside: avoid; margin-top: 18px; }
-  /* Margin bawah .lembar dinolkan: ia pemisah antarlembar di layar, dan pada
-     kertas pemisahnya page-break, bukan jarak. Delapan belas piksel yang
-     tertinggal di kaki lembar yang sudah penuh cukup untuk mendorongnya ke
-     halaman kedua. */
-  .lembar { margin-bottom: 0; }
-  .ttd-rekap .kotak-ttd { height: 44px; }
+  /* Margin bawah dinolkan HANYA pada lembar rekap: ia pemisah antarlembar di
+     layar, dan pada kertas pemisahnya page-break, bukan jarak. Delapan belas
+     piksel yang tertinggal di kaki lembar yang sudah penuh cukup untuk
+     mendorongnya ke halaman kedua.
+
+     Ditulis dengan :has(.rekap-or), bukan .lembar polos: formulir Closing Fee,
+     Komisi, dan Cash Reward tegak dan tata letaknya sudah disetujui kantor apa
+     adanya. Yang dikerjakan demi rekap Overiding tidak boleh menyentuh
+     ketiganya — satu aturan yang lupa dibatasi mengubah tiga formulir yang
+     tidak pernah diminta berubah. */
+  .lembar:has(.rekap-or) { margin-bottom: 0; }
+  .ttd-rekap .kotak-ttd { height: 68px; }
   .ttd-rekap .nama-ttd { font-size: 9px; }
 
   /* Kepala lembarnya dirapatkan supaya tabel, catatan, dan ruang tanda tangan
