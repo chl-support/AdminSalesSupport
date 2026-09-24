@@ -88,10 +88,8 @@ const KATA = {
     pengantar: "Rincian dokumen pengajuan pada project ini. Pratinjau " +
                "formulirnya dibuka dari kolom paling kanan.",
     galat: "Data klaim tidak dapat dibaca",
-    tampilkan: "Tampilkan data", semua: "semua klaim",
-    grupRingkas: "Ringkas", grupStatus: "Menurut status",
-    belumJalan: "belum diteruskan", berjalan: "sedang berjalan",
-    selesai: "sudah selesai",
+    tampilkan: "Search",
+    sUnit: "Unit", sJalan: "Diproses / Berlangsung", sSelesai: "Selesai",
     jumlah: (n: number) => `${n} klaim`,
     unduhRekap: "Download (.xlsx)",
     pProgress: (n: number) => `🔄 ${n} Progress`,
@@ -182,10 +180,8 @@ const KATA = {
     pengantar: "Submission details for this project. The form preview opens " +
                "from the rightmost column.",
     galat: "Claim data could not be read",
-    tampilkan: "Show data", semua: "all claims",
-    grupRingkas: "Summary", grupStatus: "By status",
-    belumJalan: "not yet forwarded", berjalan: "in progress",
-    selesai: "completed",
+    tampilkan: "Search",
+    sUnit: "Unit", sJalan: "In progress", sSelesai: "Completed",
     jumlah: (n: number) => `${n} claims`,
     unduhRekap: "Download (.xlsx)",
     pProgress: (n: number) => `🔄 ${n} Progress`,
@@ -273,132 +269,6 @@ const KATA = {
 };
 
 /**
- * Di mana dokumennya, dan menunggu apa.
- *
- * Nama status di basis data ditulis untuk mesin — 'pending_tax_verification'
- * tidak memberi tahu siapa pun bahwa berkasnya ada di tim pajak dan yang
- * ditunggu adalah verifikasinya. Yang ditanyakan orang saat membuka layar ini
- * selalu dua hal itu, jadi dua hal itu yang ditulis.
- *
- * Status yang tidak dikenal (misalnya status baru yang belum ditambahkan di
- * sini) jatuh ke namanya sendiri, bukan ke kalimat karangan.
- */
-const KEADAAN: Record<string, { id: [string, string]; en: [string, string] }> = {
-  draft: {
-    id: ["Di Admin Sales", "Menunggu diperiksa lalu dikirim ke tim pajak"],
-    en: ["With Sales Admin", "Awaiting review, then sending to the tax team"],
-  },
-  submitted: {
-    id: ["Di Admin Sales", "Menunggu diteruskan ke tim pajak"],
-    en: ["With Sales Admin", "Awaiting forwarding to the tax team"],
-  },
-  pending_admin_review: {
-    id: ["Di Admin Sales", "Menunggu diperiksa Admin Sales"],
-    en: ["With Sales Admin", "Awaiting the Sales Admin's review"],
-  },
-  pending_tax_verification: {
-    id: ["Di tim pajak", "Menunggu verifikasi tim pajak"],
-    en: ["With the tax team", "Awaiting tax verification"],
-  },
-  tax_verified: {
-    id: ["Kembali di Admin Sales", "Menunggu tautan tanda tangan dikirim ke Sales/Agent"],
-    en: ["Back with Sales Admin", "Awaiting the signature link being sent to Sales/Agent"],
-  },
-  signature_link_sent: {
-    id: ["Di Sales/Agent", "Menunggu tautan tanda tangan dibuka"],
-    en: ["With Sales/Agent", "Awaiting the signature link being opened"],
-  },
-  awaiting_signature: {
-    id: ["Di Sales/Agent", "Menunggu tanda tangan"],
-    en: ["With Sales/Agent", "Awaiting the signature"],
-  },
-  signature_review_required: {
-    id: ["Di Admin Sales", "Menunggu tanda tangan diperiksa manual"],
-    en: ["With Sales Admin", "Awaiting a manual check of the signature"],
-  },
-  signed: {
-    id: ["Di Admin Sales", "Menunggu pemeriksaan silang"],
-    en: ["With Sales Admin", "Awaiting the cross-check"],
-  },
-  crosscheck_in_progress: {
-    id: ["Di Admin Sales", "Menunggu pemeriksaan silang selesai"],
-    en: ["With Sales Admin", "Awaiting the cross-check to finish"],
-  },
-  ready_to_print: {
-    id: ["Di Admin Sales", "Menunggu dicetak"],
-    en: ["With Sales Admin", "Awaiting printing"],
-  },
-  printed: {
-    id: ["Di Admin Sales", "Menunggu diedarkan ke Head Finance"],
-    en: ["With Sales Admin", "Awaiting circulation to the Head of Finance"],
-  },
-  circulating_head_finance: {
-    id: ["Di Head Finance", "Menunggu tanda tangan Head Finance"],
-    en: ["With the Head of Finance", "Awaiting the Head of Finance's signature"],
-  },
-  circulating_management: {
-    id: ["Di Manajemen", "Menunggu tanda tangan manajemen"],
-    en: ["With Management", "Awaiting management's signature"],
-  },
-  awaiting_scan_upload: {
-    id: ["Di Admin Sales", "Menunggu unggahan pindaian dokumen bertanda tangan"],
-    en: ["With Sales Admin", "Awaiting the scan of the signed document"],
-  },
-  approved: {
-    id: ["Di Finance", "Menunggu penetapan tanggal pembayaran"],
-    en: ["With Finance", "Awaiting a payment date"],
-  },
-  awaiting_settlement_date: {
-    id: ["Di Finance", "Menunggu tanggal pembayaran"],
-    en: ["With Finance", "Awaiting the payment date"],
-  },
-  partially_paid: {
-    id: ["Di Finance", "Dibayar sebagian, menunggu pelunasan"],
-    en: ["With Finance", "Partly paid, awaiting settlement"],
-  },
-  paid: {
-    id: ["Di Finance", "Sudah dibayar, menunggu ditutup"],
-    en: ["With Finance", "Paid, awaiting closing"],
-  },
-  completed: {
-    id: ["Selesai", "Tidak menunggu apa pun"],
-    en: ["Completed", "Nothing outstanding"],
-  },
-  returned: {
-    id: ["Kembali ke Admin Sales", "Menunggu diperbaiki lalu diajukan ulang"],
-    en: ["Back with Sales Admin", "Awaiting correction and resubmission"],
-  },
-  rejected: {
-    id: ["Ditolak", "Tidak berjalan lagi"],
-    en: ["Rejected", "No longer moving"],
-  },
-  cancelled: {
-    id: ["Dibatalkan", "Tidak berjalan lagi"],
-    en: ["Cancelled", "No longer moving"],
-  },
-  clawback: {
-    id: ["Penarikan kembali", "Menunggu penyelesaian penarikan dana"],
-    en: ["Clawback", "Awaiting the clawback to be settled"],
-  },
-};
-
-/**
- * Keadaan sebuah klaim, sebagai [di mana, menunggu apa].
- *
- * "Sales/Agent" diganti kategori penerimanya yang sebenarnya — Sales Inhouse
- * atau Agent — bila diketahui. Pada baris milik sales in-house, "Di
- * Sales/Agent" menyebut dua pihak sekaligus padahal hanya satu yang memegang
- * dokumennya, dan yang membaca harus menengok kolom lain untuk tahu yang mana.
- */
-function keadaan(status: string, bahasa: "id" | "en",
-                 kategori?: string | null): [string, string] {
-  const [di, menunggu] = KEADAAN[status]?.[bahasa] ?? [status, ""];
-  if (!kategori) return [di, menunggu];
-  return [di.replace("Sales/Agent", kategori),
-          menunggu.replace("Sales/Agent", kategori)];
-}
-
-/**
  * Nomor untuk tautan wa.me, yang hanya menerima bentuk internasional.
  *
  * "08121234800" dikirim apa adanya akan membuka percakapan ke nomor yang tidak
@@ -425,17 +295,25 @@ function nomorWa(hp?: string | null): string {
 const MENUNGGU_TAUTAN = ["tax_verified", "signature_link_sent",
                          "awaiting_signature"];
 
-/** Keadaan yang dianggap belum bergerak ke mana pun. */
-const DIAM = ["draft", "submitted", "pending_admin_review"];
 const SELESAI = ["completed", "paid", "rejected", "cancelled", "clawback"];
 
 /**
- * Saringan: tiga kelompok ringkas, atau satu status tertentu.
+ * Saringan: tiga tampilan, sesuai permintaan kantor.
  *
- * Status tunggal ditulis berawalan "s:" supaya keduanya muat dalam satu
- * pemilih tanpa dua keadaan terpisah yang harus dijaga tetap sejalan.
+ * Sebelumnya pemilihnya memuat dua kelompok — empat ringkasan dan satu butir
+ * untuk tiap status yang ada, lengkap dengan jumlahnya. Yang dipakai
+ * sehari-hari ternyata hanya "mana yang masih jalan" dan "mana yang sudah
+ * selesai", sedangkan selusin butir status di bawahnya membuat keduanya harus
+ * dicari dulu.
+ *
+ * "unit" tidak menyaring apa pun; ia menyusun barisnya menurut kode unit,
+ * supaya pengajuan atas unit yang sama berkumpul. Pembatasan "diam" (draft,
+ * submitted, pending_admin_review) melebur ke "jalan": keduanya sama-sama
+ * belum selesai, dan pemisahannya tidak pernah dipakai. Batas itu kini sama
+ * persis dengan yang dipakai kedua angka pada kepala panel — "Progress" dan
+ * "Finish" — sehingga pemilih dan angkanya tidak lagi dapat berbeda arti.
  */
-type Saring = "semua" | "diam" | "jalan" | "selesai" | `s:${string}`;
+type Saring = "unit" | "jalan" | "selesai";
 
 export default function PersetujuanPage() {
   const { sesi, memuat } = useSesi();
@@ -445,7 +323,7 @@ export default function PersetujuanPage() {
   const [busy, setBusy] = useState(true);
   const [galat, setGalat] = useState<string | null>(null);
   const [kabar, setKabar] = useState<string | null>(null);
-  const [saring, setSaring] = useState<Saring>("semua");
+  const [saring, setSaring] = useState<Saring>("unit");
   /** Jumlah klaim yang baru saja dikirim ke pajak dari jendela pratinjau. */
   const [terkirim, setTerkirim] = useState<number | null>(null);
   /** Tautan yang sudah terbit pada layar ini, berkunci id klaim. */
@@ -732,26 +610,19 @@ export default function PersetujuanPage() {
   const dokFullSign = (c: any) =>
     (c.documents ?? []).find((d: any) => d.checklist_item === "dokumen_full_sign");
 
-  /**
-   * Status yang benar-benar ada pada project ini, beserta jumlahnya.
-   *
-   * Urutannya mengikuti KEADAAN, yang disusun menurut perjalanan dokumennya —
-   * bukan menurut abjad, yang akan menaruh "Ditolak" di antara "Di tim pajak"
-   * dan "Di Finance".
-   */
-  const statusAda = Object.keys(KEADAAN)
-    .map((st) => [st, klaim.filter((c) => c.status === st).length] as const)
-    .filter(([, n]) => n > 0);
-
-  const terlihat = klaim.filter((c) => {
-    if (saring.startsWith("s:")) return c.status === saring.slice(2);
-    if (saring === "diam") return DIAM.includes(c.status);
-    if (saring === "selesai") return SELESAI.includes(c.status);
-    if (saring === "jalan") {
-      return !DIAM.includes(c.status) && !SELESAI.includes(c.status);
-    }
-    return true;
-  });
+  const terlihat = klaim
+    .filter((c) => {
+      if (saring === "selesai") return SELESAI.includes(c.status);
+      if (saring === "jalan") return !SELESAI.includes(c.status);
+      return true;
+    })
+    // Urutan bawaan dari server menurut tanggal pengajuan, dan itulah yang
+    // dipakai kedua tampilan lain. "Unit" menggantinya dengan urutan kode
+    // unit supaya pengajuan atas unit yang sama berdampingan — tanpa itu,
+    // pilihan ini tidak berbeda sama sekali dari menampilkan seluruhnya.
+    .sort((a, b) => saring !== "unit" ? 0
+      : String(a.unit?.code ?? "").localeCompare(String(b.unit?.code ?? ""),
+                                                 "id", { numeric: true }));
 
   /**
    * Dua angka pada kepala panel: yang masih berjalan dan yang sudah selesai.
@@ -798,32 +669,15 @@ export default function PersetujuanPage() {
         <div className="filters">
           <div>
             <div className="lbl">{k.tampilkan}</div>
-            {/* Tiga kelompok ringkas di atas, lalu tiap status satu per satu.
-                Kelompoknya menjawab "mana yang masih jalan"; daftar statusnya
-                menjawab "mana yang tersangkut di tanda tangan" — pertanyaan
-                yang tidak terjawab oleh kelompok mana pun.
-
-                Hanya status yang memang ada pada project ini yang ditawarkan:
-                dua puluh empat pilihan yang dua puluh di antaranya kosong
-                membuat yang mencari harus mencoba satu per satu. */}
+            {/* Tiga pilihan, tanpa pengelompokan. Daftar status satu per satu
+                beserta jumlahnya dulu berdiri di bawahnya; ia dibuang atas
+                permintaan kantor — yang ditanyakan sehari-hari hanya mana yang
+                masih berjalan dan mana yang sudah selesai. */}
             <select value={saring}
                     onChange={(e) => setSaring(e.target.value as Saring)}>
-              <optgroup label={k.grupRingkas}>
-                <option value="semua">{k.semua}</option>
-                <option value="diam">{k.belumJalan}</option>
-                <option value="jalan">{k.berjalan}</option>
-                <option value="selesai">{k.selesai}</option>
-              </optgroup>
-              {statusAda.length > 0 && (
-                <optgroup label={k.grupStatus}>
-                  {statusAda.map(([st, n]) => (
-                    <option key={st} value={`s:${st}`}>
-                      {keadaan(st, bahasa)[0]} — {keadaan(st, bahasa)[1] || st}
-                      {` (${n})`}
-                    </option>
-                  ))}
-                </optgroup>
-              )}
+              <option value="unit">{k.sUnit}</option>
+              <option value="jalan">{k.sJalan}</option>
+              <option value="selesai">{k.sSelesai}</option>
             </select>
           </div>
         </div>
