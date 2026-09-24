@@ -1069,11 +1069,17 @@ button.hapus-klaim:hover:not(:disabled) {
      Jarak tetap tidak pernah tahu tinggi halaman, dan karena itu tidak pernah
      salah menebaknya. Lembarnya setinggi isinya. */
   .ttd-rekap { page-break-inside: avoid; margin-top: 18px; }
-  /* Margin bawah .lembar dinolkan: ia pemisah antarlembar di layar, dan pada
-     kertas pemisahnya page-break, bukan jarak. Delapan belas piksel yang
-     tertinggal di kaki lembar yang sudah penuh cukup untuk mendorongnya ke
-     halaman kedua. */
-  .lembar { margin-bottom: 0; }
+  /* Margin bawah dinolkan HANYA pada lembar rekap: ia pemisah antarlembar di
+     layar, dan pada kertas pemisahnya page-break, bukan jarak. Delapan belas
+     piksel yang tertinggal di kaki lembar yang sudah penuh cukup untuk
+     mendorongnya ke halaman kedua.
+
+     Ditulis dengan :has(.rekap-or), bukan .lembar polos: formulir Closing Fee,
+     Komisi, dan Cash Reward tegak dan tata letaknya sudah disetujui kantor apa
+     adanya. Yang dikerjakan demi rekap Overiding tidak boleh menyentuh
+     ketiganya — satu aturan yang lupa dibatasi mengubah tiga formulir yang
+     tidak pernah diminta berubah. */
+  .lembar:has(.rekap-or) { margin-bottom: 0; }
   .ttd-rekap .kotak-ttd { height: 68px; }
   .ttd-rekap .nama-ttd { font-size: 9px; }
 
