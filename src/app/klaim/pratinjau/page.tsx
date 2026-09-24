@@ -65,9 +65,9 @@ const KATA = {
     lampiranLihat: "Lihat", lampiranUnduh: "Unduh",
     lampiranTakTersimpan: "isi tidak tersimpan",
     lampiranTutup: "Tutup",
-    selesaiFullSign: "Dokumen full sign",
-    selesaiBukti: "Bukti transfer",
-    selesaiTanggal: "Tanggal pembayaran",
+    selesaiFullSign: "Dokumen Full Sign",
+    selesaiBukti: "Bukti Transfer",
+    selesaiTanggal: "Tanggal Pembayaran",
   },
   en: {
     judul: "Submission form preview",
@@ -105,9 +105,9 @@ const KATA = {
     lampiranLihat: "View", lampiranUnduh: "Download",
     lampiranTakTersimpan: "contents not stored",
     lampiranTutup: "Close",
-    selesaiFullSign: "Fully signed document",
-    selesaiBukti: "Transfer proof",
-    selesaiTanggal: "Payment date",
+    selesaiFullSign: "Fully Signed Document",
+    selesaiBukti: "Transfer Proof",
+    selesaiTanggal: "Payment Date",
   },
 };
 
@@ -435,7 +435,11 @@ export default function PratinjauPage() {
       {busy && <p className="hint">{k.memuat}</p>}
       {!busy && !galat && !klaim.length && <p className="hint">{k.kosong}</p>}
 
-      {klaim.length > 0 && !bolehKirim && (
+      {/* Peringatannya menyebut "formulir di bawah", jadi ia hanya berarti bila
+          memang masih ada formulir yang tampil. Pada klaim yang sudah lunas
+          formulirnya disembunyikan, dan kalimat itu lalu menunjuk sesuatu yang
+          tidak ada di layar. */}
+      {klaim.some((c) => !c.tanggal_bayar) && !bolehKirim && (
         <div className="banner warn jangan-cetak">{k.bukanAdmin}</div>
       )}
 
@@ -445,6 +449,14 @@ export default function PratinjauPage() {
               sebagai lembar per unit — lihat @/lib/overriding. Selama rekapnya
               belum terbaca, yang tampil keterangan singkat, bukan formulir
               jenis lain yang kebetulan lebih dulu ada. */}
+          {/* Klaim yang pembayarannya sudah tercatat tidak lagi memperlihatkan
+              formulir pengajuannya di layar: yang dicari orang pada klaim
+              selesai adalah dokumen finalnya, dan itu ada di blok di bawah.
+
+              Disembunyikan, bukan dibuang. Tombol Cetak Form memanggil
+              window.print() atas halaman ini juga; formulir yang dilepas dari
+              DOM akan membuatnya mencetak kertas kosong. Lihat .hanya-cetak. */}
+          <div className={c.tanggal_bayar ? "hanya-cetak" : undefined}>
           {c.claim_type === "overriding" ? (
             rekap[c.id]
               ? <RekapOverriding rekap={rekap[c.id]} />
@@ -480,6 +492,7 @@ export default function PratinjauPage() {
                 }
               : undefined} />
           )}
+          </div>
 
           {/* Dokumen full sign, bukti transfer, dan tanggal uang keluar:
               tiga hal yang dicari orang ketika menengok klaim yang sudah

@@ -207,6 +207,14 @@ ul.kurang {
 .jendela-pratinjau .lembar:last-child { page-break-after: auto; }
 @media print { .jangan-cetak { display: none !important; } }
 
+/* Kebalikannya: tidak tampil di layar, tetapi tetap ikut tercetak.
+   Dipakai formulir pengajuan pada klaim yang sudah lunas — di layar yang
+   dicari tinggal dokumen finalnya, sedangkan tombol Cetak Form harus tetap
+   menghasilkan formulir yang utuh. Menghapusnya dari DOM akan membuat
+   window.print() mencetak halaman kosong. */
+.hanya-cetak { display: none; }
+@media print { .hanya-cetak { display: block; } }
+
 /* Centang dokumen pada pratinjau: kotak dan namanya satu sasaran tekan. */
 .ceklis-pilih { display: inline-flex; align-items: center; gap: 7px; cursor: pointer; }
 .ceklis-pilih input { width: auto; margin: 0; cursor: pointer; }
