@@ -891,13 +891,23 @@ ul.cetak-ceklis .kotak { border: 1px solid var(--ink); width: 14px; height: 14px
 /* Tabelnya tiga puluh kolom lebih; lembarnya melintang, dan hurufnya kecil
    karena memang begitu bentuk aslinya. Yang tidak boleh terjadi adalah angka
    rupiah terpotong — jadi kolom angka tidak pernah dipatahkan. */
-.rekap-or .judul-rekap { margin: 10px 0 2px; font-size: 14px; text-align: center; }
-.rekap-or .kepala-rekap { text-align: center; font-size: 11.5px;
+/* display: block, bukan sekadar text-align: `.panel h2` di atas menjadikan
+   judul ini kotak flex, dan pada kotak flex text-align tidak berpengaruh apa
+   pun terhadap satu-satunya isinya — selama ini ia tertulis rata tengah tetapi
+   tampil rata kiri. Sekarang rata kirinya disengaja. */
+.rekap-or .judul-rekap { display: block; margin: 10px 0 2px; font-size: 14px;
+                         text-align: left; }
+/* Rata kiri, bukan rata tengah: keterangan kluster, periode, dan cut off
+   berdiri sejajar dengan judul rekap dan dengan tepi kiri tabelnya, sehingga
+   ketiganya terbaca sebagai satu lajur — bukan satu blok mengambang di tengah
+   halaman yang lebar. */
+.rekap-or .kepala-rekap { font-size: 11.5px;
                           color: var(--sub); line-height: 1.5; }
-.rekap-or .sm-rekap { display: flex; gap: 8px; align-items: baseline;
-                      margin: 12px 0 6px; font-size: 12.5px; }
-.rekap-or .sm-rekap > span:first-child { color: var(--sub); }
-.rekap-or .sm-rekap .jenis { color: var(--mut); font-size: 11.5px; }
+/* Bertumpuk, bukan berjajar: jabatannya di atas namanya, seperti pada
+   Excel-nya. */
+.rekap-or .sm-rekap { display: block; margin: 12px 0 6px; font-size: 12.5px; }
+.rekap-or .sm-rekap > span:first-child { display: block; color: var(--sub);
+                                         font-size: 11.5px; }
 
 /* table-layout: fixed — lebar kolomnya dipatok colgroup, bukan ditentukan
    isinya. Tanpa itu satu nama konsumen yang panjang melebarkan kolomnya pada

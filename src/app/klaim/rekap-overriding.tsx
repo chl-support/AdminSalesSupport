@@ -136,15 +136,15 @@ export function RekapOverriding({ rekap }: { rekap: Rekap }) {
 
       {/* Sales Manager-nya disebut sekali, di atas tabelnya — dokumen ini
           memang dokumen satu orang, dan mengulangnya pada tiap baris hanya
-          memakan kolom yang sudah sempit. */}
+          memakan kolom yang sudah sempit.
+
+          Jabatan di atas nama, bertumpuk, bukan berjajar: begitulah kepala
+          rekap ini ditulis pada Excel-nya. Jenis pemasarnya — Inhouse atau
+          Agent — sengaja tidak ikut: ia keterangan orang, bukan keterangan
+          rekap, dan pada kepala dokumen ia hanya ramai. */}
       <div className="sm-rekap">
         <span>Sales Manager</span>
         <b>{atau(sm?.full_name)}</b>
-        {sm?.marketing_type && (
-          <span className="jenis">
-            {sm.marketing_type === "agent" ? "Agent" : "Inhouse"}
-          </span>
-        )}
       </div>
 
       <div className="tscroll">
