@@ -902,10 +902,14 @@ button.hapus-klaim:hover:not(:disabled) {
    rupiah terpotong — jadi kolom angka tidak pernah dipatahkan. */
 /* display: block, bukan sekadar text-align: `.panel h2` di atas menjadikan
    judul ini kotak flex, dan pada kotak flex text-align tidak berpengaruh apa
-   pun terhadap satu-satunya isinya — selama ini ia tertulis rata tengah tetapi
-   tampil rata kiri. Sekarang rata kirinya disengaja. */
+   pun terhadap satu-satunya isinya.
+
+   Garis bawahnya pun dari sana, dan dicabut di sini: judul ini sudah diikuti
+   keterangan kluster, periode, dan cut off, dan garis di antara keduanya
+   memisahkan yang justru harus terbaca bersama. */
 .rekap-or .judul-rekap { display: block; margin: 10px 0 2px; font-size: 14px;
-                         text-align: left; }
+                         text-align: left; padding-bottom: 0;
+                         border-bottom: none; }
 /* Rata kiri, bukan rata tengah: keterangan kluster, periode, dan cut off
    berdiri sejajar dengan judul rekap dan dengan tepi kiri tabelnya, sehingga
    ketiganya terbaca sebagai satu lajur — bukan satu blok mengambang di tengah
