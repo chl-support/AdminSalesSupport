@@ -958,9 +958,9 @@ button.hapus-klaim:hover:not(:disabled) {
 .catatan-rekap ul { margin: 4px 0 0; padding-left: 16px; }
 .catatan-rekap .nilai { margin-left: 8px; font-weight: 650; }
 
-/* Lima blok tanda tangan berjajar, masing-masing dengan kotak dan garis nama
+/* Tiga blok tanda tangan berjajar, masing-masing dengan kotak dan garis nama
    yang dibiarkan kosong — lihat keterangannya di komponennya. */
-.ttd-rekap { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px;
+.ttd-rekap { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px;
              margin-top: 22px; font-size: 10.5px; text-align: center; }
 .ttd-rekap .peran { color: var(--sub); }
 .ttd-rekap .kotak-ttd { height: 56px; }
