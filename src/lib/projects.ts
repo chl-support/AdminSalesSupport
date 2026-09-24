@@ -64,3 +64,34 @@ export function ensureProjectsSekali(): Promise<void> {
   sekali ??= ensureProjects().catch(() => { sekali = null; });
   return sekali;
 }
+
+/**
+ * Nama panjang sebuah kode kluster, mis. "NS" → "Naraya Serpong".
+ *
+ * Kolom `units.cluster_code` berisi kode yang dipakai orang dalam — "NS",
+ * "BIO" — dan kode itulah yang selama ini tercetak apa adanya pada kepala
+ * rekap Overriding. Yang membacanya bukan orang dalam saja: rekapnya
+ * ditandatangani sampai tingkat direksi, dan "Cluster NS" tidak memberi tahu
+ * mereka kluster mana yang dimaksud.
+ *
+ * Pemetaannya diturunkan dari daftar project di atas, bukan ditulis satu per
+ * satu, supaya kluster yang baru tidak perlu menunggu deploy untuk terbaca:
+ * kodenya dicocokkan dengan huruf awal tiap kata pada nama project ("NS" =
+ * Naraya Serpong) atau dengan kata pertamanya ("BIO" = BIO District).
+ *
+ * Yang tidak cocok dengan keduanya dikembalikan apa adanya. Kluster memang
+ * tidak selalu sama dengan project — satu project dapat berisi beberapa
+ * kluster — dan menebak nama untuk kode yang tidak dikenal lebih buruk
+ * daripada menampilkan kodenya.
+ */
+export function namaKluster(kode: string | null | undefined): string | null {
+  const k = (kode ?? "").trim();
+  if (!k) return null;
+  const cocok = PROJECT_BAWAAN.find((p) => {
+    const kata = p.name.split(/\s+/).filter(Boolean);
+    const singkatan = kata.map((w) => w[0]).join("");
+    return singkatan.toUpperCase() === k.toUpperCase()
+        || kata[0].toUpperCase() === k.toUpperCase();
+  });
+  return cocok ? cocok.name : k;
+}
