@@ -1807,21 +1807,69 @@ td.sel-tindakan > a.tautan-klaim:last-child { margin-bottom: 0; }
    karena itu yang dicari orang ketika menengok klaim yang sudah dibayar —
    sebelumnya keduanya tenggelam di antara lampiran lain, berjudul nama berkas
    dan kode checklist yang tidak menyebut mana dokumen finalnya. */
+/* Bingkainya dilunakkan: garis tepi penuh setebal satu piksel mengeraskan
+   blok ini menjadi kotak di dalam kotak, sebab ia sudah berdiri di dalam
+   panel putih. Kini tepinya samar, sudutnya membulat, dan yang menegaskan
+   bahwa ini blok "sudah selesai" adalah satu bilah hijau di sisi kiri —
+   penanda yang terbaca tanpa perlu mengurung apa pun. */
 .ringkas-selesai {
-  border: 1px solid var(--ok); background: var(--okbg);
-  padding: 8px 10px; margin-bottom: 12px;
+  border: 1px solid rgba(47, 107, 79, .2);
+  border-left: 3px solid var(--ok);
+  background: var(--okbg);
+  border-radius: 10px;
+  padding: 2px 14px;
+  margin-bottom: 12px;
+  box-shadow: 0 1px 2px rgba(21, 23, 26, .04);
 }
+
+/* Barisnya diberi ruang bernapas dan dirata-tengah, bukan pada garis alas:
+   tautan yang kini berbentuk pil punya tinggi sendiri, dan baseline membuat
+   pilnya duduk terlalu rendah terhadap sebutannya. */
 .ringkas-selesai .baris {
-  display: flex; justify-content: space-between; align-items: baseline;
-  gap: 10px; padding: 3px 0;
+  display: flex; justify-content: space-between; align-items: center;
+  gap: 14px; padding: 9px 0; min-height: 34px;
 }
-.ringkas-selesai .baris + .baris { border-top: 1px solid rgba(47,107,79,.18); }
+.ringkas-selesai .baris + .baris {
+  border-top: 1px solid rgba(47, 107, 79, .13);
+}
+
 .ringkas-selesai .lbl {
-  font-size: 12px; font-weight: 600; color: var(--ok); margin: 0;
+  font-size: 12.5px; font-weight: 650; color: var(--ok); margin: 0;
 }
 .ringkas-selesai .nilai {
-  font-size: 12.5px; color: var(--ink); font-variant-numeric: tabular-nums;
+  font-size: 13px; font-weight: 600; color: var(--ink);
+  font-variant-numeric: tabular-nums;
 }
-.ringkas-selesai .meta { font-size: 12px; white-space: nowrap; }
-/* "Lihat" dan "Unduh" berdempetan menjadi satu kata tanpa jarak ini. */
-.ringkas-selesai .meta a + a { margin-left: 10px; }
+
+.ringkas-selesai .meta {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px; white-space: nowrap;
+}
+
+/* Lihat, Unduh, dan Edit menjadi pil, bukan tiga kata bergaris bawah yang
+   berdempetan. Ketiganya perbuatan yang setara, jadi bentuknya pun setara —
+   dan sasaran tekannya menjadi setinggi 24 piksel, bukan setinggi huruf. */
+.ringkas-selesai .meta a,
+.ringkas-selesai .meta .ganti-berkas {
+  display: inline-flex; align-items: center; height: 24px; padding: 0 10px;
+  margin: 0;
+  border: 1px solid rgba(47, 107, 79, .28); border-radius: 999px;
+  background: rgba(255, 255, 255, .75);
+  color: var(--ok); font-weight: 600;
+  text-decoration: none; cursor: pointer;
+  transition: background .12s ease, border-color .12s ease, color .12s ease;
+}
+.ringkas-selesai .meta a:hover,
+.ringkas-selesai .meta .ganti-berkas:hover {
+  background: var(--ok); border-color: var(--ok); color: #fff;
+}
+.ringkas-selesai .meta a:focus-visible,
+.ringkas-selesai .meta .ganti-berkas:focus-visible {
+  outline: 2px solid var(--emas-tua); outline-offset: 1px;
+}
+/* Yang sedang mengunggah gantinya: tetap terbaca, tetapi jelas tidak dapat
+   ditekan lagi. */
+.ringkas-selesai .meta .ganti-berkas:has(input:disabled) {
+  color: var(--mut); border-color: var(--line);
+  background: transparent; cursor: default;
+}
