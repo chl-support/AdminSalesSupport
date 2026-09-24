@@ -200,6 +200,15 @@ ul.kurang {
 .filters.rapat { gap: 8px; }
 .filters.rapat .lbl { margin-bottom: 2px; }
 
+/* Saringan yang berdiri sebagai satu pemilih tunggal, bukan sederet.
+   Sebutannya di sana menjadi judul kotak itu, bukan keterangan kecil di antara
+   keterangan lain, jadi ia dibaca sebesar tulisan biasa dan sewarna tulisan
+   yang memang dibaca — bukan abu-abu 10,5 piksel yang nyaris hilang di atas
+   kotak selebar layar. */
+.filters.cari .lbl {
+  font-size: 13px; font-weight: 600; color: var(--sub); margin-bottom: 6px;
+}
+
 /* Jendela pratinjau: satu formulir per lembar, dan bilah tombolnya tidak ikut
    tercetak. */
 .jendela-pratinjau { padding-top: 18px; }
