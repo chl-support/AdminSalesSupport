@@ -19,6 +19,7 @@
 import { findScheme } from "./calc";
 import { one, query } from "./db";
 import { ratio, stripVat } from "./money";
+import { namaKluster } from "./projects";
 
 /**
  * DPP Nilai Lain: 11/12 dari nilai tanpa PPN.
@@ -443,7 +444,7 @@ export async function rekapOverriding(claimId: string): Promise<Rekap | null> {
   return {
     nomor: klaim.claim_number,
     project: proyek,
-    cluster: baris[0]?.cluster_code ?? null,
+    cluster: namaKluster(baris[0]?.cluster_code),
     periode_awal: tglBerjalan[0] ?? null,
     periode_akhir: tglBerjalan[tglBerjalan.length - 1] ?? null,
     cut_off: new Date().toISOString().slice(0, 10),
