@@ -1050,34 +1050,27 @@ button.hapus-klaim:hover:not(:disabled) {
   .tabel-rekap .judul-bagian { page-break-after: avoid; }
   .tabel-rekap thead { display: table-header-group; }
 
-  /* Ruang tanda tangan turun ke kaki halaman, bukan menempel di bawah baris
-     TOTAL.
+  /* Ruang tanda tangan diberi jarak tetap dari catatan kaki, bukan didorong ke
+     kaki halaman.
 
-     margin-top: auto, bukan jarak tetap: lembarnya dibuat setinggi halaman,
-     dan ruang yang tersisa berapa pun jatuh seluruhnya di atas blok tanda
-     tangan. Jarak tetap memakan tinggi yang belum tentu ada — dan begitu
-     tabelnya bertambah sebaris, jarak itulah yang mendorong lembarnya menjadi
-     dua halaman. Dengan auto, yang berkurang justru jaraknya, dan lembarnya
-     tetap satu halaman.
+     Sempat dikerjakan dengan margin-top: auto di atas lembar setinggi halaman,
+     supaya sisa ruang berapa pun jatuh di atas tanda tangan. Ia menuntut satu
+     hal yang tidak dapat diketahui dari sini: tinggi halaman cetaknya. Margin
+     kertas ditentukan kotak cetak peramban, bukan CSS — orang yang memilih
+     "Custom" pada kotak itu mendapat tinggi halaman yang sama sekali lain
+     daripada yang ditulis @page. Lembar setinggi 6,1 inci pada halaman yang
+     ternyata tersisa 5,6 inci mendorong blok tanda tangannya ke halaman kedua,
+     dan itu benar-benar terjadi di meja orang: satu lembar berisi tabel yang
+     separuh kosong, satu lembar lagi berisi tanda tangan saja.
 
-     Kotaknya ditinggikan pula: tanda tangan basah dibubuhkan dengan tangan di
-     atas kertas dan memakan tempat lebih banyak daripada yang terlihat di
-     layar.
-
-     Tinggi lembarnya ditulis dalam inci, bukan 100vh: pada pencetakan, vh
-     tetap mengikuti tinggi jendela peramban, bukan tinggi halaman kertas — dan
-     jendela yang lebih tinggi daripada kertasnya membuat lembar ini meluap ke
-     halaman kedua justru karena aturan yang dimaksudkan menahannya. Angkanya
-     tinggi A4 melintang dikurangi kedua marginnya, disisakan sedikit.
-
-     Margin bawah .lembar ikut dinolkan: ia pemisah antarlembar di layar, dan
-     pada kertas pemisahnya page-break, bukan jarak. */
-  .rekap-or { display: flex; flex-direction: column; min-height: 6.1in; }
+     Jarak tetap tidak pernah tahu tinggi halaman, dan karena itu tidak pernah
+     salah menebaknya. Lembarnya setinggi isinya. */
+  .ttd-rekap { page-break-inside: avoid; margin-top: 18px; }
+  /* Margin bawah .lembar dinolkan: ia pemisah antarlembar di layar, dan pada
+     kertas pemisahnya page-break, bukan jarak. Delapan belas piksel yang
+     tertinggal di kaki lembar yang sudah penuh cukup untuk mendorongnya ke
+     halaman kedua. */
   .lembar { margin-bottom: 0; }
-  .ttd-rekap { page-break-inside: avoid; margin-top: auto; }
-  /* Kotaknya dipendekkan sebanyak baris nama yang kini berdiri di atas
-     garisnya — tinggi blok tanda tangannya tetap sama, dan lembarnya tetap
-     satu halaman. Ruang goresannya masih 12mm di atas kertas. */
   .ttd-rekap .kotak-ttd { height: 44px; }
   .ttd-rekap .nama-ttd { font-size: 9px; }
 
