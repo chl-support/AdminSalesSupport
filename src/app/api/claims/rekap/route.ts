@@ -71,6 +71,7 @@ export const GET = handler(async (req) => {
   const KOLOM: [string, number, (c: Baris, i: number) => string | number][] = [
     ["No.", 6, (_c, i) => i + 1],
     ["Tanggal Pengajuan", 18, (c) => tgl(c.created_at)],
+    ["Unit", 16, (c) => c.unit?.code ?? ""],
     ["Perihal/Topik", 20, (c) => JENIS[c.claim_type] ?? c.claim_type],
     ["Kategori", 16, (c) => c.marketing?.marketing_type === "agent" ? "Agent"
                            : c.marketing?.marketing_type === "inhouse"
@@ -91,11 +92,10 @@ export const GET = handler(async (req) => {
     ["Status", 26, (c) => KEADAAN[c.status] ?? c.status],
     // Nomor klaim tercetak kecil di bawah tanggal pada layar; di sini ia
     // mendapat kolomnya sendiri, sebab lembar kerja tidak mengenal baris kecil
-    // di dalam sel. Unit kini punya kolomnya sendiri pula di layar, di antara
-    // Tanggal Pengajuan dan Perihal; di sini ia masih berdiri di ujung kanan,
-    // supaya rekap yang sudah telanjur dipakai orang tidak bergeser kolomnya.
+    // di dalam sel. Ia satu-satunya kolom yang tidak ada padanan di layar, dan
+    // karena itu berdiri di ujung kanan — sesudah seluruh kolom yang berpadanan
+    // habis, supaya urutan keduanya tetap dapat ditelusuri berdampingan.
     ["Nomor Klaim", 22, (c) => c.claim_number ?? ""],
-    ["Unit", 16, (c) => c.unit?.code ?? ""],
   ];
 
   /**
