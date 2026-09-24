@@ -11,8 +11,8 @@
  * baris TOTAL-nya sendiri.
  *
  * Yang menandatangani pun berbeda: tidak ada kolom Pemohon di sini. Yang ada
- * Dibuat Oleh, Diperiksa Oleh, dan Disetujui Oleh — beserta dua ruang tanda
- * tangan tak bersebutan di kiri dan kanannya.
+ * Dibuat Oleh, Diperiksa Oleh, dan Disetujui Oleh — yang terakhir membentang
+ * di atas dua ruang tanda tangan berdampingan.
  *
  * Tabelnya lebar — tiga puluh kolom lebih — jadi lembarnya melintang. Itu
  * memang bentuk aslinya; memaksanya tegak berarti mengecilkan hurufnya sampai
@@ -260,27 +260,28 @@ export function RekapOverriding({ rekap }: { rekap: Rekap }) {
         </div>
       )}
 
-      {/* Lima ruang tanda tangan, tiga di antaranya bersebutan.
+      {/* Empat ruang tanda tangan, tiga sebutan.
 
-          Acuannya menulis "Disetujui Oleh" tiga kali berjajar; dua di antaranya
-          dibuang atas permintaan kantor, tetapi garisnya tetap — yang
-          menandatangani di sana memang ada, sebutannya saja yang tidak perlu
-          dicetak. Dua ruang kosong itu sengaja tidak dihapus bersama
-          tulisannya: menghapusnya melebarkan ketiga sisanya dan mengubah
-          tata letak lembar yang sudah dipakai orang menandatangani.
+          Sebutan ketiga — "Disetujui Oleh," — membentang di atas dua ruang
+          terakhir dan berdiri di tengah keduanya: yang menyetujui rekap ini
+          dua orang yang menandatangani berdampingan, bukan dua jabatan yang
+          masing-masing perlu disebut. Acuannya menulisnya tiga kali; dua di
+          antaranya dibuang atas permintaan kantor.
 
-          Sebutan kosong tetap digambar sebagai satu baris berisi spasi mati,
-          bukan span hampa: span hampa tidak setinggi apa pun, dan kotak serta
-          garis di bawahnya naik sebaris lebih tinggi daripada tetangganya.
+          Karena itu barisnya dua: sebaris sebutan, sebaris ruang tanda
+          tangannya. Sebutan yang membentang tidak dapat digambar sebagai
+          bagian dari satu blok — ia harus melintasi dua lajur sekaligus, dan
+          hanya petak yang dapat melakukannya.
 
           Namanya sengaja tidak dicetak: yang menandatangani berbeda menurut
           periodenya, dan nama yang tercetak sendiri mengundang lembar
           ditandatangani orang lain atas nama yang tertulis. */}
       <div className="ttd-rekap">
-        {["Dibuat Oleh,", "Diperiksa Oleh,", "", "Disetujui Oleh,", ""]
-          .map((t, i) => (
+        <span className="peran">Dibuat Oleh,</span>
+        <span className="peran">Diperiksa Oleh,</span>
+        <span className="peran dua">Disetujui Oleh,</span>
+        {[0, 1, 2, 3].map((i) => (
           <div key={i}>
-            <span className="peran">{t || "\u00A0"}</span>
             <div className="kotak-ttd" />
             <div className="garis-nama" />
           </div>
