@@ -36,10 +36,10 @@ const KATA = {
     tenang: "Dokumen yang sudah kembali dan dipindai tidak lagi tampil di sini.",
     muatUlang: "Muat ulang",
     diLuar: "Tabel Sirkulasi Dokumen",
-    // Angkanya tetap dibawa: pil hitungan yang tidak menghitung apa pun
-    // hanya label kedua bagi judul di sebelahnya. Bentuknya mengikuti pil
-    // pada layar Approval — "\u{1F504} 3 Progress".
-    berkas: (n: number) => `\u{1F4C4} ${n} File / Document`,
+    pLuar: (n: number) => `\u{1F4E4} ${n} Dokumen di Luar`,
+    pMasuk: (n: number) => `\u{1F4E5} ${n} Dokumen Masuk`,
+    pProses: (n: number) => `\u{1F504} ${n} Dalam Proses`,
+    pSelesai: (n: number) => `\u2713 ${n} Selesai`,
     thNo: "No.", thUnit: "Unit", thJenis: "Jenis Dokumen",
     thMemo: "No. Internal Office Memo", thDari: "Dari",
     thKe: "Ke / Di Tangan", thDistribusi: "Tanggal Distribusi",
@@ -73,7 +73,10 @@ const KATA = {
     tenang: "Documents already returned and scanned no longer appear here.",
     muatUlang: "Reload",
     diLuar: "Document circulation table",
-    berkas: (n: number) => `\u{1F4C4} ${n} File / Document`,
+    pLuar: (n: number) => `\u{1F4E4} ${n} Out`,
+    pMasuk: (n: number) => `\u{1F4E5} ${n} Returned`,
+    pProses: (n: number) => `\u{1F504} ${n} In progress`,
+    pSelesai: (n: number) => `\u2713 ${n} Done`,
     thNo: "No.", thUnit: "Unit", thJenis: "Document type",
     thMemo: "Internal office memo no.", thDari: "From",
     thKe: "To / held by", thDistribusi: "Distributed on",
@@ -118,6 +121,9 @@ export default function SirkulasiPage() {
   /** Baris yang isiannya sedang dikirim, supaya isiannya tidak ditulis ganda. */
   const [simpan, setSimpan] = useState<string | null>(null);
   const [baris, setBaris] = useState<Beredar[]>([]);
+  /** Empat hitungan pada bilah panel; lihat KELOMPOK di sisi server. */
+  const [hitung, setHitung] = useState(
+    { luar: 0, masuk: 0, proses: 0, selesai: 0 });
   const [galat, setGalat] = useState<string | null>(null);
   const [busy, setBusy] = useState(true);
 
@@ -128,7 +134,8 @@ export default function SirkulasiPage() {
       if (res.status === 401) { location.href = "/login"; return; }
       const b = await res.json().catch(() => ({}));
       if (!res.ok) { setGalat(b.detail ?? `HTTP ${res.status}`); return; }
-      setBaris(Array.isArray(b) ? b : []);
+      setBaris(Array.isArray(b?.baris) ? b.baris : []);
+      if (b?.hitung) setHitung(b.hitung);
       setGalat(null);
     } catch (e: any) {
       setGalat(String(e?.message ?? e));
@@ -215,7 +222,15 @@ export default function SirkulasiPage() {
       <div className="panel">
         <h2>
           {k.diLuar}
-          <span className="pill">{k.berkas(baris.length)}</span>
+          {/* Empat kelompok yang tidak tumpang tindih — satu klaim hanya
+              masuk satu di antaranya. Urutannya mengikuti perjalanan
+              dokumennya: keluar, kembali, sedang dikerjakan, tuntas. */}
+          <span className="pil-sirkulasi">
+            <span className="pill">{k.pLuar(hitung.luar)}</span>
+            <span className="pill">{k.pMasuk(hitung.masuk)}</span>
+            <span className="pill">{k.pProses(hitung.proses)}</span>
+            <span className="pill ok">{k.pSelesai(hitung.selesai)}</span>
+          </span>
         </h2>
 
         <div className="tscroll">
