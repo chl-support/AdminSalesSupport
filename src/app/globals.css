@@ -205,6 +205,11 @@ ul.kurang {
    keterangan lain, jadi ia dibaca sebesar tulisan biasa dan sewarna tulisan
    yang memang dibaca — bukan abu-abu 10,5 piksel yang nyaris hilang di atas
    kotak selebar layar. */
+/* Sel yang memang belum punya sumber datanya — bukan sel kosong karena
+   datanya kebetulan tidak terisi. Dibuat redup agar terbaca sebagai kolom
+   yang menunggu, bukan sebagai isian yang terlewat diisi orang. */
+td.belum-ada { color: var(--mut); text-align: center; }
+
 .filters.cari .lbl {
   font-size: 13px; font-weight: 600; color: var(--sub); margin-bottom: 6px;
 }
