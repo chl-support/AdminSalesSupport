@@ -9,6 +9,9 @@ import { HANDOFF_NEXT } from "@/lib/workflow";
  * Unit dan jenis dokumennya ikut dibaca: yang mencari berkas di meja orang
  * menyebutnya "berkas unit NS-NR3-01", bukan nomor klaimnya.
  *
+ * Nomor Internal Office Memo dan tanggal diterima diisi tangan — keduanya
+ * tidak dapat disusun dari data yang ada. Lihat /api/claims/[id]/sirkulasi.
+ *
  * "Dari" tidak tersimpan pada klaimnya — yang tersimpan hanya pemegang
  * sekarang. Ia disusun dari riwayat serah terima: pemegang sebelumnya adalah
  * tujuan perpindahan sebelumnya. Klaim yang baru sekali berpindah datang dari
@@ -18,6 +21,8 @@ export const GET = handler(async (req) => {
   const baris = await query<any>(
     `SELECT c.id, c.claim_number, c.print_copy_number, c.claim_type, c.status,
             c.physical_location, c.physical_since,
+            c.office_memo_no,
+            to_char(c.received_at, 'YYYY-MM-DD') AS received_at,
             u.code AS unit_code,
             EXTRACT(DAY FROM now() - c.physical_since)::int AS age_days,
             (SELECT h.event FROM handoffs h
