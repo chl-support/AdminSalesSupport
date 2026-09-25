@@ -57,7 +57,6 @@ const persen = (v?: string | null) => {
 const KOLOM: { atas: string; bawah?: string; kelas?: string; lebar: number }[] = [
   { atas: "No.", lebar: 2, kelas: "angka" },
   { atas: "Sales Group", lebar: 4.8 },
-  { atas: "No. Kontrak", lebar: 5 },
   { atas: "Tgl. Kontrak", lebar: 4.5 },
   { atas: "Unit", lebar: 4 },
   { atas: "Nama Konsumen", lebar: 4.4 },
@@ -69,9 +68,7 @@ const KOLOM: { atas: string; bawah?: string; kelas?: string; lebar: number }[] =
   { atas: "Status", bawah: "Unit", lebar: 3 },
   { atas: "Status", bawah: "Tgl. Batal", lebar: 4 },
   { atas: "Type", lebar: 2.6 },
-  { atas: "Arah Hadap", lebar: 2.8 },
   { atas: "Nilai Kontrak", bawah: "(Include PPN)", kelas: "angka", lebar: 7 },
-  { atas: "Nilai Kontrak", bawah: "(Exclude PPN)", kelas: "angka", lebar: 7 },
   { atas: "DPP Nilai Lain", kelas: "angka", lebar: 7 },
   { atas: "Penerimaan", bawah: "Rp.", kelas: "angka", lebar: 7 },
   { atas: "Penerimaan", bawah: "%", kelas: "angka", lebar: 4.8 },
@@ -79,15 +76,15 @@ const KOLOM: { atas: string; bawah?: string; kelas?: string; lebar: number }[] =
   { atas: "Sign PPJB", lebar: 3 },
   { atas: "Skema Overiding", bawah: "Reguler / Progresif", lebar: 3.4 },
   { atas: "Skema Overiding", bawah: "%", kelas: "angka", lebar: 2.6 },
-  { atas: "Skema Overiding", bawah: "Amount Unit (Rp.)", kelas: "angka", lebar: 5 },
-  { atas: "Skema Overiding", bawah: "DPP Nilai Lain", kelas: "angka", lebar: 5 },
+  { atas: "Skema Overiding", bawah: "Amount Unit (Rp.)", kelas: "angka", lebar: 6.4 },
+  { atas: "Skema Overiding", bawah: "DPP Nilai Lain", kelas: "angka", lebar: 6.4 },
   { atas: "Skema Overiding", bawah: "PPN", kelas: "angka", lebar: 3.4 },
-  { atas: "Skema Overiding", bawah: "PPh 23", kelas: "angka", lebar: 4 },
-  { atas: "Skema Overiding", bawah: "Net", kelas: "angka", lebar: 5 },
+  { atas: "Skema Overiding", bawah: "PPh 23", kelas: "angka", lebar: 5 },
+  { atas: "Skema Overiding", bawah: "Net", kelas: "angka", lebar: 6.4 },
   { atas: "Skema Overiding", bawah: "Tanggal Transfer OR", lebar: 4 },
-  { atas: "Selisih Overiding", bawah: "Amount Unit (Rp.)", kelas: "angka", lebar: 5 },
+  { atas: "Selisih Overiding", bawah: "Amount Unit (Rp.)", kelas: "angka", lebar: 6.4 },
   { atas: "Selisih Overiding", bawah: "PPh 21", kelas: "angka", lebar: 3.4 },
-  { atas: "Selisih Overiding", bawah: "Net", kelas: "angka", lebar: 5 },
+  { atas: "Selisih Overiding", bawah: "Net", kelas: "angka", lebar: 6.4 },
   { atas: "Selisih Overiding", bawah: "%", kelas: "angka", lebar: 2.8 },
   { atas: "Keterangan", lebar: 4 },
 ];
@@ -192,7 +189,6 @@ export function RekapOverriding({ rekap }: { rekap: Rekap }) {
                 <tr key={`${b.judul}:${r.unit}:${r.no}`}>
                   <td className="angka">{r.no}</td>
                   <td>{atau(r.sales_group)}</td>
-                  <td>{atau(r.no_kontrak)}</td>
                   <td>{tgl(r.tgl_kontrak)}</td>
                   <td><b>{r.unit}</b></td>
                   <td>{atau(r.nama_konsumen)}</td>
@@ -204,9 +200,7 @@ export function RekapOverriding({ rekap }: { rekap: Rekap }) {
                   <td>{r.status_unit}</td>
                   <td>{tgl(r.tgl_batal)}</td>
                   <td>{atau(r.type)}</td>
-                  <td>{atau(r.arah_hadap)}</td>
                   <td className="angka">{rp(r.nilai_incl)}</td>
-                  <td className="angka">{rp(r.nilai_excl)}</td>
                   <td className="angka">{rp(r.dpp_nilai_lain)}</td>
                   <td className="angka">{rp(r.penerimaan)}</td>
                   <td className="angka">{persen(r.penerimaan_persen)}</td>
