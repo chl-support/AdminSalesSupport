@@ -25,15 +25,16 @@ import { useSesi } from "../session";
 const KATA = {
   id: {
     judul: "Sirkulasi Dokumen",
-    pengantar: "Dokumen Yang Sedang Beredar Untuk Ditandatangani. Durasi " +
-               "Dihitung Sejak Perpindahan Terakhir.",
+    pengantar: "Perjalanan Tiap Pengajuan Sejak Diajukan Sampai Dibayarkan, " +
+               "Dan Di Bagian Mana Waktunya Paling Banyak Terpakai.",
     galat: "Data tidak dapat dibaca",
-    beredar: (n: number) => `${n} dokumen beredar`,
+    beredar: (n: number) => `${n} pengajuan`,
     duaMinggu: (n: number) => ` · ${n} lebih dari dua minggu`,
     seminggu: (n: number) => ` · ${n} lebih dari seminggu`,
     peringatan: "Yang beredar lebih dari dua minggu hampir selalu berarti " +
                 "berkasnya tertinggal di satu meja, bukan sedang dibaca.",
-    tenang: "Dokumen yang sudah kembali dan dipindai tidak lagi tampil di sini.",
+    tenang: "Durasi dihitung sejak tanggal pengajuan sampai tanggal " +
+            "pembayaran; yang belum dibayar dihitung sampai hari ini.",
     muatUlang: "Muat ulang",
     diLuar: "Tabel Sirkulasi Dokumen",
     pLuar: (n: number) => `\u{1F4E4} ${n} Dokumen di Luar`,
@@ -44,7 +45,8 @@ const KATA = {
     thMemo: "No. Internal Office Memo", thDari: "Dari",
     thKe: "Ke / Di Tangan", thDistribusi: "Tanggal Distribusi",
     thDiterima: "Tanggal Diterima", thDurasi: "Durasi Proses",
-    thStatus: "Status", tindakan: "Tindakan",
+    thLama: "Paling Lama di", thStatus: "Status", tindakan: "Tindakan",
+    selesaiTanda: "selesai",
     salinanKe: (n: number) => `salinan #${n}`,
     isiMemo: "ketik nomor memo", isiTanggal: "pilih tanggal",
     simpanGagal: "Isian tidak tersimpan",
@@ -54,23 +56,32 @@ const KATA = {
       circulating_head_finance: "Di Head Finance",
       circulating_management: "Di Manajemen",
       awaiting_scan_upload: "Kembali, menunggu pindaian",
+      // Yang sudah berakhir tidak ada di meja siapa pun. Tanpa baris-baris
+      // ini kolom Status jatuh ke pihak yang terakhir memegangnya, sehingga
+      // klaim lunas terbaca seolah masih ditunggu.
+      paid: "Sudah dibayar",
+      completed: "Selesai",
+      rejected: "Ditolak",
+      cancelled: "Dibatalkan",
+      clawback: "Ditarik kembali",
     } as Record<string, string>,
     hari: (n: number) => `${n} hari`,
     buka: "Buka klaim",
-    kosong: "Tidak ada dokumen yang sedang beredar.",
+    kosong: "Belum ada pengajuan pada project ini.",
     memuat: "Memuat…",
   },
   en: {
     judul: "Document Workflow",
-    pengantar: "Documents currently circulating for signature. Duration is " +
-               "counted from the last hand-over.",
+    pengantar: "How long each submission takes from filing to payment, and " +
+               "which stage takes the most of it.",
     galat: "The data could not be read",
-    beredar: (n: number) => `${n} documents circulating`,
+    beredar: (n: number) => `${n} submissions`,
     duaMinggu: (n: number) => ` · ${n} over two weeks`,
     seminggu: (n: number) => ` · ${n} over a week`,
     peringatan: "Anything circulating for more than two weeks almost always " +
                 "means the file is sitting on someone's desk, not being read.",
-    tenang: "Documents already returned and scanned no longer appear here.",
+    tenang: "Duration runs from the filing date to the payment date; what " +
+            "is unpaid is counted up to today.",
     muatUlang: "Reload",
     diLuar: "Document circulation table",
     pLuar: (n: number) => `\u{1F4E4} ${n} Out`,
@@ -81,7 +92,8 @@ const KATA = {
     thMemo: "Internal office memo no.", thDari: "From",
     thKe: "To / held by", thDistribusi: "Distributed on",
     thDiterima: "Received on", thDurasi: "Processing time",
-    thStatus: "Status", tindakan: "Action",
+    thLama: "Longest at", thStatus: "Status", tindakan: "Action",
+    selesaiTanda: "done",
     salinanKe: (n: number) => `copy #${n}`,
     isiMemo: "type the memo number", isiTanggal: "pick a date",
     simpanGagal: "The entry was not saved",
@@ -91,10 +103,15 @@ const KATA = {
       circulating_head_finance: "With Head Finance",
       circulating_management: "With Management",
       awaiting_scan_upload: "Returned, awaiting scan",
+      paid: "Paid",
+      completed: "Completed",
+      rejected: "Rejected",
+      cancelled: "Cancelled",
+      clawback: "Clawed back",
     } as Record<string, string>,
     hari: (n: number) => `${n} days`,
     buka: "Open claim",
-    kosong: "No documents are circulating.",
+    kosong: "No submissions on this project yet.",
     memuat: "Loading…",
   },
 };
@@ -106,6 +123,15 @@ type Beredar = {
   office_memo_no: string | null; received_at: string | null;
   physical_location: string | null; physical_since: string | null;
   age_days: number | null;
+  /** Hari sejak diajukan sampai dibayar — atau sampai hari ini bila belum. */
+  durasi_hari: number;
+  selesai: boolean;
+  tgl_bayar: string | null;
+  /** Langkah yang paling banyak memakan waktu, beserta lamanya. */
+  tertahan: { hari: number; pihak: { id: string; en: string } } | null;
+  /** Langkah yang sedang berjalan, disebut sebagaimana layar Approval. */
+  kini: { pihak: { id: string; en: string };
+          kerja: { id: string; en: string } } | null;
 };
 
 export default function SirkulasiPage() {
@@ -190,9 +216,13 @@ export default function SirkulasiPage() {
 
   // Tiga golongan umur, bukan satu angka: yang dibaca orang bukan "9 hari"
   // melainkan "sudah terlalu lama".
-  const lama = baris.filter((b) => (b.age_days ?? 0) >= 14).length;
-  const sedang = baris.filter((b) => (b.age_days ?? 0) >= 7 &&
-                                     (b.age_days ?? 0) < 14).length;
+  // Yang dihitung hanya pengajuan yang BELUM selesai: yang sudah dibayar
+  // memang pernah berjalan lama, tetapi ia tidak lagi menunggu siapa pun, dan
+  // menghitungnya membuat bilah peringatan tidak pernah reda.
+  const berjalan = baris.filter((b) => !b.selesai);
+  const lama = berjalan.filter((b) => b.durasi_hari >= 14).length;
+  const sedang = berjalan.filter((b) => b.durasi_hari >= 7 &&
+                                        b.durasi_hari < 14).length;
 
   return (
     <Kerangka sesi={sesi} judul={
@@ -248,13 +278,12 @@ export default function SirkulasiPage() {
               <th>{k.thDistribusi}</th>
               <th>{k.thDiterima}</th>
               <th style={{ textAlign: "right" }}>{k.thDurasi}</th>
+              <th>{k.thLama}</th>
               <th>{k.thStatus}</th>
               <th style={{ width: 110 }}>{k.tindakan}</th>
             </tr>
 
-            {baris.map((b, i) => {
-              const umur = b.age_days ?? 0;
-              return (
+            {baris.map((b, i) => (
                 <tr key={b.id}>
                   <td className="n">{i + 1}</td>
                   {/* Nomor klaim dan salinan keberapa tidak lagi punya
@@ -305,13 +334,44 @@ export default function SirkulasiPage() {
                                b, "received_at", e.target.value)} />
                     ) : b.received_at ?? <span className="belum-ada">—</span>}
                   </td>
+                  {/* Durasi sejak diajukan, bukan sejak perpindahan terakhir.
+                      Yang ditanyakan kantor "berkas ini sudah berapa lama",
+                      dan jawabannya bukan lama di meja terakhir — dokumen
+                      yang tiga bulan tertahan di pajak lalu berpindah kemarin
+                      akan menjawab "1 hari" bila dihitung dari perpindahan.
+
+                      Yang sudah dibayar tidak diberi warna peringatan: ia
+                      memang pernah berjalan lama, tetapi tidak lagi menunggu
+                      siapa pun. */}
                   <td className="n">
-                    <span className={`pill ${umur >= 14 ? "stop"
-                                     : umur >= 7 ? "warn" : "ok"}`}>
-                      {b.age_days === null ? "—" : k.hari(umur)}
+                    <span className={`pill ${b.selesai ? "ok"
+                                     : b.durasi_hari >= 14 ? "stop"
+                                     : b.durasi_hari >= 7 ? "warn" : ""}`}>
+                      {k.hari(b.durasi_hari)}
                     </span>
+                    {b.selesai && (
+                      <div className="meta">{k.selesaiTanda}</div>
+                    )}
                   </td>
-                  <td>{k.keadaan[b.status] ?? b.status}</td>
+                  {/* Di bagian mana waktunya paling banyak terpakai. Inilah
+                      yang menjawab "kenapa lama" — kolom Status hanya
+                      menjawab "sedang di mana", dan keduanya kerap berbeda
+                      jauh. */}
+                  <td>
+                    {b.tertahan ? (
+                      <>
+                        {b.tertahan.pihak[bahasa]}
+                        <div className="meta">{k.hari(b.tertahan.hari)}</div>
+                      </>
+                    ) : "—"}
+                  </td>
+                  <td>
+                    {k.keadaan[b.status] ??
+                     (b.kini ? b.kini.pihak[bahasa] : b.status)}
+                    {!k.keadaan[b.status] && b.kini && (
+                      <div className="meta">{b.kini.kerja[bahasa]}</div>
+                    )}
+                  </td>
                   <td>
                     {/* Tindakannya ada pada klaimnya — serah terima, unggah
                         pindaian — jadi layar ini menunjuk ke sana alih-alih
@@ -321,18 +381,17 @@ export default function SirkulasiPage() {
                     </Link>
                   </td>
                 </tr>
-              );
-            })}
+            ))}
 
             {!baris.length && !busy && (
               <tr>
-                <td colSpan={11} style={{ color: "var(--mut)" }}>
+                <td colSpan={12} style={{ color: "var(--mut)" }}>
                   {k.kosong}
                 </td>
               </tr>
             )}
             {busy && (
-              <tr><td colSpan={11} style={{ color: "var(--mut)" }}>{k.memuat}</td></tr>
+              <tr><td colSpan={12} style={{ color: "var(--mut)" }}>{k.memuat}</td></tr>
             )}
           </tbody></table>
         </div>
