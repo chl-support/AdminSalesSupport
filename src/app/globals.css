@@ -978,6 +978,14 @@ button.hapus-klaim:hover:not(:disabled) {
 .tabel-rekap th, .tabel-rekap td { overflow-wrap: anywhere; }
 .tabel-rekap th, .tabel-rekap td { border: 1px solid var(--line);
                                    padding: 3px 4px; vertical-align: top; }
+/* Judul kolomnya rata tengah tegak, isinya tetap rata atas.
+   
+   Judul yang panjang patah dua atau tiga baris sementara tetangganya satu
+   baris, dan yang pendek lalu menggantung di tepi atas kotaknya — "Sign PPJB"
+   duduk jauh di atas "Amount Unit (Rp.)" di sebelahnya, seolah keduanya tidak
+   sebaris. Isi tabel tidak ikut: di sana yang harus sejajar tepi atasnya,
+   sebab satu sel dapat setinggi empat baris sementara tetangganya satu. */
+.tabel-rekap th { vertical-align: middle; }
 /* Kepala tabelnya rata tengah, seluruhnya.
    
    Judul kolom di sini berdiri di atas kolom sempit dan hampir selalu patah
