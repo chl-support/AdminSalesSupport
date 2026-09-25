@@ -56,15 +56,14 @@ const persen = (v?: string | null) => {
  */
 const KOLOM: { atas: string; bawah?: string; kelas?: string; lebar: number }[] = [
   { atas: "No.", lebar: 2, kelas: "angka" },
-  { atas: "Sales Group", lebar: 4.8 },
   { atas: "Tgl. Kontrak", lebar: 4.5 },
   { atas: "Unit", lebar: 4 },
-  { atas: "Nama Konsumen", lebar: 4.4 },
-  { atas: "Marketing", lebar: 5.2 },
-  { atas: "Kategori Marketing", lebar: 4.2 },
+  { atas: "Nama Konsumen", lebar: 5.9 },
+  { atas: "Marketing", lebar: 7 },
+  { atas: "Kategori Marketing", lebar: 5.7 },
   { atas: "Luas", bawah: "Tanah", kelas: "angka", lebar: 2.5 },
   { atas: "Luas", bawah: "Bangunan", kelas: "angka", lebar: 2.8 },
-  { atas: "Skema Cara Bayar", lebar: 4 },
+  { atas: "Skema Cara Bayar", lebar: 8 },
   { atas: "Status", bawah: "Unit", lebar: 3 },
   { atas: "Status", bawah: "Tgl. Batal", lebar: 4 },
   { atas: "Type", lebar: 2.6 },
@@ -72,7 +71,6 @@ const KOLOM: { atas: string; bawah?: string; kelas?: string; lebar: number }[] =
   { atas: "DPP Nilai Lain", kelas: "angka", lebar: 7 },
   { atas: "Penerimaan", bawah: "Rp.", kelas: "angka", lebar: 7 },
   { atas: "Penerimaan", bawah: "%", kelas: "angka", lebar: 4.8 },
-  { atas: "Total % Overiding", kelas: "angka", lebar: 4 },
   { atas: "Sign PPJB", lebar: 3 },
   { atas: "Skema Overiding", bawah: "Reguler / Progresif", lebar: 3.4 },
   { atas: "Skema Overiding", bawah: "%", kelas: "angka", lebar: 2.6 },
@@ -188,7 +186,6 @@ export function RekapOverriding({ rekap }: { rekap: Rekap }) {
               {b.baris.map((r) => (
                 <tr key={`${b.judul}:${r.unit}:${r.no}`}>
                   <td className="angka">{r.no}</td>
-                  <td>{atau(r.sales_group)}</td>
                   <td>{tgl(r.tgl_kontrak)}</td>
                   <td><b>{r.unit}</b></td>
                   <td>{atau(r.nama_konsumen)}</td>
@@ -204,7 +201,6 @@ export function RekapOverriding({ rekap }: { rekap: Rekap }) {
                   <td className="angka">{rp(r.dpp_nilai_lain)}</td>
                   <td className="angka">{rp(r.penerimaan)}</td>
                   <td className="angka">{persen(r.penerimaan_persen)}</td>
-                  <td className="angka">{persen(r.persen_overriding)}</td>
                   <td>{r.sign_ppjb ? "Sign" : "—"}</td>
                   <td>{atau(r.skema)}</td>
                   <td className="angka">{persen(r.persen_overriding)}</td>
