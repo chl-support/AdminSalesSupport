@@ -978,6 +978,14 @@ button.hapus-klaim:hover:not(:disabled) {
 .tabel-rekap th, .tabel-rekap td { overflow-wrap: anywhere; }
 .tabel-rekap th, .tabel-rekap td { border: 1px solid var(--line);
                                    padding: 3px 4px; vertical-align: top; }
+/* Judul kolomnya rata tengah tegak, isinya tetap rata atas.
+   
+   Judul yang panjang patah dua atau tiga baris sementara tetangganya satu
+   baris, dan yang pendek lalu menggantung di tepi atas kotaknya — "Sign PPJB"
+   duduk jauh di atas "Amount Unit (Rp.)" di sebelahnya, seolah keduanya tidak
+   sebaris. Isi tabel tidak ikut: di sana yang harus sejajar tepi atasnya,
+   sebab satu sel dapat setinggi empat baris sementara tetangganya satu. */
+.tabel-rekap th { vertical-align: middle; }
 /* Kepala tabelnya rata tengah, seluruhnya.
    
    Judul kolom di sini berdiri di atas kolom sempit dan hampir selalu patah
@@ -1138,8 +1146,6 @@ button.hapus-klaim:hover:not(:disabled) {
      tetap muat pada satu halaman setelah marginnya dilebarkan menjadi satu
      inci. Yang dikecilkan keterangan di sekelilingnya, bukan angkanya: yang
      dibaca orang pada lembar ini deretan rupiahnya. */
-  .rekap-or .kop { padding-bottom: 2px; margin-bottom: 3px; }
-  .rekap-or .kop h1 { font-size: 11.5px; }
   .rekap-or .judul-rekap { font-size: 11.5px; margin: 2px 0 2px; }
   .rekap-or .kepala-rekap { font-size: 9px; line-height: 1.3; }
   .rekap-or .sm-rekap { margin: 4px 0 3px; font-size: 10px; }
