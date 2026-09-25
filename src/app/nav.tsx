@@ -64,7 +64,13 @@ const MENU: Butir[] = [
   // pilihan pada layarnya adalah dua jalan menuju hal yang sama, dan yang satu
   // selalu lebih pendek — yang lain lalu hanya memanjangkan kolom menu. Jenisnya
   // dipilih di dalam layar datanya, tempat penyaring lain juga berada.
-  { href: "/klaim", label: { id: "Pengajuan Fee", en: "Fee Submission" } },
+  // Pengajuan Fee punya layarnya sendiri sekaligus anak: namanya tetap tautan
+  // ke daftar pengajuannya, dan pelipatnya tombol tersendiri di sebelahnya.
+  { href: "/klaim", label: { id: "Pengajuan Fee", en: "Fee Submission" },
+    anak: [
+      { href: "/klaim/referensi",
+        label: { id: "Referensi Pengajuan", en: "Submission Reference" } },
+    ] },
   { href: "/memo", label: { id: "Memo Approval", en: "Approval Memo" } },
   { href: "/sirkulasi",
     label: { id: "Sirkulasi Dokumen", en: "Document Workflow" } },
