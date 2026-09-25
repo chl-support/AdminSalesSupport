@@ -17,10 +17,10 @@
  *      `invalid input value for enum claim_type`.
  *   3. recipient_role 'bgb' dan 'sales_coordinator' — dua kategori penerima
  *      yang dapat dipilih di layar tetapi tidak dapat disimpan.
- *   4. claims.office_memo_no dan claims.received_at — dua kolom Sirkulasi
- *      Dokumen yang diisi tangan. Tanpa keduanya seluruh layar Sirkulasi
- *      menjawab "column c.office_memo_no does not exist", bukan hanya kedua
- *      kolomnya yang kosong.
+ *   4. claims.office_memo_no, received_at, handed_to dan distributed_at —
+ *      empat kolom Sirkulasi Dokumen yang diisi tangan. Tanpa keduanya
+ *      seluruh layar Sirkulasi menjawab "column c.office_memo_no does not
+ *      exist", bukan hanya kolomnya yang kosong.
  *
  * Semuanya idempoten dan aman diulang; pemanggilan kedua tidak mengubah apa
  * pun. Kegagalannya sengaja ditelan — bila basis datanya memang belum ada,
@@ -72,12 +72,20 @@ async function pasang(): Promise<void> {
   await query(
     "ALTER TABLE marketings ALTER COLUMN category SET DEFAULT 'sales_inhouse'");
 
-  // Dua kolom Tabel Sirkulasi Dokumen yang tidak dapat disusun dari data yang
-  // ada, jadi diisi tangan: nomor Internal Office Memo yang menyertai berkas
-  // saat diedarkan, dan tanggal berkasnya benar-benar diterima pemegang
-  // sekarang.
+  // Empat kolom Tabel Sirkulasi Dokumen yang tidak dapat disusun dari data
+  // yang ada, jadi diisi tangan: nomor Internal Office Memo yang menyertai
+  // berkas saat diedarkan, tanggal berkasnya benar-benar diterima pemegang
+  // sekarang, kepada siapa berkasnya diserahkan, dan tanggal diserahkannya.
+  //
+  // Dua yang terakhir memang punya bayangannya di sistem — physical_location
+  // dan physical_since — tetapi keduanya hanya terisi bila serah terimanya
+  // dicatat lewat layar Approval. Berkas yang diantar langsung ke meja orang
+  // tidak pernah melewatinya, sehingga kolomnya kosong justru pada berkas
+  // yang paling perlu dilacak.
   await query("ALTER TABLE claims ADD COLUMN IF NOT EXISTS office_memo_no TEXT");
   await query("ALTER TABLE claims ADD COLUMN IF NOT EXISTS received_at DATE");
+  await query("ALTER TABLE claims ADD COLUMN IF NOT EXISTS handed_to TEXT");
+  await query("ALTER TABLE claims ADD COLUMN IF NOT EXISTS distributed_at DATE");
 
   await query(
     `DO $$ BEGIN
