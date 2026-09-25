@@ -35,8 +35,11 @@ const KATA = {
                 "berkasnya tertinggal di satu meja, bukan sedang dibaca.",
     tenang: "Dokumen yang sudah kembali dan dipindai tidak lagi tampil di sini.",
     muatUlang: "Muat ulang",
-    diLuar: "Dokumen di luar",
-    berkas: (n: number) => `${n} berkas`,
+    diLuar: "Tabel Sirkulasi Dokumen",
+    // Angkanya tetap dibawa: pil hitungan yang tidak menghitung apa pun
+    // hanya label kedua bagi judul di sebelahnya. Bentuknya mengikuti pil
+    // pada layar Approval — "\u{1F504} 3 Progress".
+    berkas: (n: number) => `\u{1F4C4} ${n} File / Document`,
     thNo: "No.", thUnit: "Unit", thJenis: "Jenis Dokumen",
     thMemo: "No. Internal Office Memo", thDari: "Dari",
     thKe: "Ke / Di Tangan", thDistribusi: "Tanggal Distribusi",
@@ -69,8 +72,8 @@ const KATA = {
                 "means the file is sitting on someone's desk, not being read.",
     tenang: "Documents already returned and scanned no longer appear here.",
     muatUlang: "Reload",
-    diLuar: "Documents out",
-    berkas: (n: number) => `${n} files`,
+    diLuar: "Document circulation table",
+    berkas: (n: number) => `\u{1F4C4} ${n} File / Document`,
     thNo: "No.", thUnit: "Unit", thJenis: "Document type",
     thMemo: "Internal office memo no.", thDari: "From",
     thKe: "To / held by", thDistribusi: "Distributed on",
