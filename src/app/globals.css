@@ -980,6 +980,21 @@ button.hapus-klaim:hover:not(:disabled) {
                                 letter-spacing: .02em; }
 .tabel-rekap .total-bagian td { background: var(--fill); font-weight: 700; }
 
+/* Seluruh tulisan pada lembar ini hitam.
+   
+   Abu-abu adalah bahasa layar: ia membedakan keterangan dari isi tanpa menambah
+   garis. Di atas kertas — apalagi lewat mesin fotokopi, yang memang dilalui
+   dokumen ini sebelum sampai ke direksi — abu-abu muda menjadi kelabu pucat dan
+   sebagian keterangan kolomnya hilang sama sekali. */
+.rekap-or .kepala-rekap,
+.rekap-or .sm-rekap > span:first-child,
+.rekap-or .sm-rekap .jenis,
+.rekap-or .tabel-rekap th,
+.rekap-or .tabel-rekap th .sub,
+.rekap-or .tabel-rekap td,
+.rekap-or .catatan-rekap,
+.rekap-or .ttd-rekap .peran { color: var(--ink); }
+
 .catatan-rekap { margin-top: 10px; font-size: 10.5px; }
 .catatan-rekap ul { margin: 4px 0 0; padding-left: 16px; }
 .catatan-rekap .nilai { margin-left: 8px; font-weight: 650; }
@@ -1703,13 +1718,13 @@ td.sel-keadaan .menunggu.stop { color: var(--stop); }
    membuatnya tampak seperti cetakan sistem, bukan dokumen kantor — dan tepi
    kiri yang sempit hilang sebagian begitu lembarnya dijilid.
 
-   Satu inci di atas dan di bawah, setengah inci di kiri dan kanan. Tabelnya
+   Setengah inci di atas dan di samping, satu inci di bawah. Tabelnya
    tiga puluh lima kolom dan lebarnya 100% halaman: tiap seperempat inci yang
    diambil dari tepi kiri dan kanan langsung menjadi ruang bagi angka rupiah
    yang kalau tidak, dipatahkan menjadi dua baris. Tepi atas dan bawah tidak
    menambah ruang bagi kolom mana pun, jadi ia tetap satu inci sebagaimana
    surat kantor. */
-@page rekap-melintang { size: A4 landscape; margin: 1in 0.5in; }
+@page rekap-melintang { size: A4 landscape; margin: 0.5in 0.5in 1in; }
 .rekap-or { page: rekap-melintang; }
 
 @media print {
