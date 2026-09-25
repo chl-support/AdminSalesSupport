@@ -808,7 +808,14 @@ export async function printPackage(claimId: string, actor: string, reason?: stri
   };
 }
 
-const HANDOFF_NEXT: Record<string, [string, string]> = {
+/**
+ * Tujuan tiap peristiwa serah terima: [status berikutnya, siapa pemegangnya].
+ *
+ * Dibuka supaya layar Sirkulasi dapat menyebut dari tangan siapa dokumen itu
+ * datang — pemegang sebelumnya adalah tujuan serah terima sebelumnya. Satu
+ * peta untuk keduanya; dua salinan akan berbeda begitu alurnya berubah.
+ */
+export const HANDOFF_NEXT: Record<string, [string, string]> = {
   handed_to_head_finance: ["circulating_head_finance", "Head Finance"],
   returned_from_head_finance: ["circulating_head_finance", "Admin Sales"],
   handed_to_management: ["circulating_management", "Management"],

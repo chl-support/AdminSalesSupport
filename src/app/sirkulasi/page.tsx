@@ -17,7 +17,8 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 
-import { useKata } from "../bahasa";
+import { useBahasa, useKata } from "../bahasa";
+import { namaJenis } from "../klaim/jenis";
 import { Kerangka, MemeriksaSesi } from "../kerangka";
 import { useSesi } from "../session";
 
@@ -36,8 +37,18 @@ const KATA = {
     muatUlang: "Muat ulang",
     diLuar: "Dokumen di luar",
     berkas: (n: number) => `${n} berkas`,
-    nomor: "Nomor klaim", salinan: "Salinan", diTangan: "Di tangan",
-    sejak: "Sejak", umur: "Umur", tindakan: "Tindakan",
+    thNo: "No.", thUnit: "Unit", thJenis: "Jenis Dokumen",
+    thMemo: "No. Internal Office Memo", thDari: "Dari",
+    thKe: "Ke / Di Tangan", thDistribusi: "Tanggal Distribusi",
+    thDiterima: "Tanggal Diterima", thDurasi: "Durasi Proses",
+    thStatus: "Status", tindakan: "Tindakan",
+    salinanKe: (n: number) => `salinan #${n}`,
+    keadaan: {
+      printed: "Dicetak, siap diedarkan",
+      circulating_head_finance: "Di Head Finance",
+      circulating_management: "Di Manajemen",
+      awaiting_scan_upload: "Kembali, menunggu pindaian",
+    } as Record<string, string>,
     hari: (n: number) => `${n} hari`,
     buka: "Buka klaim",
     kosong: "Tidak ada dokumen yang sedang beredar.",
@@ -57,8 +68,18 @@ const KATA = {
     muatUlang: "Reload",
     diLuar: "Documents out",
     berkas: (n: number) => `${n} files`,
-    nomor: "Claim number", salinan: "Copy", diTangan: "Held by",
-    sejak: "Since", umur: "Age", tindakan: "Action",
+    thNo: "No.", thUnit: "Unit", thJenis: "Document type",
+    thMemo: "Internal office memo no.", thDari: "From",
+    thKe: "To / held by", thDistribusi: "Distributed on",
+    thDiterima: "Received on", thDurasi: "Processing time",
+    thStatus: "Status", tindakan: "Action",
+    salinanKe: (n: number) => `copy #${n}`,
+    keadaan: {
+      printed: "Printed, ready to circulate",
+      circulating_head_finance: "With Head Finance",
+      circulating_management: "With Management",
+      awaiting_scan_upload: "Returned, awaiting scan",
+    } as Record<string, string>,
     hari: (n: number) => `${n} days`,
     buka: "Open claim",
     kosong: "No documents are circulating.",
@@ -68,6 +89,8 @@ const KATA = {
 
 type Beredar = {
   id: string; claim_number: string; print_copy_number: number;
+  claim_type: string; status: string; unit_code: string | null;
+  dari: string | null;
   physical_location: string | null; physical_since: string | null;
   age_days: number | null;
 };
@@ -75,6 +98,7 @@ type Beredar = {
 export default function SirkulasiPage() {
   const { sesi, memuat } = useSesi();
   const k = useKata(KATA);
+  const { bahasa } = useBahasa();
   const [baris, setBaris] = useState<Beredar[]>([]);
   const [galat, setGalat] = useState<string | null>(null);
   const [busy, setBusy] = useState(true);
@@ -136,30 +160,63 @@ export default function SirkulasiPage() {
 
         <div className="tscroll">
           <table><tbody>
+            {/* Kolomnya mengikuti Tabel Sirkulasi Dokumen yang dipakai
+                kantor, dengan urutan yang sama. Dua di antaranya belum punya
+                sumber datanya — lihat selnya masing-masing. */}
             <tr>
-              <th>{k.nomor}</th><th>{k.salinan}</th><th>{k.diTangan}</th>
-              <th>{k.sejak}</th>
-              <th style={{ textAlign: "right" }}>{k.umur}</th>
+              <th style={{ width: 44 }}>{k.thNo}</th>
+              <th>{k.thUnit}</th>
+              <th>{k.thJenis}</th>
+              <th>{k.thMemo}</th>
+              <th>{k.thDari}</th>
+              <th>{k.thKe}</th>
+              <th>{k.thDistribusi}</th>
+              <th>{k.thDiterima}</th>
+              <th style={{ textAlign: "right" }}>{k.thDurasi}</th>
+              <th>{k.thStatus}</th>
               <th style={{ width: 110 }}>{k.tindakan}</th>
             </tr>
 
-            {baris.map((b) => {
+            {baris.map((b, i) => {
               const umur = b.age_days ?? 0;
               return (
                 <tr key={b.id}>
-                  <td><b>{b.claim_number}</b></td>
-                  <td>#{b.print_copy_number}</td>
+                  <td className="n">{i + 1}</td>
+                  {/* Nomor klaim dan salinan keberapa tidak lagi punya
+                      kolomnya sendiri pada acuan ini, tetapi keduanya yang
+                      dipakai orang untuk memastikan berkas yang dipegang
+                      memang berkas yang dicari — jadi keduanya tetap terbaca,
+                      kecil di bawah kode unitnya. */}
+                  <td>
+                    <b>{b.unit_code ?? "—"}</b>
+                    <div className="meta">
+                      {b.claim_number} · {k.salinanKe(b.print_copy_number)}
+                    </div>
+                  </td>
+                  <td>{namaJenis(b.claim_type as any, bahasa)}</td>
+                  {/* Nomor memo internal belum tersimpan di mana pun: klaim
+                      tidak punya medannya, dan memo pada layar Memo Approval
+                      adalah surat edaran project, bukan nomor yang menyertai
+                      satu berkas yang beredar. */}
+                  <td className="belum-ada">—</td>
+                  <td>{b.dari ?? "—"}</td>
                   <td>{b.physical_location ?? "—"}</td>
                   <td>
                     {b.physical_since
                       ? String(b.physical_since).slice(0, 10) : "—"}
                   </td>
+                  {/* Tanggal diterima belum terpisah dari tanggal distribusi:
+                      serah terima tercatat sebagai satu peristiwa, pada satu
+                      waktu, tanpa pengakuan terima tersendiri dari yang
+                      menerimanya. */}
+                  <td className="belum-ada">—</td>
                   <td className="n">
                     <span className={`pill ${umur >= 14 ? "stop"
                                      : umur >= 7 ? "warn" : "ok"}`}>
                       {b.age_days === null ? "—" : k.hari(umur)}
                     </span>
                   </td>
+                  <td>{k.keadaan[b.status] ?? b.status}</td>
                   <td>
                     {/* Tindakannya ada pada klaimnya — serah terima, unggah
                         pindaian — jadi layar ini menunjuk ke sana alih-alih
@@ -174,13 +231,13 @@ export default function SirkulasiPage() {
 
             {!baris.length && !busy && (
               <tr>
-                <td colSpan={6} style={{ color: "var(--mut)" }}>
+                <td colSpan={11} style={{ color: "var(--mut)" }}>
                   {k.kosong}
                 </td>
               </tr>
             )}
             {busy && (
-              <tr><td colSpan={6} style={{ color: "var(--mut)" }}>{k.memuat}</td></tr>
+              <tr><td colSpan={11} style={{ color: "var(--mut)" }}>{k.memuat}</td></tr>
             )}
           </tbody></table>
         </div>
