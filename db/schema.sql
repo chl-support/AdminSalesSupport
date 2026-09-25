@@ -353,6 +353,18 @@ CREATE TABLE IF NOT EXISTS claims (
     CHECK (net_amount = gross_amount + vat - withholding_tax)
 );
 
+-- Dua medan pada Tabel Sirkulasi Dokumen yang tidak dapat disusun dari data
+-- yang sudah ada, dan karena itu diisi tangan oleh Admin Sales.
+--
+-- office_memo_no: nomor Internal Office Memo yang menyertai berkas saat
+--   diedarkan. Nomornya terbit di luar sistem ini.
+-- received_at: tanggal berkasnya benar-benar diterima pemegang sekarang.
+--   Berbeda dari physical_since, yang mencatat kapan perpindahannya
+--   dituliskan ke sistem — keduanya kerap berselisih beberapa hari, dan
+--   justru selisih itulah yang dicari saat menelusuri berkas yang tertahan.
+ALTER TABLE claims ADD COLUMN IF NOT EXISTS office_memo_no TEXT;
+ALTER TABLE claims ADD COLUMN IF NOT EXISTS received_at DATE;
+
 -- BR-05: satu klaim aktif per kombinasi unit + jenis + peran penerima.
 CREATE UNIQUE INDEX IF NOT EXISTS uniq_active_claim
   ON claims (unit_id, claim_type, recipient_role)

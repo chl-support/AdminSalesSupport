@@ -208,7 +208,26 @@ ul.kurang {
 /* Sel yang memang belum punya sumber datanya — bukan sel kosong karena
    datanya kebetulan tidak terisi. Dibuat redup agar terbaca sebagai kolom
    yang menunggu, bukan sebagai isian yang terlewat diisi orang. */
-td.belum-ada { color: var(--mut); text-align: center; }
+td.belum-ada, .belum-ada { color: var(--mut); text-align: center; }
+
+/* Isian tangan di dalam tabel Sirkulasi: sedatar mungkin sampai disentuh,
+   supaya deretan kotak isian tidak menenggelamkan kolom lain yang hanya
+   dibaca. Tepinya baru muncul saat disorot atau difokus — di situlah ia
+   memang perlu terlihat sebagai tempat mengetik. */
+.isi-sirkulasi {
+  width: 100%; min-width: 96px; padding: 3px 6px;
+  border: 1px solid transparent; border-radius: 5px;
+  background: transparent; font: inherit; color: var(--ink);
+}
+.isi-sirkulasi::placeholder { color: var(--mut); }
+.isi-sirkulasi:hover:not(:disabled) {
+  border-color: var(--line); background: #fff;
+}
+.isi-sirkulasi:focus {
+  border-color: var(--emas-tua); background: #fff;
+  outline: 2px solid rgba(154, 114, 3, .25); outline-offset: 0;
+}
+.isi-sirkulasi:disabled { color: var(--mut); cursor: progress; }
 
 .filters.cari .lbl {
   font-size: 13px; font-weight: 600; color: var(--sub); margin-bottom: 6px;
