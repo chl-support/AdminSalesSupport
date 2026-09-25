@@ -115,11 +115,13 @@ export function RekapOverriding({ rekap }: { rekap: Rekap }) {
   const ttd = penandatanganRekap(rekap.project?.slug);
   return (
     <div className="cetak rekap-or">
-      <div className="kop">
-        <h1>{rekap.project?.company_name ?? rekap.project?.name ?? "—"}</h1>
-      </div>
+      {/* Tanpa kop berisi nama PT di puncak lembar. Formulir pengajuan memang
+          berkop — ia surat yang berdiri sendiri — sedangkan lembar ini
+          lampiran perhitungan yang beredar bersama formulirnya, dan nama PT
+          yang sama tercetak dua kali berturut-turut hanya memakan tinggi
+          halaman yang justru sedang diperebutkan tabelnya.
 
-      {/* Tanpa nomor klaim di belakang judulnya. Yang menandai lembar ini
+          Tanpa nomor klaim di belakang judulnya. Yang menandai lembar ini
           bagi yang membacanya adalah klusternya, periodenya, dan nama Sales
           Manager-nya — ketiganya tertulis tepat di bawah sini. Nomor klaim
           penanda di dalam sistem, dan pada dokumen yang beredar ke tangan
