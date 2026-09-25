@@ -169,32 +169,6 @@ function sebelumBatas(n: NomorLangkah): string {
 export const warnaLangkah = (k: Keadaan) =>
   k === "usai" ? "usai" : k === "stop" ? "stop" : k === "kini" ? "kini" : "nanti";
 
-/**
- * Yang memegang berkas pada sebuah status, disebut sebagaimana layar
- * menyebutnya.
- *
- * Bukan sekadar pihak langkahnya: langkah pertama berjudul "Pajak", padahal
- * empat status pertamanya masih di meja Admin Sales — draft, terkirim, dan
- * menunggu diteruskan. Menjumlahkan keempatnya sebagai "lama di Pajak"
- * menuduh bagian yang belum pernah memegang berkasnya.
- */
-export function pihakStatus(status: string): { id: string; en: string } | null {
-  const n = langkahDari(status);
-  if (n === null) return null;
-  const l = LANGKAH.find((x) => x.n === n)!;
-  return sebutanLangkah(l, status).pihak;
-}
-
-/**
- * Langkah yang memuat sebuah status.
- *
- * Dipakai layar Sirkulasi untuk menjumlahkan lama sebuah pengajuan pada tiap
- * langkah: jejak audit menyimpan status, bukan langkah, dan yang ditanyakan
- * kantor "berkasnya lama di bagian mana" — bukan "lama pada status mana".
- *
- * Status yang menghentikan perjalanan tidak menempati langkah mana pun. Ia
- * memang bukan tempat berkasnya tertahan, melainkan akhir perjalanannya.
- */
 export function langkahDari(status: string): NomorLangkah | null {
   if (TERTAHAN.includes(status)) return null;
   const i = URUTAN.indexOf(status);

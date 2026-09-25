@@ -3,16 +3,17 @@ import { audit, one } from "@/lib/db";
 import { WorkflowError } from "@/lib/workflow";
 
 /**
- * Empat isian Tabel Sirkulasi Dokumen yang diisi tangan.
+ * Lima isian Tabel Sirkulasi Dokumen yang diisi tangan.
  *
  * Nomor Internal Office Memo terbit di luar sistem ini, dan tanggal diterima
  * hanya diketahui orang yang menyerahkan berkasnya — serah terima tercatat
  * sebagai satu peristiwa pada satu waktu, tanpa pengakuan terima tersendiri.
- * Kepada siapa berkasnya diserahkan dan kapan pun begitu: keduanya punya
+ * Divisi pengirim, divisi penerima dan tanggal distribusinya pun begitu:
+ * ketiganya punya
  * bayangannya pada physical_location dan physical_since, tetapi bayangan itu
  * hanya terisi bila serah terimanya dicatat lewat layar Approval, sedangkan
  * berkas yang diantar langsung ke meja orang tidak pernah melewatinya.
- * Keempatnya tidak dapat disusun dari data yang ada, jadi disediakan
+ * Kelimanya tidak dapat disusun dari data yang ada, jadi disediakan
  * tempatnya alih-alih dikarang.
  *
  * Yang boleh mengisi sama dengan yang boleh menggerakkan dokumennya: Admin
@@ -22,13 +23,15 @@ import { WorkflowError } from "@/lib/workflow";
  * berarti "belum diisi", sebab yang salah ketik harus dapat menghapusnya
  * tanpa mengarang nilai pengganti.
  *
- * Yang tidak disebut dalam permintaan tidak disentuh. Menulis keempatnya
+ * Yang tidak disebut dalam permintaan tidak disentuh. Menulis kelimanya
  * setiap kali akan membuat permintaan yang hanya membetulkan nomor memo ikut
  * menghapus tanggal yang sudah benar — diam-diam, tanpa ada yang memintanya.
  */
 
 /** Isian teks: namanya di basis data dan panjang terpanjang yang masuk akal. */
-const TEKS: Record<string, number> = { office_memo_no: 100, handed_to: 100 };
+const TEKS: Record<string, number> = {
+  office_memo_no: 100, sender_division: 100, handed_to: 100,
+};
 /** Isian tanggal; semuanya kolom DATE. */
 const TANGGAL = ["received_at", "distributed_at"];
 
@@ -66,7 +69,7 @@ export const POST = handler(async (req, { params }) => {
     ? `${m} = $${i + 1}::date` : `${m} = $${i + 1}`).join(", ");
   const baru = await one<any>(
     `UPDATE claims SET ${set} WHERE id = $${medan.length + 1}
-      RETURNING office_memo_no, handed_to,
+      RETURNING office_memo_no, sender_division, handed_to,
                 to_char(received_at, 'YYYY-MM-DD')    AS received_at,
                 to_char(distributed_at, 'YYYY-MM-DD') AS distributed_at`,
     [...medan.map((m) => nilai[m]), id]);
@@ -77,7 +80,8 @@ export const POST = handler(async (req, { params }) => {
   });
 
   return {
-    office_memo_no: baru.office_memo_no, handed_to: baru.handed_to,
+    office_memo_no: baru.office_memo_no,
+    sender_division: baru.sender_division, handed_to: baru.handed_to,
     received_at: baru.received_at, distributed_at: baru.distributed_at,
   };
 });

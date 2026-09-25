@@ -1,6 +1,6 @@
 import { handler, projectAktif } from "@/lib/api";
 import { query } from "@/lib/db";
-import { LANGKAH, langkahDari, pihakStatus, sebutanLangkah } from "@/lib/langkah";
+import { LANGKAH, langkahDari, sebutanLangkah } from "@/lib/langkah";
 import { HANDOFF_NEXT } from "@/lib/workflow";
 
 /**
@@ -19,14 +19,16 @@ import { HANDOFF_NEXT } from "@/lib/workflow";
  * Unit dan jenis dokumennya ikut dibaca: yang mencari berkas di meja orang
  * menyebutnya "berkas unit NS-NR3-01", bukan nomor klaimnya.
  *
- * Nomor Internal Office Memo, tanggal diterima, kepada siapa berkasnya
- * diserahkan dan tanggal diserahkannya diisi tangan — semuanya tidak dapat
+ * Nomor Internal Office Memo, divisi pengirim dan penerima, serta tanggal
+ * distribusi dan tanggal diterima diisi tangan — semuanya tidak dapat
  * disusun dari data yang ada. Lihat /api/claims/[id]/sirkulasi.
  *
- * "Dari" tidak tersimpan pada klaimnya — yang tersimpan hanya pemegang
- * sekarang. Ia disusun dari riwayat serah terima: pemegang sebelumnya adalah
- * tujuan perpindahan sebelumnya. Klaim yang baru sekali berpindah datang dari
- * Admin Sales, sebab di sanalah dokumen dicetak sebelum diedarkan.
+ * Divisi pengirim tidak tersimpan pada klaimnya — yang tersimpan hanya
+ * pemegang sekarang. Yang dapat disusun dari riwayat serah terima tetap
+ * dihitung dan ditawarkan sebagai bayangan pada isiannya: pemegang sebelumnya
+ * adalah tujuan perpindahan sebelumnya, dan klaim yang baru sekali berpindah
+ * datang dari Admin Sales, sebab di sanalah dokumen dicetak sebelum
+ * diedarkan.
  */
 
 /** Status yang mengakhiri perjalanan; sesudahnya tidak ada yang menunggu. */
@@ -58,49 +60,6 @@ const KELOMPOK: Record<string, string[]> = {
 
 const HARI = 24 * 60 * 60 * 1000;
 
-/**
- * Lama berkas di tangan tiap pihak, dari jejak auditnya.
- *
- * Jejak audit menyimpan perpindahan status — "status:draft->submitted" beserta
- * waktunya — bukan lama tinggalnya. Lamanya disusun dari selisih antar
- * perpindahan: sebuah klaim menempati satu status sejak ia masuk ke sana
- * sampai perpindahan berikutnya, dan yang terakhir sampai sekarang.
- *
- * Dijumlahkan per PIHAK, bukan per status maupun per langkah. Yang ditanyakan
- * kantor "berkasnya lama di bagian mana", dan satu bagian memegang beberapa
- * status berturut-turut. Per langkah pun tidak cukup: langkah pertama
- * berjudul "Pajak" sementara empat status pertamanya masih di meja Admin
- * Sales, sehingga pengajuan yang lama tak kunjung dikirim akan tercatat lama
- * di Pajak — menuduh bagian yang belum pernah memegang berkasnya.
- */
-function lamaPerPihak(
-  mulai: Date, jejak: { action: string; occurred_at: Date }[], sampai: Date,
-): Map<string, { pihak: { id: string; en: string }; hari: number }> {
-  const hasil = new Map<string, { pihak: { id: string; en: string };
-                                  hari: number }>();
-  let status = "draft";
-  let sejak = mulai;
-
-  const tambah = (s: string, dari: Date, hingga: Date) => {
-    const pihak = pihakStatus(s);
-    if (!pihak) return;
-    const hari = Math.max(0, (hingga.getTime() - dari.getTime()) / HARI);
-    const ada = hasil.get(pihak.id);
-    if (ada) ada.hari += hari;
-    else hasil.set(pihak.id, { pihak, hari });
-  };
-
-  for (const j of jejak) {
-    const tuju = j.action.split("->")[1];
-    if (!tuju) continue;
-    tambah(status, sejak, j.occurred_at);
-    status = tuju;
-    sejak = j.occurred_at;
-  }
-  tambah(status, sejak, sampai);
-  return hasil;
-}
-
 export const GET = handler(async (req) => {
   const projectId = await projectAktif(req);
 
@@ -122,7 +81,7 @@ export const GET = handler(async (req) => {
   const baris = await query<any>(
     `SELECT c.id, c.claim_number, c.print_copy_number, c.claim_type, c.status,
             c.physical_location, c.physical_since, c.created_at,
-            c.office_memo_no, c.handed_to,
+            c.office_memo_no, c.sender_division, c.handed_to,
             to_char(c.received_at, 'YYYY-MM-DD') AS received_at,
             to_char(c.distributed_at, 'YYYY-MM-DD') AS distributed_at,
             u.code AS unit_code,
@@ -174,13 +133,6 @@ export const GET = handler(async (req) => {
         : selesai && daftar.length
           ? new Date(daftar[daftar.length - 1].occurred_at)
           : sekarang;
-      const lama = lamaPerPihak(mulai, daftar, akhir);
-
-      let puncak: { pihak: { id: string; en: string }; hari: number } | null = null;
-      for (const v of lama.values()) {
-        if (!puncak || v.hari > puncak.hari) puncak = v;
-      }
-
       // Langkah yang sedang berjalan, disebut sebagaimana layar Approval
       // menyebutnya — "Pajak", "Admin Sales", "Sales/Agent". Status mentah
       // seperti "awaiting_scan_upload" tidak berarti apa pun bagi yang
@@ -194,9 +146,6 @@ export const GET = handler(async (req) => {
         selesai,
         durasi_hari: Math.max(0, Math.round(
           (akhir.getTime() - mulai.getTime()) / HARI)),
-        tertahan: puncak
-          ? { hari: Math.round(puncak.hari), pihak: puncak.pihak }
-          : null,
         kini: lKini ? sebutanLangkah(lKini, b.status) : null,
       };
     }),

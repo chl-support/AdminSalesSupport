@@ -15,7 +15,6 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
 
 import { useBahasa, useKata } from "../bahasa";
 import { namaJenis } from "../klaim/jenis";
@@ -35,13 +34,13 @@ const KATA = {
     pProses: (n: number) => `\u{1F504} ${n} Dalam Proses`,
     pSelesai: (n: number) => `\u2713 ${n} Selesai`,
     thNo: "No.", thUnit: "Unit", thJenis: "Jenis Dokumen",
-    thMemo: "No. Internal Office Memo", thDari: "Dari",
-    thKe: "Ke / Di Tangan", thDistribusi: "Tanggal Distribusi",
+    thMemo: "No. Internal Office Memo", thDari: "Divisi Pengirim",
+    thKe: "Divisi Penerima", thDistribusi: "Tanggal Distribusi",
     thDiterima: "Tanggal Diterima", thDurasi: "Durasi Proses",
-    thLama: "Paling Lama di", thStatus: "Status", tindakan: "Tindakan",
+    thStatus: "Status",
     selesaiTanda: "selesai",
     isiMemo: "ketik nomor memo", isiTanggal: "pilih tanggal",
-    isiKe: "ketik nama pemegang",
+    isiDari: "ketik divisi pengirim", isiKe: "ketik divisi penerima",
     simpanGagal: "Isian tidak tersimpan",
     hanyaAdmin: "Hanya Admin Sales yang dapat mengisi kolom-kolom ini.",
     keadaan: {
@@ -59,7 +58,6 @@ const KATA = {
       clawback: "Ditarik kembali",
     } as Record<string, string>,
     hari: (n: number) => `${n} hari`,
-    buka: "Buka klaim",
     kosong: "Belum ada pengajuan pada project ini.",
     memuat: "Memuat…",
   },
@@ -75,13 +73,14 @@ const KATA = {
     pProses: (n: number) => `\u{1F504} ${n} In progress`,
     pSelesai: (n: number) => `\u2713 ${n} Done`,
     thNo: "No.", thUnit: "Unit", thJenis: "Document type",
-    thMemo: "Internal office memo no.", thDari: "From",
-    thKe: "To / held by", thDistribusi: "Distributed on",
+    thMemo: "Internal office memo no.", thDari: "Sending division",
+    thKe: "Receiving division", thDistribusi: "Distributed on",
     thDiterima: "Received on", thDurasi: "Processing time",
-    thLama: "Longest at", thStatus: "Status", tindakan: "Action",
+    thStatus: "Status",
     selesaiTanda: "done",
     isiMemo: "type the memo number", isiTanggal: "pick a date",
-    isiKe: "type who holds it",
+    isiDari: "type the sending division",
+    isiKe: "type the receiving division",
     simpanGagal: "The entry was not saved",
     hanyaAdmin: "Only Sales Admin can fill these columns.",
     keadaan: {
@@ -96,14 +95,13 @@ const KATA = {
       clawback: "Clawed back",
     } as Record<string, string>,
     hari: (n: number) => `${n} days`,
-    buka: "Open claim",
     kosong: "No submissions on this project yet.",
     memuat: "Loading…",
   },
 };
 
 /** Kolom Sirkulasi yang diisi tangan; lihat /api/claims/[id]/sirkulasi. */
-type MedanIsian = "office_memo_no" | "received_at"
+type MedanIsian = "office_memo_no" | "received_at" | "sender_division"
                 | "handed_to" | "distributed_at";
 
 type Beredar = {
@@ -111,15 +109,14 @@ type Beredar = {
   claim_type: string; status: string; unit_code: string | null;
   dari: string | null;
   office_memo_no: string | null; received_at: string | null;
-  handed_to: string | null; distributed_at: string | null;
+  sender_division: string | null; handed_to: string | null;
+  distributed_at: string | null;
   physical_location: string | null; physical_since: string | null;
   age_days: number | null;
   /** Hari sejak diajukan sampai dibayar — atau sampai hari ini bila belum. */
   durasi_hari: number;
   selesai: boolean;
   tgl_bayar: string | null;
-  /** Langkah yang paling banyak memakan waktu, beserta lamanya. */
-  tertahan: { hari: number; pihak: { id: string; en: string } } | null;
   /** Langkah yang sedang berjalan, disebut sebagaimana layar Approval. */
   kini: { pihak: { id: string; en: string };
           kerja: { id: string; en: string } } | null;
@@ -196,7 +193,8 @@ export default function SirkulasiPage() {
       // Baris ini saja yang disegarkan; memuat ulang seluruh tabel akan
       // memindahkan baris lain di bawah jari yang sedang mengetik.
       setBaris((lama) => lama.map((x) => x.id === b.id
-        ? { ...x, office_memo_no: j.office_memo_no, handed_to: j.handed_to,
+        ? { ...x, office_memo_no: j.office_memo_no,
+            sender_division: j.sender_division, handed_to: j.handed_to,
             received_at: j.received_at, distributed_at: j.distributed_at }
         : x));
     } catch (e: any) {
@@ -251,9 +249,7 @@ export default function SirkulasiPage() {
               <th>{k.thDistribusi}</th>
               <th>{k.thDiterima}</th>
               <th>{k.thDurasi}</th>
-              <th>{k.thLama}</th>
               <th>{k.thStatus}</th>
-              <th style={{ width: 110 }}>{k.tindakan}</th>
             </tr>
 
             {baris.map((b, i) => (
@@ -277,15 +273,29 @@ export default function SirkulasiPage() {
                              }} />
                     ) : b.office_memo_no ?? <span className="belum-ada">—</span>}
                   </td>
-                  <td>{b.dari ?? "—"}</td>
-                  {/* Kepada siapa berkasnya diserahkan dan kapan. Keduanya
-                      punya bayangannya di sistem — physical_location dan
-                      physical_since — tetapi bayangan itu hanya terisi bila
-                      serah terimanya dicatat lewat layar Approval, sedangkan
-                      berkas yang diantar langsung ke meja orang tidak pernah
-                      melewatinya. Yang tercatat sistem tetap ditawarkan
-                      sebagai bayangan pada isiannya, jadi yang mengetik tidak
-                      kehilangan apa yang sudah diketahui. */}
+                  {/* Divisi pengirim dan penerimanya, beserta tanggal
+                      distribusinya. Ketiganya punya bayangannya di sistem —
+                      riwayat serah terima, physical_location, physical_since
+                      — tetapi bayangan itu hanya terisi bila serah terimanya
+                      dicatat lewat layar Approval, sedangkan berkas yang
+                      diantar langsung ke meja orang tidak pernah melewatinya.
+                      Yang tercatat sistem tetap ditawarkan sebagai bayangan
+                      pada isiannya, jadi yang mengetik tidak kehilangan apa
+                      yang sudah diketahui. */}
+                  <td>
+                    {bolehIsi ? (
+                      <input className="isi-sirkulasi" type="text"
+                             defaultValue={b.sender_division ?? ""}
+                             placeholder={b.dari ?? k.isiDari}
+                             disabled={simpan === b.id}
+                             onBlur={(e) => void simpanIsian(
+                               b, "sender_division", e.target.value)}
+                             onKeyDown={(e) => {
+                               if (e.key === "Enter") e.currentTarget.blur();
+                             }} />
+                    ) : b.sender_division ?? b.dari
+                        ?? <span className="belum-ada">—</span>}
+                  </td>
                   <td>
                     {bolehIsi ? (
                       <input className="isi-sirkulasi" type="text"
@@ -344,45 +354,40 @@ export default function SirkulasiPage() {
                       <div className="meta">{k.selesaiTanda}</div>
                     )}
                   </td>
-                  {/* Di bagian mana waktunya paling banyak terpakai. Inilah
-                      yang menjawab "kenapa lama" — kolom Status hanya
-                      menjawab "sedang di mana", dan keduanya kerap berbeda
-                      jauh. */}
+                  {/* Status menjawab satu pertanyaan: berkasnya sekarang ada
+                      di divisi mana. Divisi penerima yang diisi tangan
+                      didahulukan — ia yang paling tahu ke mana berkasnya
+                      benar-benar diantar; bila belum diisi, dipakai pihak
+                      yang seharusnya memegangnya menurut statusnya.
+
+                      Yang sudah berakhir tidak ada di divisi mana pun, jadi
+                      keadaannya yang disebut, bukan pemegang terakhirnya. */}
                   <td>
-                    {b.tertahan ? (
-                      <>
-                        {b.tertahan.pihak[bahasa]}
-                        <div className="meta">{k.hari(b.tertahan.hari)}</div>
-                      </>
-                    ) : "—"}
-                  </td>
-                  <td>
-                    {k.keadaan[b.status] ??
-                     (b.kini ? b.kini.pihak[bahasa] : b.status)}
-                    {!k.keadaan[b.status] && b.kini && (
+                    {b.selesai
+                      ? k.keadaan[b.status] ?? b.status
+                      : b.handed_to ?? k.keadaan[b.status]
+                        ?? (b.kini ? b.kini.pihak[bahasa] : b.status)}
+                    {/* Keterangan pekerjaannya hanya menyertai divisi yang
+                        disusun sistem. Menempelkannya pada divisi yang diisi
+                        tangan membuat baris yang ditulis "Pajak" berbunyi
+                        "Belum dikirim ke Pajak" di bawahnya — dua kalimat
+                        yang saling membantah pada satu sel. */}
+                    {!b.selesai && !b.handed_to && b.kini && (
                       <div className="meta">{b.kini.kerja[bahasa]}</div>
                     )}
                   </td>
-                  <td>
-                    {/* Tindakannya ada pada klaimnya — serah terima, unggah
-                        pindaian — jadi layar ini menunjuk ke sana alih-alih
-                        menyalin tombolnya dan berisiko berbeda perilaku. */}
-                    <Link className="tautan-klaim" href={`/persetujuan?klaim=${b.id}`}>
-                      {k.buka}
-                    </Link>
-                  </td>
-                </tr>
+</tr>
             ))}
 
             {!baris.length && !busy && (
               <tr>
-                <td colSpan={12} style={{ color: "var(--mut)" }}>
+                <td colSpan={10} style={{ color: "var(--mut)" }}>
                   {k.kosong}
                 </td>
               </tr>
             )}
             {busy && (
-              <tr><td colSpan={12} style={{ color: "var(--mut)" }}>{k.memuat}</td></tr>
+              <tr><td colSpan={10} style={{ color: "var(--mut)" }}>{k.memuat}</td></tr>
             )}
           </tbody></table>
         </div>
