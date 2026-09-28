@@ -205,45 +205,13 @@ ul.kurang {
    keterangan lain, jadi ia dibaca sebesar tulisan biasa dan sewarna tulisan
    yang memang dibaca — bukan abu-abu 10,5 piksel yang nyaris hilang di atas
    kotak selebar layar. */
-/* Sel yang memang belum punya sumber datanya — bukan sel kosong karena
-   datanya kebetulan tidak terisi. Dibuat redup agar terbaca sebagai kolom
-   yang menunggu, bukan sebagai isian yang terlewat diisi orang. */
-td.belum-ada, .belum-ada { color: var(--mut); text-align: center; }
-
-/* Isian tangan di dalam tabel Sirkulasi: sedatar mungkin sampai disentuh,
-   supaya deretan kotak isian tidak menenggelamkan kolom lain yang hanya
-   dibaca. Tepinya baru muncul saat disorot atau difokus — di situlah ia
+/* Isian tangan di dalam tabel: sedatar mungkin sampai disentuh, supaya
+   kotak isian tidak menenggelamkan kolom lain yang hanya dibaca. Tepinya baru muncul saat disorot atau difokus — di situlah ia
    memang perlu terlihat sebagai tempat mengetik. */
 /* Empat pil hitungan pada kepala panel Sirkulasi. Dibungkus sendiri supaya
    berjarak dan boleh turun baris di layar sempit — kepala panel memakai
    space-between, yang tanpa pembungkus ini akan merentangkan keempatnya
    sampai ke sisi judulnya. */
-/* Nomor urut baris pada tabel Sirkulasi: di tengah, kepala maupun selnya.
-   Ia penunjuk baris, bukan angka yang dijumlah — rata kanan hanya berguna
-   bagi lajur angka yang dibandingkan besarnya. */
-th.sel-no-urut, td.sel-no-urut { text-align: center; }
-
-.pil-sirkulasi { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
-
-/* Tabel Sirkulasi Dokumen.
-
-   Judul kolomnya di tengah dan sejajar di tengah tingginya: judulnya panjang
-   dan banyak yang turun dua baris, sehingga yang rata atas tampak melayang di
-   atas tetangganya yang satu baris.
-
-   Kolom nomornya pun di tengah — mendatar dan menegak. Barisnya setinggi
-   isian terpanjangnya, dan angka yang menempel di atas tidak lagi terbaca
-   sebagai nomor barisnya. */
-.tabel-sirkulasi th { text-align: center; vertical-align: middle; }
-/* Isian tanggal meminta lebar bawaannya yang lega — dua di antaranya
-   berdampingan cukup untuk mendorong Status dan Tindakan keluar layar.
-   Dipersempit secukupnya, tetapi isian teksnya tetap diberi lebar minimum:
-   tabel yang membagi sisa ruang sendiri menyusutkan keduanya sampai
-   tulisannya terpotong di tengah kata. */
-.tabel-sirkulasi .isi-sirkulasi { min-width: 92px; }
-.tabel-sirkulasi .isi-sirkulasi[type="date"] { width: 96px; min-width: 0; }
-.tabel-sirkulasi td:first-child { text-align: center; vertical-align: middle; }
-
 .isi-sirkulasi {
   width: 100%; min-width: 96px; padding: 3px 6px;
   border: 1px solid transparent; border-radius: 5px;
@@ -1853,29 +1821,30 @@ td.sel-keadaan .menunggu.stop { color: var(--stop); }
 }
 
 /* ---- Dokumen pengajuan: kolom mengikuti bentuk acuannya ------------- */
-/* Empat belas kolom, jauh lebih banyak daripada sebelumnya. Lebarnya dipatok
+/* Lima belas kolom, jauh lebih banyak daripada sebelumnya. Lebarnya dipatok
    supaya satu perihal yang panjang tidak memipihkan kolom angka pada seluruh
    baris lain; .tscroll di sekelilingnya yang menyediakan gulirannya. */
-.tscroll.persetujuan .tabel-penjualan { min-width: 1860px; table-layout: fixed; }
+.tscroll.persetujuan .tabel-penjualan { min-width: 2010px; table-layout: fixed; }
 .tscroll.persetujuan .tabel-penjualan th:nth-child(1)  { width: 44px; }  /* No. */
 .tscroll.persetujuan .tabel-penjualan th:nth-child(2)  { width: 132px; } /* Tanggal */
 .tscroll.persetujuan .tabel-penjualan th:nth-child(3)  { width: 118px; } /* Unit */
-.tscroll.persetujuan .tabel-penjualan th:nth-child(4)  { width: 118px; } /* Perihal */
-.tscroll.persetujuan .tabel-penjualan th:nth-child(5)  { width: 110px; } /* Kategori */
-.tscroll.persetujuan .tabel-penjualan th:nth-child(6)  { width: 150px; } /* Penerima */
-.tscroll.persetujuan .tabel-penjualan th:nth-child(7)  { width: 150px; } /* Diajukan */
-.tscroll.persetujuan .tabel-penjualan th:nth-child(8)  { width: 124px; } /* Jumlah */
-.tscroll.persetujuan .tabel-penjualan th:nth-child(9)  { width: 104px; } /* PPN */
-.tscroll.persetujuan .tabel-penjualan th:nth-child(10) { width: 104px; } /* PPh */
-.tscroll.persetujuan .tabel-penjualan th:nth-child(11) { width: 132px; } /* Dibayarkan */
-.tscroll.persetujuan .tabel-penjualan th:nth-child(12) { width: 132px; } /* Tgl bayar */
+.tscroll.persetujuan .tabel-penjualan th:nth-child(4)  { width: 118px; } /* Jenis */
+.tscroll.persetujuan .tabel-penjualan th:nth-child(5)  { width: 150px; } /* No. IOM */
+.tscroll.persetujuan .tabel-penjualan th:nth-child(6)  { width: 110px; } /* Kategori */
+.tscroll.persetujuan .tabel-penjualan th:nth-child(7)  { width: 150px; } /* Penerima */
+.tscroll.persetujuan .tabel-penjualan th:nth-child(8)  { width: 150px; } /* Diajukan */
+.tscroll.persetujuan .tabel-penjualan th:nth-child(9)  { width: 124px; } /* Jumlah */
+.tscroll.persetujuan .tabel-penjualan th:nth-child(10) { width: 104px; } /* PPN */
+.tscroll.persetujuan .tabel-penjualan th:nth-child(11) { width: 104px; } /* PPh */
+.tscroll.persetujuan .tabel-penjualan th:nth-child(12) { width: 132px; } /* Dibayarkan */
+.tscroll.persetujuan .tabel-penjualan th:nth-child(13) { width: 132px; } /* Tgl bayar */
 /* Status selebar isian terpanjangnya, bukan sekadar cukup untuk tulisan
    yang tertutup. Di dalamnya ada pemilih tahap, dan pilihannya yang
    terpanjang — "2. Persetujuan Internal & Manajemen" — tidak muat pada 186px:
    daftarnya terbuka lebih lebar daripada kolomnya dan tulisannya bertindihan
    dengan kolom sebelahnya. */
-.tscroll.persetujuan .tabel-penjualan th:nth-child(13) { width: 274px; } /* Status */
-.tscroll.persetujuan .tabel-penjualan th:nth-child(14) { width: 150px; } /* Tindakan */
+.tscroll.persetujuan .tabel-penjualan th:nth-child(14) { width: 274px; } /* Status */
+.tscroll.persetujuan .tabel-penjualan th:nth-child(15) { width: 150px; } /* Tindakan */
 /* Nomor urut tidak ditebalkan: ia penunjuk baris, bukan isi yang dibaca. */
 .tscroll.persetujuan .tabel-penjualan td.sel-no {
   text-align: center; color: var(--ink);
