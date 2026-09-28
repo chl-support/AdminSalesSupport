@@ -47,8 +47,11 @@ const LAYAR: Record<string, string> = {
   // Pengajuan Fee: di sana fee yang sudah dapat diklaim diajukan, dan di sana
   // pula tautan tanda tangan dikirim ke Sales/Agent setelah pajak selesai.
   admin_sales: "/klaim",
-  head_finance: "/sirkulasi",
-  management: "/sirkulasi",
+  // Head Finance dan Manajemen dulu diantar ke Sirkulasi Dokumen. Layar itu
+  // dibuang atas permintaan kantor, dan tautan yang menunjuk ke lintasan yang
+  // sudah tidak ada berakhir pada halaman 404. Keduanya kini diantar ke
+  // Approval / Persetujuan, tempat peredaran dokumennya memang terbaca pada
+  // kolom Status tiap baris.
 };
 
 const SEMUA_FEE: ClaimType[] =

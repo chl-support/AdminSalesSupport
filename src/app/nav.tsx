@@ -72,8 +72,6 @@ const MENU: Butir[] = [
         label: { id: "Referensi Pengajuan", en: "Submission Reference" } },
     ] },
   { href: "/memo", label: { id: "Memo Approval", en: "Approval Memo" } },
-  { href: "/sirkulasi",
-    label: { id: "Sirkulasi Dokumen", en: "Document Workflow" } },
   { href: "/persetujuan",
     label: { id: "Approval / Persetujuan", en: "Approval Status" } },
   { href: "/laporan",

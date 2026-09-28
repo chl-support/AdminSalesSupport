@@ -194,7 +194,8 @@ const KATA = {
     batal: "Batal",
     daftar: "Pengajuan & Dokumen",
     thNo: "No.", thTanggal: "Tanggal Pengajuan", thUnit: "Unit",
-    thPerihal: "Perihal/Topik",
+    thPerihal: "Jenis Pengajuan", thIom: "No. IOM",
+    iomIsi: "ketik nomor IOM",
     thKategori: "Kategori", thPenerima: "Penerima",
     thPengaju: "Diajukan Oleh", thBruto: "Jumlah Komisi",
     thPpn: "PPN", thPph: "PPh", thBersih: "Komisi Yang Dibayarkan",
@@ -334,7 +335,8 @@ const KATA = {
     batal: "Cancel",
     daftar: "Submissions & documents",
     thNo: "No.", thTanggal: "Submitted on", thUnit: "Unit",
-    thPerihal: "Subject / topic",
+    thPerihal: "Submission type", thIom: "IOM no.",
+    iomIsi: "type the IOM number",
     thKategori: "Category", thPengaju: "Submitted by",
     thPpn: "VAT", katInhouse: "In-house sales", katAgent: "Agent",
     thPenerima: "Recipient", thBruto: "Commission amount",
@@ -452,6 +454,8 @@ export default function PersetujuanPage() {
   const [mengirim, setMengirim] = useState<string | null>(null);
   /** Klaim yang tahapnya sedang dipindahkan. */
   const [gerak, setGerak] = useState<string | null>(null);
+  /** Baris yang nomor IOM-nya sedang dikirim, supaya tidak ditulis ganda. */
+  const [iomSimpan, setIomSimpan] = useState<string | null>(null);
 
   /**
    * Baris yang kolom Statusnya sedang dibentangkan.
@@ -655,6 +659,38 @@ export default function PersetujuanPage() {
     r.onerror = () => gagal(new Error("Berkas tidak terbaca."));
     r.readAsDataURL(f);
   });
+
+  /**
+   * Simpan nomor IOM satu baris.
+   *
+   * Dikirim saat isiannya ditinggalkan, bukan pada tiap ketukan: satu
+   * permintaan per huruf membuat urutan tibanya menentukan isi akhirnya.
+   * Yang tidak berubah tidak dikirim sama sekali.
+   *
+   * Hanya baris ini yang disegarkan, bukan seluruh tabel — memuat ulang
+   * semuanya akan memindahkan baris lain di bawah jari yang sedang mengetik.
+   */
+  const simpanIom = async (c: any, nilai: string) => {
+    if (nilai.trim() === String(c.office_memo_no ?? "").trim()) return;
+    setIomSimpan(c.id); setGalat(null);
+    try {
+      const res = await fetch(`/api/claims/${c.id}/sirkulasi`, {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ office_memo_no: nilai }),
+      });
+      if (res.status === 401) { location.href = "/login"; return; }
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setGalat(j.detail ?? `HTTP ${res.status}`);
+        await muat();
+        return;
+      }
+      setKlaim((lama) => lama.map((x) => x.id === c.id
+        ? { ...x, office_memo_no: j.office_memo_no } : x));
+    } catch (e: any) {
+      setGalat(String(e?.message ?? e));
+    } finally { setIomSimpan(null); }
+  };
 
   const pindahTahap = async (c: any, n: number) => {
     setGerak(c.id); setGalat(null); setKabar(null);
@@ -934,6 +970,13 @@ export default function PersetujuanPage() {
    */
   const bolehTahap = ["admin_sales", "admin_system", "finance_manager",
                       "head_finance"].includes(sesi.role);
+  /**
+   * Yang boleh mengisi nomor IOM: sama dengan yang endpoint-nya terima.
+   * Peran lain tetap membacanya — menyembunyikan isiannya hanya kerapian,
+   * sedangkan yang menahannya sungguhan adalah requireRole di server.
+   */
+  const bolehIom = ["admin_sales", "admin_system"].includes(sesi.role);
+
   const bolehBayar = ["admin_sales", "finance_payment", "finance_manager",
                       "head_finance", "admin_system"].includes(sesi.role);
   // Persis daftar yang diterima /api/claims/[id]/tax-verification.
@@ -1042,6 +1085,7 @@ export default function PersetujuanPage() {
               <th>{k.thTanggal}</th>
               <th className="sel-unit">{k.thUnit}</th>
               <th>{k.thPerihal}</th>
+              <th>{k.thIom}</th>
               <th>{k.thKategori}</th>
               <th className="sel-penerima">{k.thPenerima}</th>
               <th>{k.thPengaju}</th>
@@ -1064,6 +1108,22 @@ export default function PersetujuanPage() {
                     penerima yang sama tidak dapat dibedakan dari tabel. */}
                 <td className="sel-unit">{c.unit?.code ?? "—"}</td>
                 <td>{namaJenis(c.claim_type, bahasa)}</td>
+                {/* Nomor Internal Office Memo. Terbit di luar sistem ini, jadi
+                    diisi tangan di sini — dan hanya di sini, sejak layar
+                    Sirkulasi Dokumen dibuang. Yang tidak berhak mengisinya
+                    tetap membacanya: isinya memang untuk dibaca. */}
+                <td>
+                  {bolehIom ? (
+                    <input className="isi-sirkulasi" type="text"
+                           defaultValue={c.office_memo_no ?? ""}
+                           placeholder={k.iomIsi}
+                           disabled={iomSimpan === c.id}
+                           onBlur={(e) => void simpanIom(c, e.target.value)}
+                           onKeyDown={(e) => {
+                             if (e.key === "Enter") e.currentTarget.blur();
+                           }} />
+                  ) : c.office_memo_no ?? "—"}
+                </td>
                 <td>{kategori(c, k, bahasa) ?? "—"}</td>
                 <td className="sel-penerima">{c.marketing?.full_name ?? "—"}</td>
                 <td>{pengaju(c)}</td>
@@ -1335,12 +1395,12 @@ export default function PersetujuanPage() {
 
             {!terlihat.length && !busy && (
               <tr>
-                <td colSpan={14} style={{ color: "var(--mut)" }}>{k.kosong}</td>
+                <td colSpan={15} style={{ color: "var(--mut)" }}>{k.kosong}</td>
               </tr>
             )}
             {busy && (
               <tr>
-                <td colSpan={14} style={{ color: "var(--mut)" }}>{k.memuat}</td>
+                <td colSpan={15} style={{ color: "var(--mut)" }}>{k.memuat}</td>
               </tr>
             )}
           </tbody></table>
