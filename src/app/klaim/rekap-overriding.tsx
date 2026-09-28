@@ -37,6 +37,26 @@ const tgl = (v?: string | null) => {
   return `${hr} ${BULAN[bl - 1] ?? bl} ${th}`;
 };
 
+/** Bulan disingkat, untuk kolom tanggal di dalam tabel. */
+const BULAN_PENDEK = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul",
+                      "Agu", "Sep", "Okt", "Nov", "Des"];
+
+/**
+ * Tanggal pada sel tabel: "20 Nov 2024", bukan "20 November 2024".
+ *
+ * Kolom tanggalnya selebar tiga puluh piksel di atas kertas, sedangkan
+ * "November" sendirian meminta tiga puluh delapan. Nama bulan penuh di sana
+ * tidak mengecil melainkan patah di tengah kata — "Nov / emb / er" — dan itu
+ * yang terbaca di meja orang. Kepala lembarnya tetap memakai nama penuh:
+ * di sana ruangnya memang ada.
+ */
+const tglPendek = (v?: string | null) => {
+  if (!v) return "—";
+  const [th, bl, hr] = String(v).slice(0, 10).split("-").map(Number);
+  if (!th || !bl || !hr) return String(v).slice(0, 10);
+  return `${hr} ${BULAN_PENDEK[bl - 1] ?? bl} ${th}`;
+};
+
 /** Persen dari pecahan desimal: "0.002" menjadi "0,20%". */
 const persen = (v?: string | null) => {
   if (v === null || v === undefined || v === "") return "—";
@@ -48,43 +68,59 @@ const persen = (v?: string | null) => {
 /**
  * Kolomnya, berikut judul bertingkat sebagaimana pada acuannya.
  *
- * `lebar` adalah bobot, bukan persen: jumlahnya dinormalkan di bawah menjadi
- * colgroup. Tiga puluh satu kolom pada satu lembar melintang tidak muat bila
- * lebarnya dibiarkan ditentukan isinya — yang terjadi bukan mengecil,
- * melainkan kolom paling kanan terdorong keluar halaman dan hilang dari
- * cetakan tanpa jejak apa pun di layar.
+ * `lebar` dibaca sebagai LEBAR YANG DIMINTA DI ATAS KERTAS, dalam piksel pada
+ * A4 melintang bermargin 0,5 inci — 1025px seluruhnya. Jumlahnya dinormalkan
+ * menjadi persen pada colgroup, jadi angkanya tetap bekerja sebagai bobot;
+ * yang berubah cara membacanya. Bobot tanpa satuan tidak dapat ditimbang
+ * terhadap apa pun, sedangkan angka ini dapat: kolom rupiah diberi 50 karena
+ * "1.878.240.000" bercetak tebal memakan 47px ditambah 4px sela, dan kolom
+ * yang lebih kecil daripada kebutuhannya langsung terbaca di daftar ini.
+ * Angka tidak pernah dipatahkan — .angka memakai white-space: nowrap — jadi
+ * kolom rupiah yang kurang 4px tidak mengecilkan angkanya melainkan
+ * menumpukkannya ke kolom sebelahnya.
+ *
+ * Lebarnya memang harus dipatok. Tiga puluh kolom pada satu lembar melintang
+ * tidak muat bila lebarnya dibiarkan ditentukan isinya — yang terjadi bukan
+ * mengecil, melainkan kolom paling kanan terdorong keluar halaman dan hilang
+ * dari cetakan tanpa jejak apa pun di layar.
+ *
+ * Empat judul disingkat — "Bang.", "Reg. / Prog.", "Tgl. Trf. OR", "Ket." —
+ * sebab kolomnya hanya selebar isinya yang pendek, dan judul panjang di atas
+ * kolom sempit tidak mengecil melainkan patah di tengah kata: "Ketera-ngan",
+ * "Bang-unan". Yang dibaca orang pada lembar ini deretan angkanya; judulnya
+ * cukup dikenali.
  */
 const KOLOM: { atas: string; bawah?: string; kelas?: string; lebar: number }[] = [
-  { atas: "No.", lebar: 2, kelas: "angka" },
-  { atas: "Tgl. Kontrak", lebar: 4.5 },
-  { atas: "Unit", lebar: 4 },
-  { atas: "Nama Konsumen", lebar: 5.9 },
-  { atas: "Marketing", lebar: 7 },
-  { atas: "Kategori Marketing", lebar: 5.7 },
-  { atas: "Luas", bawah: "Tanah", kelas: "angka", lebar: 2.5 },
-  { atas: "Luas", bawah: "Bangunan", kelas: "angka", lebar: 2.8 },
-  { atas: "Skema Cara Bayar", lebar: 8 },
-  { atas: "Status", bawah: "Unit", lebar: 3 },
-  { atas: "Status", bawah: "Tgl. Batal", lebar: 4 },
-  { atas: "Type", lebar: 2.6 },
-  { atas: "Nilai Kontrak", bawah: "(Include PPN)", kelas: "angka", lebar: 7 },
-  { atas: "DPP Nilai Lain", kelas: "angka", lebar: 7 },
-  { atas: "Penerimaan", bawah: "Rp.", kelas: "angka", lebar: 7 },
-  { atas: "Penerimaan", bawah: "%", kelas: "angka", lebar: 4.8 },
-  { atas: "Sign PPJB", lebar: 3 },
-  { atas: "Skema Overiding", bawah: "Reguler / Progresif", lebar: 3.4 },
-  { atas: "Skema Overiding", bawah: "%", kelas: "angka", lebar: 2.6 },
-  { atas: "Skema Overiding", bawah: "Amount Unit (Rp.)", kelas: "angka", lebar: 6.4 },
-  { atas: "Skema Overiding", bawah: "DPP Nilai Lain", kelas: "angka", lebar: 6.4 },
-  { atas: "Skema Overiding", bawah: "PPN", kelas: "angka", lebar: 3.4 },
-  { atas: "Skema Overiding", bawah: "PPh 23", kelas: "angka", lebar: 5 },
-  { atas: "Skema Overiding", bawah: "Net", kelas: "angka", lebar: 6.4 },
-  { atas: "Skema Overiding", bawah: "Tanggal Transfer OR", lebar: 4 },
-  { atas: "Selisih Overiding", bawah: "Amount Unit (Rp.)", kelas: "angka", lebar: 6.4 },
-  { atas: "Selisih Overiding", bawah: "PPh 21", kelas: "angka", lebar: 3.4 },
-  { atas: "Selisih Overiding", bawah: "Net", kelas: "angka", lebar: 6.4 },
-  { atas: "Selisih Overiding", bawah: "%", kelas: "angka", lebar: 2.8 },
-  { atas: "Keterangan", lebar: 4 },
+  { atas: "No.", lebar: 16, kelas: "angka" },
+  { atas: "Tgl. Kontrak", lebar: 30 },
+  { atas: "Unit", lebar: 24 },
+  { atas: "Nama Konsumen", lebar: 38 },
+  { atas: "Marketing", lebar: 37 },
+  { atas: "Kategori Marketing", lebar: 36 },
+  { atas: "Luas", bawah: "Tanah", kelas: "angka", lebar: 23 },
+  { atas: "Luas", bawah: "Bang.", kelas: "angka", lebar: 23 },
+  { atas: "Skema Cara Bayar", lebar: 30 },
+  { atas: "Status", bawah: "Unit", lebar: 18 },
+  { atas: "Status", bawah: "Tgl. Batal", lebar: 20 },
+  { atas: "Type", lebar: 20 },
+  { atas: "Nilai Kontrak", bawah: "(Include PPN)", kelas: "angka", lebar: 51 },
+  { atas: "DPP Nilai Lain", kelas: "angka", lebar: 51 },
+  { atas: "Penerimaan", bawah: "Rp.", kelas: "angka", lebar: 51 },
+  { atas: "Penerimaan", bawah: "%", kelas: "angka", lebar: 31 },
+  { atas: "Sign PPJB", lebar: 23 },
+  { atas: "Skema Overiding", bawah: "Reg. / Prog.", lebar: 23 },
+  { atas: "Skema Overiding", bawah: "%", kelas: "angka", lebar: 31 },
+  { atas: "Skema Overiding", bawah: "Amount Unit (Rp.)", kelas: "angka", lebar: 51 },
+  { atas: "Skema Overiding", bawah: "DPP Nilai Lain", kelas: "angka", lebar: 51 },
+  { atas: "Skema Overiding", bawah: "PPN", kelas: "angka", lebar: 36 },
+  { atas: "Skema Overiding", bawah: "PPh 23", kelas: "angka", lebar: 36 },
+  { atas: "Skema Overiding", bawah: "Net", kelas: "angka", lebar: 51 },
+  { atas: "Skema Overiding", bawah: "Tgl. Trf. OR", lebar: 26 },
+  { atas: "Selisih Overiding", bawah: "Amount Unit (Rp.)", kelas: "angka", lebar: 51 },
+  { atas: "Selisih Overiding", bawah: "PPh 21", kelas: "angka", lebar: 36 },
+  { atas: "Selisih Overiding", bawah: "Net", kelas: "angka", lebar: 51 },
+  { atas: "Selisih Overiding", bawah: "%", kelas: "angka", lebar: 31 },
+  { atas: "Ket.", lebar: 26 },
 ];
 
 const TOTAL_LEBAR = KOLOM.reduce((t, k) => t + k.lebar, 0);
@@ -188,7 +224,7 @@ export function RekapOverriding({ rekap }: { rekap: Rekap }) {
               {b.baris.map((r) => (
                 <tr key={`${b.judul}:${r.unit}:${r.no}`}>
                   <td className="angka">{r.no}</td>
-                  <td>{tgl(r.tgl_kontrak)}</td>
+                  <td>{tglPendek(r.tgl_kontrak)}</td>
                   <td><b>{r.unit}</b></td>
                   <td>{atau(r.nama_konsumen)}</td>
                   <td>{atau(r.marketing)}</td>
@@ -197,7 +233,7 @@ export function RekapOverriding({ rekap }: { rekap: Rekap }) {
                   <td className="angka">{atau(r.luas_bangunan)}</td>
                   <td>{atau(r.skema_cara_bayar)}</td>
                   <td>{r.status_unit}</td>
-                  <td>{tgl(r.tgl_batal)}</td>
+                  <td>{tglPendek(r.tgl_batal)}</td>
                   <td>{atau(r.type)}</td>
                   <td className="angka">{rp(r.nilai_incl)}</td>
                   <td className="angka">{rp(r.dpp_nilai_lain)}</td>
@@ -211,7 +247,7 @@ export function RekapOverriding({ rekap }: { rekap: Rekap }) {
                   <td className="angka">{rp(r.ppn)}</td>
                   <td className="angka">{rp(r.pph23)}</td>
                   <td className="angka">{rp(r.net)}</td>
-                  <td>{tgl(r.tgl_transfer)}</td>
+                  <td>{tglPendek(r.tgl_transfer)}</td>
                   <td className="angka">{rp(r.selisih_amount)}</td>
                   <td className="angka">{rp(r.selisih_pph21)}</td>
                   <td className="angka">{rp(r.selisih_net)}</td>

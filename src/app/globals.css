@@ -1024,6 +1024,12 @@ button.hapus-klaim:hover:not(:disabled) {
 .rekap-or .tabel-rekap td,
 .rekap-or .catatan-rekap,
 .rekap-or .ttd-rekap .peran { color: var(--ink); }
+/* Kecuali judul bagiannya: latarnya hitam, jadi tulisan hitam di atasnya
+   lenyap sama sekali — "PERIODE Oktober 2023" menjadi bar hitam kosong, di
+   layar maupun di kertas. Aturan tulisan hitam di atas ditulis belakangan
+   daripada aturan judul bagian dan kekhususannya sama, sehingga ia menang
+   tanpa tanda apa pun. */
+.rekap-or .tabel-rekap .judul-bagian td { color: #fff; }
 
 .catatan-rekap { margin-top: 10px; font-size: 10.5px; }
 .catatan-rekap ul { margin: 4px 0 0; padding-left: 16px; }
@@ -1095,15 +1101,33 @@ button.hapus-klaim:hover:not(:disabled) {
 
 @media print {
   /* Melintang, dan hanya untuk lembar ini: formulir jenis lain tetap tegak. */
-  .rekap-or { padding: 0; }
+  /* Lembarnya disusun pada lebar rancangannya sendiri — 1530px — lalu
+     dikecilkan sekaligus supaya jatuh persis pada lebar cetak A4 melintang
+     bermargin 0,5 inci: 297mm - 25,4mm = 271,6mm = 1026px, dan
+     1026 / 1530 = 0,67.
+
+     Inilah "Fit Sheet on One Page" pada kotak cetak, tetapi dikerjakan dari
+     sini. Bedanya: yang menekan tombol print tidak perlu mengubah apa pun,
+     dan tabelnya tidak pernah terpotong di tepi kanan bila lupa mengubahnya.
+
+     zoom, bukan transform: transform hanya menggeser gambarnya dan tidak
+     mengubah kotak yang dipakai peramban membagi halaman, sehingga lembar
+     yang panjang menyisakan halaman kosong di bawahnya. zoom mengubah tata
+     letaknya, jadi pemenggalan halamannya ikut benar.
+
+     Ukuran hurufnya ditulis pada ukuran rancangan — 11,2px yang menjadi 7,5px
+     setelah dikecilkan, sama seperti sebelumnya di atas kertas. Yang berubah
+     bukan besarnya huruf di kertas, melainkan tempat menyusunnya: menambah
+     atau mengurangi kolom cukup dengan mengubah kedua angka di sini. */
+  .rekap-or { padding: 0; width: 1530px; zoom: 0.67; }
   .rekap-or .tscroll { overflow: visible; }
   .tscroll > .tabel-rekap { min-width: 0; }
   /* Hurufnya dibesarkan dari 6,5px. Ukuran itu dipilih ketika tabelnya harus
      muat pada margin 8mm dan belum ada yang pernah membacanya di atas kertas;
      yang membacanya kemudian melaporkan angka rupiahnya tidak terbaca. */
-  .tabel-rekap { font-size: 7.5px; }
-  .tabel-rekap th { font-size: 7px; }
-  .tabel-rekap th, .tabel-rekap td { padding: 1px 2px; }
+  .tabel-rekap { font-size: 10.4px; }
+  .tabel-rekap th { font-size: 9.8px; }
+  .tabel-rekap th, .tabel-rekap td { padding: 1.5px 3px; }
   /* Baris tidak dipatahkan di tengah halaman, dan judul bagian tidak pernah
      berdiri sendiri di kaki halaman tanpa satu baris pun di bawahnya. */
   .tabel-rekap tr { page-break-inside: avoid; }
@@ -1125,7 +1149,7 @@ button.hapus-klaim:hover:not(:disabled) {
 
      Jarak tetap tidak pernah tahu tinggi halaman, dan karena itu tidak pernah
      salah menebaknya. Lembarnya setinggi isinya. */
-  .ttd-rekap { page-break-inside: avoid; margin-top: 18px; }
+  .ttd-rekap { page-break-inside: avoid; margin-top: 27px; }
   /* Margin bawah dinolkan HANYA pada lembar rekap: ia pemisah antarlembar di
      layar, dan pada kertas pemisahnya page-break, bukan jarak. Delapan belas
      piksel yang tertinggal di kaki lembar yang sudah penuh cukup untuk
@@ -1137,20 +1161,27 @@ button.hapus-klaim:hover:not(:disabled) {
      ketiganya — satu aturan yang lupa dibatasi mengubah tiga formulir yang
      tidak pernah diminta berubah. */
   .lembar:has(.rekap-or) { margin-bottom: 0; }
-  .ttd-rekap .kotak-ttd { height: 68px; }
-  .ttd-rekap .nama-ttd { font-size: 9px; }
+  /* Rekap yang panjang boleh berlanjut ke halaman berikutnya. Lembar jenis
+     lain tetap utuh satu halaman — lihat .lembar di bagian cetak formulir —
+     tetapi rekap Overiding memuat sebanyak apa pun unit yang terjual pada
+     satu periode, dan memaksanya utuh berarti barisnya yang tidak muat
+     hilang dari kertas tanpa jejak. */
+  .lembar:has(.rekap-or) { page-break-inside: auto; break-inside: auto; }
+  .ttd-rekap .kotak-ttd { height: 101px; }
+  .ttd-rekap .nama-ttd { font-size: 13.4px; }
 
   /* Kepala lembarnya dirapatkan supaya tabel, catatan, dan ruang tanda tangan
      tetap muat pada satu halaman setelah marginnya dilebarkan menjadi satu
      inci. Yang dikecilkan keterangan di sekelilingnya, bukan angkanya: yang
      dibaca orang pada lembar ini deretan rupiahnya. */
-  .rekap-or .judul-rekap { font-size: 11.5px; margin: 2px 0 2px; }
-  .rekap-or .kepala-rekap { font-size: 9px; line-height: 1.3; }
-  .rekap-or .sm-rekap { margin: 4px 0 3px; font-size: 10px; }
-  .rekap-or .sm-rekap > span:first-child { font-size: 9px; }
-  .catatan-rekap { margin-top: 5px; font-size: 8px; line-height: 1.35; }
-  .catatan-rekap ul { margin: 2px 0 0; }
-  .ttd-rekap { font-size: 9px; }
+  .rekap-or .judul-rekap { font-size: 17px; margin: 3px 0 3px; }
+  .rekap-or .kepala-rekap { font-size: 13.4px; line-height: 1.3; }
+  .rekap-or .sm-rekap { margin: 6px 0 4px; font-size: 15px; }
+  .rekap-or .sm-rekap > span:first-child { font-size: 13.4px; }
+  .rekap-or .catatan-rekap { margin-top: 7px; font-size: 12px;
+                             line-height: 1.35; }
+  .rekap-or .catatan-rekap ul { margin: 3px 0 0; }
+  .rekap-or .ttd-rekap { font-size: 13.4px; }
 }
 
 /* Bilah penyaring layar Data Marketing: tindakan di kiri, penyaring di kanan.
