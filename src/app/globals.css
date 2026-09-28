@@ -218,6 +218,11 @@ td.belum-ada, .belum-ada { color: var(--mut); text-align: center; }
    berjarak dan boleh turun baris di layar sempit — kepala panel memakai
    space-between, yang tanpa pembungkus ini akan merentangkan keempatnya
    sampai ke sisi judulnya. */
+/* Nomor urut baris pada tabel Sirkulasi: di tengah, kepala maupun selnya.
+   Ia penunjuk baris, bukan angka yang dijumlah — rata kanan hanya berguna
+   bagi lajur angka yang dibandingkan besarnya. */
+th.sel-no-urut, td.sel-no-urut { text-align: center; }
+
 .pil-sirkulasi { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
 
 .isi-sirkulasi {
