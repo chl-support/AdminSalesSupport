@@ -84,6 +84,12 @@ const persen = (v?: string | null) => {
  * mengecil, melainkan kolom paling kanan terdorong keluar halaman dan hilang
  * dari cetakan tanpa jejak apa pun di layar.
  *
+ * Nama Konsumen serta Status (Unit dan Tgl. Batal) tidak ikut dicetak.
+ * Ketiganya ada pada datanya dan tetap terbaca di layar Approval; pada
+ * lembar ini ruang yang mereka pakai lebih berguna bagi kolom yang isinya
+ * patah di tengah kata. Status unit pun sudah terbaca dari bagiannya:
+ * barisnya berdiri di bawah judul BATAL, bukan di bawah PERIODE.
+ *
  * Empat judul disingkat — "Bang.", "Reg. / Prog.", "Tgl. Trf. OR", "Ket." —
  * sebab kolomnya hanya selebar isinya yang pendek, dan judul panjang di atas
  * kolom sempit tidak mengecil melainkan patah di tengah kata: "Ketera-ngan",
@@ -91,36 +97,33 @@ const persen = (v?: string | null) => {
  * cukup dikenali.
  */
 const KOLOM: { atas: string; bawah?: string; kelas?: string; lebar: number }[] = [
-  { atas: "No.", lebar: 16, kelas: "angka" },
-  { atas: "Tgl. Kontrak", lebar: 30 },
+  { atas: "No.", lebar: 17, kelas: "angka" },
+  { atas: "Tgl. Kontrak", lebar: 31 },
   { atas: "Unit", lebar: 24 },
-  { atas: "Nama Konsumen", lebar: 38 },
-  { atas: "Marketing", lebar: 37 },
-  { atas: "Kategori Marketing", lebar: 36 },
-  { atas: "Luas", bawah: "Tanah", kelas: "angka", lebar: 23 },
-  { atas: "Luas", bawah: "Bang.", kelas: "angka", lebar: 23 },
-  { atas: "Skema Cara Bayar", lebar: 30 },
-  { atas: "Status", bawah: "Unit", lebar: 18 },
-  { atas: "Status", bawah: "Tgl. Batal", lebar: 20 },
-  { atas: "Type", lebar: 20 },
-  { atas: "Nilai Kontrak", bawah: "(Include PPN)", kelas: "angka", lebar: 51 },
-  { atas: "DPP Nilai Lain", kelas: "angka", lebar: 51 },
-  { atas: "Penerimaan", bawah: "Rp.", kelas: "angka", lebar: 51 },
-  { atas: "Penerimaan", bawah: "%", kelas: "angka", lebar: 31 },
-  { atas: "Sign PPJB", lebar: 23 },
-  { atas: "Skema Overiding", bawah: "Reg. / Prog.", lebar: 23 },
-  { atas: "Skema Overiding", bawah: "%", kelas: "angka", lebar: 31 },
-  { atas: "Skema Overiding", bawah: "Amount Unit (Rp.)", kelas: "angka", lebar: 51 },
-  { atas: "Skema Overiding", bawah: "DPP Nilai Lain", kelas: "angka", lebar: 51 },
-  { atas: "Skema Overiding", bawah: "PPN", kelas: "angka", lebar: 36 },
-  { atas: "Skema Overiding", bawah: "PPh 23", kelas: "angka", lebar: 36 },
-  { atas: "Skema Overiding", bawah: "Net", kelas: "angka", lebar: 51 },
-  { atas: "Skema Overiding", bawah: "Tgl. Trf. OR", lebar: 26 },
-  { atas: "Selisih Overiding", bawah: "Amount Unit (Rp.)", kelas: "angka", lebar: 51 },
-  { atas: "Selisih Overiding", bawah: "PPh 21", kelas: "angka", lebar: 36 },
-  { atas: "Selisih Overiding", bawah: "Net", kelas: "angka", lebar: 51 },
-  { atas: "Selisih Overiding", bawah: "%", kelas: "angka", lebar: 31 },
-  { atas: "Ket.", lebar: 26 },
+  { atas: "Marketing", lebar: 41 },
+  { atas: "Kategori Marketing", lebar: 38 },
+  { atas: "Luas", bawah: "Tanah", kelas: "angka", lebar: 24 },
+  { atas: "Luas", bawah: "Bang.", kelas: "angka", lebar: 24 },
+  { atas: "Skema Cara Bayar", lebar: 41 },
+  { atas: "Type", lebar: 24 },
+  { atas: "Nilai Kontrak", bawah: "(Include PPN)", kelas: "angka", lebar: 52 },
+  { atas: "DPP Nilai Lain", kelas: "angka", lebar: 52 },
+  { atas: "Penerimaan", bawah: "Rp.", kelas: "angka", lebar: 52 },
+  { atas: "Penerimaan", bawah: "%", kelas: "angka", lebar: 33 },
+  { atas: "Sign PPJB", lebar: 25 },
+  { atas: "Skema Overiding", bawah: "Reg. / Prog.", lebar: 31 },
+  { atas: "Skema Overiding", bawah: "%", kelas: "angka", lebar: 33 },
+  { atas: "Skema Overiding", bawah: "Amount Unit (Rp.)", kelas: "angka", lebar: 53 },
+  { atas: "Skema Overiding", bawah: "DPP Nilai Lain", kelas: "angka", lebar: 53 },
+  { atas: "Skema Overiding", bawah: "PPN", kelas: "angka", lebar: 38 },
+  { atas: "Skema Overiding", bawah: "PPh 23", kelas: "angka", lebar: 38 },
+  { atas: "Skema Overiding", bawah: "Net", kelas: "angka", lebar: 53 },
+  { atas: "Skema Overiding", bawah: "Tgl. Trf. OR", lebar: 28 },
+  { atas: "Selisih Overiding", bawah: "Amount Unit (Rp.)", kelas: "angka", lebar: 53 },
+  { atas: "Selisih Overiding", bawah: "PPh 21", kelas: "angka", lebar: 38 },
+  { atas: "Selisih Overiding", bawah: "Net", kelas: "angka", lebar: 53 },
+  { atas: "Selisih Overiding", bawah: "%", kelas: "angka", lebar: 33 },
+  { atas: "Ket.", lebar: 40 },
 ];
 
 const TOTAL_LEBAR = KOLOM.reduce((t, k) => t + k.lebar, 0);
@@ -226,14 +229,11 @@ export function RekapOverriding({ rekap }: { rekap: Rekap }) {
                   <td className="angka">{r.no}</td>
                   <td>{tglPendek(r.tgl_kontrak)}</td>
                   <td><b>{r.unit}</b></td>
-                  <td>{atau(r.nama_konsumen)}</td>
                   <td>{atau(r.marketing)}</td>
                   <td>{atau(r.kategori_marketing)}</td>
                   <td className="angka">{atau(r.luas_tanah)}</td>
                   <td className="angka">{atau(r.luas_bangunan)}</td>
                   <td>{atau(r.skema_cara_bayar)}</td>
-                  <td>{r.status_unit}</td>
-                  <td>{tglPendek(r.tgl_batal)}</td>
                   <td>{atau(r.type)}</td>
                   <td className="angka">{rp(r.nilai_incl)}</td>
                   <td className="angka">{rp(r.dpp_nilai_lain)}</td>
