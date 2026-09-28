@@ -207,6 +207,26 @@ const tglPanjang = (v?: string | null) => {
 const periode = (a?: string | null, b?: string | null) =>
   !a && !b ? "—" : `${tglPanjang(a)} – ${b ? tglPanjang(b) : "seterusnya"}`;
 
+/**
+ * "Skema Komisi Agent" menjadi "Komisi Agent", untuk kolom yang sudah
+ * berjudul Skema.
+ *
+ * Hanya di kolom itu. Kata "Skema" yang berulang pada tiap barisnya tidak
+ * menambah keterangan apa pun — judul kolomnya sudah mengatakannya — dan pada
+ * kolom sesempit ini satu kata yang mubazir menambah satu baris lipatan.
+ *
+ * Yang tersimpan tidak disentuh. Judul utuhnya tetap dipakai di tempat yang
+ * tidak punya kepala kolom untuk menerangkannya: dialog pemberlakuan, dan
+ * penebakan jenis fee yang mencocokkan kata pada judul itu.
+ *
+ * Yang seluruhnya berbunyi "Skema" dibiarkan apa adanya — memangkasnya
+ * menyisakan sel kosong, dan sel kosong tidak menyebut apa pun.
+ */
+const tanpaKataSkema = (v: string) => {
+  const sisa = v.replace(/^\s*skema\s+/i, "").trim();
+  return sisa || v;
+};
+
 /** Persen dari pecahan desimal tersimpan: "0.025" menjadi "2,5%". */
 const persenTampil = (v?: string | null) => {
   if (!v) return null;
@@ -655,7 +675,7 @@ function Kotak({ no, baris, k, bahasa, busy, bolehBerlaku, cabut, berlakukan }: 
                     onClick={() => setBukaSkema((s) =>
                       ({ ...s, [kunci]: !s[kunci] }))}>
               <span className="tanda">{terbuka ? "▾" : "▸"}</span>
-              {gr[0].skema}
+              {tanpaKataSkema(gr[0].skema)}
             </button>
           </td>
         );
