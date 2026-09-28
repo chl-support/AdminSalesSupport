@@ -227,6 +227,15 @@ ul.kurang {
 }
 .isi-sirkulasi:disabled { color: var(--mut); cursor: progress; }
 
+/* Sel tanggal saat belum dibuka: tulisan dd/mm/yyyy yang dapat diklik, bukan
+   kotak tanggal bawaan peramban — bentuknya tetap sama dengan isian di
+   sebelahnya supaya kolomnya tidak terbaca sebagai dua jenis sel. */
+.isi-sirkulasi.tgl-baca {
+  text-align: left; cursor: pointer; line-height: inherit;
+}
+.isi-sirkulasi.tgl-baca:disabled { cursor: progress; }
+.tgl-kosong { color: var(--mut); }
+
 .filters.cari .lbl {
   font-size: 13px; font-weight: 600; color: var(--sub); margin-bottom: 6px;
 }

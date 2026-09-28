@@ -195,7 +195,7 @@ const KATA = {
     daftar: "Pengajuan & Dokumen",
     thNo: "No.", thTanggal: "Tanggal Pengajuan", thUnit: "Unit",
     thPerihal: "Jenis Pengajuan", thIom: "No. IOM",
-    iomIsi: "ketik nomor IOM",
+    iomIsi: "ketik nomor IOM", tglIsi: "pilih tanggal",
     thPengirim: "Divisi Pengirim", thPenerimaDiv: "Divisi Penerima",
     thDistribusi: "Tanggal Distribusi", thDiterima: "Tanggal Penerima",
     divIsi: "ketik divisi",
@@ -339,7 +339,7 @@ const KATA = {
     daftar: "Submissions & documents",
     thNo: "No.", thTanggal: "Submitted on", thUnit: "Unit",
     thPerihal: "Submission type", thIom: "IOM no.",
-    iomIsi: "type the IOM number",
+    iomIsi: "type the IOM number", tglIsi: "pick a date",
     thPengirim: "Sending division", thPenerimaDiv: "Receiving division",
     thDistribusi: "Distributed on", thDiterima: "Received on",
     divIsi: "type the division",
@@ -462,6 +462,14 @@ export default function PersetujuanPage() {
   const [gerak, setGerak] = useState<string | null>(null);
   /** Baris yang nomor IOM-nya sedang dikirim, supaya tidak ditulis ganda. */
   const [iomSimpan, setIomSimpan] = useState<string | null>(null);
+  /**
+   * Sel tanggal yang sedang dibuka, sebagai "<id klaim>:<medan>".
+   *
+   * Hanya satu yang terbuka sekaligus: sel yang sedang diketik adalah satu
+   * sel, dan menyimpan seluruh keadaan per baris membuat sel tetangga ikut
+   * berganti bentuk saat salah satunya diklik.
+   */
+  const [tglBuka, setTglBuka] = useState<string | null>(null);
 
   /**
    * Baris yang kolom Statusnya sedang dibentangkan.
@@ -713,18 +721,61 @@ export default function PersetujuanPage() {
    * Yang tidak berhak mengisi tetap membacanya — isinya memang untuk dibaca,
    * dan kotak isian yang mengundang lalu ditolak server lebih buruk daripada
    * tulisan biasa.
+   *
+   * Sel tanggal hanya menjadi <input type="date"> selama dibuka. Selebihnya ia
+   * tulisan biasa berbentuk dd/mm/yyyy, sama seperti Tanggal Pengajuan dan
+   * Tanggal Pembayaran di baris yang sama. Sebabnya: kotak tanggal bawaan
+   * peramban menulis tanggalnya menurut bahasa peramban, bukan bahasa halaman \u2014
+   * pada peramban berbahasa Inggris ia tampil 09/21/2026 sementara dua kolom di
+   * sebelahnya menulis 28/09/2026. Hari dan bulan bertukar tempat dalam satu
+   * baris tanpa penanda apa pun, dan yang membacanya tidak punya cara
+   * mengetahui yang mana. Yang tersimpan tidak berubah: tetap "yyyy-mm-dd".
    */
   const isiAlur = (c: any, medan: MedanAlur, petunjuk?: string) => {
     const tanggal = TANGGAL_ALUR.includes(medan);
-    if (!bolehIom) return c[medan] ?? "\u2014";
+    if (!bolehIom) {
+      if (!c[medan]) return "\u2014";
+      return tanggal ? tglPendek(c[medan]) : c[medan];
+    }
+
+    const kunci = `${c.id}:${medan}`;
+    if (tanggal && tglBuka !== kunci) {
+      return (
+        <button type="button" className="isi-sirkulasi tgl-baca"
+                disabled={iomSimpan === c.id}
+                onClick={() => setTglBuka(kunci)}>
+          {c[medan] ? tglPendek(c[medan])
+                    : <span className="tgl-kosong">{k.tglIsi}</span>}
+        </button>
+      );
+    }
+
     return (
       <input className="isi-sirkulasi" type={tanggal ? "date" : "text"}
              defaultValue={c[medan] ?? ""}
              placeholder={tanggal ? undefined : petunjuk}
              disabled={iomSimpan === c.id}
-             onBlur={(e) => void simpanAlur(c, medan, e.target.value)}
+             /* Kotaknya baru ada sesudah kliknya, jadi fokus dan pemilih
+                tanggalnya dibuka di sini. showPicker() menolak bila aktivasi
+                penggunanya sudah habis; itu bukan kegagalan yang perlu
+                dilaporkan \u2014 mengetik tanggalnya tetap bisa. */
+             ref={tanggal ? (el) => {
+               if (!el || el === document.activeElement) return;
+               el.focus();
+               try { el.showPicker(); } catch { /* ketik saja */ }
+             } : undefined}
+             onBlur={(e) => {
+               if (tanggal) setTglBuka(null);
+               void simpanAlur(c, medan, e.target.value);
+             }}
              onKeyDown={(e) => {
                if (e.key === "Enter") e.currentTarget.blur();
+               /* Batal tanpa menyimpan: nilai semula dipulihkan lebih dulu,
+                  sebab blur yang menyusul tetap membaca isi kotaknya. */
+               if (e.key === "Escape" && tanggal) {
+                 e.currentTarget.value = c[medan] ?? "";
+                 e.currentTarget.blur();
+               }
              }} />
     );
   };
