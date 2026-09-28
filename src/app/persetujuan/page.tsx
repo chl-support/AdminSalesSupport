@@ -201,7 +201,9 @@ const KATA = {
     thNo: "No.", thTanggal: "Tanggal Pengajuan", thUnit: "Unit",
     thPerihal: "Jenis Pengajuan", thIom: "No. IOM",
     iomIsi: "ketik nomor IOM", tglIsi: "pilih tanggal",
-    tambahBaris: "tambah", kurangBaris: "hapus",
+    tambahBaris: "tambah", hapusKotak: "Hapus kotak ini",
+    hapusKotakTanya: (v: string) =>
+      `Hapus "${v}" dari kolom ini? Isian di bawahnya naik satu kotak.`,
     thPengirim: "Divisi Pengirim", thPenerimaDiv: "Divisi Penerima",
     thDistribusi: "Tanggal Distribusi", thDiterima: "Tanggal Penerima",
     divIsi: "ketik divisi",
@@ -351,7 +353,9 @@ const KATA = {
     thNo: "No.", thTanggal: "Submitted on", thUnit: "Unit",
     thPerihal: "Submission type", thIom: "IOM no.",
     iomIsi: "type the IOM number", tglIsi: "pick a date",
-    tambahBaris: "add", kurangBaris: "remove",
+    tambahBaris: "add", hapusKotak: "Remove this box",
+    hapusKotakTanya: (v: string) =>
+      `Remove "${v}" from this column? Entries below move up one box.`,
     thPengirim: "Sending division", thPenerimaDiv: "Receiving division",
     thDistribusi: "Distributed on", thDiterima: "Received on",
     divIsi: "type the division",
@@ -821,6 +825,69 @@ export default function PersetujuanPage() {
   };
 
   /**
+   * Hapus satu kotak perpindahan, dan naikkan yang di bawahnya.
+   *
+   * Sebuah kolom peredaran adalah daftar berurutan, bukan empat kotak lepas:
+   * menghapus perpindahan kedua dari empat harus menyisakan tiga yang
+   * berurutan, bukan tiga dengan lubang di tengahnya. Lubang itu akan terbaca
+   * sebagai perpindahan yang belum dicatat, padahal justru baru dihapus.
+   *
+   * Yang berisi ditanya lebih dulu. Yang kosong ditutup tanpa bertanya dan
+   * tanpa menyentuh server — tidak ada yang hilang, dan pertanyaan yang
+   * jawabannya selalu "ya" mengajari orang menekan "ya" tanpa membaca.
+   */
+  const hapusKotak = async (c: any, dasar: DasarAlur, n: number) => {
+    const lama = URUT_ALUR.map((i) => String(c[bernomor(dasar, i)] ?? ""));
+    const dibuang = lama[n - 1];
+    // Ditanyakan dalam bentuk yang tertulis di kolomnya. Pertanyaan yang
+    // menyebut "2026-09-24" sementara kolomnya menulis "24/09/2026" memaksa
+    // yang membacanya mencocokkan sendiri dua bentuk tanggal, tepat pada saat
+    // ia diminta memutuskan sesuatu yang tidak dapat dibatalkan.
+    const tanggal = TANGGAL_ALUR.includes(bernomor(dasar, 1));
+    if (dibuang && !confirm(
+          k.hapusKotakTanya(tanggal ? tglPendek(dibuang) : dibuang))) return;
+
+    const baru = lama.filter((_, i) => i !== n - 1);
+    while (baru.length < lama.length) baru.push("");
+
+    const ubah: Record<string, string> = {};
+    URUT_ALUR.forEach((i) => {
+      if (baru[i - 1] !== lama[i - 1]) ubah[bernomor(dasar, i)] = baru[i - 1];
+    });
+
+    // Menutup kotak kosong paling bawah tidak mengubah apa pun di basis data;
+    // yang berubah hanya berapa kotak yang digambar.
+    const kunci = `${c.id}:${dasar}`;
+    if (!Object.keys(ubah).length) {
+      setBarisAlur((s) => ({ ...s, [kunci]: Math.max(1, barisTampak(c, dasar) - 1) }));
+      return;
+    }
+
+    setIomSimpan(c.id); setGalat(null);
+    try {
+      const res = await fetch(`/api/claims/${c.id}/sirkulasi`, {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify(ubah),
+      });
+      if (res.status === 401) { location.href = "/login"; return; }
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) { setGalat(j.detail ?? `HTTP ${res.status}`); await muat(); return; }
+      setKlaim((l) => l.map((x) => {
+        if (x.id !== c.id) return x;
+        const disalin: Record<string, any> = { ...x };
+        for (const m of Object.keys(ubah)) disalin[m] = j[m] ?? null;
+        return disalin;
+      }));
+      // Kotak yang dibuka tangan ikut menyusut, kalau tidak ia akan
+      // menyisakan satu kotak kosong tepat di tempat yang baru dihapus.
+      setBarisAlur((s) => kunci in s
+        ? { ...s, [kunci]: Math.max(1, s[kunci] - 1) } : s);
+    } catch (e: any) {
+      setGalat(String(e?.message ?? e));
+    } finally { setIomSimpan(null); }
+  };
+
+  /**
    * Satu sel isian alur kerja.
    *
    * Yang tidak berhak mengisi tetap membacanya — isinya memang untuk dibaca,
@@ -857,6 +924,14 @@ export default function PersetujuanPage() {
 
     return (
       <input className="isi-sirkulasi" type={tanggal ? "date" : "text"}
+             /* Kuncinya memuat nilainya sendiri supaya kotak ini lahir ulang
+                ketika nilainya berubah dari luar — dan itu terjadi tiap kali
+                satu kotak dihapus dan isi di bawahnya naik. Tanpa ini,
+                defaultValue hanya dibaca sekali saat kotaknya pertama
+                digambar: React memakai ulang simpul DOM yang sama, layar
+                masih menampilkan isi yang sudah terhapus, dan yang menghapus
+                baru tahu sesudah memuat ulang halaman. */
+             key={`${medan}:${c[medan] ?? ""}`}
              defaultValue={c[medan] ?? ""}
              placeholder={tanggal ? undefined : petunjuk}
              disabled={iomSimpan === c.id}
@@ -914,38 +989,33 @@ export default function PersetujuanPage() {
         </div>
       );
     }
-    const terisi = terisiAlur(c, dasar);
     const tampak = barisTampak(c, dasar);
     return (
       <div className="alur-empat">
         {URUT_ALUR.slice(0, tampak).map((n) => (
           <div key={n} className="alur-baris">
             {isiAlur(c, bernomor(dasar, n), petunjuk)}
+            {/* Satu tombol hapus pada tiap kotak, sama di keempat kolom dan
+                tanpa perkecualian — kotak yang berisi maupun yang kosong.
+                Sebelumnya hanya kotak kosong berlebih yang dapat ditutup, dan
+                tombol yang ada pada sebagian kotak saja membuat orang mencari
+                tombol yang tidak pernah muncul di tempat yang ia butuhkan. */}
+            <button type="button" className="alur-hapus"
+                    title={k.hapusKotak} aria-label={k.hapusKotak}
+                    disabled={iomSimpan === c.id
+                              || (tampak === 1 && !c[bernomor(dasar, n)])}
+                    onClick={() => void hapusKotak(c, dasar, n)}>
+              ×
+            </button>
           </div>
         ))}
-        {/* Menambah dan mengurangi kotak, pada kolom ini saja.
-            "−" hanya muncul bila ada kotak yang dibuka melebihi yang terpakai,
-            dan hanya menutup kotak yang kosong: kotak terakhir yang terisi
-            tidak pernah dapat dihilangkan dari sini, sebab tombol yang
-            kadang-kadang menghapus data adalah tombol yang tidak dapat
-            dipercaya. Yang ingin membuang isinya mengosongkan kotaknya, dan
-            kotak itu menutup sendiri. */}
-        {(tampak < URUT_ALUR.length || tampak > Math.max(terisi, 1)) && (
+        {tampak < URUT_ALUR.length && (
           <div className="alur-tombol">
-            {tampak < URUT_ALUR.length && (
-              <button type="button" className="alur-tambah"
-                      onClick={() => setBarisAlur((s) =>
-                        ({ ...s, [`${c.id}:${dasar}`]: tampak + 1 }))}>
-                + {k.tambahBaris}
-              </button>
-            )}
-            {tampak > Math.max(terisi, 1) && (
-              <button type="button" className="alur-kurang"
-                      onClick={() => setBarisAlur((s) =>
-                        ({ ...s, [`${c.id}:${dasar}`]: tampak - 1 }))}>
-                − {k.kurangBaris}
-              </button>
-            )}
+            <button type="button" className="alur-tambah"
+                    onClick={() => setBarisAlur((s) =>
+                      ({ ...s, [`${c.id}:${dasar}`]: tampak + 1 }))}>
+              + {k.tambahBaris}
+            </button>
           </div>
         )}
       </div>

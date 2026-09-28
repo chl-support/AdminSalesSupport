@@ -273,7 +273,33 @@ ul.kurang {
    bukan satu kotak yang kebetulan tinggi. */
 .alur-empat { display: flex; flex-direction: column; gap: 2px; }
 .alur-empat .alur-baris + .alur-baris { border-top: 1px dashed var(--line); }
-.alur-empat .alur-baris { padding: 1px 0; min-height: 26px; }
+/* Isian dan tombol hapusnya berdampingan; isiannya mengambil sisa lebar.
+   min-width:0 wajib — tanpa itu isian di dalam flex menolak menyempit dan
+   mendorong tombolnya keluar sel. */
+.alur-empat .alur-baris {
+  display: flex; align-items: center; gap: 2px;
+  padding: 1px 0; min-height: 26px;
+}
+.alur-empat .alur-baris > :first-child { flex: 1 1 auto; min-width: 0; }
+
+/* Tombol hapus satu kotak. Redup sampai barisnya disentuh: ia ada pada tiap
+   kotak, dan empat silang yang menyala sekaligus di tiap kolom akan lebih
+   dulu terbaca daripada isinya sendiri. */
+.alur-hapus {
+  flex: 0 0 auto; width: 17px; height: 17px; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid transparent; border-radius: var(--lengkung);
+  background: transparent; color: var(--line);
+  font-size: 13px; line-height: 1; cursor: pointer;
+}
+.alur-baris:hover .alur-hapus, .alur-hapus:focus-visible { color: var(--mut); }
+.alur-hapus:hover:not(:disabled) {
+  border-color: var(--stop); color: var(--stop); background: var(--stopbg);
+}
+.alur-hapus:focus-visible {
+  outline: 2px solid rgba(154, 114, 3, .35); outline-offset: 1px;
+}
+.alur-hapus:disabled { visibility: hidden; cursor: default; }
 
 /* Membuka dan menutup satu kotak perpindahan pada kolomnya sendiri. Sengaja
    tidak setegas isian di atasnya: keduanya jalan keluar bagi yang
@@ -1964,7 +1990,7 @@ td.sel-keadaan .menunggu.stop { color: var(--stop); }
 /* Sembilan belas kolom, jauh lebih banyak daripada sebelumnya. Lebarnya dipatok
    supaya satu perihal yang panjang tidak memipihkan kolom angka pada seluruh
    baris lain; .tscroll di sekelilingnya yang menyediakan gulirannya. */
-.tscroll.persetujuan .tabel-penjualan { min-width: 2526px; table-layout: fixed; }
+.tscroll.persetujuan .tabel-penjualan { min-width: 2610px; table-layout: fixed; }
 .tscroll.persetujuan .tabel-penjualan th:nth-child(1)  { width: 44px; }  /* No. */
 .tscroll.persetujuan .tabel-penjualan th:nth-child(2)  { width: 132px; } /* Tanggal */
 .tscroll.persetujuan .tabel-penjualan th:nth-child(3)  { width: 118px; } /* Unit */
@@ -1983,10 +2009,10 @@ td.sel-keadaan .menunggu.stop { color: var(--stop); }
    terpanjang — "2. Persetujuan Internal & Manajemen" — tidak muat pada 186px:
    daftarnya terbuka lebih lebar daripada kolomnya dan tulisannya bertindihan
    dengan kolom sebelahnya. */
-.tscroll.persetujuan .tabel-penjualan th:nth-child(14) { width: 132px; } /* Divisi kirim */
-.tscroll.persetujuan .tabel-penjualan th:nth-child(15) { width: 132px; } /* Divisi terima */
-.tscroll.persetujuan .tabel-penjualan th:nth-child(16) { width: 126px; } /* Tgl distribusi */
-.tscroll.persetujuan .tabel-penjualan th:nth-child(17) { width: 126px; } /* Tgl penerima */
+.tscroll.persetujuan .tabel-penjualan th:nth-child(14) { width: 152px; } /* Divisi kirim */
+.tscroll.persetujuan .tabel-penjualan th:nth-child(15) { width: 152px; } /* Divisi terima */
+.tscroll.persetujuan .tabel-penjualan th:nth-child(16) { width: 148px; } /* Tgl distribusi */
+.tscroll.persetujuan .tabel-penjualan th:nth-child(17) { width: 148px; } /* Tgl penerima */
 .tscroll.persetujuan .tabel-penjualan th:nth-child(18) { width: 274px; } /* Status */
 .tscroll.persetujuan .tabel-penjualan th:nth-child(19) { width: 150px; } /* Tindakan */
 
@@ -1995,7 +2021,11 @@ td.sel-keadaan .menunggu.stop { color: var(--stop); }
    Dipersempit secukupnya — kolomnya berlebar tetap, jadi isian yang melebihi
    akan menyeberangi garis pemisah. */
 .tscroll.persetujuan .isi-sirkulasi { min-width: 0; }
-.tscroll.persetujuan .isi-sirkulasi[type="date"] { width: 108px; }
+/* Lebar tetap, bukan 100%: kotak tanggal bawaan peramban yang dipaksa
+   menyempit memotong ruas tahunnya. 108px cukup untuk dd/mm/yyyy beserta
+   ikon kalendernya, dan kolomnya sudah dilebarkan supaya tombol hapus di
+   sebelahnya tetap muat. */
+.tscroll.persetujuan .isi-sirkulasi[type="date"] { width: 108px; flex: 0 0 auto; }
 /* Nomor urut tidak ditebalkan: ia penunjuk baris, bukan isi yang dibaca. */
 .tscroll.persetujuan .tabel-penjualan td.sel-no {
   text-align: center; color: var(--ink);
