@@ -26,6 +26,8 @@ export const POST = handler(async (req) => {
       unitId: p.unit_id, marketingId: p.marketing_id, claimType: p.claim_type,
       recipientRole: p.recipient_role, overridingLevel: p.overriding_level ?? null,
       notes: p.notes ?? null, transfer: p.transfer ?? null,
+      salesPeriod: { start: p.sales_period_start ?? null,
+                     end: p.sales_period_end ?? null },
       actor: user.username,
     })));
 });

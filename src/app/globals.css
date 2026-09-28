@@ -1189,6 +1189,15 @@ button.hapus-klaim:hover:not(:disabled) {
   .rekap-or .ttd-rekap { font-size: 13.4px; }
 }
 
+/* "Cut Off Penjualan As Of" pada formulir Overriding: dua tanggal
+   berdampingan, masing-masing dengan sebutannya di sebelah kiri. Bertumpuk
+   pada layar sempit — dua isian tanggal yang dipaksa sebaris di layar telepon
+   menyisakan lebar yang tidak cukup untuk pemilih tanggalnya. */
+.periode-rekap { display: flex; flex-wrap: wrap; gap: 10px 22px; }
+.periode-rekap label { display: flex; align-items: center; gap: 8px; }
+.periode-rekap span { font-size: 13px; font-weight: 600; color: var(--sub); }
+.periode-rekap input { padding: 6px 8px; }
+
 /* Bilah penyaring layar Data Marketing: tindakan di kiri, penyaring di kanan.
    Keduanya berjajar pada satu baris sampai layarnya sempit, lalu bertumpuk —
    pemilih yang terdorong keluar layar tidak dapat dipakai sama sekali. */

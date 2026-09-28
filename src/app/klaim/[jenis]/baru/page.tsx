@@ -143,6 +143,14 @@ const KATA = {
     catatanPenjelasan:
       "Ikut tercetak pada paket dokumen yang diedarkan untuk persetujuan — " +
       "bukan catatan internal.",
+    blokPeriode: "CUT OFF PENJUALAN AS OF:",
+    dari: "Dari:", sampai: "Sampai:",
+    catatanPeriode:
+      "Tercetak pada kepala rekap Overiding sebagai periode penjualannya. " +
+      "Bila dikosongkan, periodenya diambil dari tanggal kontrak unit yang " +
+      "masuk rekap.",
+    periodeTerbalik: "Tanggal \"Sampai\" tidak boleh lebih awal daripada " +
+                     "\"Dari\".",
     blokDokumen: (jenis: string) => `SYARAT / DOKUMEN PENGAJUAN ${jenis}`,
     dokumenBelumLengkap:
       "Seluruh dokumen harus dicentang sebelum klaim dapat diajukan.",
@@ -224,6 +232,13 @@ const KATA = {
     catatanPenjelasan:
       "This is printed on the document package circulated for approval — it " +
       "is not an internal note.",
+    blokPeriode: "SALES CUT OFF AS OF:",
+    dari: "From:", sampai: "To:",
+    catatanPeriode:
+      "Printed on the Overiding recap header as its sales period. Left " +
+      "empty, the period is taken from the contract dates of the units in " +
+      "the recap.",
+    periodeTerbalik: "The \"To\" date cannot be earlier than \"From\".",
     blokDokumen: (jenis: string) => `${jenis} SUBMISSION REQUIREMENTS`,
     dokumenBelumLengkap:
       "Every document must be ticked before the claim can be submitted.",
@@ -248,12 +263,21 @@ export default function FormKlaimPage() {
   const params = useParams<{ jenis: string }>();
   const search = useSearchParams();
   const jenis = jenisDari(params.jenis);
+  const overriding = jenis?.slug === "overriding";
   const unitId = search.get("unit") ?? "";
 
   const [unit, setUnit] = useState<Unit | null>(null);
   const [peran, setPeran] = useState("");
   const [tingkat, setTingkat] = useState("");
   const [penjelasan, setPenjelasan] = useState("");
+  /**
+   * "Cut Off Penjualan As Of" — hanya pada Overriding.
+   *
+   * Overriding merekap penjualan satu periode, bukan satu unit, dan periode
+   * itu ditentukan yang mengajukan. Jenis lain tidak punya periode: satu unit
+   * satu lembar, dan tanggalnya tanggal kontraknya sendiri.
+   */
+  const [periode, setPeriode] = useState({ start: "", end: "" });
   // Tujuan transfer diketik pada formulirnya: ia berubah dari satu pengajuan ke
   // pengajuan berikutnya, jadi tidak dapat diambil sekali dari data marketing.
   const [tf, setTf] = useState({
@@ -321,7 +345,9 @@ export default function FormKlaimPage() {
           claim_type: jenis.slug,
           recipient_role: peran,
           overriding_level: jenis.slug === "overriding" ? tingkat : null,
-          notes: penjelasan,
+          notes: overriding ? null : penjelasan,
+          sales_period_start: overriding ? periode.start || null : null,
+          sales_period_end: overriding ? periode.end || null : null,
           transfer: tf,
         }),
       });
@@ -360,8 +386,13 @@ export default function FormKlaimPage() {
   const namaJenis = bahasa === "en" ? NAMA_EN[jenis.slug] : jenis.nama;
   const dokumen = DOKUMEN[jenis.slug];
   const dokumenLengkap = dokumen.every((d) => ceklis[d]);
+  // Periode yang terbalik tidak dikirim: kepala rekapnya akan berbunyi "14
+  // Juli s.d 3 Mei", dan yang membacanya tidak punya cara tahu mana yang
+  // salah ketik. Mengosongkan keduanya tetap boleh.
+  const periodeSalah = Boolean(overriding && periode.start && periode.end
+                               && periode.end < periode.start);
   const siap = Boolean(unit?.claimable && peran && dokumenLengkap &&
-                       (jenis.slug !== "overriding" || tingkat));
+                       !periodeSalah && (!overriding || tingkat));
 
   return (
     <Kerangka sesi={sesi} judul={
@@ -583,13 +614,45 @@ export default function FormKlaimPage() {
                   )}
                 </div>
 
+                {/* Overriding tidak memakai blok penjelasan: lembarnya
+                    merekap penjualan satu periode, dan yang perlu diketahui
+                    pembacanya periode itu — bukan alasan satu pengajuan.
+                    Kedua tanggalnya tercetak pada kepala rekapnya. */}
                 <div className="form-blok">
-                  <h3>{k.blokPenjelasan(namaJenis.toUpperCase())}</h3>
-                  <textarea className="reason" value={penjelasan}
-                            placeholder={k.phPenjelasan}
-                            onChange={(e) => setPenjelasan(e.target.value)} />
+                  <h3>{overriding ? k.blokPeriode
+                                  : k.blokPenjelasan(namaJenis.toUpperCase())}</h3>
+                  {overriding ? (
+                    <>
+                      <div className="periode-rekap">
+                        <label>
+                          <span>{k.dari}</span>
+                          <input type="date" value={periode.start}
+                                 onChange={(e) => setPeriode(
+                                   { ...periode, start: e.target.value })} />
+                        </label>
+                        <label>
+                          <span>{k.sampai}</span>
+                          <input type="date" value={periode.end}
+                                 min={periode.start || undefined}
+                                 onChange={(e) => setPeriode(
+                                   { ...periode, end: e.target.value })} />
+                        </label>
+                      </div>
+                      {periode.start && periode.end
+                       && periode.end < periode.start && (
+                        <p className="hint" style={{ textAlign: "left",
+                                                     color: "var(--stop)" }}>
+                          {k.periodeTerbalik}
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    <textarea className="reason" value={penjelasan}
+                              placeholder={k.phPenjelasan}
+                              onChange={(e) => setPenjelasan(e.target.value)} />
+                  )}
                   <p className="hint" style={{ textAlign: "left" }}>
-                    {k.catatanPenjelasan}
+                    {overriding ? k.catatanPeriode : k.catatanPenjelasan}
                   </p>
                 </div>
 

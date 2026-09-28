@@ -447,8 +447,13 @@ export async function rekapOverriding(claimId: string): Promise<Rekap | null> {
     nomor: klaim.claim_number,
     project: proyek,
     cluster: namaKluster(baris[0]?.cluster_code),
-    periode_awal: tglBerjalan[0] ?? null,
-    periode_akhir: tglBerjalan[tglBerjalan.length - 1] ?? null,
+    // Periode yang diketik pada formulirnya didahulukan; ia yang dimaksud
+    // kantor sebagai "Cut Off Penjualan As Of". Yang disimpulkan dari tanggal
+    // kontrak hanya dipakai bila formulirnya belum mengisinya — pengajuan
+    // lama dibuat sebelum kedua isian itu ada.
+    periode_awal: tgl(klaim.sales_period_start) ?? tglBerjalan[0] ?? null,
+    periode_akhir: tgl(klaim.sales_period_end)
+                   ?? tglBerjalan[tglBerjalan.length - 1] ?? null,
     cut_off: new Date().toISOString().slice(0, 10),
     sales_manager: penerima
       ? { full_name: penerima.full_name, marketing_type: penerima.marketing_type }
