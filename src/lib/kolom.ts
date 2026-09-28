@@ -97,6 +97,17 @@ async function pasang(): Promise<void> {
     "ALTER TABLE claims ADD COLUMN IF NOT EXISTS sales_period_end DATE");
   await query("ALTER TABLE claims ADD COLUMN IF NOT EXISTS handed_to TEXT");
   await query("ALTER TABLE claims ADD COLUMN IF NOT EXISTS distributed_at DATE");
+  // Satu berkas berpindah beberapa kali sebelum selesai, jadi divisi penerima
+  // dan tanggal distribusinya masing-masing bertempat empat — sebanyak baris
+  // yang disediakan Tabel Sirkulasi Dokumen di kantor. Bernomor, bukan larik:
+  // handed_to yang pertama sudah berisi data, dan mengubah bentuk kolom yang
+  // sudah terisi menukar risiko kehilangan data dengan kerapian belaka.
+  for (const n of [2, 3, 4]) {
+    await query(
+      `ALTER TABLE claims ADD COLUMN IF NOT EXISTS handed_to_${n} TEXT`);
+    await query(
+      `ALTER TABLE claims ADD COLUMN IF NOT EXISTS distributed_at_${n} DATE`);
+  }
 
   await query(
     `DO $$ BEGIN

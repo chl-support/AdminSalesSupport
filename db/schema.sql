@@ -353,8 +353,8 @@ CREATE TABLE IF NOT EXISTS claims (
     CHECK (net_amount = gross_amount + vat - withholding_tax)
 );
 
--- Dua medan pada Tabel Sirkulasi Dokumen yang tidak dapat disusun dari data
--- yang sudah ada, dan karena itu diisi tangan oleh Admin Sales.
+-- Medan alur kerja dokumen yang tidak dapat disusun dari data yang sudah ada,
+-- dan karena itu diisi tangan oleh Admin Sales.
 --
 -- office_memo_no: nomor Internal Office Memo yang menyertai berkas saat
 --   diedarkan. Nomornya terbit di luar sistem ini.
@@ -362,8 +362,29 @@ CREATE TABLE IF NOT EXISTS claims (
 --   Berbeda dari physical_since, yang mencatat kapan perpindahannya
 --   dituliskan ke sistem — keduanya kerap berselisih beberapa hari, dan
 --   justru selisih itulah yang dicari saat menelusuri berkas yang tertahan.
+-- sender_division, handed_to, distributed_at: dari divisi mana berkasnya
+--   berangkat, ke divisi mana ia diserahkan, dan kapan.
+--
+-- Ketiga yang terakhir sempat hanya ada di src/lib/kolom.ts, yang menambahkan
+-- kolomnya saat orang pertama masuk. Produksi karenanya berjalan benar,
+-- tetapi basis data hasil migrasi berbeda isi dari yang dipakai — selisih
+-- yang baru ketahuan oleh orang yang membaca skema ini untuk menelusuri
+-- masalah lain, dan menyesatkannya.
 ALTER TABLE claims ADD COLUMN IF NOT EXISTS office_memo_no TEXT;
 ALTER TABLE claims ADD COLUMN IF NOT EXISTS received_at DATE;
+ALTER TABLE claims ADD COLUMN IF NOT EXISTS sender_division TEXT;
+ALTER TABLE claims ADD COLUMN IF NOT EXISTS handed_to TEXT;
+ALTER TABLE claims ADD COLUMN IF NOT EXISTS distributed_at DATE;
+
+-- Satu berkas berpindah beberapa kali sebelum selesai, jadi divisi penerima
+-- dan tanggal distribusinya masing-masing bertempat empat — sebanyak baris
+-- yang disediakan Tabel Sirkulasi Dokumen di kantor.
+ALTER TABLE claims ADD COLUMN IF NOT EXISTS handed_to_2 TEXT;
+ALTER TABLE claims ADD COLUMN IF NOT EXISTS handed_to_3 TEXT;
+ALTER TABLE claims ADD COLUMN IF NOT EXISTS handed_to_4 TEXT;
+ALTER TABLE claims ADD COLUMN IF NOT EXISTS distributed_at_2 DATE;
+ALTER TABLE claims ADD COLUMN IF NOT EXISTS distributed_at_3 DATE;
+ALTER TABLE claims ADD COLUMN IF NOT EXISTS distributed_at_4 DATE;
 
 -- BR-05: satu klaim aktif per kombinasi unit + jenis + peran penerima.
 CREATE UNIQUE INDEX IF NOT EXISTS uniq_active_claim
