@@ -22,7 +22,7 @@
  * Admin IT, untuk keadaan yang memang tidak dapat menunggu memonya.
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useBahasa, useKata } from "../../bahasa";
 import { bedahSkema } from "@/lib/memo-skema";
@@ -585,6 +585,56 @@ function Kotak({ no, baris, k, bahasa, busy, bolehBerlaku, cabut, berlakukan }: 
 }) {
   const memo = baris[0];
 
+  /**
+   * Kategori yang sedang dibuka penuh, menurut id barisnya.
+   *
+   * Nilai dan Keterangan berisi kalimat panjang hasil OCR — satu di antaranya
+   * enam baris, dan sebuah memo memuat sebelas kategori. Ditampilkan utuh
+   * seluruhnya, satu memo menghabiskan beberapa layar penuh dan yang mencari
+   * satu kategori harus menggulir melewati sepuluh kalimat yang tidak sedang
+   * ia cari. Jadi keduanya dipendekkan dua baris, dan terbuka penuh ketika
+   * kategorinya dipilih.
+   *
+   * Berdiri sendiri-sendiri, bukan satu yang terbuka bergantian: yang
+   * membandingkan syarat pembayaran dua kategori perlu melihat keduanya
+   * sekaligus, dan aturan "hanya satu boleh terbuka" justru menghalangi
+   * pekerjaan yang paling lazim di layar ini.
+   */
+  const [buka, setBuka] = useState<Record<string, boolean>>({});
+
+  /**
+   * Baris yang teksnya memang terpotong — hanya itu yang diberi tanda dapat
+   * dibuka.
+   *
+   * Diukur, bukan ditebak dari panjang hurufnya: yang menentukan terpotong
+   * atau tidak adalah lebar kolomnya, dan kolom di sini melar mengikuti lebar
+   * jendela. Tanda "dapat dibuka" pada kategori yang keterangannya hanya satu
+   * kalimat adalah janji yang tidak ditepati saat ditekan.
+   */
+  const [terpotong, setTerpotong] = useState<Record<string, boolean>>({});
+  const selPanjang = useRef<Record<string, HTMLDivElement | null>>({});
+
+  useEffect(() => {
+    const ukur = () => setTerpotong((lama) => {
+      const baru: Record<string, boolean> = {};
+      for (const b of baris) {
+        // Yang sedang terbuka tidak dapat diukur — klemnya sudah dilepas,
+        // sehingga ia selalu terbaca "tidak terpotong". Nilai ukur
+        // sebelumnya yang dipakai, supaya tombol tutupnya tidak lenyap
+        // tepat setelah dibuka.
+        if (buka[b.id]) { baru[b.id] = lama[b.id] ?? true; continue; }
+        baru[b.id] = ["nilai", "ket"].some((m) => {
+          const el = selPanjang.current[`${b.id}:${m}`];
+          return !!el && el.scrollHeight - el.clientHeight > 1;
+        });
+      }
+      return baru;
+    });
+    ukur();
+    window.addEventListener("resize", ukur);
+    return () => window.removeEventListener("resize", ukur);
+  }, [baris, buka]);
+
   /** Panjang runtun skema yang dimulai pada tiap baris; 0 bila ia lanjutan. */
   const bentang: number[] = baris.map(() => 0);
   for (let i = 0; i < baris.length;) {
@@ -610,9 +660,32 @@ function Kotak({ no, baris, k, bahasa, busy, bolehBerlaku, cabut, berlakukan }: 
             </>
           )}
           {bentang[n] > 0 && <td rowSpan={bentang[n]}>{b.skema}</td>}
-          <td>{b.kategori ?? "—"}</td>
-          <td>{b.nilai ?? "—"}</td>
-          <td>{b.keterangan ?? "—"}</td>
+          {/* Kategorinya sendiri yang menjadi tombolnya — bukan tautan
+              "selengkapnya" di kaki kalimat yang terpotong. Yang dipilih orang
+              adalah kategorinya, dan dua kalimat panjang di sebelahnya adalah
+              rincian dari pilihan itu. */}
+          <td className="sel-kategori">
+            {terpotong[b.id] ? (
+              <button type="button" className="buka-kategori"
+                      aria-expanded={!!buka[b.id]}
+                      onClick={() => setBuka((s) => ({ ...s, [b.id]: !s[b.id] }))}>
+                <span className="tanda">{buka[b.id] ? "▾" : "▸"}</span>
+                {b.kategori ?? "—"}
+              </button>
+            ) : (b.kategori ?? "—")}
+          </td>
+          <td>
+            <div className={buka[b.id] ? undefined : "sel-panjang"}
+                 ref={(el) => { selPanjang.current[`${b.id}:nilai`] = el; }}>
+              {b.nilai ?? "—"}
+            </div>
+          </td>
+          <td>
+            <div className={buka[b.id] ? undefined : "sel-panjang"}
+                 ref={(el) => { selPanjang.current[`${b.id}:ket`] = el; }}>
+              {b.keterangan ?? "—"}
+            </div>
+          </td>
           {/* Yang sudah berlaku menyebut angka yang BENAR-BENAR dipakai
               menghitung, bukan angka pada memonya: keduanya boleh berbeda
               bila yang memberlakukan membetulkan bacaan OCR, dan yang perlu

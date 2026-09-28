@@ -101,6 +101,29 @@ td.n { text-align: right; font-variant-numeric: tabular-nums; color: var(--ink);
    dalam satu memo sama tebalnya dengan garis di antara keduanya. */
 .tabel-rujukan tr.kepala-memo > td { border-top: 1px solid var(--line); }
 
+/* Nilai Komisi dan Keterangan dipendekkan dua baris sampai kategorinya
+   dipilih. Keduanya berisi kalimat panjang hasil OCR, dan sebelas kategori
+   yang seluruhnya terbuka membuat satu memo menghabiskan beberapa layar. */
+.tabel-rujukan .sel-panjang {
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+/* Kategorinya sendiri yang menjadi tombolnya, dan rupanya tetap tulisan
+   biasa: ia isi sel, bukan perintah. Yang menandainya dapat dibuka hanya
+   segitiga kecil di depannya — dan segitiga itu hanya muncul pada baris yang
+   teksnya memang terpotong. */
+.tabel-rujukan .sel-kategori { text-align: left; }
+.buka-kategori {
+  display: inline-flex; align-items: baseline; gap: 4px; width: 100%;
+  padding: 0; border: 0; background: none; text-align: left;
+  font: inherit; color: inherit; cursor: pointer;
+}
+.buka-kategori:hover { color: var(--ink); text-decoration: underline; }
+.buka-kategori .tanda { color: var(--mut); font-size: 9px; }
+.buka-kategori:focus-visible {
+  outline: 2px solid rgba(154, 114, 3, .35); outline-offset: 2px;
+}
+
 /* Kepala panel yang memuat unduhan dan keempat kotak keadaan.
    Keempatnya bersebutan panjang dan tidak muat sebaris pada layar sempit;
    dibiarkan begitu ia mendorong keluar tepi panel, dan yang terakhir —
