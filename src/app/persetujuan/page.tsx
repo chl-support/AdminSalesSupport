@@ -93,13 +93,10 @@ const KATA = {
     sUnit: "Unit", sJalan: "Diproses / Berlangsung", sSelesai: "Selesai",
     jumlah: (n: number) => `${n} klaim`,
     unduhRekap: "Download (.xlsx)",
-    // Keempat sebutan ini sudah memuat kedua bahasanya sekaligus, jadi ia sama
-    // pada blok id maupun en — menerjemahkan yang di dalam kurung hanya
-    // membuat sebutan yang dipakai di kantor tidak lagi dikenali.
-    pDraf: (n: number) => `📝 Buat Pengajuan (Drafting) · ${n}`,
-    pButuh: (n: number) => `📥 Kotak Masuk Persetujuan (Need Approval) · ${n}`,
-    pPantau: (n: number) => `⏱️ Pantau Alur (In Progress / Tracking) · ${n}`,
-    pArsip: (n: number) => `🗃️ Arsip Dokumen Selesai (Approved / Archive) · ${n}`,
+    pDraf: (n: number) => `📝 Buat Pengajuan · ${n}`,
+    pButuh: (n: number) => `📥 Kotak Masuk Persetujuan · ${n}`,
+    pPantau: (n: number) => `⏱️ Pantau Alur · ${n}`,
+    pArsip: (n: number) => `🗃️ Arsip Dokumen Selesai · ${n}`,
     tahapJudul: "Tahap peredaran",
     tahapBelum: "Belum beredar",
     tahapGerak: "Memindahkan…",
@@ -202,6 +199,10 @@ const KATA = {
     thPerihal: "Jenis Pengajuan", thIom: "No. IOM",
     iomIsi: "ketik nomor IOM", tglIsi: "pilih tanggal",
     tambahBaris: "tambah", hapusKotak: "Hapus kotak ini",
+    tegurJudul: "Isian belum dapat disimpan",
+    tglTakLengkap:
+      "Tanggalnya belum lengkap, jadi belum tersimpan. Isi hari, bulan dan "
+      + "tahunnya (hh/bb/tttt), atau kosongkan kotaknya sama sekali.",
     hapusKotakTanya: (v: string) =>
       `Hapus "${v}" dari kolom ini? Isian di bawahnya naik satu kotak.`,
     thPengirim: "Divisi Pengirim", thPenerimaDiv: "Divisi Penerima",
@@ -247,13 +248,10 @@ const KATA = {
     sUnit: "Unit", sJalan: "In progress", sSelesai: "Completed",
     jumlah: (n: number) => `${n} claims`,
     unduhRekap: "Download (.xlsx)",
-    // Keempat sebutan ini sudah memuat kedua bahasanya sekaligus, jadi ia sama
-    // pada blok id maupun en — menerjemahkan yang di dalam kurung hanya
-    // membuat sebutan yang dipakai di kantor tidak lagi dikenali.
-    pDraf: (n: number) => `📝 Buat Pengajuan (Drafting) · ${n}`,
-    pButuh: (n: number) => `📥 Kotak Masuk Persetujuan (Need Approval) · ${n}`,
-    pPantau: (n: number) => `⏱️ Pantau Alur (In Progress / Tracking) · ${n}`,
-    pArsip: (n: number) => `🗃️ Arsip Dokumen Selesai (Approved / Archive) · ${n}`,
+    pDraf: (n: number) => `📝 Drafting · ${n}`,
+    pButuh: (n: number) => `📥 Need Approval · ${n}`,
+    pPantau: (n: number) => `⏱️ In Progress / Tracking · ${n}`,
+    pArsip: (n: number) => `🗃️ Approved / Archive · ${n}`,
     tahapJudul: "Circulation stage",
     tahapBelum: "Not circulating yet",
     tahapGerak: "Moving…",
@@ -354,6 +352,10 @@ const KATA = {
     thPerihal: "Submission type", thIom: "IOM no.",
     iomIsi: "type the IOM number", tglIsi: "pick a date",
     tambahBaris: "add", hapusKotak: "Remove this box",
+    tegurJudul: "Entry not saved",
+    tglTakLengkap:
+      "That date is incomplete, so nothing was saved. Fill in the day, "
+      + "month and year, or clear the box entirely.",
     hapusKotakTanya: (v: string) =>
       `Remove "${v}" from this column? Entries below move up one box.`,
     thPengirim: "Sending division", thPenerimaDiv: "Receiving division",
@@ -522,6 +524,25 @@ export default function PersetujuanPage() {
    * berpindah tetap membawa kotak kosong selamanya.
    */
   const [barisAlur, setBarisAlur] = useState<Record<string, number>>({});
+  /**
+   * Kotak tanggal yang isiannya ditolak, sebagai "<id klaim>:<medan>".
+   *
+   * Banner galat berdiri di kepala halaman, sedangkan yang mengetik sedang
+   * berada jauh di bawah pada tabel yang digulir. Pemberitahuan yang hanya
+   * ada di tempat yang tidak sedang dilihat bukan pemberitahuan; kotaknya
+   * sendiri ikut ditandai.
+   */
+  const [tglGagal, setTglGagal] = useState<string | null>(null);
+  /**
+   * Teguran isian, terpisah dari `galat`.
+   *
+   * Banner galat berjudul "Data klaim tidak dapat dibaca" — kalimat yang
+   * benar untuk permintaan yang gagal, dan menyesatkan untuk tanggal yang
+   * diketik separuh: yang mengetiknya akan menyangka datanya rusak, bukan
+   * ketikannya yang belum lengkap. Dijadikan satu keadaan tersendiri, bukan
+   * dengan mengubah bentuk `galat` yang dipakai tiga puluh dua tempat lain.
+   */
+  const [tegur, setTegur] = useState<string | null>(null);
 
   /**
    * Baris yang kolom Statusnya sedang dibentangkan.
@@ -804,6 +825,16 @@ export default function PersetujuanPage() {
    */
   const simpanAlur = async (c: any, medan: MedanAlur, nilai: string) => {
     if (nilai.trim() === String(c[medan] ?? "").trim()) return;
+    const kunci = `${c.id}:${medan}`;
+    // Bentuk tanggalnya diperiksa di sini juga, bukan hanya di server.
+    // Endpoint-nya memang menolak yang bukan YYYY-MM-DD dengan 422, tetapi
+    // penolakan yang datang sesudah satu perjalanan ke server terasa seperti
+    // gangguan jaringan, bukan seperti isian yang salah.
+    if (TANGGAL_ALUR.includes(medan) && nilai.trim()
+        && !/^\d{4}-\d{2}-\d{2}$/.test(nilai.trim())) {
+      setTglGagal(kunci); setTegur(k.tglTakLengkap);
+      return;
+    }
     setIomSimpan(c.id); setGalat(null);
     try {
       const res = await fetch(`/api/claims/${c.id}/sirkulasi`, {
@@ -814,9 +845,12 @@ export default function PersetujuanPage() {
       const j = await res.json().catch(() => ({}));
       if (!res.ok) {
         setGalat(j.detail ?? `HTTP ${res.status}`);
+        if (TANGGAL_ALUR.includes(medan)) setTglGagal(kunci);
         await muat();
         return;
       }
+      setTglGagal((s) => (s === kunci ? null : s));
+      setTegur((s) => (tglGagal === kunci ? null : s));
       setKlaim((lama) => lama.map((x) => x.id === c.id
         ? { ...x, [medan]: j[medan] } : x));
     } catch (e: any) {
@@ -923,7 +957,9 @@ export default function PersetujuanPage() {
     }
 
     return (
-      <input className="isi-sirkulasi" type={tanggal ? "date" : "text"}
+      <input className={"isi-sirkulasi"
+                        + (tglGagal === kunci ? " isi-salah" : "")}
+             type={tanggal ? "date" : "text"}
              /* Kuncinya memuat nilainya sendiri supaya kotak ini lahir ulang
                 ketika nilainya berubah dari luar — dan itu terjadi tiap kali
                 satu kotak dihapus dan isi di bawahnya naik. Tanpa ini,
@@ -939,13 +975,32 @@ export default function PersetujuanPage() {
                 tanggalnya dibuka di sini. showPicker() menolak bila aktivasi
                 penggunanya sudah habis; itu bukan kegagalan yang perlu
                 dilaporkan \u2014 mengetik tanggalnya tetap bisa. */
+             /* Ditandai pada simpulnya sendiri, bukan dibandingkan dengan
+                activeElement: React memanggil ref ini lagi pada tiap render,
+                dan kotak yang isiannya ditolak akan merebut fokus kembali
+                setiap kali orang mencoba berpindah — terkurung di satu kotak
+                sampai isinya benar. Menahan simpanannya sudah cukup; memaksa
+                fokusnya tidak. Tanda ini hilang sendiri saat kotaknya lahir
+                ulang, yaitu ketika nilainya berubah. */
              ref={tanggal ? (el) => {
-               if (!el || el === document.activeElement) return;
+               if (!el || el.dataset.sudahFokus) return;
+               el.dataset.sudahFokus = "1";
                el.focus();
                try { el.showPicker(); } catch { /* ketik saja */ }
              } : undefined}
              onBlur={(e) => {
-               if (tanggal) setTglBuka(null);
+               /* Tanggal yang diketik separuh — hari dan bulan terisi, tahun
+                  belum — membuat peramban menjawab value:"" dengan
+                  badInput:true. Disimpan apa adanya, isian itu menghapus
+                  tanggal yang sudah benar dan tidak ada yang memberi tahu:
+                  yang mengetiknya melihat kotak kosong dan mengira ketikannya
+                  belum masuk. Jadi ditahan di sini, kotaknya dibiarkan
+                  terbuka, dan salahnya disebut. */
+               if (tanggal && e.target.validity.badInput) {
+                 setTglGagal(kunci); setTegur(k.tglTakLengkap);
+                 return;
+               }
+               if (tanggal) { setTglBuka(null); setTglGagal(null); setTegur(null); }
                void simpanAlur(c, medan, e.target.value);
              }}
              onKeyDown={(e) => {
@@ -1348,6 +1403,7 @@ export default function PersetujuanPage() {
     }>
 
       {galat && <div className="banner stop"><b>{k.galat}</b>{galat}</div>}
+      {tegur && <div className="banner warn"><b>{k.tegurJudul}</b>{tegur}</div>}
       {kabar && <div className="banner ok">{kabar}</div>}
       {/* Jalan pulang dari ?klaim=: tanpa tombol ini, yang datang dari
           Sirkulasi Dokumen terkurung pada satu baris dan hanya dapat kembali

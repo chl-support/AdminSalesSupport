@@ -258,6 +258,18 @@ ul.kurang {
 }
 .isi-sirkulasi:disabled { color: var(--mut); cursor: progress; }
 
+/* Isian yang ditolak. Banner galatnya berdiri di kepala halaman, jauh dari
+   tabel yang sedang digulir; tanda di kotaknya sendiri yang membuat orang
+   tahu kotak mana yang dimaksud. */
+.isi-sirkulasi.isi-salah,
+.isi-sirkulasi.isi-salah:hover:not(:disabled) {
+  border-color: var(--stop); background: var(--stopbg); color: var(--stop);
+}
+.isi-sirkulasi.isi-salah:focus {
+  border-color: var(--stop);
+  outline: 2px solid rgba(140, 47, 47, .3);
+}
+
 /* Sel tanggal saat belum dibuka: tulisan dd/mm/yyyy yang dapat diklik, bukan
    kotak tanggal bawaan peramban — bentuknya tetap sama dengan isian di
    sebelahnya supaya kolomnya tidak terbaca sebagai dua jenis sel. */
