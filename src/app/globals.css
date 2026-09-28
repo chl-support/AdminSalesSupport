@@ -255,6 +255,19 @@ ul.kurang {
 .alur-empat .alur-baris + .alur-baris { border-top: 1px dashed var(--line); }
 .alur-empat .alur-baris { padding: 1px 0; min-height: 26px; }
 
+/* Membuka satu baris perpindahan lagi. Sengaja tidak setegas isian di
+   atasnya: ia jalan keluar bagi yang membutuhkannya, bukan tawaran yang
+   menuntut dijawab pada tiap baris tabel. */
+.alur-tambah {
+  align-self: flex-start; margin-top: 2px; padding: 1px 6px;
+  border: 1px dashed var(--line); border-radius: 5px; background: transparent;
+  font: inherit; font-size: 11px; color: var(--sub); cursor: pointer;
+}
+.alur-tambah:hover { border-style: solid; background: #fff; color: var(--ink); }
+.alur-tambah:focus-visible {
+  outline: 2px solid rgba(154, 114, 3, .35); outline-offset: 1px;
+}
+
 .filters.cari .lbl {
   font-size: 13px; font-weight: 600; color: var(--sub); margin-bottom: 6px;
 }
