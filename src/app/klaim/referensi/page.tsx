@@ -22,7 +22,7 @@
  * Admin IT, untuk keadaan yang memang tidak dapat menunggu memonya.
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { useBahasa, useKata } from "../../bahasa";
 import { bedahSkema } from "@/lib/memo-skema";
@@ -508,7 +508,6 @@ export default function ReferensiPengajuanPage() {
               <th>{k.kKategori}</th>
               <th>{k.kNilai}</th>
               <th>{k.kKeterangan}</th>
-              <th>{k.kKeadaan}</th>
               {bolehBerlaku && <th style={{ width: 110 }}>{k.kTindakan}</th>}
             </tr>
 
@@ -541,12 +540,12 @@ export default function ReferensiPengajuanPage() {
 
             {!baris.length && !busy && (
               <tr>
-                <td colSpan={bolehBerlaku ? 11 : 10}
+                <td colSpan={bolehBerlaku ? 10 : 9}
                     style={{ color: "var(--mut)" }}>{k.kosong}</td>
               </tr>
             )}
             {busy && !baris.length && (
-              <tr><td colSpan={bolehBerlaku ? 11 : 10}
+              <tr><td colSpan={bolehBerlaku ? 10 : 9}
                       style={{ color: "var(--mut)" }}>{k.memuat}</td></tr>
             )}
           </tbody></table>
@@ -603,39 +602,6 @@ function Kotak({ no, baris, k, bahasa, busy, bolehBerlaku, cabut, berlakukan }: 
   const [buka, setBuka] = useState<Record<string, boolean>>({});
 
   /**
-   * Baris yang teksnya memang terpotong — hanya itu yang diberi tanda dapat
-   * dibuka.
-   *
-   * Diukur, bukan ditebak dari panjang hurufnya: yang menentukan terpotong
-   * atau tidak adalah lebar kolomnya, dan kolom di sini melar mengikuti lebar
-   * jendela. Tanda "dapat dibuka" pada kategori yang keterangannya hanya satu
-   * kalimat adalah janji yang tidak ditepati saat ditekan.
-   */
-  const [terpotong, setTerpotong] = useState<Record<string, boolean>>({});
-  const selPanjang = useRef<Record<string, HTMLDivElement | null>>({});
-
-  useEffect(() => {
-    const ukur = () => setTerpotong((lama) => {
-      const baru: Record<string, boolean> = {};
-      for (const b of baris) {
-        // Yang sedang terbuka tidak dapat diukur — klemnya sudah dilepas,
-        // sehingga ia selalu terbaca "tidak terpotong". Nilai ukur
-        // sebelumnya yang dipakai, supaya tombol tutupnya tidak lenyap
-        // tepat setelah dibuka.
-        if (buka[b.id]) { baru[b.id] = lama[b.id] ?? true; continue; }
-        baru[b.id] = ["nilai", "ket"].some((m) => {
-          const el = selPanjang.current[`${b.id}:${m}`];
-          return !!el && el.scrollHeight - el.clientHeight > 1;
-        });
-      }
-      return baru;
-    });
-    ukur();
-    window.addEventListener("resize", ukur);
-    return () => window.removeEventListener("resize", ukur);
-  }, [baris, buka]);
-
-  /**
    * Runtun skema yang berurutan. Satu runtun menjadi satu blok yang dapat
    * diringkas.
    *
@@ -670,23 +636,6 @@ function Kotak({ no, baris, k, bahasa, busy, bolehBerlaku, cabut, berlakukan }: 
   const totalBaris = grup.reduce(
     (n, gr) => n + (bukaSkema[kunciGrup(gr)] ? gr.length : 1), 0);
 
-  /** Sel keadaan sebuah kategori — dipakai baris rinci maupun ringkasannya. */
-  const selKeadaan = (b: Baris) => (
-    b.scheme_id ? (
-      <>
-        <span className="pill ok">{k.berlaku}</span>
-        <div className="meta">
-          {b.claim_type ? namaJenis(b.claim_type as any, bahasa) : "—"}
-          {b.recipient_role
-            ? ` · ${namaKategori(b.recipient_role, bahasa)}` : ""}
-        </div>
-        <div className="meta">
-          {persenTampil(b.percentage) ?? rupiah(b.flat_amount) ?? "—"}
-        </div>
-      </>
-    ) : <span className="pill">{k.usulan}</span>
-  );
-
   let sudahDigambar = 0;
 
   return (
@@ -694,7 +643,6 @@ function Kotak({ no, baris, k, bahasa, busy, bolehBerlaku, cabut, berlakukan }: 
       {grup.map((gr, gi) => {
         const kunci = kunciGrup(gr);
         const terbuka = !!bukaSkema[kunci];
-        const jmlBerlaku = gr.filter((x) => x.scheme_id).length;
 
         /* Sel Skema: tombol pembuka, membentang setinggi kategorinya saat
            terbuka. Segitiganya selalu ada di sini — berbeda dari sel
@@ -737,21 +685,6 @@ function Kotak({ no, baris, k, bahasa, busy, bolehBerlaku, cabut, berlakukan }: 
               <td className="sel-kategori" />
               <td />
               <td />
-              {/* Berapa yang sudah diberlakukan tetap terbaca walau
-                  kategorinya tertutup. Itulah yang dicari orang saat melirik
-                  satu memo, dan meringkas tidak boleh menyembunyikannya —
-                  kalau tidak, ia harus membuka keempat skema satu per satu
-                  hanya untuk tahu masih ada yang tertinggal. */}
-              <td>
-                {jmlBerlaku > 0 && (
-                  <span className="pill ok">{k.berlaku} · {jmlBerlaku}</span>
-                )}
-                {jmlBerlaku < gr.length && (
-                  <span className="pill">
-                    {k.usulan} · {gr.length - jmlBerlaku}
-                  </span>
-                )}
-              </td>
               {bolehBerlaku && <td />}
             </tr>
           );
@@ -779,33 +712,21 @@ function Kotak({ no, baris, k, bahasa, busy, bolehBerlaku, cabut, berlakukan }: 
                   orang adalah kategorinya, dan dua kalimat panjang di
                   sebelahnya adalah rincian dari pilihan itu. */}
               <td className="sel-kategori">
-                {terpotong[b.id] ? (
-                  <button type="button" className="buka-kategori"
-                          aria-expanded={!!buka[b.id]}
-                          onClick={() => setBuka((s) =>
-                            ({ ...s, [b.id]: !s[b.id] }))}>
-                    <span className="tanda">{buka[b.id] ? "▾" : "▸"}</span>
-                    {b.kategori ?? "—"}
-                  </button>
-                ) : (b.kategori ?? "—")}
+                <button type="button" className="buka-kategori"
+                        aria-expanded={!!buka[b.id]}
+                        onClick={() => setBuka((s) =>
+                          ({ ...s, [b.id]: !s[b.id] }))}>
+                  <span className="tanda">{buka[b.id] ? "▾" : "▸"}</span>
+                  {b.kategori ?? "—"}
+                </button>
               </td>
-              <td>
-                <div className={buka[b.id] ? undefined : "sel-panjang"}
-                     ref={(el) => { selPanjang.current[`${b.id}:nilai`] = el; }}>
-                  {b.nilai ?? "—"}
-                </div>
-              </td>
-              <td>
-                <div className={buka[b.id] ? undefined : "sel-panjang"}
-                     ref={(el) => { selPanjang.current[`${b.id}:ket`] = el; }}>
-                  {b.keterangan ?? "—"}
-                </div>
-              </td>
-              {/* Yang sudah berlaku menyebut angka yang BENAR-BENAR dipakai
-                  menghitung, bukan angka pada memonya: keduanya boleh berbeda
-                  bila yang memberlakukan membetulkan bacaan OCR, dan yang
-                  perlu diketahui pembaca angka yang dipakai. */}
-              <td>{selKeadaan(b)}</td>
+              {/* Rinciannya tidak digambar sampai kategorinya ditekan, bukan
+                  dipendekkan dua baris. Potongan dua baris masih memenuhi
+                  kolomnya dengan kalimat yang belum tentu sedang dibaca, dan
+                  itulah yang membuat tabelnya terbaca semrawut. Isinya tidak
+                  hilang; ia kembali utuh begitu kategorinya dipilih. */}
+              <td>{buka[b.id] ? (b.nilai ?? "—") : null}</td>
+              <td>{buka[b.id] ? (b.keterangan ?? "—") : null}</td>
               {bolehBerlaku && (
                 <td>
                   {b.scheme_id ? (

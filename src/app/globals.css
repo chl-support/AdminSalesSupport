@@ -101,13 +101,6 @@ td.n { text-align: right; font-variant-numeric: tabular-nums; color: var(--ink);
    dalam satu memo sama tebalnya dengan garis di antara keduanya. */
 .tabel-rujukan tr.kepala-memo > td { border-top: 1px solid var(--line); }
 
-/* Nilai Komisi dan Keterangan dipendekkan dua baris sampai kategorinya
-   dipilih. Keduanya berisi kalimat panjang hasil OCR, dan sebelas kategori
-   yang seluruhnya terbuka membuat satu memo menghabiskan beberapa layar. */
-.tabel-rujukan .sel-panjang {
-  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
-  overflow: hidden;
-}
 /* Kategorinya sendiri yang menjadi tombolnya, dan rupanya tetap tulisan
    biasa: ia isi sel, bukan perintah. Yang menandainya dapat dibuka hanya
    segitiga kecil di depannya — dan segitiga itu hanya muncul pada baris yang
