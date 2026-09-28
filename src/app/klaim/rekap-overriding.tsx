@@ -98,12 +98,12 @@ const persen = (v?: string | null) => {
 const KOLOM: { atas: string; bawah?: string; kelas?: string; lebar: number }[] = [
   { atas: "No.", lebar: 17, kelas: "angka" },
   { atas: "Tgl. Kontrak", lebar: 33 },
-  { atas: "Unit", lebar: 26 },
-  { atas: "Marketing", lebar: 49 },
-  { atas: "Kategori Marketing", lebar: 42 },
+  { atas: "Unit", lebar: 45 },
+  { atas: "Marketing", lebar: 41 },
+  { atas: "Kategori Marketing", lebar: 39 },
   { atas: "Luas", bawah: "Tanah", kelas: "angka", lebar: 24 },
   { atas: "Luas", bawah: "Bangunan", kelas: "angka", lebar: 37 },
-  { atas: "Skema Cara Bayar", lebar: 48 },
+  { atas: "Skema Cara Bayar", lebar: 44 },
   { atas: "Type", lebar: 24 },
   // Satu sel yang membentang dua baris, bukan judul bertingkat: "(Include
   // PPN)" bukan salah satu dari beberapa kolom di bawah "Nilai Kontrak" —
@@ -126,7 +126,7 @@ const KOLOM: { atas: string; bawah?: string; kelas?: string; lebar: number }[] =
   { atas: "Selisih Overiding", bawah: "PPh 21", kelas: "angka", lebar: 36 },
   { atas: "Selisih Overiding", bawah: "Net", kelas: "angka", lebar: 49 },
   { atas: "Selisih Overiding", bawah: "%", kelas: "angka", lebar: 31 },
-  { atas: "Ket.", lebar: 45 },
+  { atas: "Ket.", lebar: 41 },
 ];
 
 const TOTAL_LEBAR = KOLOM.reduce((t, k) => t + k.lebar, 0);
