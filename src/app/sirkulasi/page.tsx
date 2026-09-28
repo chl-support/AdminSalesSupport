@@ -45,7 +45,6 @@ const KATA = {
     thKe: "Ke / Di Tangan", thDistribusi: "Tanggal Distribusi",
     thDiterima: "Tanggal Diterima", thDurasi: "Durasi Proses",
     thStatus: "Status", tindakan: "Tindakan",
-    salinanKe: (n: number) => `salinan #${n}`,
     isiMemo: "ketik nomor memo", isiTanggal: "pilih tanggal",
     simpanGagal: "Isian tidak tersimpan",
     hanyaAdmin: "Hanya Admin Sales yang dapat mengisi kedua kolom ini.",
@@ -82,7 +81,6 @@ const KATA = {
     thKe: "To / held by", thDistribusi: "Distributed on",
     thDiterima: "Received on", thDurasi: "Processing time",
     thStatus: "Status", tindakan: "Action",
-    salinanKe: (n: number) => `copy #${n}`,
     isiMemo: "type the memo number", isiTanggal: "pick a date",
     simpanGagal: "The entry was not saved",
     hanyaAdmin: "Only Sales Admin can fill these two columns.",
@@ -239,7 +237,7 @@ export default function SirkulasiPage() {
                 kantor, dengan urutan yang sama. Dua di antaranya belum punya
                 sumber datanya — lihat selnya masing-masing. */}
             <tr>
-              <th style={{ width: 44 }}>{k.thNo}</th>
+              <th className="sel-no-urut" style={{ width: 44 }}>{k.thNo}</th>
               <th>{k.thUnit}</th>
               <th>{k.thJenis}</th>
               <th>{k.thMemo}</th>
@@ -256,18 +254,8 @@ export default function SirkulasiPage() {
               const umur = b.age_days ?? 0;
               return (
                 <tr key={b.id}>
-                  <td className="n">{i + 1}</td>
-                  {/* Nomor klaim dan salinan keberapa tidak lagi punya
-                      kolomnya sendiri pada acuan ini, tetapi keduanya yang
-                      dipakai orang untuk memastikan berkas yang dipegang
-                      memang berkas yang dicari — jadi keduanya tetap terbaca,
-                      kecil di bawah kode unitnya. */}
-                  <td>
-                    <b>{b.unit_code ?? "—"}</b>
-                    <div className="meta">
-                      {b.claim_number} · {k.salinanKe(b.print_copy_number)}
-                    </div>
-                  </td>
+                  <td className="sel-no-urut">{i + 1}</td>
+                  <td><b>{b.unit_code ?? "\u2014"}</b></td>
                   <td>{namaJenis(b.claim_type as any, bahasa)}</td>
                   {/* Nomor memo internal terbit di luar sistem ini, jadi ia
                       diisi tangan. Yang tidak berhak mengisinya tetap
