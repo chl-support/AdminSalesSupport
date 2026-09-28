@@ -49,6 +49,16 @@ const tgl = (v: any) => {
   return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()}`;
 };
 
+/**
+ * Keempat tempat divisi penerima dan tanggal distribusi.
+ *
+ * Yang pertama tersimpan tanpa akhiran — kolomnya sudah terisi sejak sebelum
+ * keempatnya ada, dan menamainya ulang berarti memindahkan data tanpa sebab.
+ */
+const URUT = [1, 2, 3, 4];
+const medanAlur = (dasar: string, n: number) =>
+  n === 1 ? dasar : `${dasar}_${n}`;
+
 const KEADAAN: Record<string, string> = {
   draft: "Di Admin Sales", submitted: "Di Admin Sales",
   pending_admin_review: "Di Admin Sales",
@@ -108,8 +118,16 @@ export const GET = handler(async (req) => {
     // sedang berjalan di luar meja mereka — jadi ia ikut, bukan tertinggal di
     // layar saja.
     ["Divisi Pengirim", 20, (c) => c.sender_division ?? ""],
-    ["Divisi Penerima", 20, (c) => c.handed_to ?? ""],
-    ["Tanggal Distribusi", 20, (c) => tgl(c.distributed_at)],
+    // Divisi penerima dan tanggal distribusinya bertempat empat di layar,
+    // sebanyak baris Tabel Sirkulasi Dokumen. Masing-masing mendapat kolomnya
+    // sendiri di sini, bukan digabung satu sel berisi empat baris: sel
+    // bertumpuk tidak dapat disaring maupun diurutkan, dan menyaring peredaran
+    // berkas justru alasan rekap ini diunduh.
+    ...URUT.map((n): [string, number, (c: Baris) => string] =>
+      [`Divisi Penerima ${n}`, 20, (c) => c[medanAlur("handed_to", n)] ?? ""]),
+    ...URUT.map((n): [string, number, (c: Baris) => string] =>
+      [`Tanggal Distribusi ${n}`, 20,
+       (c) => tgl(c[medanAlur("distributed_at", n)])]),
     ["Tanggal Penerima", 20, (c) => tgl(c.received_at)],
     ["Status", 26, (c) => KEADAAN[c.status] ?? c.status],
     // Nomor klaim tercetak kecil di bawah tanggal pada layar; di sini ia

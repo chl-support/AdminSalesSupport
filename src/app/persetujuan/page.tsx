@@ -93,8 +93,13 @@ const KATA = {
     sUnit: "Unit", sJalan: "Diproses / Berlangsung", sSelesai: "Selesai",
     jumlah: (n: number) => `${n} klaim`,
     unduhRekap: "Download (.xlsx)",
-    pProgress: (n: number) => `🔄 ${n} Progress`,
-    pFinish: (n: number) => `🏁 ${n} Finish`,
+    // Keempat sebutan ini sudah memuat kedua bahasanya sekaligus, jadi ia sama
+    // pada blok id maupun en — menerjemahkan yang di dalam kurung hanya
+    // membuat sebutan yang dipakai di kantor tidak lagi dikenali.
+    pDraf: (n: number) => `📝 Buat Pengajuan (Drafting) · ${n}`,
+    pButuh: (n: number) => `📥 Kotak Masuk Persetujuan (Need Approval) · ${n}`,
+    pPantau: (n: number) => `⏱️ Pantau Alur (In Progress / Tracking) · ${n}`,
+    pArsip: (n: number) => `🗃️ Arsip Dokumen Selesai (Approved / Archive) · ${n}`,
     tahapJudul: "Tahap peredaran",
     tahapBelum: "Belum beredar",
     tahapGerak: "Memindahkan…",
@@ -239,8 +244,13 @@ const KATA = {
     sUnit: "Unit", sJalan: "In progress", sSelesai: "Completed",
     jumlah: (n: number) => `${n} claims`,
     unduhRekap: "Download (.xlsx)",
-    pProgress: (n: number) => `🔄 ${n} Progress`,
-    pFinish: (n: number) => `🏁 ${n} Finish`,
+    // Keempat sebutan ini sudah memuat kedua bahasanya sekaligus, jadi ia sama
+    // pada blok id maupun en — menerjemahkan yang di dalam kurung hanya
+    // membuat sebutan yang dipakai di kantor tidak lagi dikenali.
+    pDraf: (n: number) => `📝 Buat Pengajuan (Drafting) · ${n}`,
+    pButuh: (n: number) => `📥 Kotak Masuk Persetujuan (Need Approval) · ${n}`,
+    pPantau: (n: number) => `⏱️ Pantau Alur (In Progress / Tracking) · ${n}`,
+    pArsip: (n: number) => `🗃️ Arsip Dokumen Selesai (Approved / Archive) · ${n}`,
     tahapJudul: "Circulation stage",
     tahapBelum: "Not circulating yet",
     tahapGerak: "Moving…",
@@ -415,6 +425,33 @@ const MENUNGGU_TAUTAN = ["tax_verified", "signature_link_sent",
                          "awaiting_signature"];
 
 const SELESAI = ["completed", "paid", "rejected", "cancelled", "clawback"];
+
+/**
+ * Keempat kotak pada kepala panel, menurut keadaan pengajuannya.
+ *
+ * Susunannya sengaja saling lepas dan menutup seluruh keadaan: yang tidak
+ * masuk tiga daftar di bawah jatuh ke "Pantau Alur". Dengan begitu keempat
+ * angkanya selalu berjumlah tepat sebanyak pengajuan pada project ini — kotak
+ * yang tidak menjumlah tidak akan terbaca sebagai salah, melainkan sebagai
+ * berkas yang hilang, dan yang mencarinya tidak tahu harus mencari di mana.
+ *
+ * "Arsip" memakai daftar SELESAI yang sama dengan saringan Search, supaya satu
+ * layar tidak memuat dua arti "selesai" yang berbeda.
+ */
+const DRAFTING = ["draft"];
+
+/** Yang berhenti menunggu keputusan orang, bukan menunggu langkah berikutnya. */
+const BUTUH_PERSETUJUAN = [
+  "submitted", "pending_admin_review", "pending_tax_verification",
+  "signature_review_required", "circulating_head_finance",
+  "circulating_management",
+];
+
+const kotakKeadaan = (s: string) =>
+  SELESAI.includes(s) ? "arsip"
+  : DRAFTING.includes(s) ? "draf"
+  : BUTUH_PERSETUJUAN.includes(s) ? "butuh"
+  : "pantau";
 
 /**
  * Saringan: tiga tampilan, sesuai permintaan kantor.
@@ -675,9 +712,24 @@ export default function PersetujuanPage() {
   });
 
   /** Kelima catatan alur kerja dokumen yang diisi tangan. */
-  type MedanAlur = "office_memo_no" | "sender_division" | "handed_to"
-                 | "distributed_at" | "received_at";
-  const TANGGAL_ALUR: MedanAlur[] = ["distributed_at", "received_at"];
+  /**
+   * Divisi penerima dan tanggal distribusi bertempat empat.
+   *
+   * Satu berkas berpindah beberapa kali sebelum selesai, dan Tabel Sirkulasi
+   * Dokumen di kantor menyediakan empat baris untuk itu. Yang pertama tetap
+   * tanpa akhiran — kolomnya sudah terisi, dan menamainya ulang berarti
+   * memindahkan data yang sudah ada tanpa sebab.
+   */
+  const URUT_ALUR = [1, 2, 3, 4];
+  const bernomor = (dasar: "handed_to" | "distributed_at", n: number) =>
+    (n === 1 ? dasar : `${dasar}_${n}`) as MedanAlur;
+
+  type MedanAlur = "office_memo_no" | "sender_division" | "received_at"
+                 | "handed_to" | "handed_to_2" | "handed_to_3" | "handed_to_4"
+                 | "distributed_at" | "distributed_at_2" | "distributed_at_3"
+                 | "distributed_at_4";
+  const TANGGAL_ALUR: MedanAlur[] = ["received_at",
+    ...URUT_ALUR.map((n) => bernomor("distributed_at", n))];
 
   /**
    * Simpan satu isian alur kerja pada satu baris.
@@ -777,6 +829,40 @@ export default function PersetujuanPage() {
                  e.currentTarget.blur();
                }
              }} />
+    );
+  };
+
+  /**
+   * Sel yang memuat empat isian bertumpuk.
+   *
+   * Bagi yang hanya membaca, yang kosong tidak ikut ditampilkan: empat tanda
+   * pisah bertumpuk pada tiap baris membuat kolomnya penuh oleh ketiadaan.
+   * Yang mengisi tetap melihat keempatnya, sebab kotak yang tidak ada tidak
+   * dapat diisi.
+   */
+  const isiEmpat = (c: any, dasar: "handed_to" | "distributed_at",
+                    petunjuk?: string) => {
+    if (!bolehIom) {
+      const ada = URUT_ALUR.map((n) => c[bernomor(dasar, n)]).filter(Boolean);
+      if (!ada.length) return "—";
+      return (
+        <div className="alur-empat">
+          {ada.map((v, i) => (
+            <div key={i} className="alur-baris">
+              {dasar === "distributed_at" ? tglPendek(v) : v}
+            </div>
+          ))}
+        </div>
+      );
+    }
+    return (
+      <div className="alur-empat">
+        {URUT_ALUR.map((n) => (
+          <div key={n} className="alur-baris">
+            {isiAlur(c, bernomor(dasar, n), petunjuk)}
+          </div>
+        ))}
+      </div>
     );
   };
 
@@ -1037,16 +1123,12 @@ export default function PersetujuanPage() {
                                                  "id", { numeric: true }));
 
   /**
-   * Dua angka pada kepala panel: yang masih berjalan dan yang sudah selesai.
+   * Keempat angka pada kepala panel; susunannya ada pada kotakKeadaan.
    *
    * Dihitung dari SELURUH klaim project ini, bukan dari yang sedang tampil:
-   * angka yang ikut berubah mengikuti saringan akan berbunyi "0 Progress"
-   * begitu saringannya dipasang ke "sudah selesai", padahal yang berjalan
-   * tetap ada — hanya sedang tidak ditampilkan.
-   *
-   * Batas "selesai" memakai daftar SELESAI yang sama dengan saringannya.
-   * Dibuatkan daftar kedua yang khusus untuk angka ini, satu layar akan
-   * memuat dua arti "selesai" yang berbeda.
+   * angka yang ikut berubah mengikuti saringan akan berbunyi "0" pada tiga
+   * kotak begitu saringannya dipasang ke salah satu tampilan, padahal
+   * pengajuannya tetap ada — hanya sedang tidak ditampilkan.
    */
   /**
    * Peran yang boleh menggerakkan tahap peredaran, dan yang boleh mencatat
@@ -1095,8 +1177,11 @@ export default function PersetujuanPage() {
    */
   const bolehHapusDibayar = sesi.role === "admin_system";
 
-  const selesai = klaim.filter((c) => SELESAI.includes(c.status)).length;
-  const jalan = klaim.length - selesai;
+  // Satu lintasan, satu kotak per pengajuan: keempat angkanya berjumlah tepat
+  // sebanyak klaim.length menurut susunan kotakKeadaan, bukan menurut empat
+  // saringan terpisah yang dapat bertindih atau berlubang tanpa terlihat.
+  const hitung = { draf: 0, butuh: 0, pantau: 0, arsip: 0 };
+  for (const c of klaim) hitung[kotakKeadaan(c.status)] += 1;
 
   return (
     <Kerangka sesi={sesi} lebar judul={
@@ -1151,7 +1236,7 @@ export default function PersetujuanPage() {
       <div className="panel">
         <h2>
           {k.daftar}
-          <span>
+          <span className="kepala-kotak">
             {/* Unduhan, bukan tombol: berkasnya dibangkitkan server dan
                 langsung disimpan peramban, tanpa layar perantara. Sejajar
                 dengan layar Dokumentasi Memo, yang sudah memakai bentuk ini. */}
@@ -1161,8 +1246,10 @@ export default function PersetujuanPage() {
                 {k.unduhRekap}
               </a>
             )}
-            <span className="pill">{k.pProgress(jalan)}</span>
-            <span className="pill">{k.pFinish(selesai)}</span>
+            <span className="pill">{k.pDraf(hitung.draf)}</span>
+            <span className="pill">{k.pButuh(hitung.butuh)}</span>
+            <span className="pill">{k.pPantau(hitung.pantau)}</span>
+            <span className="pill">{k.pArsip(hitung.arsip)}</span>
           </span>
         </h2>
 
@@ -1236,8 +1323,8 @@ export default function PersetujuanPage() {
                     endpoint-nya sama, jadi yang sudah pernah diisi tetap
                     terbaca. */}
                 <td>{isiAlur(c, "sender_division", k.divIsi)}</td>
-                <td>{isiAlur(c, "handed_to", k.divIsi)}</td>
-                <td>{isiAlur(c, "distributed_at")}</td>
+                <td>{isiEmpat(c, "handed_to", k.divIsi)}</td>
+                <td>{isiEmpat(c, "distributed_at")}</td>
                 <td>{isiAlur(c, "received_at")}</td>
                 <td className="sel-keadaan">
                   {/* Panah peringkas. Hanya panah, tanpa tulisan: ia berdiri

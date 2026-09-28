@@ -28,12 +28,24 @@ import { WorkflowError } from "@/lib/workflow";
  * menghapus tanggal yang sudah benar — diam-diam, tanpa ada yang memintanya.
  */
 
+/**
+ * Divisi penerima dan tanggal distribusi bertempat empat.
+ *
+ * Satu berkas berpindah beberapa kali sebelum selesai, dan Tabel Sirkulasi
+ * Dokumen di kantor menyediakan empat baris untuk itu. Yang pertama tetap
+ * bernama handed_to dan distributed_at tanpa akhiran: kolom itu sudah terisi,
+ * dan menamainya ulang berarti memindahkan data yang sudah ada tanpa sebab.
+ */
+const URUT = [2, 3, 4];
+
 /** Isian teks: namanya di basis data dan panjang terpanjang yang masuk akal. */
 const TEKS: Record<string, number> = {
   office_memo_no: 100, sender_division: 100, handed_to: 100,
+  ...Object.fromEntries(URUT.map((n) => [`handed_to_${n}`, 100])),
 };
 /** Isian tanggal; semuanya kolom DATE. */
-const TANGGAL = ["received_at", "distributed_at"];
+const TANGGAL = ["received_at", "distributed_at",
+                 ...URUT.map((n) => `distributed_at_${n}`)];
 
 export const POST = handler(async (req, { params }) => {
   const { id } = await params;
@@ -67,11 +79,16 @@ export const POST = handler(async (req, { params }) => {
   // disebut sama sekali, sehingga tidak ada jalan ia tertimpa tanpa sengaja.
   const set = medan.map((m, i) => TANGGAL.includes(m)
     ? `${m} = $${i + 1}::date` : `${m} = $${i + 1}`).join(", ");
+  // Yang dikembalikan disusun dari daftar medan yang sama dengan yang
+  // diterima, bukan ditulis ulang satu per satu. Daftar kedua yang ditulis
+  // tangan akan ketinggalan begitu satu medan ditambahkan — layar menyimpan
+  // isiannya, jawabannya tidak menyebut medan itu, dan sel yang baru diisi
+  // berubah kosong di depan mata yang mengisinya.
+  const dibaca = [...Object.keys(TEKS),
+                  ...TANGGAL.map((m) => `to_char(${m}, 'YYYY-MM-DD') AS ${m}`)];
   const baru = await one<any>(
     `UPDATE claims SET ${set} WHERE id = $${medan.length + 1}
-      RETURNING office_memo_no, sender_division, handed_to,
-                to_char(received_at, 'YYYY-MM-DD')    AS received_at,
-                to_char(distributed_at, 'YYYY-MM-DD') AS distributed_at`,
+      RETURNING ${dibaca.join(", ")}`,
     [...medan.map((m) => nilai[m]), id]);
 
   await audit({
@@ -79,9 +96,6 @@ export const POST = handler(async (req, { params }) => {
     actor: user.username, after: nilai,
   });
 
-  return {
-    office_memo_no: baru.office_memo_no,
-    sender_division: baru.sender_division, handed_to: baru.handed_to,
-    received_at: baru.received_at, distributed_at: baru.distributed_at,
-  };
+  return Object.fromEntries(
+    [...Object.keys(TEKS), ...TANGGAL].map((m) => [m, baru[m] ?? null]));
 });

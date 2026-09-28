@@ -57,6 +57,17 @@ td.n { text-align: right; font-variant-numeric: tabular-nums; color: var(--ink);
 }
 /* Dua pil berdampingan tidak boleh berdempetan menjadi satu blok. */
 .pill + .pill { margin-left: 6px; }
+
+/* Kepala panel yang memuat unduhan dan keempat kotak keadaan.
+   Keempatnya bersebutan panjang dan tidak muat sebaris pada layar sempit;
+   dibiarkan begitu ia mendorong keluar tepi panel, dan yang terakhir —
+   arsipnya — justru yang tidak terlihat. Jadi dibungkuskan, rata kanan,
+   mengikuti tepi yang sama dengan judulnya. */
+.kepala-kotak {
+  display: flex; flex-wrap: wrap; align-items: center;
+  justify-content: flex-end; gap: 6px; margin-left: 12px;
+}
+.kepala-kotak .pill + .pill { margin-left: 0; }
 .pill.ok { border-color: var(--ok); color: var(--ok); background: var(--okbg); }
 .pill.warn { border-color: var(--warn); color: var(--warn); background: var(--warnbg); }
 .pill.stop { border-color: var(--stop); color: var(--stop); background: var(--stopbg); }
@@ -235,6 +246,14 @@ ul.kurang {
 }
 .isi-sirkulasi.tgl-baca:disabled { cursor: progress; }
 .tgl-kosong { color: var(--mut); }
+
+/* Empat isian bertumpuk dalam satu sel: berkasnya berpindah beberapa kali,
+   dan tiap perpindahan punya barisnya sendiri. Garis pemisah tipis di
+   antaranya, supaya yang kosong pun tetap terbaca sebagai empat tempat dan
+   bukan satu kotak yang kebetulan tinggi. */
+.alur-empat { display: flex; flex-direction: column; gap: 2px; }
+.alur-empat .alur-baris + .alur-baris { border-top: 1px dashed var(--line); }
+.alur-empat .alur-baris { padding: 1px 0; min-height: 26px; }
 
 .filters.cari .lbl {
   font-size: 13px; font-weight: 600; color: var(--sub); margin-bottom: 6px;
