@@ -91,29 +91,15 @@ td.n { text-align: right; font-variant-numeric: tabular-nums; color: var(--ink);
   padding: 4px 10px; font-size: 11.5px; font-weight: 650;
 }
 
-/* Kategori sebuah memo, sebagai cip yang dapat ditekan. Satu memo memuat
-   beberapa tabel skema, dan menekan salah satunya menukar nilai serta
-   keterangan yang ditampilkan barisnya. */
-.cip-kategori { display: flex; flex-wrap: wrap; gap: 4px; }
-.cip-kategori button {
-  padding: 2px 8px; border: 1px solid var(--line); border-radius: var(--lengkung);
-  background: #fff; font: inherit; font-size: 11.5px; font-weight: 600;
-  color: var(--sub); cursor: pointer; text-align: left;
-}
-.cip-kategori button:hover { border-color: var(--mut); color: var(--ink); }
-/* Yang sudah diberlakukan bertepi hijau walau sedang tidak dibuka: itulah
-   yang dicari orang saat melirik satu memo — mana yang sudah, mana yang
-   belum — dan mengelompokkan tidak boleh menyembunyikannya. */
-.cip-kategori button.usai { border-color: var(--ok); color: var(--ok); }
-.cip-kategori button.aktif {
-  background: var(--ink); border-color: var(--ink); color: #fff;
-}
-.cip-kategori button.usai.aktif {
-  background: var(--ok); border-color: var(--ok); color: #fff;
-}
-.cip-kategori button:focus-visible {
-  outline: 2px solid rgba(154, 114, 3, .35); outline-offset: 1px;
-}
+/* Rekapitulasi memo: satu memo menempati beberapa baris, disatukan lewat
+   rowSpan. Sel yang membentang dirata-atas — dibiarkan di tengah, nomor memo
+   akan melayang di pertengahan sepuluh baris, jauh dari baris pertama yang
+   ia awali. */
+.tabel-rujukan td { vertical-align: top; }
+/* Garis pemisah antarmemo. Tanpa itu sepuluh baris satu memo dan enam baris
+   memo berikutnya mengalir menjadi satu blok, sebab garis antarbaris di
+   dalam satu memo sama tebalnya dengan garis di antara keduanya. */
+.tabel-rujukan tr.kepala-memo > td { border-top: 1px solid var(--line); }
 
 /* Kepala panel yang memuat unduhan dan keempat kotak keadaan.
    Keempatnya bersebutan panjang dan tidak muat sebaris pada layar sempit;

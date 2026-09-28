@@ -246,14 +246,6 @@ export default function ReferensiPengajuanPage() {
   const [kabar, setKabar] = useState<string | null>(null);
   const [kemajuan, setKemajuan] = useState<string | null>(null);
   const [seret, setSeret] = useState(false);
-  /**
-   * Kategori yang sedang dibuka pada tiap kelompok: kunci memo → id barisnya.
-   *
-   * Tidak disimpan ke server — ia cara melihat, bukan data. Yang belum pernah
-   * ditekan jatuh ke kategori pertama, supaya barisnya tidak pernah kosong
-   * sebelum disentuh.
-   */
-  const [kategoriBuka, setKategoriBuka] = useState<Record<string, string>>({});
   /** Baris yang sedang diperiksa di dialog pemberlakuan. */
   const [dialog, setDialog] = useState<Baris | null>(null);
 
@@ -520,89 +512,32 @@ export default function ReferensiPengajuanPage() {
               {bolehBerlaku && <th style={{ width: 110 }}>{k.kTindakan}</th>}
             </tr>
 
-            {kelompok.map((g, i) => {
-              /* Kolom milik memonya diambil dari baris mana pun — nomor,
-                 tanggal, perihal dan periode berasal dari kepala memo yang
-                 sama, jadi kelimanya identik. Yang berbeda per baris —
-                 skema, nilai, keterangan, keadaan, tindakannya — mengikuti
-                 kategori yang sedang dibuka. Skema ikut karena ia nama tabel
-                 tempat barisnya berasal: dibiarkan menyebut baris pertama
-                 sementara kategorinya menunjuk baris lain, ia akan
-                 menerangkan angka yang tidak sedang ditampilkan. */
-              const memo = g.baris[0];
-              const b = g.baris.find((x) => x.id === kategoriBuka[g.kunci])
-                        ?? g.baris[0];
-              return (
-                <tr key={g.kunci}>
-                  <td className="n">{i + 1}</td>
-                  <td>{memo.no_memo ?? "—"}</td>
-                  <td>{tglPanjang(memo.tanggal)}</td>
-                  <td>{memo.perihal ?? "—"}</td>
-                  <td>{periode(memo.periode_awal, memo.periode_akhir)}</td>
-                  <td>{b.skema}</td>
-                  <td>
-                    {g.baris.length < 2 ? (b.kategori ?? "—") : (
-                      /* Tiap kategori membawa tanda keadaannya sendiri.
-                         Tanpa itu, mengelompokkan justru menyembunyikan apa
-                         yang paling dicari di layar ini — mana yang sudah
-                         diberlakukan dan mana yang belum — sebab keadaan
-                         empat kategori lain tertutup di balik yang sedang
-                         dibuka. */
-                      <div className="cip-kategori">
-                        {g.baris.map((x) => (
-                          <button key={x.id} type="button"
-                                  className={[x.id === b.id ? "aktif" : "",
-                                              x.scheme_id ? "usai" : ""]
-                                               .filter(Boolean).join(" ")}
-                                  title={x.scheme_id ? k.berlaku : k.usulan}
-                                  onClick={() => setKategoriBuka((s) =>
-                                    ({ ...s, [g.kunci]: x.id }))}>
-                            {x.kategori ?? "—"}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </td>
-                  <td>{b.nilai ?? "—"}</td>
-                  <td>{b.keterangan ?? "—"}</td>
-                  {/* Yang sudah berlaku menyebut angka yang BENAR-BENAR dipakai
-                      menghitung, bukan angka pada memonya: keduanya boleh
-                      berbeda bila yang memberlakukan membetulkan bacaan OCR,
-                      dan yang perlu diketahui pembaca angka yang dipakai. */}
-                  <td>
-                    {b.scheme_id ? (
-                      <>
-                        <span className="pill ok">{k.berlaku}</span>
-                        <div className="meta">
-                          {b.claim_type ? namaJenis(b.claim_type as any, bahasa)
-                                        : "—"}
-                          {b.recipient_role
-                            ? ` · ${namaKategori(b.recipient_role, bahasa)}` : ""}
-                        </div>
-                        <div className="meta">
-                          {persenTampil(b.percentage)
-                           ?? rupiah(b.flat_amount) ?? "—"}
-                        </div>
-                      </>
-                    ) : <span className="pill">{k.usulan}</span>}
-                  </td>
-                  {bolehBerlaku && (
-                    <td>
-                      {b.scheme_id ? (
-                        <button disabled={busy} onClick={() => void cabut(b)}>
-                          {k.cabut}
-                        </button>
-                      ) : (
-                        <button className="pri" disabled={busy}
-                                onClick={() => { setDialog(b); setGalat(null); }}>
-                          {k.berlakukan}
-                        </button>
-                      )}
-                    </td>
-                  )}
-                </tr>
-              );
-            })}
+            {kelompok.map((g, i) => (
+              /* Satu memo menempati beberapa baris tabel, bukan satu baris
+                 yang isinya ditumpuk sendiri-sendiri. Kolom milik memonya —
+                 nomor, tanggal, perihal, periode — membentang lewat rowSpan,
+                 dan kolom Skema membentang menaungi kategori yang berasal
+                 dari tabel yang sama padanya.
+
+                 rowSpan, bukan tumpukan div di dalam sel: empat kolom yang
+                 masing-masing menumpuk isinya sendiri akan berbeda tinggi
+                 begitu Keterangan lebih panjang daripada Nilai, sehingga
+                 kategori ketiga berhadapan dengan keterangan kedua — dan yang
+                 membacanya tidak punya cara mengetahui bahwa keduanya sudah
+                 tidak sebaris. Peramban yang menyejajarkannya, bukan angka
+                 tinggi yang ditebak.
+
+                 Keadaan dan Tindakan kembali berdiri per kategori. Mana yang
+                 sudah diberlakukan dan mana yang belum adalah hal yang paling
+                 dicari di layar ini, dan menyembunyikannya di balik satu
+                 kategori yang sedang dibuka membuat yang memeriksa harus
+                 menekan satu per satu hanya untuk tahu masih ada yang
+                 tertinggal. */
+              <Kotak key={g.kunci} no={i + 1} baris={g.baris} k={k}
+                     bahasa={bahasa} busy={busy} bolehBerlaku={bolehBerlaku}
+                     cabut={cabut}
+                     berlakukan={(b) => { setDialog(b); setGalat(null); }} />
+            ))}
 
             {!baris.length && !busy && (
               <tr>
@@ -629,6 +564,91 @@ export default function ReferensiPengajuanPage() {
                        galat={setGalat} />
       )}
     </Kerangka>
+  );
+}
+
+/**
+ * Satu memo, sebanyak baris tabel yang dimilikinya.
+ *
+ * Skema dibentangkan menaungi kategori yang berasal dari tabel yang sama
+ * padanya — dan yang dibandingkan adalah RUNTUN yang berurutan, bukan seluruh
+ * nama yang sama di mana pun letaknya. Sebuah memo boleh menyebut satu nama
+ * skema dua kali pada bagian yang berjauhan; disatukan lewat rowSpan, kedua
+ * bagian itu akan tampak sebagai satu blok, dan kategori di antaranya ikut
+ * tersedot ke dalamnya.
+ */
+function Kotak({ no, baris, k, bahasa, busy, bolehBerlaku, cabut, berlakukan }: {
+  no: number; baris: Baris[]; k: any; bahasa: "id" | "en"; busy: boolean;
+  bolehBerlaku: boolean;
+  cabut: (b: Baris) => Promise<void> | void;
+  berlakukan: (b: Baris) => void;
+}) {
+  const memo = baris[0];
+
+  /** Panjang runtun skema yang dimulai pada tiap baris; 0 bila ia lanjutan. */
+  const bentang: number[] = baris.map(() => 0);
+  for (let i = 0; i < baris.length;) {
+    let j = i;
+    while (j < baris.length && baris[j].skema === baris[i].skema) j++;
+    bentang[i] = j - i;
+    i = j;
+  }
+
+  return (
+    <>
+      {baris.map((b, n) => (
+        <tr key={b.id} className={n === 0 ? "kepala-memo" : undefined}>
+          {n === 0 && (
+            <>
+              <td className="n" rowSpan={baris.length}>{no}</td>
+              <td rowSpan={baris.length}>{memo.no_memo ?? "—"}</td>
+              <td rowSpan={baris.length}>{tglPanjang(memo.tanggal)}</td>
+              <td rowSpan={baris.length}>{memo.perihal ?? "—"}</td>
+              <td rowSpan={baris.length}>
+                {periode(memo.periode_awal, memo.periode_akhir)}
+              </td>
+            </>
+          )}
+          {bentang[n] > 0 && <td rowSpan={bentang[n]}>{b.skema}</td>}
+          <td>{b.kategori ?? "—"}</td>
+          <td>{b.nilai ?? "—"}</td>
+          <td>{b.keterangan ?? "—"}</td>
+          {/* Yang sudah berlaku menyebut angka yang BENAR-BENAR dipakai
+              menghitung, bukan angka pada memonya: keduanya boleh berbeda
+              bila yang memberlakukan membetulkan bacaan OCR, dan yang perlu
+              diketahui pembaca angka yang dipakai. */}
+          <td>
+            {b.scheme_id ? (
+              <>
+                <span className="pill ok">{k.berlaku}</span>
+                <div className="meta">
+                  {b.claim_type ? namaJenis(b.claim_type as any, bahasa) : "—"}
+                  {b.recipient_role
+                    ? ` · ${namaKategori(b.recipient_role, bahasa)}` : ""}
+                </div>
+                <div className="meta">
+                  {persenTampil(b.percentage) ?? rupiah(b.flat_amount) ?? "—"}
+                </div>
+              </>
+            ) : <span className="pill">{k.usulan}</span>}
+          </td>
+          {bolehBerlaku && (
+            <td>
+              {b.scheme_id ? (
+                <button disabled={busy} onClick={() => void cabut(b)}>
+                  {k.cabut}
+                </button>
+              ) : (
+                <button className="pri" disabled={busy}
+                        onClick={() => berlakukan(b)}>
+                  {k.berlakukan}
+                </button>
+              )}
+            </td>
+          )}
+        </tr>
+      ))}
+    </>
   );
 }
 
