@@ -75,6 +75,22 @@ td.n { text-align: right; font-variant-numeric: tabular-nums; color: var(--ink);
 /* Dua pil berdampingan tidak boleh berdempetan menjadi satu blok. */
 .pill + .pill { margin-left: 6px; }
 
+/* Lencana keadaan berdampingan dengan tombolnya, pada layar Spesimen.
+   align-items:stretch membuat keduanya setinggi yang tertinggi tanpa ada
+   tinggi yang ditulis tangan — angka tinggi yang dipatok akan meleset begitu
+   ukuran hurufnya atau sebutannya berubah, dan melesetnya berupa satu-dua
+   piksel yang terbaca sebagai kelalaian, bukan sebagai gaya. */
+.pasangan-status {
+  display: flex; align-items: stretch; flex-wrap: wrap; gap: 6px;
+}
+.pasangan-status .pill {
+  display: inline-flex; align-items: center; margin: 0;
+  padding: 0 10px; font-size: 11.5px;
+}
+.pasangan-status > button {
+  padding: 4px 10px; font-size: 11.5px; font-weight: 650;
+}
+
 /* Kepala panel yang memuat unduhan dan keempat kotak keadaan.
    Keempatnya bersebutan panjang dan tidak muat sebaris pada layar sempit;
    dibiarkan begitu ia mendorong keluar tepi panel, dan yang terakhir —

@@ -830,13 +830,21 @@ export default function SpesimenPage() {
                               </div>
                             </>
                           ) : (
-                            <>
+                            /* Lencana keadaan dan tombolnya berdampingan dalam
+                               satu baris yang meregangkan keduanya setinggi
+                               yang tertinggi. Sebelumnya lencana kecil
+                               berukuran pil duduk di atas tombol berukuran
+                               penuh, dua kotak dengan tinggi, ukuran huruf dan
+                               tepi yang berbeda-beda — dan kolomnya terbaca
+                               sebagai dua hal yang tidak berhubungan, padahal
+                               keduanya menyebut satu spesimen yang sama. */
+                            <div className="pasangan-status">
                               <span className="pill ok">{k.sudahTerdaftar}</span>
-                              <button style={{ marginTop: 6 }}
-                                      onClick={() => { setRevisi(b.id); setAlasanRevisi(""); }}>
+                              <button
+                                onClick={() => { setRevisi(b.id); setAlasanRevisi(""); }}>
                                 {k.mintaRevisi}
                               </button>
-                            </>
+                            </div>
                           )
                         ) : !b.phone ? (
                           /* Tanpa nomor, kode verifikasi tidak punya tujuan.
