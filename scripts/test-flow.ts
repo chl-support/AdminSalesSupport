@@ -19,6 +19,8 @@ import { KATEGORI_JENIS, kategoriAwal } from "../src/lib/kategori";
 import { hapusMarketing, tambahMarketing } from "../src/lib/spesimen";
 import { rekapOverriding } from "../src/lib/overriding";
 import { penandatanganRekap } from "../src/lib/penandatangan";
+import { berlakukan, cabut, daftarRujukan, nominal, persenDesimal }
+  from "../src/lib/rujukan";
 import { seed } from "./seed";
 import { signaturePng, strokes } from "./synthetic-signature";
 
@@ -966,6 +968,128 @@ async function main() {
     });
     assert(pdf.subarray(0, 5).toString() === "%PDF-",
            "citra rusak tidak boleh menggagalkan seluruh dokumen");
+  });
+
+  await check("persentase memo dibaca dari tulisan orang, bukan tebakan",
+              async () => {
+    // Satu nilai, beberapa cara menuliskannya. Yang salah dibaca di sini
+    // menjadi tarif yang salah pada seluruh klaim sesudahnya.
+    assert(persenDesimal("2,5") === "0.025", "2,5 seharusnya 0,025");
+    assert(persenDesimal("2.5") === "0.025", "2.5 seharusnya 0,025");
+    assert(persenDesimal("1,75%") === "0.0175", "1,75% seharusnya 0,0175");
+    assert(persenDesimal("") === null, "kosong seharusnya null");
+    assert(nominal("10.000.000") === 10000000, "nominal 10 juta");
+    assert(nominal("") === null, "nominal kosong seharusnya null");
+    let ditolak = false;
+    try { persenDesimal("dua koma lima"); } catch { ditolak = true; }
+    assert(ditolak, "persentase yang tidak terbaca harus ditolak");
+  });
+
+  await check("baris memo baru menjadi tarif setelah diberlakukan", async () => {
+    const project = await one<any>(
+      "SELECT id FROM projects WHERE slug='bio-district'");
+    const memo = await one<any>(
+      `INSERT INTO memos (project_id, judul, nomor, berlaku_dari,
+         berlaku_sampai, tanggal_memo, file_name, content_type, size_bytes,
+         content, uploaded_by)
+       VALUES ($1, 'Uji Rujukan', 'UJI/001', '2026-01-01', '2026-12-31',
+               '2026-01-01', 'uji.pdf', 'application/pdf', 4,
+               '\\x25504446'::bytea, 'admin')
+       RETURNING *`, [project.id]);
+    await query(
+      `INSERT INTO memo_skema (memo_id, kelompok, urutan, kategori, nilai,
+         keterangan, baris)
+       VALUES ($1, 'Skema Komisi Uji', 1, 'Komisi Inhouse 1 unit', '1,25%',
+               'dokumen lengkap', 0)`, [memo.id]);
+
+    const sebelum = await daftarRujukan(project.id);
+    const baris = sebelum.find((b) => b.no_memo === "UJI/001");
+    assert(baris, "baris rujukan harus muncul pada daftarnya");
+    assert(!baris!.scheme_id, "baris baru harus berdiri sebagai usulan");
+    assert(baris!.nilai === "1,25%", `nilai memo: ${baris!.nilai}`);
+
+    // Yang diberlakukan angka yang DIPERIKSA orang, bukan hasil bacaan mesin:
+    // di sini 1,3% walau memonya tertulis 1,25%.
+    const skema = await berlakukan({
+      barisId: baris!.id, projectId: project.id, actor: "admin",
+      claimType: "commission", recipientRole: "sales_inhouse",
+      percentage: "1,3", from: "2026-01-01", to: "2026-12-31",
+    });
+    assert(Number(skema.percentage) === 0.013, `persen: ${skema.percentage}`);
+    assert(skema.memo_reference === "UJI/001",
+           `memo pada skemanya: ${skema.memo_reference}`);
+    assert(skema.project_id === project.id,
+           "skema tanpa project tidak akan pernah terpakai");
+
+    const sesudah = (await daftarRujukan(project.id))
+      .find((b) => b.no_memo === "UJI/001")!;
+    assert(sesudah.scheme_id === skema.id, "barisnya harus menunjuk skemanya");
+    assert(sesudah.diberlakukan_oleh === "admin",
+           "yang memberlakukan harus tercatat pada barisnya");
+
+    // Diberlakukan dua kali berarti dua tarif untuk satu baris memo.
+    let dobel = false;
+    try {
+      await berlakukan({
+        barisId: baris!.id, projectId: project.id, actor: "admin",
+        claimType: "commission", percentage: "1,3", from: "2026-01-01",
+      });
+    } catch { dobel = true; }
+    assert(dobel, "baris yang sudah berlaku tidak boleh diberlakukan lagi");
+
+    // Belum dipakai klaim mana pun, jadi masih boleh dicabut.
+    await cabut(baris!.id, project.id, "admin");
+    const dicabut = (await daftarRujukan(project.id))
+      .find((b) => b.no_memo === "UJI/001")!;
+    assert(!dicabut.scheme_id, "setelah dicabut barisnya kembali usulan");
+    const sisa = await one<{ n: string }>(
+      "SELECT COUNT(*)::text AS n FROM incentive_schemes WHERE id=$1",
+      [skema.id]);
+    assert(Number(sisa!.n) === 0, "skema yang dicabut harus ikut terhapus");
+
+    await query("DELETE FROM memos WHERE id=$1", [memo.id]);
+  });
+
+  await check("tanpa persen maupun nominal, baris tidak dapat diberlakukan",
+              async () => {
+    const project = await one<any>(
+      "SELECT id FROM projects WHERE slug='bio-district'");
+    const memo = await one<any>(
+      `INSERT INTO memos (project_id, judul, nomor, file_name, content_type,
+         size_bytes, content, uploaded_by)
+       VALUES ($1, 'Uji Kosong', 'UJI/002', 'uji.pdf', 'application/pdf', 4,
+               '\\x25504446'::bytea, 'admin')
+       RETURNING *`, [project.id]);
+    await query(
+      `INSERT INTO memo_skema (memo_id, kelompok, urutan, kategori, nilai,
+         keterangan, baris)
+       VALUES ($1, 'Skema Uji', 1, 'Tanpa nilai', '', '', 0)`, [memo.id]);
+    const baris = (await daftarRujukan(project.id))
+      .find((b) => b.no_memo === "UJI/002")!;
+
+    let ditolak = false;
+    try {
+      await berlakukan({
+        barisId: baris.id, projectId: project.id, actor: "admin",
+        claimType: "commission", from: "2026-01-01",
+      });
+    } catch { ditolak = true; }
+    assert(ditolak, "tarif kosong tidak boleh menjadi skema");
+
+    // Tanggal terbalik pun ditolak: masa berlaku yang mundur tidak pernah
+    // cocok dengan tanggal kontrak mana pun, dan penolakannya baru terlihat
+    // berbulan-bulan kemudian sebagai "belum ada memo yang berlaku".
+    let terbalik = false;
+    try {
+      await berlakukan({
+        barisId: baris.id, projectId: project.id, actor: "admin",
+        claimType: "commission", percentage: "1", from: "2026-06-01",
+        to: "2026-01-01",
+      });
+    } catch { terbalik = true; }
+    assert(terbalik, "masa berlaku yang mundur harus ditolak");
+
+    await query("DELETE FROM memos WHERE id=$1", [memo.id]);
   });
 
   await check("modul laporan tidak menyediakan jalur tulis", async () => {

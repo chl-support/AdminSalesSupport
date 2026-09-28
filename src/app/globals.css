@@ -1257,6 +1257,32 @@ button.hapus-klaim:hover:not(:disabled) {
   .rekap-or .ttd-rekap { font-size: 13.4px; }
 }
 
+/* Kotak seret-dan-lepas pada Referensi Pengajuan.
+
+   Berupa <label>, bukan <div> ber-onClick: label yang memuat <input type=file>
+   sudah membuka pemilih berkas lewat papan ketik maupun pembaca layar, tanpa
+   satu baris pun penanganan tombol tersendiri.
+
+   Garis putus-putus dan tinggi yang lega bukan hiasan: keduanya yang
+   memberitahu bahwa kotak ini menerima berkas yang dilepas ke atasnya. */
+.kotak-seret {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: 26px 18px; text-align: center; cursor: pointer;
+  border: 2px dashed var(--line); background: var(--fill);
+}
+.kotak-seret:hover, .kotak-seret.aktif {
+  border-color: var(--emas-tua); background: #fff;
+}
+.kotak-seret b { font-size: 14px; }
+.kotak-seret span { font-size: 12.5px; color: var(--sub); }
+.kotak-seret .tombol-berkas { margin-top: 4px; }
+.kotak-seret .meta { font-size: 11.5px; color: var(--mut); }
+
+/* Tabel ringkasan memo: judul kolomnya rata tengah, nomornya pun. */
+.tabel-rujukan th { text-align: center; vertical-align: middle; }
+.tabel-rujukan td:first-child { text-align: center; }
+.tscroll > .tabel-rujukan { min-width: 1180px; }
+
 /* "Cut Off Penjualan As Of" pada formulir Overriding: dua tanggal
    berdampingan, masing-masing dengan sebutannya di sebelah kiri. Bertumpuk
    pada layar sempit — dua isian tanggal yang dipaksa sebaris di layar telepon
