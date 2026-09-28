@@ -82,7 +82,9 @@ const KATA = {
     kunciOff:
       "Longgar. Pengajuan tetap dapat dijalankan memakai skema terdekat " +
       "walau memonya belum berlaku, dan klaimnya ditandai pada jejak audit.",
-    kunciAdmin: "Hanya Admin IT yang dapat mengubah kunci ini.",
+    kunciAdmin:
+      "Kunci ini hanya dapat diubah oleh Admin IT. Memberlakukan memo " +
+      "pada tabel di bawah tetap dapat dilakukan oleh Admin Sales.",
     kunciNyalakan: "Kunci", kunciLonggarkan: "Longgarkan",
     kunciBerubah: (on: boolean): string =>
       on ? "Kunci dinyalakan." : "Kunci dilonggarkan.",
@@ -148,7 +150,9 @@ const KATA = {
     kunciOff:
       "Loose. Submissions still run on the nearest scheme even when no memo " +
       "is in force, and the claim is flagged in the audit trail.",
-    kunciAdmin: "Only IT Admin can change this lock.",
+    kunciAdmin:
+      "Only IT Admin can change this lock. Putting a memo in force in " +
+      "the table below remains open to Sales Admin.",
     kunciNyalakan: "Lock", kunciLonggarkan: "Loosen",
     kunciBerubah: (on: boolean): string =>
       on ? "Lock turned on." : "Lock loosened.",
