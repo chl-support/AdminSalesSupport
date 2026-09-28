@@ -85,7 +85,7 @@ const kategori = (c: any, k: { katAgent: string; katInhouse: string },
 
 const KATA = {
   id: {
-    judul: "Approval / Persetujuan",
+    judul: "Manajemen Alur Kerja Dokumen",
     pengantar: "Rincian dokumen pengajuan pada project ini. Pratinjau " +
                "formulirnya dibuka dari kolom paling kanan.",
     galat: "Data klaim tidak dapat dibaca",
@@ -196,6 +196,9 @@ const KATA = {
     thNo: "No.", thTanggal: "Tanggal Pengajuan", thUnit: "Unit",
     thPerihal: "Jenis Pengajuan", thIom: "No. IOM",
     iomIsi: "ketik nomor IOM",
+    thPengirim: "Divisi Pengirim", thPenerimaDiv: "Divisi Penerima",
+    thDistribusi: "Tanggal Distribusi", thDiterima: "Tanggal Penerima",
+    divIsi: "ketik divisi",
     thKategori: "Kategori", thPenerima: "Penerima",
     thPengaju: "Diajukan Oleh", thBruto: "Jumlah Komisi",
     thPpn: "PPN", thPph: "PPh", thBersih: "Komisi Yang Dibayarkan",
@@ -228,7 +231,7 @@ const KATA = {
     ringkasBuka: "Tampilkan seluruh langkah",
   },
   en: {
-    judul: "Approval Status",
+    judul: "Document Workflow Management",
     pengantar: "Submission details for this project. The form preview opens " +
                "from the rightmost column.",
     galat: "Claim data could not be read",
@@ -337,6 +340,9 @@ const KATA = {
     thNo: "No.", thTanggal: "Submitted on", thUnit: "Unit",
     thPerihal: "Submission type", thIom: "IOM no.",
     iomIsi: "type the IOM number",
+    thPengirim: "Sending division", thPenerimaDiv: "Receiving division",
+    thDistribusi: "Distributed on", thDiterima: "Received on",
+    divIsi: "type the division",
     thKategori: "Category", thPengaju: "Submitted by",
     thPpn: "VAT", katInhouse: "In-house sales", katAgent: "Agent",
     thPenerima: "Recipient", thBruto: "Commission amount",
@@ -660,23 +666,32 @@ export default function PersetujuanPage() {
     r.readAsDataURL(f);
   });
 
+  /** Kelima catatan alur kerja dokumen yang diisi tangan. */
+  type MedanAlur = "office_memo_no" | "sender_division" | "handed_to"
+                 | "distributed_at" | "received_at";
+  const TANGGAL_ALUR: MedanAlur[] = ["distributed_at", "received_at"];
+
   /**
-   * Simpan nomor IOM satu baris.
+   * Simpan satu isian alur kerja pada satu baris.
    *
    * Dikirim saat isiannya ditinggalkan, bukan pada tiap ketukan: satu
    * permintaan per huruf membuat urutan tibanya menentukan isi akhirnya.
    * Yang tidak berubah tidak dikirim sama sekali.
    *
-   * Hanya baris ini yang disegarkan, bukan seluruh tabel — memuat ulang
+   * Hanya medan yang disebut yang ikut dikirim, dan endpoint-nya hanya
+   * menyentuh medan yang disebut — mengubah divisi pengirim karena itu tidak
+   * menghapus tanggal yang sudah benar di sebelahnya.
+   *
+   * Hanya baris ini yang disegarkan, bukan seluruh tabel: memuat ulang
    * semuanya akan memindahkan baris lain di bawah jari yang sedang mengetik.
    */
-  const simpanIom = async (c: any, nilai: string) => {
-    if (nilai.trim() === String(c.office_memo_no ?? "").trim()) return;
+  const simpanAlur = async (c: any, medan: MedanAlur, nilai: string) => {
+    if (nilai.trim() === String(c[medan] ?? "").trim()) return;
     setIomSimpan(c.id); setGalat(null);
     try {
       const res = await fetch(`/api/claims/${c.id}/sirkulasi`, {
         method: "POST", headers: { "content-type": "application/json" },
-        body: JSON.stringify({ office_memo_no: nilai }),
+        body: JSON.stringify({ [medan]: nilai }),
       });
       if (res.status === 401) { location.href = "/login"; return; }
       const j = await res.json().catch(() => ({}));
@@ -686,10 +701,32 @@ export default function PersetujuanPage() {
         return;
       }
       setKlaim((lama) => lama.map((x) => x.id === c.id
-        ? { ...x, office_memo_no: j.office_memo_no } : x));
+        ? { ...x, [medan]: j[medan] } : x));
     } catch (e: any) {
       setGalat(String(e?.message ?? e));
     } finally { setIomSimpan(null); }
+  };
+
+  /**
+   * Satu sel isian alur kerja.
+   *
+   * Yang tidak berhak mengisi tetap membacanya — isinya memang untuk dibaca,
+   * dan kotak isian yang mengundang lalu ditolak server lebih buruk daripada
+   * tulisan biasa.
+   */
+  const isiAlur = (c: any, medan: MedanAlur, petunjuk?: string) => {
+    const tanggal = TANGGAL_ALUR.includes(medan);
+    if (!bolehIom) return c[medan] ?? "\u2014";
+    return (
+      <input className="isi-sirkulasi" type={tanggal ? "date" : "text"}
+             defaultValue={c[medan] ?? ""}
+             placeholder={tanggal ? undefined : petunjuk}
+             disabled={iomSimpan === c.id}
+             onBlur={(e) => void simpanAlur(c, medan, e.target.value)}
+             onKeyDown={(e) => {
+               if (e.key === "Enter") e.currentTarget.blur();
+             }} />
+    );
   };
 
   const pindahTahap = async (c: any, n: number) => {
@@ -1094,6 +1131,10 @@ export default function PersetujuanPage() {
               <th>{k.thPph}</th>
               <th>{k.thBersih}</th>
               <th>{k.thTglBayar}</th>
+              <th>{k.thPengirim}</th>
+              <th>{k.thPenerimaDiv}</th>
+              <th>{k.thDistribusi}</th>
+              <th>{k.thDiterima}</th>
               <th className="sel-keadaan">{k.thStatus}</th>
               <th style={{ width: 140 }}>{k.thDokumen}</th>
             </tr>
@@ -1112,18 +1153,7 @@ export default function PersetujuanPage() {
                     diisi tangan di sini — dan hanya di sini, sejak layar
                     Sirkulasi Dokumen dibuang. Yang tidak berhak mengisinya
                     tetap membacanya: isinya memang untuk dibaca. */}
-                <td>
-                  {bolehIom ? (
-                    <input className="isi-sirkulasi" type="text"
-                           defaultValue={c.office_memo_no ?? ""}
-                           placeholder={k.iomIsi}
-                           disabled={iomSimpan === c.id}
-                           onBlur={(e) => void simpanIom(c, e.target.value)}
-                           onKeyDown={(e) => {
-                             if (e.key === "Enter") e.currentTarget.blur();
-                           }} />
-                  ) : c.office_memo_no ?? "—"}
-                </td>
+                <td>{isiAlur(c, "office_memo_no", k.iomIsi)}</td>
                 <td>{kategori(c, k, bahasa) ?? "—"}</td>
                 <td className="sel-penerima">{c.marketing?.full_name ?? "—"}</td>
                 <td>{pengaju(c)}</td>
@@ -1145,6 +1175,19 @@ export default function PersetujuanPage() {
                     Yang sudah lewat hijau, yang sedang berjalan bertulisan
                     tebal berbingkai gelap, yang belum sampai redup, dan yang
                     tertahan merah. */}
+                {/* Empat catatan peredaran dokumen. Tidak satu pun dapat
+                    disusun sistem: divisi mana yang menyerahkan dan menerima,
+                    serta kapan berkasnya berangkat dan sampai, hanya diketahui
+                    orang yang memegangnya. Karena itu keempatnya diisi tangan.
+
+                    Sebelumnya keempatnya ada di layar Sirkulasi Dokumen; sejak
+                    layar itu dibuang, di sinilah tempatnya. Medan dan
+                    endpoint-nya sama, jadi yang sudah pernah diisi tetap
+                    terbaca. */}
+                <td>{isiAlur(c, "sender_division", k.divIsi)}</td>
+                <td>{isiAlur(c, "handed_to", k.divIsi)}</td>
+                <td>{isiAlur(c, "distributed_at")}</td>
+                <td>{isiAlur(c, "received_at")}</td>
                 <td className="sel-keadaan">
                   {/* Panah peringkas. Hanya panah, tanpa tulisan: ia berdiri
                       di atas empat kotak yang semuanya bertulisan, dan tulisan
@@ -1395,12 +1438,12 @@ export default function PersetujuanPage() {
 
             {!terlihat.length && !busy && (
               <tr>
-                <td colSpan={15} style={{ color: "var(--mut)" }}>{k.kosong}</td>
+                <td colSpan={19} style={{ color: "var(--mut)" }}>{k.kosong}</td>
               </tr>
             )}
             {busy && (
               <tr>
-                <td colSpan={15} style={{ color: "var(--mut)" }}>{k.memuat}</td>
+                <td colSpan={19} style={{ color: "var(--mut)" }}>{k.memuat}</td>
               </tr>
             )}
           </tbody></table>

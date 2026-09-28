@@ -73,7 +73,8 @@ const MENU: Butir[] = [
     ] },
   { href: "/memo", label: { id: "Memo Approval", en: "Approval Memo" } },
   { href: "/persetujuan",
-    label: { id: "Approval / Persetujuan", en: "Approval Status" } },
+    label: { id: "Manajemen Alur Kerja Dokumen",
+             en: "Document Workflow Management" } },
   { href: "/laporan",
     label: { id: "Report / Laporan", en: "Marketing Report" } },
   // Administrasi sempat hilang dari menu saat susunannya ditata ulang, padahal
