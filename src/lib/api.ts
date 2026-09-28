@@ -233,8 +233,19 @@ export async function claimView(claim: any) {
         : String(bayar.transfer_date).slice(0, 10))
     : null;
 
+  // Dua tanggal alur kerja dokumen menempuh perlakuan yang sama: keduanya DATE
+  // pada claims, dan yang tersebar lewat `...claim` masih berupa objek Date.
+  // Dibiarkan begitu, isian <input type="date"> di layar menerima teks ISO
+  // berjam-menit dan menolaknya diam-diam — kotaknya tampil kosong padahal
+  // datanya ada.
+  const tglAlur = (v: any) => !v ? null
+    : v instanceof Date ? v.toISOString().slice(0, 10)
+    : String(v).slice(0, 10);
+
   return {
     ...claim, unit, marketing: mkt, bank_account: bank,
+    distributed_at: tglAlur(claim.distributed_at),
+    received_at: tglAlur(claim.received_at),
     tanggal_bayar: tglBayar,
     rujukan_bayar: bayar?.reference_number ?? null,
     project: proyek,
