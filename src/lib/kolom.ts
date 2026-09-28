@@ -21,12 +21,16 @@
  *      distributed_at — lima kolom Sirkulasi Dokumen yang diisi tangan.
  *      Tanpa kelimanya seluruh layar Sirkulasi menjawab "column
  *      c.office_memo_no does not exist", bukan hanya kolomnya yang kosong.
+ *   5. CHECK ukuran pada claim_documents, disamakan dengan BATAS_FULL_SIGN.
+ *      Tanpa itu dokumen full sign di atas sepuluh megabita ditolak basis
+ *      data sesudah berkasnya terkirim utuh — lihat batasUkuranDokumen().
  *
  * Semuanya idempoten dan aman diulang; pemanggilan kedua tidak mengubah apa
  * pun. Kegagalannya sengaja ditelan — bila basis datanya memang belum ada,
  * galat yang perlu dibaca orang adalah galat aslinya, bukan galat ALTER TABLE.
  */
 
+import { BATAS_FULL_SIGN } from "./batas";
 import { query } from "./db";
 
 /**
@@ -48,6 +52,43 @@ const NILAI_ENUM: [string, string][] = [
 /** Kategori yang sah — sama persis dengan CHECK di db/schema.sql. */
 const KATEGORI_SAH = ["agent", "sales_inhouse", "sales_manager_inhouse",
                       "sales_markom", "markom", "bgb", "sales_coordinator"];
+
+/**
+ * CHECK ukuran pada claim_documents, disamakan dengan BATAS_FULL_SIGN.
+ *
+ * Batas unggah dijaga di tiga lapis, dan yang terakhir inilah yang paling
+ * mahal bila tertinggal: badan permintaan Vercel dan batas di lapisan
+ * aplikasi menolak sebelum berkasnya berangkat, sedangkan CHECK ini menolak
+ * SESUDAH pindaian belasan halaman susah payah terkirim utuh — dengan galat
+ * basis data yang tidak memberi tahu apa pun kepada yang mengunggahnya.
+ *
+ * Dipasang dari sini, bukan dibiarkan menunggu `npm run db:migrate`. Basis
+ * data produksi dibuat sebelum angkanya dinaikkan, dan migrasi itu menuntut
+ * DATABASE_URL produksi di tangan seseorang pada saat yang tepat — syarat
+ * yang tidak pernah terpenuhi dengan sendirinya, sehingga perkaranya muncul
+ * lagi setiap kali ada yang mengunggah dokumen besar.
+ *
+ * Definisinya dibaca lebih dulu, dan hanya ditulis ulang bila angkanya
+ * memang belum cocok. ADD CONSTRAINT memindai seluruh tabel untuk memvalidasi
+ * baris yang sudah ada; menjalankannya pada tiap proses baru berarti membayar
+ * pindaian itu berulang kali tanpa ada yang berubah.
+ */
+async function batasUkuranDokumen(): Promise<void> {
+  try {
+    const ada = await query<{ def: string }>(
+      `SELECT pg_get_constraintdef(c.oid) AS def
+         FROM pg_constraint c
+        WHERE c.conrelid = to_regclass('claim_documents')
+          AND c.conname  = 'claim_documents_size_ck'`);
+    if (ada[0]?.def?.includes(String(BATAS_FULL_SIGN))) return;
+
+    await query(
+      "ALTER TABLE claim_documents DROP CONSTRAINT IF EXISTS claim_documents_size_ck");
+    await query(
+      `ALTER TABLE claim_documents ADD CONSTRAINT claim_documents_size_ck
+         CHECK (size_bytes IS NULL OR size_bytes <= ${BATAS_FULL_SIGN})`);
+  } catch { /* tabelnya belum ada; menyusul di permintaan berikutnya */ }
+}
 
 async function pasang(): Promise<void> {
   for (const [tipe, nilai] of NILAI_ENUM) {
@@ -119,6 +160,8 @@ async function pasang(): Promise<void> {
        ALTER TABLE marketings ADD CONSTRAINT marketings_category_check
          CHECK (category IN (${KATEGORI_SAH.map((k) => `'${k}'`).join(",")}));
      EXCEPTION WHEN duplicate_object THEN NULL; END $$`);
+
+  await batasUkuranDokumen();
 
   // Indeksnya menyebut project_id, yang juga hanya ditambahkan lewat
   // db/schema.sql. Kegagalannya tidak boleh menjatuhkan enam perintah di
