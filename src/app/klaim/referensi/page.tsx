@@ -635,92 +635,195 @@ function Kotak({ no, baris, k, bahasa, busy, bolehBerlaku, cabut, berlakukan }: 
     return () => window.removeEventListener("resize", ukur);
   }, [baris, buka]);
 
-  /** Panjang runtun skema yang dimulai pada tiap baris; 0 bila ia lanjutan. */
-  const bentang: number[] = baris.map(() => 0);
+  /**
+   * Runtun skema yang berurutan. Satu runtun menjadi satu blok yang dapat
+   * diringkas.
+   *
+   * Yang dibandingkan runtun, bukan seluruh nama yang sama di mana pun
+   * letaknya: sebuah memo boleh menyebut satu nama skema dua kali pada bagian
+   * yang berjauhan, dan menyatukannya akan menyedot kategori di antaranya ke
+   * dalam blok yang salah.
+   */
+  const grup: Baris[][] = [];
   for (let i = 0; i < baris.length;) {
     let j = i;
     while (j < baris.length && baris[j].skema === baris[i].skema) j++;
-    bentang[i] = j - i;
+    grup.push(baris.slice(i, j));
     i = j;
   }
 
+  /**
+   * Skema yang sedang dibuka, menurut id baris pertamanya.
+   *
+   * Tertutup pada mulanya. Sebuah memo memuat sebelas kategori dengan kalimat
+   * panjang di dua kolomnya; dibuka seluruhnya sejak awal, yang mencari satu
+   * skema harus menggulir melewati sepuluh kategori yang tidak sedang ia cari
+   * — dan itulah yang membuat tabelnya terbaca semrawut. Diringkas, memo yang
+   * sama menempati empat baris.
+   */
+  const [bukaSkema, setBukaSkema] = useState<Record<string, boolean>>({});
+  const kunciGrup = (gr: Baris[]) => gr[0].id;
+
+  // Tinggi bentangan kolom memo dihitung dari baris yang BENAR-BENAR
+  // digambar, bukan dari jumlah kategorinya: rowSpan yang melebihi barisnya
+  // akan menarik baris memo berikutnya masuk ke dalam bentangan ini.
+  const totalBaris = grup.reduce(
+    (n, gr) => n + (bukaSkema[kunciGrup(gr)] ? gr.length : 1), 0);
+
+  /** Sel keadaan sebuah kategori — dipakai baris rinci maupun ringkasannya. */
+  const selKeadaan = (b: Baris) => (
+    b.scheme_id ? (
+      <>
+        <span className="pill ok">{k.berlaku}</span>
+        <div className="meta">
+          {b.claim_type ? namaJenis(b.claim_type as any, bahasa) : "—"}
+          {b.recipient_role
+            ? ` · ${namaKategori(b.recipient_role, bahasa)}` : ""}
+        </div>
+        <div className="meta">
+          {persenTampil(b.percentage) ?? rupiah(b.flat_amount) ?? "—"}
+        </div>
+      </>
+    ) : <span className="pill">{k.usulan}</span>
+  );
+
+  let sudahDigambar = 0;
+
   return (
     <>
-      {baris.map((b, n) => (
-        <tr key={b.id} className={n === 0 ? "kepala-memo" : undefined}>
-          {n === 0 && (
-            <>
-              <td className="n" rowSpan={baris.length}>{no}</td>
-              <td rowSpan={baris.length}>{memo.no_memo ?? "—"}</td>
-              <td rowSpan={baris.length}>{tglPanjang(memo.tanggal)}</td>
-              <td rowSpan={baris.length}>{memo.perihal ?? "—"}</td>
-              <td rowSpan={baris.length}>
-                {periode(memo.periode_awal, memo.periode_akhir)}
-              </td>
-            </>
-          )}
-          {bentang[n] > 0 && <td rowSpan={bentang[n]}>{b.skema}</td>}
-          {/* Kategorinya sendiri yang menjadi tombolnya — bukan tautan
-              "selengkapnya" di kaki kalimat yang terpotong. Yang dipilih orang
-              adalah kategorinya, dan dua kalimat panjang di sebelahnya adalah
-              rincian dari pilihan itu. */}
-          <td className="sel-kategori">
-            {terpotong[b.id] ? (
-              <button type="button" className="buka-kategori"
-                      aria-expanded={!!buka[b.id]}
-                      onClick={() => setBuka((s) => ({ ...s, [b.id]: !s[b.id] }))}>
-                <span className="tanda">{buka[b.id] ? "▾" : "▸"}</span>
-                {b.kategori ?? "—"}
-              </button>
-            ) : (b.kategori ?? "—")}
+      {grup.map((gr, gi) => {
+        const kunci = kunciGrup(gr);
+        const terbuka = !!bukaSkema[kunci];
+        const jmlBerlaku = gr.filter((x) => x.scheme_id).length;
+
+        /* Sel Skema: tombol pembuka, membentang setinggi kategorinya saat
+           terbuka. Segitiganya selalu ada di sini — berbeda dari sel
+           Kategori, blok skema memang selalu punya isi yang disembunyikan,
+           jadi tandanya tidak pernah menjanjikan yang tidak ada. */
+        const selSkema = (
+          <td rowSpan={terbuka ? gr.length : 1} className="sel-skema">
+            <button type="button" className="buka-kategori"
+                    aria-expanded={terbuka}
+                    onClick={() => setBukaSkema((s) =>
+                      ({ ...s, [kunci]: !s[kunci] }))}>
+              <span className="tanda">{terbuka ? "▾" : "▸"}</span>
+              {gr[0].skema}
+            </button>
           </td>
-          <td>
-            <div className={buka[b.id] ? undefined : "sel-panjang"}
-                 ref={(el) => { selPanjang.current[`${b.id}:nilai`] = el; }}>
-              {b.nilai ?? "—"}
-            </div>
-          </td>
-          <td>
-            <div className={buka[b.id] ? undefined : "sel-panjang"}
-                 ref={(el) => { selPanjang.current[`${b.id}:ket`] = el; }}>
-              {b.keterangan ?? "—"}
-            </div>
-          </td>
-          {/* Yang sudah berlaku menyebut angka yang BENAR-BENAR dipakai
-              menghitung, bukan angka pada memonya: keduanya boleh berbeda
-              bila yang memberlakukan membetulkan bacaan OCR, dan yang perlu
-              diketahui pembaca angka yang dipakai. */}
-          <td>
-            {b.scheme_id ? (
-              <>
-                <span className="pill ok">{k.berlaku}</span>
-                <div className="meta">
-                  {b.claim_type ? namaJenis(b.claim_type as any, bahasa) : "—"}
-                  {b.recipient_role
-                    ? ` · ${namaKategori(b.recipient_role, bahasa)}` : ""}
-                </div>
-                <div className="meta">
-                  {persenTampil(b.percentage) ?? rupiah(b.flat_amount) ?? "—"}
-                </div>
-              </>
-            ) : <span className="pill">{k.usulan}</span>}
-          </td>
-          {bolehBerlaku && (
-            <td>
-              {b.scheme_id ? (
-                <button disabled={busy} onClick={() => void cabut(b)}>
-                  {k.cabut}
-                </button>
-              ) : (
-                <button className="pri" disabled={busy}
-                        onClick={() => berlakukan(b)}>
-                  {k.berlakukan}
-                </button>
+        );
+
+        if (!terbuka) {
+          const pertama = sudahDigambar === 0;
+          sudahDigambar += 1;
+          return (
+            <tr key={`${kunci}:ringkas`}
+                className={pertama ? "kepala-memo" : undefined}>
+              {pertama && (
+                <>
+                  <td className="n" rowSpan={totalBaris}>{no}</td>
+                  <td rowSpan={totalBaris}>{memo.no_memo ?? "—"}</td>
+                  <td rowSpan={totalBaris}>{tglPanjang(memo.tanggal)}</td>
+                  <td rowSpan={totalBaris}>{memo.perihal ?? "—"}</td>
+                  <td rowSpan={totalBaris}>
+                    {periode(memo.periode_awal, memo.periode_akhir)}
+                  </td>
+                </>
               )}
-            </td>
-          )}
-        </tr>
-      ))}
+              {selSkema}
+              {/* Sengaja dikosongkan, bukan diisi ringkasan karangan seperti
+                  "3 kategori": isinya tidak hilang, hanya sedang tidak
+                  digambar, dan kalimat pengganti yang tidak ada pada memonya
+                  akan terbaca sebagai isi memo itu sendiri. */}
+              <td className="sel-kategori" />
+              <td />
+              <td />
+              {/* Berapa yang sudah diberlakukan tetap terbaca walau
+                  kategorinya tertutup. Itulah yang dicari orang saat melirik
+                  satu memo, dan meringkas tidak boleh menyembunyikannya —
+                  kalau tidak, ia harus membuka keempat skema satu per satu
+                  hanya untuk tahu masih ada yang tertinggal. */}
+              <td>
+                {jmlBerlaku > 0 && (
+                  <span className="pill ok">{k.berlaku} · {jmlBerlaku}</span>
+                )}
+                {jmlBerlaku < gr.length && (
+                  <span className="pill">
+                    {k.usulan} · {gr.length - jmlBerlaku}
+                  </span>
+                )}
+              </td>
+              {bolehBerlaku && <td />}
+            </tr>
+          );
+        }
+
+        return gr.map((b, ri) => {
+          const pertama = sudahDigambar === 0;
+          sudahDigambar += 1;
+          return (
+            <tr key={b.id} className={pertama ? "kepala-memo" : undefined}>
+              {pertama && (
+                <>
+                  <td className="n" rowSpan={totalBaris}>{no}</td>
+                  <td rowSpan={totalBaris}>{memo.no_memo ?? "—"}</td>
+                  <td rowSpan={totalBaris}>{tglPanjang(memo.tanggal)}</td>
+                  <td rowSpan={totalBaris}>{memo.perihal ?? "—"}</td>
+                  <td rowSpan={totalBaris}>
+                    {periode(memo.periode_awal, memo.periode_akhir)}
+                  </td>
+                </>
+              )}
+              {ri === 0 && selSkema}
+              {/* Kategorinya sendiri yang menjadi tombolnya — bukan tautan
+                  "selengkapnya" di kaki kalimat yang terpotong. Yang dipilih
+                  orang adalah kategorinya, dan dua kalimat panjang di
+                  sebelahnya adalah rincian dari pilihan itu. */}
+              <td className="sel-kategori">
+                {terpotong[b.id] ? (
+                  <button type="button" className="buka-kategori"
+                          aria-expanded={!!buka[b.id]}
+                          onClick={() => setBuka((s) =>
+                            ({ ...s, [b.id]: !s[b.id] }))}>
+                    <span className="tanda">{buka[b.id] ? "▾" : "▸"}</span>
+                    {b.kategori ?? "—"}
+                  </button>
+                ) : (b.kategori ?? "—")}
+              </td>
+              <td>
+                <div className={buka[b.id] ? undefined : "sel-panjang"}
+                     ref={(el) => { selPanjang.current[`${b.id}:nilai`] = el; }}>
+                  {b.nilai ?? "—"}
+                </div>
+              </td>
+              <td>
+                <div className={buka[b.id] ? undefined : "sel-panjang"}
+                     ref={(el) => { selPanjang.current[`${b.id}:ket`] = el; }}>
+                  {b.keterangan ?? "—"}
+                </div>
+              </td>
+              {/* Yang sudah berlaku menyebut angka yang BENAR-BENAR dipakai
+                  menghitung, bukan angka pada memonya: keduanya boleh berbeda
+                  bila yang memberlakukan membetulkan bacaan OCR, dan yang
+                  perlu diketahui pembaca angka yang dipakai. */}
+              <td>{selKeadaan(b)}</td>
+              {bolehBerlaku && (
+                <td>
+                  {b.scheme_id ? (
+                    <button disabled={busy} onClick={() => void cabut(b)}>
+                      {k.cabut}
+                    </button>
+                  ) : (
+                    <button className="pri" disabled={busy}
+                            onClick={() => berlakukan(b)}>
+                      {k.berlakukan}
+                    </button>
+                  )}
+                </td>
+              )}
+            </tr>
+          );
+        });
+      })}
     </>
   );
 }
