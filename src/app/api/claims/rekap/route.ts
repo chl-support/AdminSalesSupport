@@ -3,6 +3,7 @@ import ExcelJS from "exceljs";
 
 import { claimView, handler, projectAktif } from "@/lib/api";
 import { one, query } from "@/lib/db";
+import { namaJenis } from "@/app/klaim/jenis";
 
 /** Menyusun workbook dari seluruh klaim project; beri waktu yang cukup. */
 export const maxDuration = 60;
@@ -27,18 +28,25 @@ const BULAN = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli",
  * Kolom tanggal kembali dari PostgreSQL sebagai objek Date, bukan teks;
  * String(Date) menghasilkan "Thu Jul 30 2026 …" yang sepuluh huruf pertamanya
  * bukan tanggal.
+ *
+ * Yang sudah berbentuk "yyyy-mm-dd" dibalik apa adanya, tanpa melewati Date.
+ * claimView sengaja menormalkan kolom DATE menjadi teks sepanjang sepuluh
+ * huruf; menyerahkannya kembali ke `new Date()` membuatnya dibaca sebagai
+ * tengah malam UTC, lalu getDate() mengembalikannya menurut zona waktu server —
+ * sehari lebih awal di mana pun zona itu di belakang UTC. Hari ini server
+ * berjalan pada UTC dan hasilnya kebetulan benar; pergeseran seperti itu baru
+ * terlihat setelah rekapnya dipakai, dan yang membacanya tidak punya cara
+ * mengetahui bahwa tanggalnya meleset.
  */
 const tgl = (v: any) => {
   if (!v) return "";
+  const p = (n: number) => String(n).padStart(2, "0");
+  const iso = typeof v === "string" && /^\d{4}-\d{2}-\d{2}/.test(v)
+    ? v.slice(0, 10).split("-") : null;
+  if (iso) return `${iso[2]}/${iso[1]}/${iso[0]}`;
   const d = v instanceof Date ? v : new Date(String(v));
   if (Number.isNaN(d.getTime())) return String(v).slice(0, 10);
-  const p = (n: number) => String(n).padStart(2, "0");
   return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()}`;
-};
-
-const JENIS: Record<string, string> = {
-  commission: "Komisi", cash_reward: "Cash Reward",
-  closing_fee: "Closing Fee", overriding: "Overriding",
 };
 
 const KEADAAN: Record<string, string> = {
@@ -72,7 +80,13 @@ export const GET = handler(async (req) => {
     ["No.", 6, (_c, i) => i + 1],
     ["Tanggal Pengajuan", 18, (c) => tgl(c.created_at)],
     ["Unit", 16, (c) => c.unit?.code ?? ""],
-    ["Perihal/Topik", 20, (c) => JENIS[c.claim_type] ?? c.claim_type],
+    // Nama jenisnya dibaca dari daftar yang sama dengan layar, bukan dari
+    // salinan di berkas ini. Salinannya dulu ada, dan ia ketinggalan begitu
+    // jenis kelima (Continuity Reward) ditambahkan: rekapnya menulis
+    // "continuity_reward" apa adanya sementara layar menulis namanya.
+    ["Jenis Pengajuan", 20, (c) => namaJenis(c.claim_type, "id")],
+    // Nomor IOM, sebagaimana diketik di layar. Kosong selama belum diisi.
+    ["No. IOM", 20, (c) => c.office_memo_no ?? ""],
     ["Kategori", 16, (c) => c.marketing?.marketing_type === "agent" ? "Agent"
                            : c.marketing?.marketing_type === "inhouse"
                              ? "Sales Inhouse" : ""],
@@ -89,6 +103,14 @@ export const GET = handler(async (req) => {
     // sel kosong lebih berguna daripada tanda pisah yang dipakai di layar —
     // ia tidak ikut terbaca saat kolomnya disaring atau diurutkan.
     ["Tanggal Pembayaran", 20, (c) => tgl(c.tanggal_bayar)],
+    // Empat catatan peredaran berkas, urutannya sama dengan layar. Justru
+    // inilah yang dicari orang saat mengunduh rekap — menelusuri berkas yang
+    // sedang berjalan di luar meja mereka — jadi ia ikut, bukan tertinggal di
+    // layar saja.
+    ["Divisi Pengirim", 20, (c) => c.sender_division ?? ""],
+    ["Divisi Penerima", 20, (c) => c.handed_to ?? ""],
+    ["Tanggal Distribusi", 20, (c) => tgl(c.distributed_at)],
+    ["Tanggal Penerima", 20, (c) => tgl(c.received_at)],
     ["Status", 26, (c) => KEADAAN[c.status] ?? c.status],
     // Nomor klaim tercetak kecil di bawah tanggal pada layar; di sini ia
     // mendapat kolomnya sendiri, sebab lembar kerja tidak mengenal baris kecil
