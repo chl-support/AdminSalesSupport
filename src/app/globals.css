@@ -903,6 +903,15 @@ ul.cetak-ceklis .kotak { border: 1px solid var(--ink); width: 14px; height: 14px
 .pilih-bahasa button:focus-visible { outline: 2px solid var(--emas-tua);
                                      outline-offset: -2px; }
 
+/* Di dalam panel identitas, bukan di pojok halaman masuk: posisinya mengikuti
+   alirannya sendiri, bukan tepi jendela. */
+.pilih-bahasa.dalam-menu { position: static; }
+.baris-bahasa {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px; padding: 6px 2px 8px; font-size: 12.5px; color: var(--sub);
+}
+.baris-bahasa .pilih-bahasa button { padding: 3px 10px; font-size: 11px; }
+
 @media (max-width: 860px) {
   /* Di layar sempit kartunya mulai tepat di bawah bidang merek, dan tombol di
      pojok kanan atas bidang formulir akan menempel pada bahu kartu itu. Ia

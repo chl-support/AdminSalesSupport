@@ -14,7 +14,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import { useBahasa } from "./bahasa";
+import { TombolBahasa, useBahasa } from "./bahasa";
 
 export type Sesi = {
   username: string; full_name: string; role: string;
@@ -119,9 +119,9 @@ function inisial(nama: string) {
  */
 const KATA = {
   id: { profil: (n: string) => `Profil ${n}`, keluar: "Keluar",
-        gantiProject: "Ganti project" },
+        gantiProject: "Ganti project", bahasa: "Bahasa" },
   en: { profil: (n: string) => `${n} profile`, keluar: "Sign out",
-        gantiProject: "Switch project" },
+        gantiProject: "Switch project", bahasa: "Language" },
 };
 
 export function BilahPengguna({ sesi }: { sesi: Sesi }) {
@@ -159,6 +159,20 @@ export function BilahPengguna({ sesi }: { sesi: Sesi }) {
           <div className="siapa">
             <b>{sesi.full_name}</b>
             <span className="pill">{labelPeran(sesi.role, bahasa)}</span>
+          </div>
+          {/* Bahasa berdiri di sini, bukan di bilah atas. Ia pilihan orang,
+              sekelas dengan project yang sedang dibuka dan dengan keluar —
+              ketiganya tentang orangnya, bukan tentang halaman yang sedang
+              dilihat. Bilah atas pun sudah memuat judul, lencana project dan
+              lencana nama; satu kotak lagi di sana akan menambah benda yang
+              harus dilewati mata sebelum sampai ke judulnya.
+
+              Sebelumnya pilihan ini hanya ada di halaman masuk, dan yang salah
+              pilih harus keluar dulu untuk membetulkannya — keluar dari
+              pekerjaan yang sedang berjalan, hanya untuk mengganti bahasa. */}
+          <div className="baris-bahasa">
+            <span>{k.bahasa}</span>
+            <TombolBahasa className="dalam-menu" />
           </div>
           {/* Berganti project berarti berganti seluruh isi layar, jadi ia
               berada di tempat yang sama dengan keluar — keduanya mengakhiri apa

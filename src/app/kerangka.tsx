@@ -98,9 +98,14 @@ export function Kerangka(
           {/* Identitas di kanan atas: di sanalah orang mencarinya, dan di kaki
               kolom menu ia justru tenggelam di bawah menu terakhir.
 
-              Tanpa tombol bahasa di sebelahnya: pilihannya dibuat di halaman
-              masuk, sekali, sebelum orangnya masuk. Konsekuensinya disadari —
-              yang salah pilih harus keluar dulu untuk membetulkannya. */}
+              Tombol bahasa tidak berdiri di sebelahnya, melainkan di dalam
+              panel identitas ini. Sebelumnya ia hanya ada di halaman masuk,
+              dengan alasan bahwa pilihannya dibuat sekali sebelum orangnya
+              masuk — tetapi akibatnya yang salah pilih harus keluar dulu untuk
+              membetulkannya, keluar dari pekerjaan yang sedang berjalan hanya
+              untuk mengganti bahasa. Bahasa adalah pilihan orang, sekelas
+              dengan project yang sedang dibuka dan dengan keluar, jadi ia
+              berdiri bersama keduanya. */}
           <BilahPengguna sesi={sesi} />
         </div>
       </header>
