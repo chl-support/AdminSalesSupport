@@ -72,8 +72,12 @@ const KATA = {
     kosong: "Belum ada memo pada project ini. Unggah memonya di atas.",
     memuat: "Memuat…",
     berlakukan: "Berlakukan", cabut: "Cabut",
-    pBerlaku: (n: number) => `✓ ${n} baris berlaku`,
-    pUsulan: (n: number) => `⏳ ${n} baris usulan`,
+    // Angkanya tetap di belakang sebutannya: kotak penghitung tanpa
+    // angkanya hanya menyebut ada dua keadaan, bukan berapa banyak yang
+    // ada pada masing-masing — dan itulah satu-satunya hal yang dicari
+    // orang saat meliriknya.
+    pBerlaku: (n: number) => `✅ Referensi Aktif · ${n}`,
+    pUsulan: (n: number) => `📋 Referensi Tersedia · ${n}`,
 
     kunciJudul: "Kunci pengajuan fee",
     kunciOn:
@@ -140,8 +144,8 @@ const KATA = {
     kosong: "No memos on this project yet. Upload them above.",
     memuat: "Loading…",
     berlakukan: "Put in force", cabut: "Withdraw",
-    pBerlaku: (n: number) => `✓ ${n} rows in force`,
-    pUsulan: (n: number) => `⏳ ${n} proposed rows`,
+    pBerlaku: (n: number) => `✅ Active reference · ${n}`,
+    pUsulan: (n: number) => `📋 Available reference · ${n}`,
 
     kunciJudul: "Fee submission lock",
     kunciOn:
