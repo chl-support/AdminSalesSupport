@@ -713,19 +713,27 @@ export default function PersetujuanPage() {
 
   /** Kelima catatan alur kerja dokumen yang diisi tangan. */
   /**
-   * Divisi penerima, tanggal distribusi dan tanggal penerima bertempat empat.
+   * Keempat catatan perpindahan berkas bertempat empat.
    *
    * Satu berkas berpindah beberapa kali sebelum selesai, dan Tabel Sirkulasi
-   * Dokumen di kantor menyediakan empat baris untuk itu. Yang pertama tetap
-   * tanpa akhiran — kolomnya sudah terisi, dan menamainya ulang berarti
-   * memindahkan data yang sudah ada tanpa sebab.
+   * Dokumen di kantor menyediakan empat baris untuk itu. Keempat kolomnya
+   * sejajar baris demi baris: satu baris adalah satu perpindahan utuh — dari
+   * divisi mana, ke divisi mana, kapan dikirim, kapan diterima.
+   *
+   * Yang pertama tetap tanpa akhiran — kolomnya sudah terisi, dan menamainya
+   * ulang berarti memindahkan data yang sudah ada tanpa sebab.
+   *
+   * Nomor memo tidak ikut: ia menyertai berkasnya, bukan satu perpindahannya.
    */
   const URUT_ALUR = [1, 2, 3, 4];
-  type DasarAlur = "handed_to" | "distributed_at" | "received_at";
+  type DasarAlur = "sender_division" | "handed_to"
+                 | "distributed_at" | "received_at";
   const bernomor = (dasar: DasarAlur, n: number) =>
     (n === 1 ? dasar : `${dasar}_${n}`) as MedanAlur;
 
-  type MedanAlur = "office_memo_no" | "sender_division"
+  type MedanAlur = "office_memo_no"
+                 | "sender_division" | "sender_division_2"
+                 | "sender_division_3" | "sender_division_4"
                  | "handed_to" | "handed_to_2" | "handed_to_3" | "handed_to_4"
                  | "distributed_at" | "distributed_at_2" | "distributed_at_3"
                  | "distributed_at_4"
@@ -1328,7 +1336,7 @@ export default function PersetujuanPage() {
                     layar itu dibuang, di sinilah tempatnya. Medan dan
                     endpoint-nya sama, jadi yang sudah pernah diisi tetap
                     terbaca. */}
-                <td>{isiAlur(c, "sender_division", k.divIsi)}</td>
+                <td>{isiEmpat(c, "sender_division", k.divIsi)}</td>
                 <td>{isiEmpat(c, "handed_to", k.divIsi)}</td>
                 <td>{isiEmpat(c, "distributed_at")}</td>
                 <td>{isiEmpat(c, "received_at")}</td>

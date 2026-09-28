@@ -113,16 +113,22 @@ export const GET = handler(async (req) => {
     // sel kosong lebih berguna daripada tanda pisah yang dipakai di layar —
     // ia tidak ikut terbaca saat kolomnya disaring atau diurutkan.
     ["Tanggal Pembayaran", 20, (c) => tgl(c.tanggal_bayar)],
-    // Empat catatan peredaran berkas, urutannya sama dengan layar. Justru
-    // inilah yang dicari orang saat mengunduh rekap — menelusuri berkas yang
-    // sedang berjalan di luar meja mereka — jadi ia ikut, bukan tertinggal di
-    // layar saja.
-    ["Divisi Pengirim", 20, (c) => c.sender_division ?? ""],
-    // Divisi penerima dan tanggal distribusinya bertempat empat di layar,
-    // sebanyak baris Tabel Sirkulasi Dokumen. Masing-masing mendapat kolomnya
-    // sendiri di sini, bukan digabung satu sel berisi empat baris: sel
-    // bertumpuk tidak dapat disaring maupun diurutkan, dan menyaring peredaran
-    // berkas justru alasan rekap ini diunduh.
+    // Catatan peredaran berkas: empat medan, masing-masing bertempat empat
+    // sebagaimana di layar. Justru inilah yang dicari orang saat mengunduh
+    // rekap — menelusuri berkas yang sedang berjalan di luar meja mereka —
+    // jadi ia ikut, bukan tertinggal di layar saja.
+    //
+    // Tiap tempat mendapat kolomnya sendiri, bukan digabung satu sel berisi
+    // empat baris: sel bertumpuk tidak dapat disaring maupun diurutkan, dan
+    // menyaringnya justru alasan rekap ini diunduh.
+    //
+    // Dikelompokkan per medan, bukan per perpindahan: yang mencari "berkas
+    // mana yang pernah singgah di Head Finance" menyaring satu kolom demi satu
+    // kolom yang berdampingan, sedangkan yang membaca satu perpindahan utuh
+    // membacanya di layar, tempat keempatnya memang sudah sebaris.
+    ...URUT.map((n): [string, number, (c: Baris) => string] =>
+      [`Divisi Pengirim ${n}`, 20,
+       (c) => c[medanAlur("sender_division", n)] ?? ""]),
     ...URUT.map((n): [string, number, (c: Baris) => string] =>
       [`Divisi Penerima ${n}`, 20, (c) => c[medanAlur("handed_to", n)] ?? ""]),
     ...URUT.map((n): [string, number, (c: Baris) => string] =>

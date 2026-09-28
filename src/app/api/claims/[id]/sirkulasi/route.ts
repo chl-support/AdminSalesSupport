@@ -29,20 +29,23 @@ import { WorkflowError } from "@/lib/workflow";
  */
 
 /**
- * Divisi penerima, tanggal distribusi dan tanggal penerima bertempat empat.
+ * Keempat catatan perpindahan berkas bertempat empat.
  *
  * Satu berkas berpindah beberapa kali sebelum selesai, dan Tabel Sirkulasi
  * Dokumen di kantor menyediakan empat baris untuk itu. Yang pertama tetap
- * bernama handed_to, distributed_at dan received_at tanpa akhiran: ketiga
- * kolom itu sudah terisi, dan menamainya ulang berarti memindahkan data yang
- * sudah ada tanpa sebab.
+ * bernama sender_division, handed_to, distributed_at dan received_at tanpa
+ * akhiran: keempat kolom itu sudah terisi, dan menamainya ulang berarti
+ * memindahkan data yang sudah ada tanpa sebab.
+ *
+ * Nomor memo tidak ikut: ia menyertai berkasnya, bukan satu perpindahannya.
  */
 const URUT = [2, 3, 4];
 
 /** Isian teks: namanya di basis data dan panjang terpanjang yang masuk akal. */
 const TEKS: Record<string, number> = {
   office_memo_no: 100, sender_division: 100, handed_to: 100,
-  ...Object.fromEntries(URUT.map((n) => [`handed_to_${n}`, 100])),
+  ...Object.fromEntries(URUT.flatMap((n) =>
+    [[`sender_division_${n}`, 100], [`handed_to_${n}`, 100]])),
 };
 /** Isian tanggal; semuanya kolom DATE. */
 const TANGGAL = ["received_at", "distributed_at",

@@ -376,9 +376,13 @@ ALTER TABLE claims ADD COLUMN IF NOT EXISTS sender_division TEXT;
 ALTER TABLE claims ADD COLUMN IF NOT EXISTS handed_to TEXT;
 ALTER TABLE claims ADD COLUMN IF NOT EXISTS distributed_at DATE;
 
--- Satu berkas berpindah beberapa kali sebelum selesai, jadi divisi penerima,
--- tanggal distribusi dan tanggal penerimanya masing-masing bertempat empat —
--- sebanyak baris yang disediakan Tabel Sirkulasi Dokumen di kantor.
+-- Satu berkas berpindah beberapa kali sebelum selesai, jadi keempat catatan
+-- perpindahannya — divisi pengirim, divisi penerima, tanggal distribusi dan
+-- tanggal penerima — masing-masing bertempat empat, sebanyak baris yang
+-- disediakan Tabel Sirkulasi Dokumen di kantor.
+ALTER TABLE claims ADD COLUMN IF NOT EXISTS sender_division_2 TEXT;
+ALTER TABLE claims ADD COLUMN IF NOT EXISTS sender_division_3 TEXT;
+ALTER TABLE claims ADD COLUMN IF NOT EXISTS sender_division_4 TEXT;
 ALTER TABLE claims ADD COLUMN IF NOT EXISTS handed_to_2 TEXT;
 ALTER TABLE claims ADD COLUMN IF NOT EXISTS handed_to_3 TEXT;
 ALTER TABLE claims ADD COLUMN IF NOT EXISTS handed_to_4 TEXT;
