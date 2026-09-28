@@ -197,7 +197,11 @@ const KATA = {
     daftar: "Pengajuan & Dokumen",
     thNo: "No.", thTanggal: "Tanggal Pengajuan", thUnit: "Unit",
     thPerihal: "Jenis Pengajuan", thIom: "No. IOM",
-    iomIsi: "ketik nomor IOM", tglIsi: "pilih tanggal",
+    // Satu kalimat untuk seluruh kotak yang diisi tangan — nomor IOM,
+    // divisi, maupun tanggal. Tiga sebutan berbeda untuk satu perbuatan yang
+    // sama membuat kolom-kolom yang berdampingan terbaca sebagai tiga jenis
+    // isian yang berlainan, padahal ketiganya sama-sama diketik orang.
+    isiData: "Isi Data",
     tambahBaris: "tambah", hapusKotak: "Hapus kotak ini",
     tegurJudul: "Isian belum dapat disimpan",
     tglTakLengkap:
@@ -207,7 +211,6 @@ const KATA = {
       `Hapus "${v}" dari kolom ini? Isian di bawahnya naik satu kotak.`,
     thPengirim: "Divisi Pengirim", thPenerimaDiv: "Divisi Penerima",
     thDistribusi: "Tanggal Distribusi", thDiterima: "Tanggal Penerima",
-    divIsi: "ketik divisi",
     thKategori: "Kategori", thPenerima: "Penerima",
     thPengaju: "Diajukan Oleh", thBruto: "Jumlah Komisi",
     thPpn: "PPN", thPph: "PPh", thBersih: "Komisi Yang Dibayarkan",
@@ -350,7 +353,7 @@ const KATA = {
     daftar: "Submissions & documents",
     thNo: "No.", thTanggal: "Submitted on", thUnit: "Unit",
     thPerihal: "Submission type", thIom: "IOM no.",
-    iomIsi: "type the IOM number", tglIsi: "pick a date",
+    isiData: "Enter data",
     tambahBaris: "add", hapusKotak: "Remove this box",
     tegurJudul: "Entry not saved",
     tglTakLengkap:
@@ -360,7 +363,6 @@ const KATA = {
       `Remove "${v}" from this column? Entries below move up one box.`,
     thPengirim: "Sending division", thPenerimaDiv: "Receiving division",
     thDistribusi: "Distributed on", thDiterima: "Received on",
-    divIsi: "type the division",
     thKategori: "Category", thPengaju: "Submitted by",
     thPpn: "VAT", katInhouse: "In-house sales", katAgent: "Agent",
     thPenerima: "Recipient", thBruto: "Commission amount",
@@ -951,7 +953,7 @@ export default function PersetujuanPage() {
                 disabled={iomSimpan === c.id}
                 onClick={() => setTglBuka(kunci)}>
           {c[medan] ? tglPendek(c[medan])
-                    : <span className="tgl-kosong">{k.tglIsi}</span>}
+                    : <span className="tgl-kosong">{k.isiData}</span>}
         </button>
       );
     }
@@ -1503,7 +1505,7 @@ export default function PersetujuanPage() {
                     diisi tangan di sini — dan hanya di sini, sejak layar
                     Sirkulasi Dokumen dibuang. Yang tidak berhak mengisinya
                     tetap membacanya: isinya memang untuk dibaca. */}
-                <td>{isiAlur(c, "office_memo_no", k.iomIsi)}</td>
+                <td>{isiAlur(c, "office_memo_no", k.isiData)}</td>
                 <td>{kategori(c, k, bahasa) ?? "—"}</td>
                 <td className="sel-penerima">{c.marketing?.full_name ?? "—"}</td>
                 <td>{pengaju(c)}</td>
@@ -1534,8 +1536,8 @@ export default function PersetujuanPage() {
                     layar itu dibuang, di sinilah tempatnya. Medan dan
                     endpoint-nya sama, jadi yang sudah pernah diisi tetap
                     terbaca. */}
-                <td>{isiEmpat(c, "sender_division", k.divIsi)}</td>
-                <td>{isiEmpat(c, "handed_to", k.divIsi)}</td>
+                <td>{isiEmpat(c, "sender_division", k.isiData)}</td>
+                <td>{isiEmpat(c, "handed_to", k.isiData)}</td>
                 <td>{isiEmpat(c, "distributed_at")}</td>
                 <td>{isiEmpat(c, "received_at")}</td>
                 <td className="sel-keadaan">
