@@ -123,6 +123,17 @@ const KATA = {
       "Penjelasan ini tercetak pada Form Pengajuan masing-masing fee, jadi ia " +
       "dibaca yang menandatangani — bukan catatan internal. Boleh dikosongkan.",
     dialogContoh: "mis. Full Payment. Pembayaran sudah mencapai 20%.",
+    dialogPengantarOr:
+      "Periode ini tercetak pada kepala rekap Overiding, jadi ia dibaca yang " +
+      "menandatangani — bukan catatan internal. Boleh dikosongkan.",
+    dialogPeriode: "Cut Off Penjualan As Of:",
+    dialogDari: "Dari:", dialogSampai: "Sampai:",
+    dialogPeriodeCatatan:
+      "Tercetak pada kepala rekap Overiding sebagai periode penjualannya. " +
+      "Bila dikosongkan, periodenya diambil dari tanggal kontrak unit yang " +
+      "masuk rekap.",
+    dialogPeriodeTerbalik:
+      "Tanggal \"Sampai\" tidak boleh lebih awal daripada \"Dari\".",
     dialogSamakan: "Samakan untuk semua",
     katJudul: "Kategori penerima", katNama: "Nama terdaftar",
     katKosong: "Belum ada nama terdaftar pada kategori ini.",
@@ -203,6 +214,17 @@ const KATA = {
       "signs it will read them — they are not internal remarks. May be left " +
       "blank.",
     dialogContoh: "e.g. Full payment. Payments have reached 20%.",
+    dialogPengantarOr:
+      "This period is printed on the Overiding recap header, so whoever " +
+      "signs it will read it — it is not an internal remark. May be left " +
+      "blank.",
+    dialogPeriode: "Sales Cut Off As Of:",
+    dialogDari: "From:", dialogSampai: "To:",
+    dialogPeriodeCatatan:
+      "Printed on the Overiding recap header as its sales period. Left " +
+      "empty, the period is taken from the contract dates of the units in " +
+      "the recap.",
+    dialogPeriodeTerbalik: "The \"To\" date cannot be earlier than \"From\".",
     dialogSamakan: "Use for all",
     katJudul: "Recipient category", katNama: "Registered name",
     katKosong: "No registered name in this category yet.",
@@ -324,6 +346,21 @@ export default function PengajuanFeePage() {
   const [siapkan, setSiapkan] =
     useState<{ unit: Unit; jenis: Jenis[] } | null>(null);
   const [penjelasan, setPenjelasan] = useState<Record<string, string>>({});
+  /**
+   * "Cut Off Penjualan As Of" — hanya untuk Overriding.
+   *
+   * Satu saja, bukan satu per jenis: Overriding merekap penjualan satu
+   * periode, dan satu dialog hanya dapat memuat satu pengajuan Overriding.
+   * Jenis lain tidak punya periode — satu unit satu lembar.
+   */
+  const [periode, setPeriode] = useState({ start: "", end: "" });
+  /**
+   * Periode yang terbalik tidak dikirim: kepala rekapnya akan berbunyi
+   * "14 Juli s.d 3 Mei", dan yang membacanya tidak punya cara tahu mana yang
+   * salah ketik. Mengosongkan keduanya tetap boleh.
+   */
+  const periodeSalah = Boolean(periode.start && periode.end
+                               && periode.end < periode.start);
   /**
    * Galat pengajuan, ditampilkan DI DALAM dialognya.
    *
@@ -599,7 +636,14 @@ export default function PengajuanFeePage() {
             overriding_level: slug === "overriding" &&
                               kat === "sales_manager_inhouse"
               ? "sales_manager_inhouse" : null,
-            notes: (catatan[slug] ?? "").trim() || null,
+            // Overriding tidak memakai penjelasan: yang tercetak pada
+            // kepala rekapnya periode penjualan, bukan alasan satu pengajuan.
+            notes: slug === "overriding"
+              ? null : (catatan[slug] ?? "").trim() || null,
+            sales_period_start: slug === "overriding"
+              ? periode.start || null : null,
+            sales_period_end: slug === "overriding"
+              ? periode.end || null : null,
             transfer: tujuan[slug] ?? null,
           }),
         });
@@ -659,6 +703,7 @@ export default function PengajuanFeePage() {
       setSiapkan(null);
       setGalatDialog(null);
       setPenjelasan({});
+      setPeriode({ start: "", end: "" });
       setTransfer({});
       setKategori({});
       setPenerima({});
@@ -874,6 +919,7 @@ export default function PengajuanFeePage() {
                                     const daftar = terpilihPada(u.id);
                                     const { kat, pen } = bawaanPenerima(u, daftar);
                                     setPenjelasan({});
+                                    setPeriode({ start: "", end: "" });
                                     setTransfer(bawaanTransfer(u, daftar, pen));
                                     setKategori(kat);
                                     setPenerima(pen);
@@ -1002,8 +1048,12 @@ export default function PengajuanFeePage() {
             </div>
 
             <div className="popup-isi">
+              {/* Dialog yang hanya berisi Overriding tidak punya penjelasan
+                  sama sekali, jadi pengantar tentang penjelasan di sana
+                  menerangkan isian yang tidak ada. */}
               <p className="hint" style={{ textAlign: "left", margin: "0 0 12px" }}>
-                {k.dialogPengantar}
+                {siapkan.jenis.every((j) => j === "overriding")
+                  ? k.dialogPengantarOr : k.dialogPengantar}
               </p>
 
               {/* Sebab kegagalan berdiri di dalam dialognya, tepat di atas
@@ -1017,7 +1067,10 @@ export default function PengajuanFeePage() {
                 </div>
               )}
 
-              {siapkan.jenis.map((slug, i) => {
+              {/* Jenis berpenjelasan yang pertama; lihat tombol "samakan"
+                  di dalamnya. */}
+              {siapkan.jenis.map((slug, _urut, semua) => {
+                const iSalin = semua.find((j) => j !== "overriding") ?? null;
                 const pen = siapkan.unit.fees[slug]?.recipient;
                 const tf = transfer[slug] ?? {};
                 const ubah = (kolom: string, nilai: string) =>
@@ -1082,18 +1135,53 @@ export default function PengajuanFeePage() {
                       </div>
                     </div>
 
-                    <div className="lbl">{k.dialogNama}</div>
-                    <textarea value={penjelasan[slug] ?? ""}
-                              placeholder={k.dialogContoh}
-                              style={{ width: "100%", minHeight: 52 }}
-                              onChange={(e) => setPenjelasan(
-                                { ...penjelasan, [slug]: e.target.value })} />
+                    {/* Overriding tidak memakai penjelasan: lembarnya merekap
+                        penjualan satu periode, bukan satu unit, dan yang perlu
+                        diketahui pembacanya periode itu. Kedua tanggalnya
+                        tercetak pada kepala rekapnya. */}
+                    <div className="lbl">
+                      {slug === "overriding" ? k.dialogPeriode : k.dialogNama}
+                    </div>
+                    {slug === "overriding" ? (
+                      <>
+                        <div className="periode-rekap">
+                          <label>
+                            <span>{k.dialogDari}</span>
+                            <input type="date" value={periode.start}
+                                   onChange={(e) => setPeriode(
+                                     { ...periode, start: e.target.value })} />
+                          </label>
+                          <label>
+                            <span>{k.dialogSampai}</span>
+                            <input type="date" value={periode.end}
+                                   min={periode.start || undefined}
+                                   onChange={(e) => setPeriode(
+                                     { ...periode, end: e.target.value })} />
+                          </label>
+                        </div>
+                        <p className="hint" style={{ textAlign: "left" }}>
+                          {periodeSalah ? k.dialogPeriodeTerbalik
+                                        : k.dialogPeriodeCatatan}
+                        </p>
+                      </>
+                    ) : (
+                      <textarea value={penjelasan[slug] ?? ""}
+                                placeholder={k.dialogContoh}
+                                style={{ width: "100%", minHeight: 52 }}
+                                onChange={(e) => setPenjelasan(
+                                  { ...penjelasan, [slug]: e.target.value })} />
+                    )}
                     {/* Menyalin penjelasan pertama ke sisanya. Keempatnya
                         sering sama persis, dan mengetiknya empat kali membuat
                         orang menyingkatnya sampai tidak lagi menjelaskan apa
                         pun. Tujuan transfer sengaja tidak ikut disalin:
-                        penerimanya memang berbeda orang. */}
-                    {i === 0 && siapkan.jenis.length > 1 && (
+                        penerimanya memang berbeda orang.
+
+                        Tombolnya menempel pada blok berpenjelasan yang
+                        pertama, bukan pada blok pertama: bila Overriding yang
+                        di atas, blok itu tidak punya penjelasan untuk
+                        disalin. */}
+                    {slug === iSalin && siapkan.jenis.length > 1 && (
                       <button style={{ marginTop: 6, padding: "2px 8px" }}
                               disabled={!(penjelasan[slug] ?? "").trim()}
                               onClick={() => setPenjelasan(
@@ -1181,7 +1269,8 @@ export default function PengajuanFeePage() {
 
             <div className="popup-kaki">
               <div className="row">
-                <button className="pri" disabled={Boolean(mengajukan)}
+                <button className="pri"
+                        disabled={Boolean(mengajukan) || periodeSalah}
                         onClick={() => void ajukan(siapkan.unit, siapkan.jenis,
                                                    penjelasan, transfer)}>
                   {mengajukan ? k.mengajukan : k.dialogAjukan}
