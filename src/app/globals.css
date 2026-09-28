@@ -1127,6 +1127,11 @@ button.hapus-klaim:hover:not(:disabled) {
      yang membacanya kemudian melaporkan angka rupiahnya tidak terbaca. */
   .tabel-rekap { font-size: 10.4px; }
   .tabel-rekap th { font-size: 9.8px; }
+  /* Isinya lebih kecil daripada judulnya. Angka yang lebih ramping memberi
+     kolomnya beberapa piksel yang dipakai kolom lain — "Bangunan" tidak
+     perlu disingkat lagi — dan judul yang tetap sebesar semula menjaga
+     tabelnya masih dapat ditelusuri kolom demi kolom. */
+  .tabel-rekap td { font-size: 9.6px; }
   .tabel-rekap th, .tabel-rekap td { padding: 1.5px 3px; }
   /* Baris tidak dipatahkan di tengah halaman, dan judul bagian tidak pernah
      berdiri sendiri di kaki halaman tanpa satu baris pun di bawahnya. */

@@ -90,40 +90,43 @@ const persen = (v?: string | null) => {
  * patah di tengah kata. Status unit pun sudah terbaca dari bagiannya:
  * barisnya berdiri di bawah judul BATAL, bukan di bawah PERIODE.
  *
- * Empat judul disingkat — "Bang.", "Reg. / Prog.", "Tgl. Trf. OR", "Ket." —
- * sebab kolomnya hanya selebar isinya yang pendek, dan judul panjang di atas
- * kolom sempit tidak mengecil melainkan patah di tengah kata: "Ketera-ngan",
- * "Bang-unan". Yang dibaca orang pada lembar ini deretan angkanya; judulnya
- * cukup dikenali.
+ * Tiga judul disingkat — "Reg. / Prog.", "Tgl. Trf. OR", "Ket." — sebab
+ * kolomnya hanya selebar isinya yang pendek, dan judul panjang di atas kolom
+ * sempit tidak mengecil melainkan patah di tengah kata: "Ketera-ngan". Yang
+ * dibaca orang pada lembar ini deretan angkanya; judulnya cukup dikenali.
  */
 const KOLOM: { atas: string; bawah?: string; kelas?: string; lebar: number }[] = [
   { atas: "No.", lebar: 17, kelas: "angka" },
-  { atas: "Tgl. Kontrak", lebar: 31 },
-  { atas: "Unit", lebar: 24 },
-  { atas: "Marketing", lebar: 41 },
-  { atas: "Kategori Marketing", lebar: 38 },
+  { atas: "Tgl. Kontrak", lebar: 33 },
+  { atas: "Unit", lebar: 26 },
+  { atas: "Marketing", lebar: 49 },
+  { atas: "Kategori Marketing", lebar: 42 },
   { atas: "Luas", bawah: "Tanah", kelas: "angka", lebar: 24 },
-  { atas: "Luas", bawah: "Bang.", kelas: "angka", lebar: 24 },
-  { atas: "Skema Cara Bayar", lebar: 41 },
+  { atas: "Luas", bawah: "Bangunan", kelas: "angka", lebar: 37 },
+  { atas: "Skema Cara Bayar", lebar: 48 },
   { atas: "Type", lebar: 24 },
-  { atas: "Nilai Kontrak", bawah: "(Include PPN)", kelas: "angka", lebar: 52 },
-  { atas: "DPP Nilai Lain", kelas: "angka", lebar: 52 },
-  { atas: "Penerimaan", bawah: "Rp.", kelas: "angka", lebar: 52 },
-  { atas: "Penerimaan", bawah: "%", kelas: "angka", lebar: 33 },
+  // Satu sel yang membentang dua baris, bukan judul bertingkat: "(Include
+  // PPN)" bukan salah satu dari beberapa kolom di bawah "Nilai Kontrak" —
+  // ia keterangan dari kolom yang sama, dan garis mendatar di antara
+  // keduanya membacanya seolah dua hal.
+  { atas: "Nilai Kontrak (Include PPN)", kelas: "angka", lebar: 49 },
+  { atas: "DPP Nilai Lain", kelas: "angka", lebar: 49 },
+  { atas: "Penerimaan", bawah: "Rp.", kelas: "angka", lebar: 49 },
+  { atas: "Penerimaan", bawah: "%", kelas: "angka", lebar: 31 },
   { atas: "Sign PPJB", lebar: 25 },
   { atas: "Skema Overiding", bawah: "Reg. / Prog.", lebar: 31 },
-  { atas: "Skema Overiding", bawah: "%", kelas: "angka", lebar: 33 },
-  { atas: "Skema Overiding", bawah: "Amount Unit (Rp.)", kelas: "angka", lebar: 53 },
-  { atas: "Skema Overiding", bawah: "DPP Nilai Lain", kelas: "angka", lebar: 53 },
-  { atas: "Skema Overiding", bawah: "PPN", kelas: "angka", lebar: 38 },
-  { atas: "Skema Overiding", bawah: "PPh 23", kelas: "angka", lebar: 38 },
-  { atas: "Skema Overiding", bawah: "Net", kelas: "angka", lebar: 53 },
+  { atas: "Skema Overiding", bawah: "%", kelas: "angka", lebar: 31 },
+  { atas: "Skema Overiding", bawah: "Amount Unit (Rp.)", kelas: "angka", lebar: 49 },
+  { atas: "Skema Overiding", bawah: "DPP Nilai Lain", kelas: "angka", lebar: 49 },
+  { atas: "Skema Overiding", bawah: "PPN", kelas: "angka", lebar: 36 },
+  { atas: "Skema Overiding", bawah: "PPh 23", kelas: "angka", lebar: 36 },
+  { atas: "Skema Overiding", bawah: "Net", kelas: "angka", lebar: 49 },
   { atas: "Skema Overiding", bawah: "Tgl. Trf. OR", lebar: 28 },
-  { atas: "Selisih Overiding", bawah: "Amount Unit (Rp.)", kelas: "angka", lebar: 53 },
-  { atas: "Selisih Overiding", bawah: "PPh 21", kelas: "angka", lebar: 38 },
-  { atas: "Selisih Overiding", bawah: "Net", kelas: "angka", lebar: 53 },
-  { atas: "Selisih Overiding", bawah: "%", kelas: "angka", lebar: 33 },
-  { atas: "Ket.", lebar: 40 },
+  { atas: "Selisih Overiding", bawah: "Amount Unit (Rp.)", kelas: "angka", lebar: 49 },
+  { atas: "Selisih Overiding", bawah: "PPh 21", kelas: "angka", lebar: 36 },
+  { atas: "Selisih Overiding", bawah: "Net", kelas: "angka", lebar: 49 },
+  { atas: "Selisih Overiding", bawah: "%", kelas: "angka", lebar: 31 },
+  { atas: "Ket.", lebar: 45 },
 ];
 
 const TOTAL_LEBAR = KOLOM.reduce((t, k) => t + k.lebar, 0);
