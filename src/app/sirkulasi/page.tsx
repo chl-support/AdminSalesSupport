@@ -15,7 +15,6 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
 
 import { useBahasa, useKata } from "../bahasa";
 import { namaJenis } from "../klaim/jenis";
@@ -25,15 +24,9 @@ import { useSesi } from "../session";
 const KATA = {
   id: {
     judul: "Sirkulasi Dokumen",
-    pengantar: "Dokumen Yang Sedang Beredar Untuk Ditandatangani. Durasi " +
-               "Dihitung Sejak Perpindahan Terakhir.",
+    pengantar: "Perjalanan Tiap Pengajuan Sejak Diajukan Sampai Dibayarkan, " +
+               "Dan Di Bagian Mana Waktunya Paling Banyak Terpakai.",
     galat: "Data tidak dapat dibaca",
-    beredar: (n: number) => `${n} dokumen beredar`,
-    duaMinggu: (n: number) => ` · ${n} lebih dari dua minggu`,
-    seminggu: (n: number) => ` · ${n} lebih dari seminggu`,
-    peringatan: "Yang beredar lebih dari dua minggu hampir selalu berarti " +
-                "berkasnya tertinggal di satu meja, bukan sedang dibaca.",
-    tenang: "Dokumen yang sudah kembali dan dipindai tidak lagi tampil di sini.",
     muatUlang: "Muat ulang",
     diLuar: "Tabel Sirkulasi Dokumen",
     pLuar: (n: number) => `\u{1F4E4} ${n} Dokumen di Luar`,
@@ -41,35 +34,38 @@ const KATA = {
     pProses: (n: number) => `\u{1F504} ${n} Dalam Proses`,
     pSelesai: (n: number) => `\u2713 ${n} Selesai`,
     thNo: "No.", thUnit: "Unit", thJenis: "Jenis Dokumen",
-    thMemo: "No. Internal Office Memo", thDari: "Dari",
-    thKe: "Ke / Di Tangan", thDistribusi: "Tanggal Distribusi",
+    thMemo: "No. Internal Office Memo", thDari: "Divisi Pengirim",
+    thKe: "Divisi Penerima", thDistribusi: "Tanggal Distribusi",
     thDiterima: "Tanggal Diterima", thDurasi: "Durasi Proses",
-    thStatus: "Status", tindakan: "Tindakan",
+    thStatus: "Status",
+    selesaiTanda: "selesai",
     isiMemo: "ketik nomor memo", isiTanggal: "pilih tanggal",
+    isiDari: "ketik divisi pengirim", isiKe: "ketik divisi penerima",
     simpanGagal: "Isian tidak tersimpan",
-    hanyaAdmin: "Hanya Admin Sales yang dapat mengisi kedua kolom ini.",
+    hanyaAdmin: "Hanya Admin Sales yang dapat mengisi kolom-kolom ini.",
     keadaan: {
       printed: "Dicetak, siap diedarkan",
       circulating_head_finance: "Di Head Finance",
       circulating_management: "Di Manajemen",
       awaiting_scan_upload: "Kembali, menunggu pindaian",
+      // Yang sudah berakhir tidak ada di meja siapa pun. Tanpa baris-baris
+      // ini kolom Status jatuh ke pihak yang terakhir memegangnya, sehingga
+      // klaim lunas terbaca seolah masih ditunggu.
+      paid: "Sudah dibayar",
+      completed: "Selesai",
+      rejected: "Ditolak",
+      cancelled: "Dibatalkan",
+      clawback: "Ditarik kembali",
     } as Record<string, string>,
     hari: (n: number) => `${n} hari`,
-    buka: "Buka klaim",
-    kosong: "Tidak ada dokumen yang sedang beredar.",
+    kosong: "Belum ada pengajuan pada project ini.",
     memuat: "Memuat…",
   },
   en: {
     judul: "Document Workflow",
-    pengantar: "Documents currently circulating for signature. Duration is " +
-               "counted from the last hand-over.",
+    pengantar: "How long each submission takes from filing to payment, and " +
+               "which stage takes the most of it.",
     galat: "The data could not be read",
-    beredar: (n: number) => `${n} documents circulating`,
-    duaMinggu: (n: number) => ` · ${n} over two weeks`,
-    seminggu: (n: number) => ` · ${n} over a week`,
-    peringatan: "Anything circulating for more than two weeks almost always " +
-                "means the file is sitting on someone's desk, not being read.",
-    tenang: "Documents already returned and scanned no longer appear here.",
     muatUlang: "Reload",
     diLuar: "Document circulation table",
     pLuar: (n: number) => `\u{1F4E4} ${n} Out`,
@@ -77,33 +73,53 @@ const KATA = {
     pProses: (n: number) => `\u{1F504} ${n} In progress`,
     pSelesai: (n: number) => `\u2713 ${n} Done`,
     thNo: "No.", thUnit: "Unit", thJenis: "Document type",
-    thMemo: "Internal office memo no.", thDari: "From",
-    thKe: "To / held by", thDistribusi: "Distributed on",
+    thMemo: "Internal office memo no.", thDari: "Sending division",
+    thKe: "Receiving division", thDistribusi: "Distributed on",
     thDiterima: "Received on", thDurasi: "Processing time",
-    thStatus: "Status", tindakan: "Action",
+    thStatus: "Status",
+    selesaiTanda: "done",
     isiMemo: "type the memo number", isiTanggal: "pick a date",
+    isiDari: "type the sending division",
+    isiKe: "type the receiving division",
     simpanGagal: "The entry was not saved",
-    hanyaAdmin: "Only Sales Admin can fill these two columns.",
+    hanyaAdmin: "Only Sales Admin can fill these columns.",
     keadaan: {
       printed: "Printed, ready to circulate",
       circulating_head_finance: "With Head Finance",
       circulating_management: "With Management",
       awaiting_scan_upload: "Returned, awaiting scan",
+      paid: "Paid",
+      completed: "Completed",
+      rejected: "Rejected",
+      cancelled: "Cancelled",
+      clawback: "Clawed back",
     } as Record<string, string>,
     hari: (n: number) => `${n} days`,
-    buka: "Open claim",
-    kosong: "No documents are circulating.",
+    kosong: "No submissions on this project yet.",
     memuat: "Loading…",
   },
 };
+
+/** Kolom Sirkulasi yang diisi tangan; lihat /api/claims/[id]/sirkulasi. */
+type MedanIsian = "office_memo_no" | "received_at" | "sender_division"
+                | "handed_to" | "distributed_at";
 
 type Beredar = {
   id: string; claim_number: string; print_copy_number: number;
   claim_type: string; status: string; unit_code: string | null;
   dari: string | null;
   office_memo_no: string | null; received_at: string | null;
+  sender_division: string | null; handed_to: string | null;
+  distributed_at: string | null;
   physical_location: string | null; physical_since: string | null;
   age_days: number | null;
+  /** Hari sejak diajukan sampai dibayar — atau sampai hari ini bila belum. */
+  durasi_hari: number;
+  selesai: boolean;
+  tgl_bayar: string | null;
+  /** Langkah yang sedang berjalan, disebut sebagaimana layar Approval. */
+  kini: { pihak: { id: string; en: string };
+          kerja: { id: string; en: string } } | null;
 };
 
 export default function SirkulasiPage() {
@@ -154,7 +170,7 @@ export default function SirkulasiPage() {
    * perlu mencatatnya.
    */
   const simpanIsian = async (
-    b: Beredar, medan: "office_memo_no" | "received_at", nilai: string,
+    b: Beredar, medan: MedanIsian, nilai: string,
   ) => {
     const lama = (b[medan] ?? "") as string;
     if (nilai.trim() === lama.trim()) return;
@@ -162,10 +178,10 @@ export default function SirkulasiPage() {
     try {
       const res = await fetch(`/api/claims/${b.id}/sirkulasi`, {
         method: "POST", headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          office_memo_no: medan === "office_memo_no" ? nilai : b.office_memo_no,
-          received_at: medan === "received_at" ? nilai : b.received_at,
-        }),
+        // Hanya medan yang berubah yang dikirim. Mengirim keempatnya setiap
+        // kali membuat pembetulan satu kolom menulis ulang tiga kolom lain
+        // dengan salinan layar yang mungkin sudah usang.
+        body: JSON.stringify({ [medan]: nilai }),
       });
       if (res.status === 401) { location.href = "/login"; return; }
       const j = await res.json().catch(() => ({}));
@@ -177,7 +193,9 @@ export default function SirkulasiPage() {
       // Baris ini saja yang disegarkan; memuat ulang seluruh tabel akan
       // memindahkan baris lain di bawah jari yang sedang mengetik.
       setBaris((lama) => lama.map((x) => x.id === b.id
-        ? { ...x, office_memo_no: j.office_memo_no, received_at: j.received_at }
+        ? { ...x, office_memo_no: j.office_memo_no,
+            sender_division: j.sender_division, handed_to: j.handed_to,
+            received_at: j.received_at, distributed_at: j.distributed_at }
         : x));
     } catch (e: any) {
       setGalat(String(e?.message ?? e));
@@ -185,12 +203,6 @@ export default function SirkulasiPage() {
   };
 
   if (memuat || !sesi) return <MemeriksaSesi />;
-
-  // Tiga golongan umur, bukan satu angka: yang dibaca orang bukan "9 hari"
-  // melainkan "sudah terlalu lama".
-  const lama = baris.filter((b) => (b.age_days ?? 0) >= 14).length;
-  const sedang = baris.filter((b) => (b.age_days ?? 0) >= 7 &&
-                                     (b.age_days ?? 0) < 14).length;
 
   return (
     <Kerangka sesi={sesi} judul={
@@ -203,15 +215,6 @@ export default function SirkulasiPage() {
       {galat && (
         <div className="banner stop"><b>{k.galat}</b>{galat}</div>
       )}
-
-      <div className={`banner ${lama ? "stop" : sedang ? "warn" : "info"} sp`}>
-        <b>
-          {k.beredar(baris.length)}
-          {lama ? k.duaMinggu(lama) : ""}
-          {sedang ? k.seminggu(sedang) : ""}
-        </b>
-        {lama ? k.peringatan : k.tenang}
-      </div>
 
       <div className="row sp">
         <button onClick={() => void muat()} disabled={busy}>{k.muatUlang}</button>
@@ -232,30 +235,27 @@ export default function SirkulasiPage() {
         </h2>
 
         <div className="tscroll">
-          <table><tbody>
+          <table className="tabel-sirkulasi"><tbody>
             {/* Kolomnya mengikuti Tabel Sirkulasi Dokumen yang dipakai
                 kantor, dengan urutan yang sama. Dua di antaranya belum punya
                 sumber datanya — lihat selnya masing-masing. */}
             <tr>
               <th className="sel-no-urut" style={{ width: 44 }}>{k.thNo}</th>
-              <th>{k.thUnit}</th>
+              <th className="sel-unit">{k.thUnit}</th>
               <th>{k.thJenis}</th>
               <th>{k.thMemo}</th>
               <th>{k.thDari}</th>
               <th>{k.thKe}</th>
               <th>{k.thDistribusi}</th>
               <th>{k.thDiterima}</th>
-              <th style={{ textAlign: "right" }}>{k.thDurasi}</th>
+              <th>{k.thDurasi}</th>
               <th>{k.thStatus}</th>
-              <th style={{ width: 110 }}>{k.tindakan}</th>
             </tr>
 
-            {baris.map((b, i) => {
-              const umur = b.age_days ?? 0;
-              return (
+            {baris.map((b, i) => (
                 <tr key={b.id}>
                   <td className="sel-no-urut">{i + 1}</td>
-                  <td><b>{b.unit_code ?? "\u2014"}</b></td>
+                  <td className="sel-unit"><b>{b.unit_code ?? "—"}</b></td>
                   <td>{namaJenis(b.claim_type as any, bahasa)}</td>
                   {/* Nomor memo internal terbit di luar sistem ini, jadi ia
                       diisi tangan. Yang tidak berhak mengisinya tetap
@@ -273,11 +273,53 @@ export default function SirkulasiPage() {
                              }} />
                     ) : b.office_memo_no ?? <span className="belum-ada">—</span>}
                   </td>
-                  <td>{b.dari ?? "—"}</td>
-                  <td>{b.physical_location ?? "—"}</td>
+                  {/* Divisi pengirim dan penerimanya, beserta tanggal
+                      distribusinya. Ketiganya punya bayangannya di sistem —
+                      riwayat serah terima, physical_location, physical_since
+                      — tetapi bayangan itu hanya terisi bila serah terimanya
+                      dicatat lewat layar Approval, sedangkan berkas yang
+                      diantar langsung ke meja orang tidak pernah melewatinya.
+                      Yang tercatat sistem tetap ditawarkan sebagai bayangan
+                      pada isiannya, jadi yang mengetik tidak kehilangan apa
+                      yang sudah diketahui. */}
                   <td>
-                    {b.physical_since
-                      ? String(b.physical_since).slice(0, 10) : "—"}
+                    {bolehIsi ? (
+                      <input className="isi-sirkulasi" type="text"
+                             defaultValue={b.sender_division ?? ""}
+                             placeholder={b.dari ?? k.isiDari}
+                             disabled={simpan === b.id}
+                             onBlur={(e) => void simpanIsian(
+                               b, "sender_division", e.target.value)}
+                             onKeyDown={(e) => {
+                               if (e.key === "Enter") e.currentTarget.blur();
+                             }} />
+                    ) : b.sender_division ?? b.dari
+                        ?? <span className="belum-ada">—</span>}
+                  </td>
+                  <td>
+                    {bolehIsi ? (
+                      <input className="isi-sirkulasi" type="text"
+                             defaultValue={b.handed_to ?? ""}
+                             placeholder={b.physical_location ?? k.isiKe}
+                             disabled={simpan === b.id}
+                             onBlur={(e) => void simpanIsian(
+                               b, "handed_to", e.target.value)}
+                             onKeyDown={(e) => {
+                               if (e.key === "Enter") e.currentTarget.blur();
+                             }} />
+                    ) : b.handed_to ?? b.physical_location
+                        ?? <span className="belum-ada">—</span>}
+                  </td>
+                  <td>
+                    {bolehIsi ? (
+                      <input className="isi-sirkulasi" type="date"
+                             defaultValue={b.distributed_at ?? ""}
+                             title={k.isiTanggal}
+                             disabled={simpan === b.id}
+                             onBlur={(e) => void simpanIsian(
+                               b, "distributed_at", e.target.value)} />
+                    ) : b.distributed_at
+                        ?? <span className="belum-ada">—</span>}
                   </td>
                   {/* Tanggal diterima hanya diketahui yang menyerahkan
                       berkasnya: serah terima tercatat sebagai satu peristiwa
@@ -293,34 +335,59 @@ export default function SirkulasiPage() {
                                b, "received_at", e.target.value)} />
                     ) : b.received_at ?? <span className="belum-ada">—</span>}
                   </td>
+                  {/* Durasi sejak diajukan, bukan sejak perpindahan terakhir.
+                      Yang ditanyakan kantor "berkas ini sudah berapa lama",
+                      dan jawabannya bukan lama di meja terakhir — dokumen
+                      yang tiga bulan tertahan di pajak lalu berpindah kemarin
+                      akan menjawab "1 hari" bila dihitung dari perpindahan.
+
+                      Yang sudah dibayar tidak diberi warna peringatan: ia
+                      memang pernah berjalan lama, tetapi tidak lagi menunggu
+                      siapa pun. */}
                   <td className="n">
-                    <span className={`pill ${umur >= 14 ? "stop"
-                                     : umur >= 7 ? "warn" : "ok"}`}>
-                      {b.age_days === null ? "—" : k.hari(umur)}
+                    <span className={`pill ${b.selesai ? "ok"
+                                     : b.durasi_hari >= 14 ? "stop"
+                                     : b.durasi_hari >= 7 ? "warn" : ""}`}>
+                      {k.hari(b.durasi_hari)}
                     </span>
+                    {b.selesai && (
+                      <div className="meta">{k.selesaiTanda}</div>
+                    )}
                   </td>
-                  <td>{k.keadaan[b.status] ?? b.status}</td>
+                  {/* Status menjawab satu pertanyaan: berkasnya sekarang ada
+                      di divisi mana. Divisi penerima yang diisi tangan
+                      didahulukan — ia yang paling tahu ke mana berkasnya
+                      benar-benar diantar; bila belum diisi, dipakai pihak
+                      yang seharusnya memegangnya menurut statusnya.
+
+                      Yang sudah berakhir tidak ada di divisi mana pun, jadi
+                      keadaannya yang disebut, bukan pemegang terakhirnya. */}
                   <td>
-                    {/* Tindakannya ada pada klaimnya — serah terima, unggah
-                        pindaian — jadi layar ini menunjuk ke sana alih-alih
-                        menyalin tombolnya dan berisiko berbeda perilaku. */}
-                    <Link className="tautan-klaim" href={`/persetujuan?klaim=${b.id}`}>
-                      {k.buka}
-                    </Link>
+                    {b.selesai
+                      ? k.keadaan[b.status] ?? b.status
+                      : b.handed_to ?? k.keadaan[b.status]
+                        ?? (b.kini ? b.kini.pihak[bahasa] : b.status)}
+                    {/* Keterangan pekerjaannya hanya menyertai divisi yang
+                        disusun sistem. Menempelkannya pada divisi yang diisi
+                        tangan membuat baris yang ditulis "Pajak" berbunyi
+                        "Belum dikirim ke Pajak" di bawahnya — dua kalimat
+                        yang saling membantah pada satu sel. */}
+                    {!b.selesai && !b.handed_to && b.kini && (
+                      <div className="meta">{b.kini.kerja[bahasa]}</div>
+                    )}
                   </td>
-                </tr>
-              );
-            })}
+</tr>
+            ))}
 
             {!baris.length && !busy && (
               <tr>
-                <td colSpan={11} style={{ color: "var(--mut)" }}>
+                <td colSpan={10} style={{ color: "var(--mut)" }}>
                   {k.kosong}
                 </td>
               </tr>
             )}
             {busy && (
-              <tr><td colSpan={11} style={{ color: "var(--mut)" }}>{k.memuat}</td></tr>
+              <tr><td colSpan={10} style={{ color: "var(--mut)" }}>{k.memuat}</td></tr>
             )}
           </tbody></table>
         </div>

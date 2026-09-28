@@ -168,3 +168,13 @@ function sebelumBatas(n: NomorLangkah): string {
 /** Kelas CSS untuk sebuah keadaan langkah. */
 export const warnaLangkah = (k: Keadaan) =>
   k === "usai" ? "usai" : k === "stop" ? "stop" : k === "kini" ? "kini" : "nanti";
+
+export function langkahDari(status: string): NomorLangkah | null {
+  if (TERTAHAN.includes(status)) return null;
+  const i = URUTAN.indexOf(status);
+  if (i < 0) return null;
+  for (const l of LANGKAH) {
+    if (i <= URUTAN.indexOf(l.sampai)) return l.n;
+  }
+  return null;
+}
