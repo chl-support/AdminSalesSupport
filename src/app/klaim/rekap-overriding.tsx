@@ -106,7 +106,11 @@ const KOLOM: { atas: string; bawah?: string; kelas?: string; lebar: number }[] =
   { atas: "Luas", bawah: "Bang.", kelas: "angka", lebar: 24 },
   { atas: "Skema Cara Bayar", lebar: 41 },
   { atas: "Type", lebar: 24 },
-  { atas: "Nilai Kontrak", bawah: "(Include PPN)", kelas: "angka", lebar: 52 },
+  // Satu sel yang membentang dua baris, bukan judul bertingkat: "(Include
+  // PPN)" bukan salah satu dari beberapa kolom di bawah "Nilai Kontrak" —
+  // ia keterangan dari kolom yang sama, dan garis mendatar di antara
+  // keduanya membacanya seolah dua hal.
+  { atas: "Nilai Kontrak (Include PPN)", kelas: "angka", lebar: 52 },
   { atas: "DPP Nilai Lain", kelas: "angka", lebar: 52 },
   { atas: "Penerimaan", bawah: "Rp.", kelas: "angka", lebar: 52 },
   { atas: "Penerimaan", bawah: "%", kelas: "angka", lebar: 33 },
