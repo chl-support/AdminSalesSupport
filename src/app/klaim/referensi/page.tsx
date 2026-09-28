@@ -246,6 +246,14 @@ export default function ReferensiPengajuanPage() {
   const [kabar, setKabar] = useState<string | null>(null);
   const [kemajuan, setKemajuan] = useState<string | null>(null);
   const [seret, setSeret] = useState(false);
+  /**
+   * Kategori yang sedang dibuka pada tiap kelompok: kunci memo → id barisnya.
+   *
+   * Tidak disimpan ke server — ia cara melihat, bukan data. Yang belum pernah
+   * ditekan jatuh ke kategori pertama, supaya barisnya tidak pernah kosong
+   * sebelum disentuh.
+   */
+  const [kategoriBuka, setKategoriBuka] = useState<Record<string, string>>({});
   /** Baris yang sedang diperiksa di dialog pemberlakuan. */
   const [dialog, setDialog] = useState<Baris | null>(null);
 
@@ -406,6 +414,32 @@ export default function ReferensiPengajuanPage() {
 
   const jumlahBerlaku = baris.filter((b) => b.scheme_id).length;
 
+  /**
+   * Baris dikelompokkan menurut nomor memonya.
+   *
+   * Satu memo lazimnya memuat beberapa tabel skema — Komisi Inhouse, Cash
+   * Reward, Overriding — dan masing-masing menjadi satu baris di sini.
+   * Dibiarkan berdiri sendiri-sendiri, satu memo memenuhi lima baris yang
+   * mengulang nomor, tanggal dan perihal yang sama persis, sehingga yang
+   * mencari satu memo harus membaca kolom yang berulang untuk memastikan
+   * kelimanya memang memo yang sama.
+   *
+   * Yang nomornya belum terbaca dikunci pada memo_id-nya, bukan disatukan
+   * sebagai "tanpa nomor": dua memo berbeda yang sama-sama gagal terbaca
+   * nomornya bukan satu memo, dan menyatukannya akan menggabungkan skema
+   * yang tidak berhubungan.
+   */
+  const kelompok: { kunci: string; baris: Baris[] }[] = [];
+  {
+    const peta = new Map<string, { kunci: string; baris: Baris[] }>();
+    for (const b of baris) {
+      const kunci = b.no_memo?.trim() || `memo:${b.memo_id}`;
+      let g = peta.get(kunci);
+      if (!g) { g = { kunci, baris: [] }; peta.set(kunci, g); kelompok.push(g); }
+      g.baris.push(b);
+    }
+  }
+
   return (
     <Kerangka sesi={sesi} judul={
       <div>
@@ -486,54 +520,89 @@ export default function ReferensiPengajuanPage() {
               {bolehBerlaku && <th style={{ width: 110 }}>{k.kTindakan}</th>}
             </tr>
 
-            {baris.map((b, i) => (
-              <tr key={b.id}>
-                <td className="n">{i + 1}</td>
-                <td>{b.no_memo ?? "—"}</td>
-                <td>{tglPanjang(b.tanggal)}</td>
-                <td>{b.perihal ?? "—"}</td>
-                <td>{periode(b.periode_awal, b.periode_akhir)}</td>
-                <td>{b.skema}</td>
-                <td>{b.kategori ?? "—"}</td>
-                <td>{b.nilai ?? "—"}</td>
-                <td>{b.keterangan ?? "—"}</td>
-                {/* Yang sudah berlaku menyebut angka yang BENAR-BENAR dipakai
-                    menghitung, bukan angka pada memonya: keduanya boleh
-                    berbeda bila yang memberlakukan membetulkan bacaan OCR,
-                    dan yang perlu diketahui pembaca angka yang dipakai. */}
-                <td>
-                  {b.scheme_id ? (
-                    <>
-                      <span className="pill ok">{k.berlaku}</span>
-                      <div className="meta">
-                        {b.claim_type ? namaJenis(b.claim_type as any, bahasa)
-                                      : "—"}
-                        {b.recipient_role
-                          ? ` · ${namaKategori(b.recipient_role, bahasa)}` : ""}
-                      </div>
-                      <div className="meta">
-                        {persenTampil(b.percentage)
-                         ?? rupiah(b.flat_amount) ?? "—"}
-                      </div>
-                    </>
-                  ) : <span className="pill">{k.usulan}</span>}
-                </td>
-                {bolehBerlaku && (
+            {kelompok.map((g, i) => {
+              /* Kolom milik memonya diambil dari baris mana pun — nomor,
+                 tanggal, perihal dan periode berasal dari kepala memo yang
+                 sama, jadi kelimanya identik. Yang berbeda per baris —
+                 skema, nilai, keterangan, keadaan, tindakannya — mengikuti
+                 kategori yang sedang dibuka. Skema ikut karena ia nama tabel
+                 tempat barisnya berasal: dibiarkan menyebut baris pertama
+                 sementara kategorinya menunjuk baris lain, ia akan
+                 menerangkan angka yang tidak sedang ditampilkan. */
+              const memo = g.baris[0];
+              const b = g.baris.find((x) => x.id === kategoriBuka[g.kunci])
+                        ?? g.baris[0];
+              return (
+                <tr key={g.kunci}>
+                  <td className="n">{i + 1}</td>
+                  <td>{memo.no_memo ?? "—"}</td>
+                  <td>{tglPanjang(memo.tanggal)}</td>
+                  <td>{memo.perihal ?? "—"}</td>
+                  <td>{periode(memo.periode_awal, memo.periode_akhir)}</td>
+                  <td>{b.skema}</td>
                   <td>
-                    {b.scheme_id ? (
-                      <button disabled={busy} onClick={() => void cabut(b)}>
-                        {k.cabut}
-                      </button>
-                    ) : (
-                      <button className="pri" disabled={busy}
-                              onClick={() => { setDialog(b); setGalat(null); }}>
-                        {k.berlakukan}
-                      </button>
+                    {g.baris.length < 2 ? (b.kategori ?? "—") : (
+                      /* Tiap kategori membawa tanda keadaannya sendiri.
+                         Tanpa itu, mengelompokkan justru menyembunyikan apa
+                         yang paling dicari di layar ini — mana yang sudah
+                         diberlakukan dan mana yang belum — sebab keadaan
+                         empat kategori lain tertutup di balik yang sedang
+                         dibuka. */
+                      <div className="cip-kategori">
+                        {g.baris.map((x) => (
+                          <button key={x.id} type="button"
+                                  className={[x.id === b.id ? "aktif" : "",
+                                              x.scheme_id ? "usai" : ""]
+                                               .filter(Boolean).join(" ")}
+                                  title={x.scheme_id ? k.berlaku : k.usulan}
+                                  onClick={() => setKategoriBuka((s) =>
+                                    ({ ...s, [g.kunci]: x.id }))}>
+                            {x.kategori ?? "—"}
+                          </button>
+                        ))}
+                      </div>
                     )}
                   </td>
-                )}
-              </tr>
-            ))}
+                  <td>{b.nilai ?? "—"}</td>
+                  <td>{b.keterangan ?? "—"}</td>
+                  {/* Yang sudah berlaku menyebut angka yang BENAR-BENAR dipakai
+                      menghitung, bukan angka pada memonya: keduanya boleh
+                      berbeda bila yang memberlakukan membetulkan bacaan OCR,
+                      dan yang perlu diketahui pembaca angka yang dipakai. */}
+                  <td>
+                    {b.scheme_id ? (
+                      <>
+                        <span className="pill ok">{k.berlaku}</span>
+                        <div className="meta">
+                          {b.claim_type ? namaJenis(b.claim_type as any, bahasa)
+                                        : "—"}
+                          {b.recipient_role
+                            ? ` · ${namaKategori(b.recipient_role, bahasa)}` : ""}
+                        </div>
+                        <div className="meta">
+                          {persenTampil(b.percentage)
+                           ?? rupiah(b.flat_amount) ?? "—"}
+                        </div>
+                      </>
+                    ) : <span className="pill">{k.usulan}</span>}
+                  </td>
+                  {bolehBerlaku && (
+                    <td>
+                      {b.scheme_id ? (
+                        <button disabled={busy} onClick={() => void cabut(b)}>
+                          {k.cabut}
+                        </button>
+                      ) : (
+                        <button className="pri" disabled={busy}
+                                onClick={() => { setDialog(b); setGalat(null); }}>
+                          {k.berlakukan}
+                        </button>
+                      )}
+                    </td>
+                  )}
+                </tr>
+              );
+            })}
 
             {!baris.length && !busy && (
               <tr>
