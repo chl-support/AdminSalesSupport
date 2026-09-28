@@ -45,10 +45,9 @@ const KATA = {
       "Menjadi Acuan Nilai; Yang Belum, Belum Mengikat Apa Pun.",
     galat: "Tidak dapat dikerjakan",
     unggahJudul: "UNGGAH MEMO",
-    seret: "Seret berkas memo ke sini",
-    seretLagi: "atau pilih dari komputer — boleh beberapa sekaligus",
-    pilih: "Pilih berkas",
-    jenisBerkas: "PDF, gambar, Excel, atau Word — maksimal 10 MB per berkas",
+    seret: "Unggah Referensi Memo",
+    pilih: "Pilih File",
+    jenisBerkas: "PDF, Word, Excel, atau gambar · Maks. 10 MB per file",
     membaca: (n: string) => `Membaca ${n}…`,
     ocrSiap: "Menyiapkan pembaca tulisan…",
     ocrGambar: (h: number, d: number) => `Menggambar halaman ${h} dari ${d}…`,
@@ -118,10 +117,9 @@ const KATA = {
       "rates; rows not yet in force bind nothing.",
     galat: "This could not be done",
     unggahJudul: "UPLOAD MEMOS",
-    seret: "Drag memo files here",
-    seretLagi: "or pick them from your computer — several at once is fine",
+    seret: "Upload memo reference",
     pilih: "Choose files",
-    jenisBerkas: "PDF, image, Excel or Word — 10 MB per file at most",
+    jenisBerkas: "PDF, Word, Excel or image · 10 MB per file at most",
     membaca: (n: string) => `Reading ${n}…`,
     ocrSiap: "Preparing the text reader…",
     ocrGambar: (h: number, d: number) => `Rendering page ${h} of ${d}…`,
@@ -489,16 +487,45 @@ export default function ReferensiPengajuanPage() {
                  e.preventDefault(); setSeret(false);
                  void terima([...e.dataTransfer.files]);
                }}>
+          {/* Lambang berkas dengan panah naik. Digambar sebagai SVG sebaris,
+              bukan emoji: emoji dilukis tiap sistem dengan gayanya
+              sendiri-sendiri, dan yang di sini harus mengikuti warna kotaknya
+              saat kotaknya disentuh. */}
+          <svg className="ikon-unggah" viewBox="0 0 24 24" aria-hidden="true"
+               fill="none" stroke="currentColor" strokeWidth="1.6"
+               strokeLinecap="round" strokeLinejoin="round">
+            <path d="M14 3v5h5" />
+            <path d="M19 12V9l-6-6H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h5" />
+            <path d="M18 22v-7" /><path d="m15 18 3-3 3 3" />
+          </svg>
           <b>{k.seret}</b>
-          <span>{k.seretLagi}</span>
-          <span className="tombol-berkas">{k.pilih}</span>
+          {/* Kalimat "seret dan lepaskan…" sengaja tidak ada: kotak bergaris
+              putus-putus yang menyala saat berkas dilewatkan di atasnya sudah
+              menyatakan dirinya sendiri, dan tombolnya menyatakan sisanya. */}
+          <span className="tombol-berkas pri">
+            <svg viewBox="0 0 24 24" aria-hidden="true" fill="none"
+                 stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"
+                 strokeLinejoin="round">
+              <path d="M12 16V4" /><path d="m7 9 5-5 5 5" />
+              <path d="M5 20h14" />
+            </svg>
+            {k.pilih}
+          </span>
           <input type="file" multiple hidden disabled={busy}
                  onChange={(e) => {
                    const daftar = [...(e.target.files ?? [])];
                    e.target.value = "";
                    void terima(daftar);
                  }} />
-          <span className="meta">{k.jenisBerkas}</span>
+          <span className="meta">
+            <svg viewBox="0 0 24 24" aria-hidden="true" fill="none"
+                 stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"
+                 strokeLinejoin="round">
+              <path d="M14 3v5h5" />
+              <path d="M19 9v10a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6z" />
+            </svg>
+            {k.jenisBerkas}
+          </span>
         </label>
         {kemajuan && <p className="hint" style={{ textAlign: "left" }}>
           {kemajuan}
