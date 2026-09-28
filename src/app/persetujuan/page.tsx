@@ -201,7 +201,7 @@ const KATA = {
     thNo: "No.", thTanggal: "Tanggal Pengajuan", thUnit: "Unit",
     thPerihal: "Jenis Pengajuan", thIom: "No. IOM",
     iomIsi: "ketik nomor IOM", tglIsi: "pilih tanggal",
-    tambahBaris: "tambah",
+    tambahBaris: "tambah", kurangBaris: "hapus",
     thPengirim: "Divisi Pengirim", thPenerimaDiv: "Divisi Penerima",
     thDistribusi: "Tanggal Distribusi", thDiterima: "Tanggal Penerima",
     divIsi: "ketik divisi",
@@ -351,7 +351,7 @@ const KATA = {
     thNo: "No.", thTanggal: "Submitted on", thUnit: "Unit",
     thPerihal: "Submission type", thIom: "IOM no.",
     iomIsi: "type the IOM number", tglIsi: "pick a date",
-    tambahBaris: "add",
+    tambahBaris: "add", kurangBaris: "remove",
     thPengirim: "Sending division", thPenerimaDiv: "Receiving division",
     thDistribusi: "Distributed on", thDiterima: "Received on",
     divIsi: "type the division",
@@ -510,11 +510,12 @@ export default function PersetujuanPage() {
    */
   const [tglBuka, setTglBuka] = useState<string | null>(null);
   /**
-   * Baris perpindahan yang dibuka tangan, per klaim.
+   * Kotak perpindahan yang dibuka tangan, per klaim DAN per kolom —
+   * kuncinya "<id klaim>:<medan>".
    *
-   * Tidak disimpan ke server: baris kosong yang dibuka lalu ditinggalkan bukan
+   * Tidak disimpan ke server: kotak kosong yang dibuka lalu ditinggalkan bukan
    * catatan apa pun, dan menyimpannya berarti berkas yang tidak pernah
-   * berpindah tetap membawa empat baris kosong selamanya.
+   * berpindah tetap membawa kotak kosong selamanya.
    */
   const [barisAlur, setBarisAlur] = useState<Record<string, number>>({});
 
@@ -754,26 +755,34 @@ export default function PersetujuanPage() {
   const DASAR_ALUR: DasarAlur[] =
     ["sender_division", "handed_to", "distributed_at", "received_at"];
 
-  /**
-   * Berapa baris perpindahan yang tampak pada satu klaim.
-   *
-   * Dihitung untuk klaimnya, bukan untuk tiap kolom sendiri-sendiri. Satu
-   * baris adalah satu perpindahan utuh, dan kolom yang tumbuh sendiri-sendiri
-   * akan menaruh baris kedua sebuah kolom sejajar dengan baris ketiga kolom di
-   * sebelahnya — persis pasangan yang justru dicari orang saat menelusuri
-   * berkas yang tertahan.
-   *
-   * Sekurangnya satu baris, supaya yang belum pernah berpindah tetap punya
-   * tempat mengetik tanpa harus menekan apa pun lebih dulu.
-   */
-  const barisTampak = (c: any) => {
-    let terisi = 0;
-    for (const dasar of DASAR_ALUR)
-      for (const n of URUT_ALUR)
-        if (c[bernomor(dasar, n)]) terisi = Math.max(terisi, n);
-    return Math.min(URUT_ALUR.length,
-                    Math.max(terisi || 1, barisAlur[c.id] ?? 0));
+  /** Kotak terakhir yang terisi pada satu kolom; 0 bila kolomnya kosong. */
+  const terisiAlur = (c: any, dasar: DasarAlur) => {
+    let n = 0;
+    for (const i of URUT_ALUR) if (c[bernomor(dasar, i)]) n = i;
+    return n;
   };
+
+  /**
+   * Berapa kotak yang tampak pada satu kolom, pada satu baris tabel.
+   *
+   * Dihitung per kolom, sebagaimana diminta: menekan "+ tambah" pada Divisi
+   * Pengirim menambah kotak di situ saja.
+   *
+   * Akibatnya perlu diketahui: kotak keempat kolom tidak lagi dijamin
+   * sebaris. Kolom yang dibuka tiga kali berdampingan dengan kolom yang
+   * dibuka sekali akan menaruh kotak kedua sebuah kolom sejajar dengan kotak
+   * pertama tetangganya, sehingga "dari mana, ke mana, kapan" pada satu garis
+   * mendatar belum tentu satu perpindahan yang sama. Yang mengisi keempatnya
+   * berurutan tidak akan merasakannya; yang mengisi satu kolom saja lebih
+   * dulu, lalu menyusul kolom lain kemudian, perlu menghitung sendiri.
+   *
+   * Sekurangnya satu kotak, supaya kolom yang masih kosong tetap punya tempat
+   * mengetik tanpa harus menekan apa pun lebih dulu.
+   */
+  const barisTampak = (c: any, dasar: DasarAlur) =>
+    Math.min(URUT_ALUR.length,
+             Math.max(terisiAlur(c, dasar) || 1,
+                      barisAlur[`${c.id}:${dasar}`] ?? 0));
 
   /**
    * Simpan satu isian alur kerja pada satu baris.
@@ -877,15 +886,14 @@ export default function PersetujuanPage() {
   };
 
   /**
-   * Sel yang memuat baris-baris perpindahan.
+   * Sel yang memuat kotak-kotak perpindahan pada satu kolom.
    *
-   * Yang tampak hanya sebanyak yang terpakai, ditambah yang dibuka tangan
-   * lewat "+ tambah". Empat baris yang selalu digambar membuat pengajuan yang
-   * belum pernah berpindah setinggi pengajuan yang sudah berpindah empat kali,
-   * dan pada project berisi puluhan pengajuan yang dibayar untuk itu adalah
-   * gulir yang menempuh ketiadaan.
+   * Yang tampak hanya sebanyak yang terpakai pada kolom ini, ditambah yang
+   * dibuka tangan lewat "+ tambah" dan dikurangi lagi lewat "−". Empat kotak
+   * yang selalu digambar membuat pengajuan yang belum pernah berpindah
+   * setinggi pengajuan yang sudah berpindah empat kali.
    *
-   * Bagi yang hanya membaca, tidak ada baris kosong sama sekali, dan tidak ada
+   * Bagi yang hanya membaca, tidak ada kotak kosong sama sekali, dan tidak ada
    * tombolnya: ia tidak dapat mengisi, jadi tempat kosong hanya menyita ruang.
    */
   const isiEmpat = (c: any, dasar: DasarAlur, petunjuk?: string) => {
@@ -906,7 +914,8 @@ export default function PersetujuanPage() {
         </div>
       );
     }
-    const tampak = barisTampak(c);
+    const terisi = terisiAlur(c, dasar);
+    const tampak = barisTampak(c, dasar);
     return (
       <div className="alur-empat">
         {URUT_ALUR.slice(0, tampak).map((n) => (
@@ -914,18 +923,30 @@ export default function PersetujuanPage() {
             {isiAlur(c, bernomor(dasar, n), petunjuk)}
           </div>
         ))}
-        {/* Satu tombol di tiap kolom, bukan satu untuk keempatnya: kolomnya
-            berjauhan pada tabel yang digulir mendatar, dan tombol yang hanya
-            ada di kolom pertama akan berada di luar layar justru saat yang
-            mengisi sedang berada di kolom terakhir. Keempatnya menambah baris
-            yang sama, dan keempat kolom tumbuh bersama pada klik yang sama —
-            itulah yang menjelaskan sendiri bahwa ketiganya satu perbuatan. */}
-        {tampak < URUT_ALUR.length && (
-          <button type="button" className="alur-tambah"
-                  onClick={() => setBarisAlur((s) =>
-                    ({ ...s, [c.id]: tampak + 1 }))}>
-            + {k.tambahBaris}
-          </button>
+        {/* Menambah dan mengurangi kotak, pada kolom ini saja.
+            "−" hanya muncul bila ada kotak yang dibuka melebihi yang terpakai,
+            dan hanya menutup kotak yang kosong: kotak terakhir yang terisi
+            tidak pernah dapat dihilangkan dari sini, sebab tombol yang
+            kadang-kadang menghapus data adalah tombol yang tidak dapat
+            dipercaya. Yang ingin membuang isinya mengosongkan kotaknya, dan
+            kotak itu menutup sendiri. */}
+        {(tampak < URUT_ALUR.length || tampak > Math.max(terisi, 1)) && (
+          <div className="alur-tombol">
+            {tampak < URUT_ALUR.length && (
+              <button type="button" className="alur-tambah"
+                      onClick={() => setBarisAlur((s) =>
+                        ({ ...s, [`${c.id}:${dasar}`]: tampak + 1 }))}>
+                + {k.tambahBaris}
+              </button>
+            )}
+            {tampak > Math.max(terisi, 1) && (
+              <button type="button" className="alur-kurang"
+                      onClick={() => setBarisAlur((s) =>
+                        ({ ...s, [`${c.id}:${dasar}`]: tampak - 1 }))}>
+                − {k.kurangBaris}
+              </button>
+            )}
+          </div>
         )}
       </div>
     );

@@ -9,6 +9,16 @@
      emas terang di atas putih tidak cukup kontras untuk dibaca. */
   --emas: #D6A419; --emas-tua: #9A7203;
   --ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  /* Lengkung sudut, satu angka untuk seluruh sistem.
+     Kotak yang membulat sendiri-sendiri dengan angka yang ditulis di
+     tempatnya masing-masing akan berbeda satu-dua piksel, dan selisih sekecil
+     itu tidak terbaca sebagai gaya melainkan sebagai kelalaian. Nilainya kecil
+     dengan sengaja: ini layar kerja berisi tabel rapat, dan sudut yang terlalu
+     bulat membuat kotak-kotak yang berdempetan tampak saling menjauh.
+     --lengkung-besar untuk bidang lebar — panel, kartu, jendela — yang bila
+     memakai lengkung yang sama akan tampak bersudut tajam karena tepinya
+     jauh lebih panjang. */
+  --lengkung: 6px; --lengkung-besar: 10px;
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; }
@@ -29,16 +39,22 @@ h1 { margin: 0; font-size: 25px; font-weight: 640; letter-spacing: -.018em; }
 header.top p { margin: 4px 0 0; color: var(--sub); font-size: 13.5px; max-width: 62ch; }
 
 select, input, textarea, button { font-family: inherit; font-size: 13px; }
-select, input, textarea { padding: 7px 9px; border: 1px solid var(--line); background: #fff; }
+select, input, textarea {
+  padding: 7px 9px; border: 1px solid var(--line); background: #fff;
+  border-radius: var(--lengkung);
+}
 button {
   padding: 7px 12px; border: 1px solid var(--ink); background: #fff;
-  font-weight: 600; cursor: pointer;
+  font-weight: 600; cursor: pointer; border-radius: var(--lengkung);
 }
 button.pri { background: var(--ink); color: #fff; }
 button:disabled { opacity: .4; cursor: not-allowed; }
 
 .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
-.panel { background: #fff; border: 1px solid var(--line); padding: 16px 18px; }
+.panel {
+  background: #fff; border: 1px solid var(--line); padding: 16px 18px;
+  border-radius: var(--lengkung-besar);
+}
 .panel h2 {
   margin: 0 0 12px; font-size: 14px; font-weight: 650; padding-bottom: 8px;
   border-bottom: 1px solid var(--line); display: flex; justify-content: space-between;
@@ -54,6 +70,7 @@ td.n { text-align: right; font-variant-numeric: tabular-nums; color: var(--ink);
 .pill {
   display: inline-block; padding: 1px 7px; font-size: 10.5px;
   border: 1px solid var(--line); background: #FBFBFA; white-space: nowrap;
+  border-radius: var(--lengkung);
 }
 /* Dua pil berdampingan tidak boleh berdempetan menjadi satu blok. */
 .pill + .pill { margin-left: 6px; }
@@ -72,7 +89,10 @@ td.n { text-align: right; font-variant-numeric: tabular-nums; color: var(--ink);
 .pill.warn { border-color: var(--warn); color: var(--warn); background: var(--warnbg); }
 .pill.stop { border-color: var(--stop); color: var(--stop); background: var(--stopbg); }
 
-.banner { padding: 9px 11px; font-size: 12.5px; border: 1px solid; margin-bottom: 12px; line-height: 1.5; }
+.banner {
+  padding: 9px 11px; font-size: 12.5px; border: 1px solid; margin-bottom: 12px;
+  line-height: 1.5; border-radius: var(--lengkung);
+}
 .banner b { display: block; }
 .banner.info { background: var(--notebg); border-color: var(--note); color: var(--note); }
 .banner.warn { background: var(--warnbg); border-color: var(--warn); color: var(--warn); }
@@ -255,16 +275,23 @@ ul.kurang {
 .alur-empat .alur-baris + .alur-baris { border-top: 1px dashed var(--line); }
 .alur-empat .alur-baris { padding: 1px 0; min-height: 26px; }
 
-/* Membuka satu baris perpindahan lagi. Sengaja tidak setegas isian di
-   atasnya: ia jalan keluar bagi yang membutuhkannya, bukan tawaran yang
-   menuntut dijawab pada tiap baris tabel. */
-.alur-tambah {
-  align-self: flex-start; margin-top: 2px; padding: 1px 6px;
-  border: 1px dashed var(--line); border-radius: 5px; background: transparent;
+/* Membuka dan menutup satu kotak perpindahan pada kolomnya sendiri. Sengaja
+   tidak setegas isian di atasnya: keduanya jalan keluar bagi yang
+   membutuhkannya, bukan tawaran yang menuntut dijawab pada tiap baris tabel. */
+.alur-tombol { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px; }
+.alur-tambah, .alur-kurang {
+  padding: 1px 6px;
+  border: 1px dashed var(--line); border-radius: var(--lengkung);
+  background: transparent;
   font: inherit; font-size: 11px; color: var(--sub); cursor: pointer;
 }
-.alur-tambah:hover { border-style: solid; background: #fff; color: var(--ink); }
-.alur-tambah:focus-visible {
+.alur-tambah:hover, .alur-kurang:hover {
+  border-style: solid; background: #fff; color: var(--ink);
+}
+/* Yang menutup kotak memerah saat disentuh — ia membatalkan, bukan menambah,
+   dan dua tombol yang berdampingan dengan rupa yang sama mudah tertukar. */
+.alur-kurang:hover { border-color: var(--stop); color: var(--stop); }
+.alur-tambah:focus-visible, .alur-kurang:focus-visible {
   outline: 2px solid rgba(154, 114, 3, .35); outline-offset: 1px;
 }
 
@@ -1697,7 +1724,7 @@ td.sel-keadaan { text-align: center; }
    menggantung di sudut dan tidak terbaca sebagai judul barisnya. */
 .kotak-keadaan {
   display: block; width: 100%; padding: 3px 6px;
-  border: 1px solid var(--ink); background: #FFF;
+  border: 1px solid var(--ink); background: #FFF; border-radius: var(--lengkung);
   font-size: 11.5px; font-weight: 700; line-height: 1.35;
   color: var(--ink); text-align: center; white-space: normal;
 }
@@ -1719,6 +1746,7 @@ td.sel-keadaan { text-align: center; }
 .kecilkan {
   display: block; width: 100%; margin-bottom: 7px; padding: 0 6px;
   border: 1px solid var(--line); background: var(--fill);
+  border-radius: var(--lengkung);
   font-size: 11px; color: var(--mut); cursor: pointer; line-height: 1.6;
 }
 .kecilkan:hover { border-color: var(--mut); color: var(--ink); }
