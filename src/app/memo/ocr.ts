@@ -89,6 +89,72 @@ async function halamanPdf(berkas: File, lapor: (k: Kemajuan) => void) {
 export type HasilPindai = { teks: string; kata: KataOCR[] };
 
 /**
+ * Kotak letak tiap kata pada PDF yang lahir digital, tanpa OCR sama sekali.
+ *
+ * Memo yang dibuat di komputer — bukan dipindai — membawa hurufnya sendiri
+ * beserta koordinatnya. Membacanya lewat OCR berarti menggambar ulang
+ * halamannya menjadi gambar lalu menebak hurufnya kembali: belasan detik
+ * untuk memperoleh, dengan kesalahan baca, apa yang sudah tertulis persis di
+ * dalam berkasnya.
+ *
+ * Koordinat pdf.js berasal dari kiri-BAWAH halaman, sedangkan bedahSkema()
+ * membaca dari kiri-ATAS sebagaimana OCR melaporkannya. Sumbu y dibalik di
+ * sini, bukan di sana: yang tahu asal koordinatnya berkas ini.
+ *
+ * Mengembalikan kosong bila berkasnya bukan PDF, atau PDF-nya memang tidak
+ * punya lapisan teks — yang memanggil masih punya OCR sebagai jalan lain.
+ */
+export async function kataTeksPdf(berkas: File): Promise<HasilPindai> {
+  const nama = berkas.name.toLowerCase();
+  if (!berkas.type.includes("pdf") && !nama.endsWith(".pdf")) {
+    return { teks: "", kata: [] };
+  }
+  const pdfjs: any = await import("pdfjs-dist");
+  pdfjs.GlobalWorkerOptions.workerSrc = JALUR.pdfWorker;
+  const dok = await pdfjs.getDocument({
+    data: new Uint8Array(await berkas.arrayBuffer()),
+  }).promise;
+
+  const kata: KataOCR[] = [];
+  const bagian: string[] = [];
+  try {
+    const jumlah = Math.min(dok.numPages, BATAS_HALAMAN);
+    for (let i = 1; i <= jumlah; i++) {
+      const halaman = await dok.getPage(i);
+      const ukuran = halaman.getViewport({ scale: 1 });
+      const isi = await halaman.getTextContent();
+      const baris: string[] = [];
+      for (const b of isi.items as any[]) {
+        const teks = String(b.str ?? "").trim();
+        if (!teks) continue;
+        const x0 = b.transform[4];
+        const atas = ukuran.height - b.transform[5] - (b.height ?? 0);
+        // Satu butir pdf.js kerap memuat beberapa kata sekaligus. Dipecah
+        // supaya lorong antar kolom tetap terlihat, dengan lebarnya dibagi
+        // menurut panjang hurufnya — cukup untuk menemukan lorong itu.
+        const potong = teks.split(/\s+/).filter(Boolean);
+        const lebar = (b.width ?? 0) / Math.max(1, teks.length);
+        let maju = 0;
+        for (const kt of potong) {
+          const mulai = x0 + maju * lebar;
+          kata.push({
+            h: i - 1, t: kt,
+            x0: mulai, x1: mulai + kt.length * lebar,
+            y0: atas, y1: atas + (b.height ?? 0),
+          });
+          maju += kt.length + 1;
+        }
+        baris.push(teks);
+      }
+      bagian.push(baris.join(" "));
+    }
+  } finally {
+    await dok.destroy?.();
+  }
+  return { teks: bagian.join("\n"), kata };
+}
+
+/**
  * Teks seluruh halaman sebuah memo pindaian, beserta kotak letak tiap kata.
  *
  * Koordinatnya dipakai untuk memulihkan kolom tabel skema fee — lihat

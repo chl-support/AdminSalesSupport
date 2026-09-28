@@ -9,6 +9,7 @@
 import type { PoolClient } from "pg";
 import { one, query, setting } from "./db";
 import { applyRate, ratio, rupiahWords, stripVat } from "./money";
+import { WorkflowError } from "./workflow";
 
 export type ClaimType = "closing_fee" | "commission" | "cash_reward"
                       | "continuity_reward" | "overriding";
@@ -241,9 +242,18 @@ export async function calculate(
   }
 
   if (!scheme) {
-    throw new Error(
-      `Tidak ada skema insentif berlaku untuk ${claimType}/${role} pada ${onDate}. ` +
-      `Lengkapi konfigurasi sebelum klaim dapat dihitung.`,
+    // Penolakan yang WAJAR, bukan kerusakan: selama kunci pengajuan menyala,
+    // pengajuan tanpa memo yang menaunginya memang tidak boleh berjalan.
+    // Dilempar sebagai 422 berkode, bukan galat 500 mentah, supaya layarnya
+    // menampilkan kalimat ini apa adanya — dan supaya yang membacanya tahu ke
+    // mana harus pergi membetulkannya.
+    throw new WorkflowError(
+      `Belum ada memo yang berlaku untuk ${claimType}/${role} pada tanggal ` +
+      `kontrak ${onDate}. Unggah memonya di Referensi Pengajuan lalu ` +
+      `berlakukan barisnya, atau minta Admin IT melonggarkan kunci ` +
+      `pengajuan bila kasusnya memang mendesak.`,
+      "skema_tidak_ada", 422,
+      { claim_type: claimType, recipient_role: role, tanggal: onDate },
     );
   }
 
