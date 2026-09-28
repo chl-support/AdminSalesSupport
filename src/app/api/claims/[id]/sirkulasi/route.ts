@@ -29,12 +29,13 @@ import { WorkflowError } from "@/lib/workflow";
  */
 
 /**
- * Divisi penerima dan tanggal distribusi bertempat empat.
+ * Divisi penerima, tanggal distribusi dan tanggal penerima bertempat empat.
  *
  * Satu berkas berpindah beberapa kali sebelum selesai, dan Tabel Sirkulasi
  * Dokumen di kantor menyediakan empat baris untuk itu. Yang pertama tetap
- * bernama handed_to dan distributed_at tanpa akhiran: kolom itu sudah terisi,
- * dan menamainya ulang berarti memindahkan data yang sudah ada tanpa sebab.
+ * bernama handed_to, distributed_at dan received_at tanpa akhiran: ketiga
+ * kolom itu sudah terisi, dan menamainya ulang berarti memindahkan data yang
+ * sudah ada tanpa sebab.
  */
 const URUT = [2, 3, 4];
 
@@ -45,7 +46,8 @@ const TEKS: Record<string, number> = {
 };
 /** Isian tanggal; semuanya kolom DATE. */
 const TANGGAL = ["received_at", "distributed_at",
-                 ...URUT.map((n) => `distributed_at_${n}`)];
+                 ...URUT.flatMap((n) =>
+                   [`distributed_at_${n}`, `received_at_${n}`])];
 
 export const POST = handler(async (req, { params }) => {
   const { id } = await params;

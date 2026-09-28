@@ -713,7 +713,7 @@ export default function PersetujuanPage() {
 
   /** Kelima catatan alur kerja dokumen yang diisi tangan. */
   /**
-   * Divisi penerima dan tanggal distribusi bertempat empat.
+   * Divisi penerima, tanggal distribusi dan tanggal penerima bertempat empat.
    *
    * Satu berkas berpindah beberapa kali sebelum selesai, dan Tabel Sirkulasi
    * Dokumen di kantor menyediakan empat baris untuk itu. Yang pertama tetap
@@ -721,15 +721,18 @@ export default function PersetujuanPage() {
    * memindahkan data yang sudah ada tanpa sebab.
    */
   const URUT_ALUR = [1, 2, 3, 4];
-  const bernomor = (dasar: "handed_to" | "distributed_at", n: number) =>
+  type DasarAlur = "handed_to" | "distributed_at" | "received_at";
+  const bernomor = (dasar: DasarAlur, n: number) =>
     (n === 1 ? dasar : `${dasar}_${n}`) as MedanAlur;
 
-  type MedanAlur = "office_memo_no" | "sender_division" | "received_at"
+  type MedanAlur = "office_memo_no" | "sender_division"
                  | "handed_to" | "handed_to_2" | "handed_to_3" | "handed_to_4"
                  | "distributed_at" | "distributed_at_2" | "distributed_at_3"
-                 | "distributed_at_4";
-  const TANGGAL_ALUR: MedanAlur[] = ["received_at",
-    ...URUT_ALUR.map((n) => bernomor("distributed_at", n))];
+                 | "distributed_at_4"
+                 | "received_at" | "received_at_2" | "received_at_3"
+                 | "received_at_4";
+  const TANGGAL_ALUR: MedanAlur[] = URUT_ALUR.flatMap((n) =>
+    [bernomor("distributed_at", n), bernomor("received_at", n)]);
 
   /**
    * Simpan satu isian alur kerja pada satu baris.
@@ -840,8 +843,11 @@ export default function PersetujuanPage() {
    * Yang mengisi tetap melihat keempatnya, sebab kotak yang tidak ada tidak
    * dapat diisi.
    */
-  const isiEmpat = (c: any, dasar: "handed_to" | "distributed_at",
-                    petunjuk?: string) => {
+  const isiEmpat = (c: any, dasar: DasarAlur, petunjuk?: string) => {
+    // Bentuknya dibaca dari TANGGAL_ALUR, bukan dari nama dasarnya: satu
+    // perbandingan nama yang ditulis tangan akan diam-diam meleset begitu
+    // kolom tanggal ketiga menyusul, dan tanggalnya tercetak sebagai teks ISO.
+    const tanggal = TANGGAL_ALUR.includes(bernomor(dasar, 1));
     if (!bolehIom) {
       const ada = URUT_ALUR.map((n) => c[bernomor(dasar, n)]).filter(Boolean);
       if (!ada.length) return "—";
@@ -849,7 +855,7 @@ export default function PersetujuanPage() {
         <div className="alur-empat">
           {ada.map((v, i) => (
             <div key={i} className="alur-baris">
-              {dasar === "distributed_at" ? tglPendek(v) : v}
+              {tanggal ? tglPendek(v) : v}
             </div>
           ))}
         </div>
@@ -1325,7 +1331,7 @@ export default function PersetujuanPage() {
                 <td>{isiAlur(c, "sender_division", k.divIsi)}</td>
                 <td>{isiEmpat(c, "handed_to", k.divIsi)}</td>
                 <td>{isiEmpat(c, "distributed_at")}</td>
-                <td>{isiAlur(c, "received_at")}</td>
+                <td>{isiEmpat(c, "received_at")}</td>
                 <td className="sel-keadaan">
                   {/* Panah peringkas. Hanya panah, tanpa tulisan: ia berdiri
                       di atas empat kotak yang semuanya bertulisan, dan tulisan

@@ -376,15 +376,18 @@ ALTER TABLE claims ADD COLUMN IF NOT EXISTS sender_division TEXT;
 ALTER TABLE claims ADD COLUMN IF NOT EXISTS handed_to TEXT;
 ALTER TABLE claims ADD COLUMN IF NOT EXISTS distributed_at DATE;
 
--- Satu berkas berpindah beberapa kali sebelum selesai, jadi divisi penerima
--- dan tanggal distribusinya masing-masing bertempat empat — sebanyak baris
--- yang disediakan Tabel Sirkulasi Dokumen di kantor.
+-- Satu berkas berpindah beberapa kali sebelum selesai, jadi divisi penerima,
+-- tanggal distribusi dan tanggal penerimanya masing-masing bertempat empat —
+-- sebanyak baris yang disediakan Tabel Sirkulasi Dokumen di kantor.
 ALTER TABLE claims ADD COLUMN IF NOT EXISTS handed_to_2 TEXT;
 ALTER TABLE claims ADD COLUMN IF NOT EXISTS handed_to_3 TEXT;
 ALTER TABLE claims ADD COLUMN IF NOT EXISTS handed_to_4 TEXT;
 ALTER TABLE claims ADD COLUMN IF NOT EXISTS distributed_at_2 DATE;
 ALTER TABLE claims ADD COLUMN IF NOT EXISTS distributed_at_3 DATE;
 ALTER TABLE claims ADD COLUMN IF NOT EXISTS distributed_at_4 DATE;
+ALTER TABLE claims ADD COLUMN IF NOT EXISTS received_at_2 DATE;
+ALTER TABLE claims ADD COLUMN IF NOT EXISTS received_at_3 DATE;
+ALTER TABLE claims ADD COLUMN IF NOT EXISTS received_at_4 DATE;
 
 -- BR-05: satu klaim aktif per kombinasi unit + jenis + peran penerima.
 CREATE UNIQUE INDEX IF NOT EXISTS uniq_active_claim

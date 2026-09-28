@@ -50,7 +50,7 @@ const tgl = (v: any) => {
 };
 
 /**
- * Keempat tempat divisi penerima dan tanggal distribusi.
+ * Keempat tempat divisi penerima, tanggal distribusi dan tanggal penerima.
  *
  * Yang pertama tersimpan tanpa akhiran — kolomnya sudah terisi sejak sebelum
  * keempatnya ada, dan menamainya ulang berarti memindahkan data tanpa sebab.
@@ -128,7 +128,9 @@ export const GET = handler(async (req) => {
     ...URUT.map((n): [string, number, (c: Baris) => string] =>
       [`Tanggal Distribusi ${n}`, 20,
        (c) => tgl(c[medanAlur("distributed_at", n)])]),
-    ["Tanggal Penerima", 20, (c) => tgl(c.received_at)],
+    ...URUT.map((n): [string, number, (c: Baris) => string] =>
+      [`Tanggal Penerima ${n}`, 20,
+       (c) => tgl(c[medanAlur("received_at", n)])]),
     ["Status", 26, (c) => KEADAAN[c.status] ?? c.status],
     // Nomor klaim tercetak kecil di bawah tanggal pada layar; di sini ia
     // mendapat kolomnya sendiri, sebab lembar kerja tidak mengenal baris kecil

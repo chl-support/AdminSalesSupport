@@ -246,7 +246,8 @@ export async function claimView(claim: any) {
     : v instanceof Date ? v.toISOString().slice(0, 10)
     : String(v).slice(0, 10);
   const TGL_ALUR = ["received_at", "distributed_at",
-                    "distributed_at_2", "distributed_at_3", "distributed_at_4"];
+                    "distributed_at_2", "distributed_at_3", "distributed_at_4",
+                    "received_at_2", "received_at_3", "received_at_4"];
 
   return {
     ...claim, unit, marketing: mkt, bank_account: bank,
