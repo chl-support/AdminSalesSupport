@@ -86,6 +86,15 @@ async function pasang(): Promise<void> {
   await query("ALTER TABLE claims ADD COLUMN IF NOT EXISTS received_at DATE");
   await query(
     "ALTER TABLE claims ADD COLUMN IF NOT EXISTS sender_division TEXT");
+  // Periode penjualan yang direkap sebuah pengajuan Overriding, diketik pada
+  // formulirnya: "Cut Off Penjualan As Of" dari tanggal sekian sampai sekian.
+  // Sebelumnya periode itu disimpulkan dari tanggal kontrak unit yang
+  // kebetulan masuk rekapnya — yang berarti lembar yang sama dapat menyebut
+  // periode berbeda setiap kali dicetak ulang.
+  await query(
+    "ALTER TABLE claims ADD COLUMN IF NOT EXISTS sales_period_start DATE");
+  await query(
+    "ALTER TABLE claims ADD COLUMN IF NOT EXISTS sales_period_end DATE");
   await query("ALTER TABLE claims ADD COLUMN IF NOT EXISTS handed_to TEXT");
   await query("ALTER TABLE claims ADD COLUMN IF NOT EXISTS distributed_at DATE");
 
