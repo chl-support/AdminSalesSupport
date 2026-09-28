@@ -220,6 +220,25 @@ td.belum-ada, .belum-ada { color: var(--mut); text-align: center; }
    sampai ke sisi judulnya. */
 .pil-sirkulasi { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
 
+/* Tabel Sirkulasi Dokumen.
+
+   Judul kolomnya di tengah dan sejajar di tengah tingginya: judulnya panjang
+   dan banyak yang turun dua baris, sehingga yang rata atas tampak melayang di
+   atas tetangganya yang satu baris.
+
+   Kolom nomornya pun di tengah — mendatar dan menegak. Barisnya setinggi
+   isian terpanjangnya, dan angka yang menempel di atas tidak lagi terbaca
+   sebagai nomor barisnya. */
+.tabel-sirkulasi th { text-align: center; vertical-align: middle; }
+/* Isian tanggal meminta lebar bawaannya yang lega — dua di antaranya
+   berdampingan cukup untuk mendorong Status dan Tindakan keluar layar.
+   Dipersempit secukupnya, tetapi isian teksnya tetap diberi lebar minimum:
+   tabel yang membagi sisa ruang sendiri menyusutkan keduanya sampai
+   tulisannya terpotong di tengah kata. */
+.tabel-sirkulasi .isi-sirkulasi { min-width: 92px; }
+.tabel-sirkulasi .isi-sirkulasi[type="date"] { width: 96px; min-width: 0; }
+.tabel-sirkulasi td:first-child { text-align: center; vertical-align: middle; }
+
 .isi-sirkulasi {
   width: 100%; min-width: 96px; padding: 3px 6px;
   border: 1px solid transparent; border-radius: 5px;
