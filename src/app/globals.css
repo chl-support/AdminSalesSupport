@@ -2253,3 +2253,13 @@ td.sel-tindakan > a.tautan-klaim:last-child { margin-bottom: 0; }
    muat, bertumpuk bila kolomnya sempit. */
 .tindakan-rujukan { display: flex; flex-wrap: wrap; gap: 6px; }
 .tindakan-rujukan button { flex: 1 1 auto; white-space: nowrap; }
+
+/* Satu baris memo di dalam dialog pemberlakuan: kotaknya sendiri, supaya
+   isian sebelas baris tidak terbaca sebagai satu formulir panjang yang
+   kolomnya berulang tanpa ujung. */
+.baris-berlaku {
+  padding: 10px 12px; margin-bottom: 10px;
+  border: 1px solid var(--line); border-radius: var(--lengkung);
+  background: #FCFCFB;
+}
+.baris-berlaku:last-child { margin-bottom: 0; }

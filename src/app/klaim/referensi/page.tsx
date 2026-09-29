@@ -26,7 +26,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { useBahasa, useKata } from "../../bahasa";
 import { bedahSkema, type BarisSkema } from "@/lib/memo-skema";
-import { KATEGORI_JENIS, namaKategori } from "@/lib/kategori";
+import { KATEGORI_JENIS, kategoriBoleh, namaKategori } from "@/lib/kategori";
 import { bacaPindaian, kataTeksPdf, type Kemajuan } from "../../memo/ocr";
 import { pasangBerkas, periksaUkuran, perluDipecah, titipBerkas }
   from "../../memo/kirim";
@@ -36,6 +36,18 @@ import { namaJenis } from "../jenis";
 
 const JENIS = ["closing_fee", "commission", "cash_reward",
                "continuity_reward", "overriding"] as const;
+
+/**
+ * Tingkat overriding yang dikenal basis data.
+ *
+ * Kategori penerima dan tingkat overriding adalah dua daftar yang berbeda:
+ * Markom dan Sales Koordinator boleh menerima overriding, tetapi keduanya
+ * bukan tingkat overriding. Dikirim apa adanya, basis data menolak seluruh
+ * pemberlakuannya dengan "invalid input value for enum overriding_level".
+ * Skema tanpa tingkat tetap tersaring oleh kategori penerimanya.
+ */
+const TINGKAT_OR = ["sales_manager_inhouse", "kantor_agent", "lead_agent",
+                    "coordinator_agent_1", "coordinator_agent_2"];
 
 const KATA = {
   id: {
@@ -98,6 +110,24 @@ const KATA = {
     dSimpan: "Berlakukan", dBatal: "Batal",
     dTanggalWajib: "Berlaku dari harus diisi.",
     berlakuKabar: "Baris diberlakukan sebagai skema insentif.",
+    dJudulMemo: (n: string) => `Berlakukan baris memo ${n}`,
+    dPengantarMemo:
+      "Seluruh baris memo ini diperiksa di sini, lalu diberlakukan sekali " +
+      "tekan. Hilangkan centang pada baris yang belum ingin diberlakukan.",
+    dSudahBerlaku: "Sudah berlaku",
+    dTakAdaBaris: "Seluruh baris memo ini sudah berlaku.",
+    dSimpanN: (n: number) => `Berlakukan ${n} baris`,
+    berlakuKabarN: (n: number) =>
+      `${n} baris diberlakukan sebagai skema insentif.`,
+    berlakuSebagian: (ok: number, gagal: number) =>
+      `${ok} baris diberlakukan, ${gagal} baris gagal.`,
+    dTanggalWajibBaris: (nama: string) =>
+      `Berlaku dari harus diisi pada baris "${nama}".`,
+    cabutMemoTanya: (n: number) =>
+      `Nonaktifkan ${n} baris yang sedang berlaku pada memo ini?`,
+    cabutKabarN: (n: number) =>
+      `${n} baris dinonaktifkan; kembali menjadi usulan.`,
+    cabutTakAda: "Tidak ada baris memo ini yang sedang berlaku.",
     cabutKabar: "Baris dinonaktifkan; kembali menjadi usulan.",
     cabutTanya: "Nonaktifkan pemberlakuan baris ini?",
     hapusMemo: "Hapus memo",
@@ -161,6 +191,22 @@ const KATA = {
     dSimpan: "Put in force", dBatal: "Cancel",
     dTanggalWajib: "\"In force from\" is required.",
     berlakuKabar: "The row is now an incentive scheme.",
+    dJudulMemo: (n: string) => `Put memo ${n} rows in force`,
+    dPengantarMemo:
+      "Every row of this memo is checked here, then put in force in one " +
+      "press. Untick a row you are not ready to put in force.",
+    dSudahBerlaku: "Already in force",
+    dTakAdaBaris: "Every row of this memo is already in force.",
+    dSimpanN: (n: number) => `Put ${n} rows in force`,
+    berlakuKabarN: (n: number) => `${n} rows put in force.`,
+    berlakuSebagian: (ok: number, gagal: number) =>
+      `${ok} rows put in force, ${gagal} failed.`,
+    dTanggalWajibBaris: (nama: string) =>
+      `Effective from is required on row "${nama}".`,
+    cabutMemoTanya: (n: number) =>
+      `Deactivate the ${n} rows currently in force on this memo?`,
+    cabutKabarN: (n: number) => `${n} rows deactivated; proposals again.`,
+    cabutTakAda: "No row of this memo is currently in force.",
     cabutKabar: "Withdrawn; the row is a proposal again.",
     cabutTanya: "Withdraw this row from force?",
     hapusMemo: "Delete memo",
@@ -256,7 +302,7 @@ export default function ReferensiPengajuanPage() {
   const [kemajuan, setKemajuan] = useState<string | null>(null);
   const [seret, setSeret] = useState(false);
   /** Baris yang sedang diperiksa di dialog pemberlakuan. */
-  const [dialog, setDialog] = useState<Baris | null>(null);
+  const [dialog, setDialog] = useState<Baris[] | null>(null);
 
   const bolehBerlaku = ["admin_sales", "admin_system"]
     .includes(sesi?.role ?? "");
@@ -425,15 +471,32 @@ export default function ReferensiPengajuanPage() {
     } finally { setBusy(false); }
   };
 
-  const cabut = async (b: Baris) => {
-    if (!confirm(k.cabutTanya)) return;
+  /**
+   * Nonaktifkan seluruh baris memo yang sedang berlaku.
+   *
+   * Satu per satu, dan yang gagal tidak menghentikan sisanya: server menolak
+   * mencabut baris yang skemanya sudah dipakai menghitung sebuah klaim, dan
+   * penolakan itu benar — tetapi ia tidak ada hubungannya dengan sepuluh
+   * baris lain pada memo yang sama. Yang gagal disebutkan jumlahnya beserta
+   * alasan yang pertama, bukan ditelan diam-diam.
+   */
+  const cabutMemo = async (daftar: Baris[]) => {
+    const berlaku = daftar.filter((b) => b.scheme_id);
+    if (!berlaku.length) { setGalat(k.cabutTakAda); return; }
+    if (!confirm(k.cabutMemoTanya(berlaku.length))) return;
     setBusy(true); setGalat(null); setKabar(null);
     try {
-      const res = await fetch(`/api/rujukan/${b.id}`, { method: "DELETE" });
-      if (res.status === 401) { location.href = "/login"; return; }
-      const j = await res.json().catch(() => ({}));
-      if (!res.ok) { setGalat(j.detail ?? `HTTP ${res.status}`); return; }
-      setKabar(k.cabutKabar);
+      let berhasil = 0;
+      let pesan: string | null = null;
+      for (const b of berlaku) {
+        const res = await fetch(`/api/rujukan/${b.id}`, { method: "DELETE" });
+        if (res.status === 401) { location.href = "/login"; return; }
+        const j = await res.json().catch(() => ({}));
+        if (res.ok) berhasil += 1;
+        else pesan ??= j.detail ?? `HTTP ${res.status}`;
+      }
+      if (berhasil) setKabar(k.cabutKabarN(berhasil));
+      if (pesan) setGalat(pesan);
       await muat();
     } catch (e: any) {
       setGalat(String(e?.message ?? e));
@@ -608,8 +671,8 @@ export default function ReferensiPengajuanPage() {
                  tertinggal. */
               <Kotak key={g.kunci} no={i + 1} baris={g.baris} k={k}
                      bahasa={bahasa} busy={busy} bolehBerlaku={bolehBerlaku}
-                     cabut={cabut} hapusMemo={hapusMemo}
-                     berlakukan={(b) => { setDialog(b); setGalat(null); }} />
+                     cabutMemo={cabutMemo} hapusMemo={hapusMemo}
+                     berlakukan={(d) => { setDialog(d); setGalat(null); }} />
             ))}
 
             {!baris.length && !busy && (
@@ -629,9 +692,12 @@ export default function ReferensiPengajuanPage() {
       {dialog && (
         <DialogBerlaku baris={dialog} k={k} bahasa={bahasa}
                        tutup={() => setDialog(null)}
-                       selesai={async () => {
+                       segarkan={muat}
+                       selesai={async (berhasil, gagal) => {
                          setDialog(null);
-                         setKabar(k.berlakuKabar);
+                         setKabar(gagal
+                           ? k.berlakuSebagian(berhasil, gagal)
+                           : k.berlakuKabarN(berhasil));
                          await muat();
                        }}
                        galat={setGalat} />
@@ -650,13 +716,13 @@ export default function ReferensiPengajuanPage() {
  * bagian itu akan tampak sebagai satu blok, dan kategori di antaranya ikut
  * tersedot ke dalamnya.
  */
-function Kotak({ no, baris, k, bahasa, busy, bolehBerlaku, cabut, hapusMemo,
-                berlakukan }: {
+function Kotak({ no, baris, k, bahasa, busy, bolehBerlaku, cabutMemo,
+                hapusMemo, berlakukan }: {
   no: number; baris: Baris[]; k: any; bahasa: "id" | "en"; busy: boolean;
   bolehBerlaku: boolean;
-  cabut: (b: Baris) => Promise<void> | void;
+  cabutMemo: (daftar: Baris[]) => Promise<void> | void;
   hapusMemo: (memoId: string, nomor: string | null) => Promise<void> | void;
-  berlakukan: (b: Baris) => void;
+  berlakukan: (daftar: Baris[]) => void;
 }) {
   const memo = baris[0];
 
@@ -711,6 +777,27 @@ function Kotak({ no, baris, k, bahasa, busy, bolehBerlaku, cabut, hapusMemo,
   // akan menarik baris memo berikutnya masuk ke dalam bentangan ini.
   const totalBaris = grup.reduce(
     (n, gr) => n + (bukaSkema[kunciGrup(gr)] ? gr.length : 1), 0);
+
+  const adaBerlaku = baris.some((b) => b.scheme_id);
+  const adaUsulan = baris.some((b) => !b.scheme_id);
+
+  /* Satu pasang tombol untuk seluruh memo, dibentangkan setinggi barisnya.
+     Sebelas baris skema berarti sebelas pasang tombol pada satu memo, dan
+     kolom Tindakan menjadi dinding tombol yang menenggelamkan isi memonya.
+     Yang diberlakukan tetap tiap baris beserta tarifnya sendiri — hanya
+     pemeriksaannya yang dikumpulkan ke dalam satu dialog. */
+  const selTindakan = bolehBerlaku ? (
+    <td rowSpan={totalBaris} className="tindakan-rujukan">
+      <button className="pri" disabled={busy || !adaUsulan}
+              onClick={() => berlakukan(baris)}>
+        {k.berlakukan}
+      </button>
+      <button disabled={busy || !adaBerlaku}
+              onClick={() => void cabutMemo(baris)}>
+        {k.cabut}
+      </button>
+    </td>
+  ) : null;
 
   let sudahDigambar = 0;
 
@@ -777,7 +864,7 @@ function Kotak({ no, baris, k, bahasa, busy, bolehBerlaku, cabut, hapusMemo,
               <td className="sel-kategori" />
               <td />
               <td />
-              {bolehBerlaku && <td />}
+              {pertama && selTindakan}
             </tr>
           );
         }
@@ -839,23 +926,7 @@ function Kotak({ no, baris, k, bahasa, busy, bolehBerlaku, cabut, hapusMemo,
               <td className="sel-rinci">
                 {buka[b.id] ? (b.keterangan ?? "—") : null}
               </td>
-              {/* Keduanya berdiri berdampingan, dan yang tidak berlaku pada
-                  baris ini dimatikan — bukan dihilangkan. Tombol yang
-                  muncul-hilang membuat orang mencari-cari di mana sebuah
-                  baris dinonaktifkan; yang mati di tempatnya sudah
-                  mengatakan bahwa barisnya memang belum berlaku. */}
-              {bolehBerlaku && (
-                <td className="tindakan-rujukan">
-                  <button className="pri" disabled={busy || !!b.scheme_id}
-                          onClick={() => berlakukan(b)}>
-                    {k.berlakukan}
-                  </button>
-                  <button disabled={busy || !b.scheme_id}
-                          onClick={() => void cabut(b)}>
-                    {k.cabut}
-                  </button>
-                </td>
-              )}
+              {pertama && selTindakan}
             </tr>
           );
         });
@@ -865,75 +936,144 @@ function Kotak({ no, baris, k, bahasa, busy, bolehBerlaku, cabut, hapusMemo,
 }
 
 /**
- * Dialog pemeriksaan sebelum sebuah baris menjadi tarif.
+ * Dialog pemeriksaan sebelum baris-baris sebuah memo menjadi tarif.
  *
- * Isiannya diisi awal dari yang terbaca pada memo — jenis fee ditebak dari
- * judul tabelnya, persentase dari nilainya, masa berlaku dari periode
- * programnya — tetapi seluruhnya dapat diubah. Tebakan yang tidak dapat
- * dibantah adalah tebakan yang menjadi angka pembayaran tanpa ada yang
- * pernah menyetujuinya.
+ * Satu dialog untuk seluruh memo, bukan satu per baris. Sebuah memo memuat
+ * belasan baris skema, dan yang memeriksanya membaca memo itu sekali lalu
+ * menurunkan seluruh tarifnya — bukan membuka dan menutup dialog sebelas
+ * kali untuk satu lembar kertas yang sama.
+ *
+ * Isian tiap baris diisi awal dari yang terbaca pada memonya — jenis fee
+ * ditebak dari judul tabelnya, persentase dari nilainya, masa berlaku dari
+ * periode programnya — tetapi seluruhnya dapat diubah, dan centangnya dapat
+ * dilepas pada baris yang memang belum hendak diberlakukan. Tebakan yang
+ * tidak dapat dibantah adalah tebakan yang menjadi angka pembayaran tanpa
+ * ada yang pernah menyetujuinya.
  */
-function DialogBerlaku({ baris, k, bahasa, tutup, selesai, galat }: {
-  baris: any; k: any; bahasa: "id" | "en";
-  tutup: () => void; selesai: () => Promise<void>;
-  galat: (s: string | null) => void;
-}) {
-  const teks = `${baris.skema} ${baris.kategori ?? ""}`.toLowerCase();
+type Isian = {
+  jenis: string; kategori: string; cara: string; persen: string;
+  nominal: string; bersih: boolean; dasar: string;
+  dari: string; sampai: string; pilih: boolean;
+};
+
+/** Tebakan awal sebuah baris, dari tulisan memonya sendiri. */
+function isiAwal(b: any): Isian {
+  const teks = `${b.skema} ${b.kategori ?? ""}`.toLowerCase();
   // Urutannya bukan selera: judul tabel memo lazim menyebut dua hal sekaligus
   // — "Skema Komisi & Reward Sales Inhouse" — dan yang dicocokkan lebih dulu
   // yang menang. Komisi karena itu diperiksa sebelum reward, sebab tabel
   // berjudul demikian hampir selalu berisi komisi.
-  const tebakJenis =
+  const jenis =
     /overid|overrid/.test(teks) ? "overriding"
     : /closing/.test(teks) ? "closing_fee"
     : /continuity/.test(teks) ? "continuity_reward"
     : /komisi|commission/.test(teks) ? "commission"
     : /reward/.test(teks) ? "cash_reward"
     : "commission";
-  const tebakKategori =
+  const tebakan =
     /agent/.test(teks) ? "agent"
     : /manager/.test(teks) ? "sales_manager_inhouse"
     : /koordinator|coordinator/.test(teks) ? "sales_coordinator"
     : /markom/.test(teks) ? "markom"
     : /bgb/.test(teks) ? "bgb"
     : "sales_inhouse";
+  // Tidak setiap kategori boleh menerima setiap jenis fee — Overriding tidak
+  // pernah jatuh kepada Sales Inhouse. Tebakan yang tidak sah diganti
+  // kategori pertama yang memang sah bagi jenisnya, bukan dikirim begitu
+  // saja untuk ditolak basis data.
+  const kategori = kategoriBoleh(jenis, tebakan)
+    ? tebakan : (KATEGORI_JENIS[jenis] ?? ["sales_inhouse"])[0];
+  const persen = persenDariNilai(b.nilai);
+  const nominal = nominalDariNilai(b.nilai);
+  return {
+    jenis, kategori,
+    cara: persen || !nominal ? "persen" : "nominal",
+    persen, nominal, bersih: false, dasar: "contract_value_incl_vat",
+    dari: b.periode_awal ?? "", sampai: b.periode_akhir ?? "",
+    pilih: true,
+  };
+}
 
-  const [jenis, setJenis] = useState(tebakJenis);
-  const [kategori, setKategori] = useState(tebakKategori);
-  const [cara, setCara] = useState(
-    persenDariNilai(baris.nilai) || !nominalDariNilai(baris.nilai)
-      ? "persen" : "nominal");
-  const [persen, setPersen] = useState(persenDariNilai(baris.nilai));
-  const [nominalIsi, setNominalIsi] = useState(nominalDariNilai(baris.nilai));
-  const [bersih, setBersih] = useState(false);
-  const [dasar, setDasar] = useState("contract_value_incl_vat");
-  const [dari, setDari] = useState(baris.periode_awal ?? "");
-  const [sampai, setSampai] = useState(baris.periode_akhir ?? "");
+function DialogBerlaku({ baris, k, bahasa, tutup, selesai, segarkan, galat }: {
+  baris: any[]; k: any; bahasa: "id" | "en";
+  tutup: () => void;
+  selesai: (berhasil: number, gagal: number) => Promise<void>;
+  segarkan: () => Promise<void>;
+  galat: (s: string | null) => void;
+}) {
+  const memo = baris[0];
+  // Yang sudah berlaku tidak ikut: memberlakukannya kedua kali ditolak
+  // server, dan menampilkannya sebagai isian yang dapat dicentang hanya
+  // menjanjikan perbuatan yang tidak akan terjadi.
+  const usulan = baris.filter((b) => !b.scheme_id);
+
+  const [isian, setIsian] = useState<Record<string, Isian>>(() =>
+    Object.fromEntries(usulan.map((b) => [b.id, isiAwal(b)])));
   const [busy, setBusy] = useState(false);
   const [pesan, setPesan] = useState<string | null>(null);
+  /** Baris yang sudah berhasil diberlakukan pada tekan sebelumnya. */
+  const [sudah, setSudah] = useState<Record<string, boolean>>({});
+  /** Alasan penolakan, menempel pada barisnya sendiri. */
+  const [tolak, setTolak] = useState<Record<string, string>>({});
+
+  const ubah = (id: string, bagian: Partial<Isian>) =>
+    setIsian((s) => ({ ...s, [id]: { ...s[id], ...bagian } }));
+
+  const terpilih = usulan.filter((b) => isian[b.id]?.pilih && !sudah[b.id]);
 
   const simpan = async () => {
-    if (!dari) { setPesan(k.dTanggalWajib); return; }
+    const kosong = terpilih.find((b) => !isian[b.id].dari);
+    if (kosong) {
+      setPesan(k.dTanggalWajibBaris(kosong.kategori ?? kosong.skema));
+      return;
+    }
     setBusy(true); setPesan(null); galat(null);
     try {
-      const res = await fetch(`/api/rujukan/${baris.id}`, {
-        method: "POST", headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          claim_type: jenis,
-          recipient_role: kategori,
-          overriding_level: jenis === "overriding" ? kategori : null,
-          basis: dasar,
-          percentage: cara === "persen" ? persen : null,
-          flat_amount: cara === "nominal" ? nominalIsi : null,
-          flat_amount_is_net: cara === "nominal" && bersih,
-          effective_from: dari,
-          effective_to: sampai || null,
-        }),
-      });
-      if (res.status === 401) { location.href = "/login"; return; }
-      const b = await res.json().catch(() => ({}));
-      if (!res.ok) { setPesan(b.detail ?? `HTTP ${res.status}`); return; }
-      await selesai();
+      let berhasil = 0, gagal = 0;
+      const gagalBaris: Record<string, string> = {};
+      const berhasilBaris: Record<string, boolean> = {};
+      // Satu per satu, dan yang gagal tidak menghentikan sisanya: tarif yang
+      // ditolak pada satu baris tidak ada hubungannya dengan sepuluh baris
+      // lain pada memo yang sama.
+      for (const b of terpilih) {
+        const v = isian[b.id];
+        const res = await fetch(`/api/rujukan/${b.id}`, {
+          method: "POST", headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            claim_type: v.jenis,
+            recipient_role: v.kategori,
+            overriding_level:
+              v.jenis === "overriding" && TINGKAT_OR.includes(v.kategori)
+                ? v.kategori : null,
+            basis: v.dasar,
+            percentage: v.cara === "persen" ? v.persen : null,
+            flat_amount: v.cara === "nominal" ? v.nominal : null,
+            flat_amount_is_net: v.cara === "nominal" && v.bersih,
+            effective_from: v.dari,
+            effective_to: v.sampai || null,
+          }),
+        });
+        if (res.status === 401) { location.href = "/login"; return; }
+        const j = await res.json().catch(() => ({}));
+        if (res.ok) { berhasil += 1; berhasilBaris[b.id] = true; }
+        else {
+          gagal += 1;
+          gagalBaris[b.id] = j.detail ?? `HTTP ${res.status}`;
+        }
+      }
+      // Ada yang ditolak: dialognya TIDAK ditutup. Alasan penolakan menempel
+      // pada barisnya — "Isi persentase atau nominal tetapnya lebih dulu"
+      // pada baris yang nilainya memang berupa kalimat, bukan satu angka —
+      // dan itu justru yang harus dikerjakan sekarang, di tempat isiannya
+      // berada. Yang berhasil ditandai supaya tidak dikirim dua kali.
+      if (gagal) {
+        setSudah((s) => ({ ...s, ...berhasilBaris }));
+        setTolak(gagalBaris);
+        setPesan(k.berlakuSebagian(berhasil, gagal));
+        await segarkan();
+        return;
+      }
+      await selesai(berhasil, gagal);
     } catch (e: any) {
       setPesan(String(e?.message ?? e));
     } finally { setBusy(false); }
@@ -943,100 +1083,157 @@ function DialogBerlaku({ baris, k, bahasa, tutup, selesai, galat }: {
     <div className="popup-latar"
          onClick={(e) => { if (e.target === e.currentTarget && !busy) tutup(); }}>
       <div className="popup" role="dialog" aria-modal="true"
-           style={{ maxWidth: 560 }}>
+           style={{ maxWidth: 760 }}>
         <div className="popup-kepala">
-          <h3>{k.dJudul}</h3>
+          <h3>{k.dJudulMemo(memo.no_memo ?? "—")}</h3>
           <button className="tautan" onClick={tutup} disabled={busy}>✕</button>
         </div>
 
         <div className="popup-isi">
           <p className="hint" style={{ textAlign: "left", margin: "0 0 12px" }}>
-            {k.dPengantar}
+            {k.dPengantarMemo}
           </p>
           {pesan && <div className="banner stop">{pesan}</div>}
 
-          <div className="lbl">{k.dBaris}</div>
-          <p style={{ margin: "2px 0 12px" }}>
-            <b>{baris.skema}</b>
-            <br />{baris.kategori ?? "—"} — {baris.nilai ?? "—"}
-            {baris.keterangan ? <><br />
-              <span className="meta">{baris.keterangan}</span></> : null}
-          </p>
+          {!usulan.length && <div className="banner">{k.dTakAdaBaris}</div>}
 
-          <div className="filters rapat">
-            <div>
-              <div className="lbl">{k.dJenis}</div>
-              <select value={jenis} onChange={(e) => setJenis(e.target.value)}>
-                {JENIS.map((j) => (
-                  <option key={j} value={j}>{namaJenis(j as any, bahasa)}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <div className="lbl">{k.dKategori}</div>
-              <select value={kategori}
-                      onChange={(e) => setKategori(e.target.value)}>
-                {(KATEGORI_JENIS[jenis] ?? []).map((kd) => (
-                  <option key={kd} value={kd}>{namaKategori(kd, bahasa)}</option>
-                ))}
-              </select>
-            </div>
-          </div>
+          {usulan.map((b) => {
+            const v = isian[b.id];
+            return (
+              <div key={b.id} className="baris-berlaku">
+                <label className="row" style={{ gap: 6, alignItems: "baseline" }}>
+                  <input type="checkbox" checked={v.pilih && !sudah[b.id]}
+                         disabled={busy || !!sudah[b.id]}
+                         onChange={(e) => ubah(b.id, { pilih: e.target.checked })} />
+                  <span>
+                    <b>{b.kategori ?? "—"}</b>
+                    <span className="meta"> · {tanpaKataSkema(b.skema)}</span>
+                    <br /><span className="meta">{b.nilai ?? "—"}</span>
+                    {sudah[b.id] && <>
+                      <br /><span className="pill ok">{k.dSudahBerlaku}</span>
+                    </>}
+                  </span>
+                </label>
 
-          <div className="filters rapat" style={{ marginTop: 10 }}>
-            <div>
-              <div className="lbl">{k.dCara}</div>
-              <select value={cara} onChange={(e) => setCara(e.target.value)}>
-                <option value="persen">{k.dPersenPilih}</option>
-                <option value="nominal">{k.dNominalPilih}</option>
-              </select>
-            </div>
-            <div>
-              <div className="lbl">
-                {cara === "persen" ? k.dPersen : k.dNominal}
+                {tolak[b.id] && !sudah[b.id] && (
+                  <div className="banner stop sp">{tolak[b.id]}</div>
+                )}
+
+                {v.pilih && !sudah[b.id] && (
+                  <>
+                    <div className="filters rapat" style={{ marginTop: 8 }}>
+                      <div>
+                        <div className="lbl">{k.dJenis}</div>
+                        <select value={v.jenis} disabled={busy}
+                                onChange={(e) => {
+                                  const j = e.target.value;
+                                  const sah = kategoriBoleh(j, v.kategori)
+                                    ? v.kategori
+                                    : (KATEGORI_JENIS[j] ?? [])[0] ?? "";
+                                  ubah(b.id, { jenis: j, kategori: sah });
+                                }}>
+                          {JENIS.map((j) => (
+                            <option key={j} value={j}>
+                              {namaJenis(j as any, bahasa)}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <div className="lbl">{k.dKategori}</div>
+                        <select value={v.kategori} disabled={busy}
+                                onChange={(e) =>
+                                  ubah(b.id, { kategori: e.target.value })}>
+                          {(KATEGORI_JENIS[v.jenis] ?? []).map((kd) => (
+                            <option key={kd} value={kd}>
+                              {namaKategori(kd, bahasa)}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="filters rapat" style={{ marginTop: 8 }}>
+                      <div>
+                        <div className="lbl">{k.dCara}</div>
+                        <select value={v.cara} disabled={busy}
+                                onChange={(e) =>
+                                  ubah(b.id, { cara: e.target.value })}>
+                          <option value="persen">{k.dPersenPilih}</option>
+                          <option value="nominal">{k.dNominalPilih}</option>
+                        </select>
+                      </div>
+                      <div>
+                        <div className="lbl">
+                          {v.cara === "persen" ? k.dPersen : k.dNominal}
+                        </div>
+                        {v.cara === "persen" ? (
+                          <input value={v.persen} inputMode="decimal"
+                                 disabled={busy}
+                                 onChange={(e) =>
+                                   ubah(b.id, { persen: e.target.value })} />
+                        ) : (
+                          <input value={v.nominal} inputMode="numeric"
+                                 disabled={busy}
+                                 onChange={(e) =>
+                                   ubah(b.id, { nominal: e.target.value })} />
+                        )}
+                      </div>
+                    </div>
+
+                    {v.cara === "nominal" && (
+                      <label className="row" style={{ marginTop: 8, gap: 6 }}>
+                        <input type="checkbox" checked={v.bersih} disabled={busy}
+                               onChange={(e) =>
+                                 ubah(b.id, { bersih: e.target.checked })} />
+                        <span>{k.dBersih}</span>
+                      </label>
+                    )}
+
+                    <div className="filters rapat" style={{ marginTop: 8 }}>
+                      <div>
+                        <div className="lbl">{k.dDasar}</div>
+                        <select value={v.dasar} disabled={busy}
+                                onChange={(e) =>
+                                  ubah(b.id, { dasar: e.target.value })}>
+                          <option value="contract_value_incl_vat">
+                            {k.dInclude}
+                          </option>
+                          <option value="contract_value_excl_vat">
+                            {k.dExclude}
+                          </option>
+                        </select>
+                      </div>
+                      <div />
+                    </div>
+
+                    <div className="filters rapat" style={{ marginTop: 8 }}>
+                      <div>
+                        <div className="lbl">{k.dDari}</div>
+                        <input type="date" value={v.dari} disabled={busy}
+                               onChange={(e) =>
+                                 ubah(b.id, { dari: e.target.value })} />
+                      </div>
+                      <div>
+                        <div className="lbl">{k.dSampai}</div>
+                        <input type="date" value={v.sampai} disabled={busy}
+                               min={v.dari || undefined}
+                               onChange={(e) =>
+                                 ubah(b.id, { sampai: e.target.value })} />
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
-              {cara === "persen" ? (
-                <input value={persen} inputMode="decimal"
-                       onChange={(e) => setPersen(e.target.value)} />
-              ) : (
-                <input value={nominalIsi} inputMode="numeric"
-                       onChange={(e) => setNominalIsi(e.target.value)} />
-              )}
-            </div>
-          </div>
-
-          {cara === "nominal" && (
-            <label className="row" style={{ marginTop: 8, gap: 6 }}>
-              <input type="checkbox" checked={bersih}
-                     onChange={(e) => setBersih(e.target.checked)} />
-              <span>{k.dBersih}</span>
-            </label>
-          )}
-
-          <div className="lbl" style={{ marginTop: 12 }}>{k.dDasar}</div>
-          <select value={dasar} onChange={(e) => setDasar(e.target.value)}>
-            <option value="contract_value_incl_vat">{k.dInclude}</option>
-            <option value="contract_value_excl_vat">{k.dExclude}</option>
-          </select>
-
-          <div className="filters rapat" style={{ marginTop: 12 }}>
-            <div>
-              <div className="lbl">{k.dDari}</div>
-              <input type="date" value={dari}
-                     onChange={(e) => setDari(e.target.value)} />
-            </div>
-            <div>
-              <div className="lbl">{k.dSampai}</div>
-              <input type="date" value={sampai} min={dari || undefined}
-                     onChange={(e) => setSampai(e.target.value)} />
-            </div>
-          </div>
+            );
+          })}
         </div>
 
         <div className="popup-kaki">
           <div className="row">
-            <button className="pri" disabled={busy} onClick={() => void simpan()}>
-              {k.dSimpan}
+            <button className="pri" disabled={busy || !terpilih.length}
+                    onClick={() => void simpan()}>
+              {k.dSimpanN(terpilih.length)}
             </button>
             <button disabled={busy} onClick={tutup}>{k.dBatal}</button>
           </div>
