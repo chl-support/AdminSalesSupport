@@ -436,8 +436,10 @@ export async function simpanMemo(
   // Rincian skemanya ditulis apa adanya, termasuk barisnya yang kosong
   // sebagiannya: yang mengunggah sudah sempat memeriksanya di layar, dan
   // baris yang hilang lebih merepotkan daripada baris yang perlu dirapikan.
+  let baris = 0;
   for (const [i, b] of (p.skema ?? []).entries()) {
     if (!b.kategori?.trim() && !b.nilai?.trim() && !b.keterangan?.trim()) continue;
+    baris++;
     await query(
       `INSERT INTO memo_skema
          (memo_id, kelompok, urutan, kategori, nilai, keterangan, baris)
@@ -451,7 +453,9 @@ export async function simpanMemo(
     after: { judul, nomor: p.nomor ?? null, file: p.file_name,
              size_bytes: p.buf.length },
   });
-  return { id: m!.id, judul };
+  // Banyaknya baris skema ikut dikembalikan: sebagiannya dibaca di sini, di
+  // server, sehingga layar yang mengunggah tidak dapat menghitungnya sendiri.
+  return { id: m!.id, judul, baris };
 }
 
 /** Berkas satu memo, untuk dibuka atau diunduh. */

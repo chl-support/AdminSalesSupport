@@ -106,6 +106,14 @@ td.n { text-align: right; font-variant-numeric: tabular-nums; color: var(--ink);
    segitiga kecil di depannya — dan segitiga itu hanya muncul pada baris yang
    teksnya memang terpotong. */
 .tabel-rujukan .sel-kategori { text-align: left; }
+
+/* Satu sel memo kerap berisi beberapa baris — "1.2.2 Sales Manager" lalu
+   "All type : Rp. 800.000/per unit" di bawahnya. pre-wrap, bukan normal:
+   dilebur menjadi satu kalimat, dua angka rupiah beradu dan tabel yang
+   menentukan komisi menjadi salah baca. Bukan pre-line pula, sebab jarak
+   antarkata pada memonya pun bagian dari isinya. */
+.tabel-rujukan .sel-kategori,
+.tabel-rujukan .sel-rinci { white-space: pre-wrap; }
 .buka-kategori {
   display: inline-flex; align-items: baseline; gap: 4px; width: 100%;
   padding: 0; border: 0; background: none; text-align: left;

@@ -26,6 +26,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { useBahasa, useKata } from "../../bahasa";
 import { bedahSkema } from "@/lib/memo-skema";
+import { bisaDibacaExcel } from "@/lib/lembar-kerja";
 import { KATEGORI_JENIS, namaKategori } from "@/lib/kategori";
 import { bacaPindaian, kataTeksPdf, type Kemajuan } from "../../memo/ocr";
 import { pasangBerkas, periksaUkuran, perluDipecah, titipBerkas }
@@ -314,8 +315,14 @@ export default function ReferensiPengajuanPage() {
     // huruf beserta koordinatnya, sehingga OCR di sana hanya menebak ulang
     // apa yang sudah tertulis — belasan detik, dengan kesalahan baca.
     // Pindaian tidak punya lapisan itu, dan baru di sanalah OCR dijalankan.
-    let rinci = bedahSkema((await kataTeksPdf(f)).kata);
-    if (!rinci.length) {
+    //
+    // Lembar kerja tidak melewati keduanya. Ia tidak punya halaman maupun
+    // koordinat kata untuk dibedah, dan susunan baris-kolomnya sudah benar
+    // sejak awal; membedahnya di server berarti susunan itu dipakai apa
+    // adanya, bukan digambar lalu ditebak ulang oleh OCR.
+    const lembar = bisaDibacaExcel(f.name, f.type);
+    let rinci = lembar ? [] : bedahSkema((await kataTeksPdf(f)).kata);
+    if (!lembar && !rinci.length) {
       const pindai = await bacaPindaian(f, (m: Kemajuan) => {
         if (m.tahap === "menyiapkan") setKemajuan(k.ocrSiap);
         else if (m.tahap === "menggambar")
@@ -328,7 +335,11 @@ export default function ReferensiPengajuanPage() {
     setKemajuan(k.menyimpan(f.name));
     const fd = new FormData();
     pasangBerkas(fd, f, titipan);
-    fd.append("judul", kolom.judul ?? f.name);
+    // Nama berkas TIDAK dipakai sebagai judul di sini. Bila pembacaan di layar
+    // tidak menemukan Perihal-nya, server masih mungkin menemukannya di dalam
+    // lembar kerjanya; mengirim nama berkas justru menutup kemungkinan itu,
+    // karena isian formulir selalu menang di sana.
+    if (kolom.judul) fd.append("judul", kolom.judul);
     for (const [medan, nilai] of Object.entries({
       nomor: kolom.nomor, tanggal_memo: kolom.tanggal_memo,
       berlaku_dari: kolom.berlaku_dari, berlaku_sampai: kolom.berlaku_sampai,
@@ -346,7 +357,10 @@ export default function ReferensiPengajuanPage() {
     if (res.status === 401) { location.href = "/login"; return 0; }
     const b = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(b.detail ?? b.title ?? `HTTP ${res.status}`);
-    return rinci.length;
+    // Yang dilaporkan adalah jumlah baris yang benar-benar tersimpan, bukan
+    // yang terbaca di layar: skema lembar kerja dibedah di server, dan di sini
+    // jumlahnya nol.
+    return typeof b.baris === "number" ? b.baris : rinci.length;
   };
 
   const terima = async (daftar: File[]) => {
@@ -823,8 +837,12 @@ function Kotak({ no, baris, k, bahasa, busy, bolehBerlaku, cabut, hapusMemo,
                   kolomnya dengan kalimat yang belum tentu sedang dibaca, dan
                   itulah yang membuat tabelnya terbaca semrawut. Isinya tidak
                   hilang; ia kembali utuh begitu kategorinya dipilih. */}
-              <td>{buka[b.id] ? (b.nilai ?? "—") : null}</td>
-              <td>{buka[b.id] ? (b.keterangan ?? "—") : null}</td>
+              <td className="sel-rinci">
+                {buka[b.id] ? (b.nilai ?? "—") : null}
+              </td>
+              <td className="sel-rinci">
+                {buka[b.id] ? (b.keterangan ?? "—") : null}
+              </td>
               {bolehBerlaku && (
                 <td>
                   {b.scheme_id ? (
