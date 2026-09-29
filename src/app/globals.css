@@ -2254,12 +2254,31 @@ td.sel-tindakan > a.tautan-klaim:last-child { margin-bottom: 0; }
 .tindakan-isi { display: flex; flex-wrap: wrap; gap: 6px; }
 .tindakan-isi button { flex: 1 1 auto; white-space: nowrap; }
 
-/* Satu baris memo di dalam dialog pemberlakuan: kotaknya sendiri, supaya
-   isian sebelas baris tidak terbaca sebagai satu formulir panjang yang
-   kolomnya berulang tanpa ujung. */
-.baris-berlaku {
-  padding: 10px 12px; margin-bottom: 10px;
-  border: 1px solid var(--line); border-radius: var(--lengkung);
-  background: #FCFCFB;
+/* Daftar pemberlakuan: satu baris memo, satu baris tabel.
+   Sebelumnya tiap baris memakai formulir sendiri dengan enam isian
+   bertumpuk — dua belas baris menjadi dua belas formulir yang harus digulir
+   satu per satu, padahal yang berbeda di antaranya hanya nama kategori dan
+   satu angka. Masa berlaku dan dasar perhitungan naik ke atas daftar: ia
+   milik memonya, bukan milik tiap baris. */
+.tabel-berlaku { margin-top: 12px; }
+.tabel-berlaku th { font-size: 10.5px; }
+.tabel-berlaku td { vertical-align: top; padding: 5px 6px; }
+.tabel-berlaku select, .tabel-berlaku input[type=text],
+.tabel-berlaku input:not([type]) { font-size: 11.5px; padding: 3px 6px; }
+.tabel-berlaku .row.rapat { gap: 4px; align-items: center; margin: 0; }
+.tabel-berlaku .satuan { font-size: 11px; color: var(--sub); }
+/* Nilai sebagaimana tertulis pada memonya: keterangan, bukan isian. Dua
+   baris saja — yang panjang tinggal dibaca di tabel ringkasannya. */
+.tabel-berlaku .asal {
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden; margin-top: 2px; white-space: pre-wrap;
 }
-.baris-berlaku:last-child { margin-bottom: 0; }
+/* Judul skemanya — Sales Inhouse, Agent — memisah kelompok, sebagaimana
+   memonya sendiri memisahkan tabelnya. */
+.tabel-berlaku .judul-skema td {
+  background: var(--fill); font-weight: 700; color: var(--ink);
+  font-size: 11.5px;
+}
+.tabel-berlaku tr.sudah td { color: var(--mut); }
+.tabel-berlaku tr.tolak-baris td { color: var(--stop); font-size: 11px;
+                                   padding-top: 0; }

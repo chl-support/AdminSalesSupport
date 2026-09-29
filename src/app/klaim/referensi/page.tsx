@@ -22,7 +22,7 @@
  * Admin IT, untuk keadaan yang memang tidak dapat menunggu memonya.
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useState } from "react";
 
 import { useBahasa, useKata } from "../../bahasa";
 import { bedahSkema, type BarisSkema } from "@/lib/memo-skema";
@@ -115,6 +115,7 @@ const KATA = {
       "Seluruh baris memo ini diperiksa di sini, lalu diberlakukan sekali " +
       "tekan. Hilangkan centang pada baris yang belum ingin diberlakukan.",
     dSudahBerlaku: "Sudah berlaku",
+    dNilaiRingkas: "Nilai", dBersihRingkas: "bersih",
     dTakAdaBaris: "Seluruh baris memo ini sudah berlaku.",
     dSimpanN: (n: number) => `Berlakukan ${n} baris`,
     berlakuKabarN: (n: number) =>
@@ -196,6 +197,7 @@ const KATA = {
       "Every row of this memo is checked here, then put in force in one " +
       "press. Untick a row you are not ready to put in force.",
     dSudahBerlaku: "Already in force",
+    dNilaiRingkas: "Value", dBersihRingkas: "net",
     dTakAdaBaris: "Every row of this memo is already in force.",
     dSimpanN: (n: number) => `Put ${n} rows in force`,
     berlakuKabarN: (n: number) => `${n} rows put in force.`,
@@ -976,12 +978,15 @@ function isiAwal(b: any): Isian {
     : /komisi|commission/.test(teks) ? "commission"
     : /reward/.test(teks) ? "cash_reward"
     : "commission";
+  // BGB diperiksa lebih dulu daripada agent: "BGB (Customer)" lazim berdiri
+  // di dalam tabel berjudul "Skema Agent", dan yang menentukan penerimanya
+  // nama barisnya sendiri, bukan judul tabel yang menaunginya.
   const tebakan =
-    /agent/.test(teks) ? "agent"
+    /bgb/.test(teks) ? "bgb"
+    : /markom/.test(teks) ? "markom"
     : /manager/.test(teks) ? "sales_manager_inhouse"
     : /koordinator|coordinator/.test(teks) ? "sales_coordinator"
-    : /markom/.test(teks) ? "markom"
-    : /bgb/.test(teks) ? "bgb"
+    : /agent/.test(teks) ? "agent"
     : "sales_inhouse";
   // Tidak setiap kategori boleh menerima setiap jenis fee — Overriding tidak
   // pernah jatuh kepada Sales Inhouse. Tebakan yang tidak sah diganti
@@ -1015,6 +1020,13 @@ function DialogBerlaku({ baris, k, bahasa, tutup, selesai, segarkan, galat }: {
 
   const [isian, setIsian] = useState<Record<string, Isian>>(() =>
     Object.fromEntries(usulan.map((b) => [b.id, isiAwal(b)])));
+  // Masa berlaku dan dasar perhitungan milik memonya, bukan milik tiap
+  // baris: satu memo berlaku untuk satu periode program, dan mengulang
+  // sepasang tanggal yang sama pada dua belas baris hanya membuat dua belas
+  // kesempatan mengetiknya berbeda-beda.
+  const [dari, setDari] = useState(memo.periode_awal ?? "");
+  const [sampai, setSampai] = useState(memo.periode_akhir ?? "");
+  const [dasar, setDasar] = useState("contract_value_incl_vat");
   const [busy, setBusy] = useState(false);
   const [pesan, setPesan] = useState<string | null>(null);
   /** Baris yang sudah berhasil diberlakukan pada tekan sebelumnya. */
@@ -1027,12 +1039,18 @@ function DialogBerlaku({ baris, k, bahasa, tutup, selesai, segarkan, galat }: {
 
   const terpilih = usulan.filter((b) => isian[b.id]?.pilih && !sudah[b.id]);
 
+  /** Baris dikelompokkan menurut skemanya: Sales Inhouse, Agent, dan
+   *  seterusnya — sebagaimana memonya sendiri menyusunnya. */
+  const grup: { nama: string; baris: any[] }[] = [];
+  for (const b of usulan) {
+    const nama = tanpaKataSkema(b.skema);
+    const akhir = grup[grup.length - 1];
+    if (akhir && akhir.nama === nama) akhir.baris.push(b);
+    else grup.push({ nama, baris: [b] });
+  }
+
   const simpan = async () => {
-    const kosong = terpilih.find((b) => !isian[b.id].dari);
-    if (kosong) {
-      setPesan(k.dTanggalWajibBaris(kosong.kategori ?? kosong.skema));
-      return;
-    }
+    if (!dari) { setPesan(k.dTanggalWajib); return; }
     setBusy(true); setPesan(null); galat(null);
     try {
       let berhasil = 0, gagal = 0;
@@ -1051,12 +1069,12 @@ function DialogBerlaku({ baris, k, bahasa, tutup, selesai, segarkan, galat }: {
             overriding_level:
               v.jenis === "overriding" && TINGKAT_OR.includes(v.kategori)
                 ? v.kategori : null,
-            basis: v.dasar,
+            basis: dasar,
             percentage: v.cara === "persen" ? v.persen : null,
             flat_amount: v.cara === "nominal" ? v.nominal : null,
             flat_amount_is_net: v.cara === "nominal" && v.bersih,
-            effective_from: v.dari,
-            effective_to: v.sampai || null,
+            effective_from: dari,
+            effective_to: sampai || null,
           }),
         });
         if (res.status === 401) { location.href = "/login"; return; }
@@ -1089,150 +1107,156 @@ function DialogBerlaku({ baris, k, bahasa, tutup, selesai, segarkan, galat }: {
     <div className="popup-latar"
          onClick={(e) => { if (e.target === e.currentTarget && !busy) tutup(); }}>
       <div className="popup" role="dialog" aria-modal="true"
-           style={{ maxWidth: 760 }}>
+           style={{ maxWidth: 900 }}>
         <div className="popup-kepala">
           <h3>{k.dJudulMemo(memo.no_memo ?? "—")}</h3>
           <button className="tautan" onClick={tutup} disabled={busy}>✕</button>
         </div>
 
         <div className="popup-isi">
-          <p className="hint" style={{ textAlign: "left", margin: "0 0 12px" }}>
-            {k.dPengantarMemo}
-          </p>
           {pesan && <div className="banner stop">{pesan}</div>}
 
-          {!usulan.length && <div className="banner">{k.dTakAdaBaris}</div>}
+          {/* Berlaku dari, sampai, dan dasar perhitungan: sekali untuk
+              seluruh memo, di atas daftarnya. */}
+          <div className="filters rapat">
+            <div>
+              <div className="lbl">{k.dDari}</div>
+              <input type="date" value={dari} disabled={busy}
+                     onChange={(e) => setDari(e.target.value)} />
+            </div>
+            <div>
+              <div className="lbl">{k.dSampai}</div>
+              <input type="date" value={sampai} disabled={busy}
+                     min={dari || undefined}
+                     onChange={(e) => setSampai(e.target.value)} />
+            </div>
+            <div>
+              <div className="lbl">{k.dDasar}</div>
+              <select value={dasar} disabled={busy}
+                      onChange={(e) => setDasar(e.target.value)}>
+                <option value="contract_value_incl_vat">{k.dInclude}</option>
+                <option value="contract_value_excl_vat">{k.dExclude}</option>
+              </select>
+            </div>
+          </div>
 
-          {usulan.map((b) => {
-            const v = isian[b.id];
-            return (
-              <div key={b.id} className="baris-berlaku">
-                <label className="row" style={{ gap: 6, alignItems: "baseline" }}>
-                  <input type="checkbox" checked={v.pilih && !sudah[b.id]}
-                         disabled={busy || !!sudah[b.id]}
-                         onChange={(e) => ubah(b.id, { pilih: e.target.checked })} />
-                  <span>
-                    <b>{b.kategori ?? "—"}</b>
-                    <span className="meta"> · {tanpaKataSkema(b.skema)}</span>
-                    <br /><span className="meta">{b.nilai ?? "—"}</span>
-                    {sudah[b.id] && <>
-                      <br /><span className="pill ok">{k.dSudahBerlaku}</span>
-                    </>}
-                  </span>
-                </label>
+          {!usulan.length && (
+            <div className="banner sp">{k.dTakAdaBaris}</div>
+          )}
 
-                {tolak[b.id] && !sudah[b.id] && (
-                  <div className="banner stop sp">{tolak[b.id]}</div>
-                )}
+          {!!usulan.length && (
+            <table className="tabel-berlaku"><tbody>
+              <tr>
+                <th style={{ width: 28 }} />
+                <th>{k.dBaris}</th>
+                <th style={{ width: 150 }}>{k.dJenis}</th>
+                <th style={{ width: 170 }}>{k.dKategori}</th>
+                <th style={{ width: 120 }}>{k.dCara}</th>
+                <th style={{ width: 130 }}>{k.dNilaiRingkas}</th>
+              </tr>
 
-                {v.pilih && !sudah[b.id] && (
-                  <>
-                    <div className="filters rapat" style={{ marginTop: 8 }}>
-                      <div>
-                        <div className="lbl">{k.dJenis}</div>
-                        <select value={v.jenis} disabled={busy}
-                                onChange={(e) => {
-                                  const j = e.target.value;
-                                  const sah = kategoriBoleh(j, v.kategori)
-                                    ? v.kategori
-                                    : (KATEGORI_JENIS[j] ?? [])[0] ?? "";
-                                  ubah(b.id, { jenis: j, kategori: sah });
-                                }}>
-                          {JENIS.map((j) => (
-                            <option key={j} value={j}>
-                              {namaJenis(j as any, bahasa)}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <div className="lbl">{k.dKategori}</div>
-                        <select value={v.kategori} disabled={busy}
-                                onChange={(e) =>
-                                  ubah(b.id, { kategori: e.target.value })}>
-                          {(KATEGORI_JENIS[v.jenis] ?? []).map((kd) => (
-                            <option key={kd} value={kd}>
-                              {namaKategori(kd, bahasa)}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-
-                    <div className="filters rapat" style={{ marginTop: 8 }}>
-                      <div>
-                        <div className="lbl">{k.dCara}</div>
-                        <select value={v.cara} disabled={busy}
-                                onChange={(e) =>
-                                  ubah(b.id, { cara: e.target.value })}>
-                          <option value="persen">{k.dPersenPilih}</option>
-                          <option value="nominal">{k.dNominalPilih}</option>
-                        </select>
-                      </div>
-                      <div>
-                        <div className="lbl">
-                          {v.cara === "persen" ? k.dPersen : k.dNominal}
-                        </div>
-                        {v.cara === "persen" ? (
-                          <input value={v.persen} inputMode="decimal"
-                                 disabled={busy}
-                                 onChange={(e) =>
-                                   ubah(b.id, { persen: e.target.value })} />
-                        ) : (
-                          <input value={v.nominal} inputMode="numeric"
-                                 disabled={busy}
-                                 onChange={(e) =>
-                                   ubah(b.id, { nominal: e.target.value })} />
+              {grup.map((g) => (
+                <Fragment key={g.nama}>
+                  <tr className="judul-skema">
+                    <td colSpan={6}>{g.nama}</td>
+                  </tr>
+                  {g.baris.map((b) => {
+                    const v = isian[b.id];
+                    const mati = busy || !!sudah[b.id];
+                    return (
+                      <Fragment key={b.id}>
+                        <tr className={sudah[b.id] ? "sudah" : undefined}>
+                          <td>
+                            <input type="checkbox" disabled={mati}
+                                   checked={v.pilih && !sudah[b.id]}
+                                   onChange={(e) =>
+                                     ubah(b.id, { pilih: e.target.checked })} />
+                          </td>
+                          {/* Nilai pada memonya ditulis kecil di bawah nama
+                              kategorinya: itulah yang dibandingkan orang
+                              dengan angka yang ia ketik di sebelah kanan. */}
+                          <td>
+                            <b>{b.kategori ?? "—"}</b>
+                            {sudah[b.id] && <> <span className="pill ok">
+                              {k.dSudahBerlaku}</span></>}
+                            <div className="meta asal">{b.nilai ?? "—"}</div>
+                          </td>
+                          <td>
+                            <select value={v.jenis} disabled={mati}
+                                    onChange={(e) => {
+                                      const j = e.target.value;
+                                      const sah = kategoriBoleh(j, v.kategori)
+                                        ? v.kategori
+                                        : (KATEGORI_JENIS[j] ?? [])[0] ?? "";
+                                      ubah(b.id, { jenis: j, kategori: sah });
+                                    }}>
+                              {JENIS.map((j) => (
+                                <option key={j} value={j}>
+                                  {namaJenis(j as any, bahasa)}
+                                </option>
+                              ))}
+                            </select>
+                          </td>
+                          <td>
+                            <select value={v.kategori} disabled={mati}
+                                    onChange={(e) =>
+                                      ubah(b.id, { kategori: e.target.value })}>
+                              {(KATEGORI_JENIS[v.jenis] ?? []).map((kd) => (
+                                <option key={kd} value={kd}>
+                                  {namaKategori(kd, bahasa)}
+                                </option>
+                              ))}
+                            </select>
+                          </td>
+                          <td>
+                            <select value={v.cara} disabled={mati}
+                                    onChange={(e) =>
+                                      ubah(b.id, { cara: e.target.value })}>
+                              <option value="persen">{k.dPersenPilih}</option>
+                              <option value="nominal">{k.dNominalPilih}</option>
+                            </select>
+                          </td>
+                          <td>
+                            <div className="row rapat">
+                              {v.cara === "persen" ? (
+                                <input value={v.persen} inputMode="decimal"
+                                       disabled={mati} placeholder="1,5"
+                                       onChange={(e) =>
+                                         ubah(b.id, { persen: e.target.value })} />
+                              ) : (
+                                <input value={v.nominal} inputMode="numeric"
+                                       disabled={mati} placeholder="8.000.000"
+                                       onChange={(e) =>
+                                         ubah(b.id, { nominal: e.target.value })} />
+                              )}
+                              <span className="satuan">
+                                {v.cara === "persen" ? "%" : "Rp"}
+                              </span>
+                            </div>
+                            {v.cara === "nominal" && (
+                              <label className="row rapat meta">
+                                <input type="checkbox" checked={v.bersih}
+                                       disabled={mati}
+                                       onChange={(e) =>
+                                         ubah(b.id, { bersih: e.target.checked })} />
+                                <span>{k.dBersihRingkas}</span>
+                              </label>
+                            )}
+                          </td>
+                        </tr>
+                        {tolak[b.id] && !sudah[b.id] && (
+                          <tr className="tolak-baris">
+                            <td />
+                            <td colSpan={5}>{tolak[b.id]}</td>
+                          </tr>
                         )}
-                      </div>
-                    </div>
-
-                    {v.cara === "nominal" && (
-                      <label className="row" style={{ marginTop: 8, gap: 6 }}>
-                        <input type="checkbox" checked={v.bersih} disabled={busy}
-                               onChange={(e) =>
-                                 ubah(b.id, { bersih: e.target.checked })} />
-                        <span>{k.dBersih}</span>
-                      </label>
-                    )}
-
-                    <div className="filters rapat" style={{ marginTop: 8 }}>
-                      <div>
-                        <div className="lbl">{k.dDasar}</div>
-                        <select value={v.dasar} disabled={busy}
-                                onChange={(e) =>
-                                  ubah(b.id, { dasar: e.target.value })}>
-                          <option value="contract_value_incl_vat">
-                            {k.dInclude}
-                          </option>
-                          <option value="contract_value_excl_vat">
-                            {k.dExclude}
-                          </option>
-                        </select>
-                      </div>
-                      <div />
-                    </div>
-
-                    <div className="filters rapat" style={{ marginTop: 8 }}>
-                      <div>
-                        <div className="lbl">{k.dDari}</div>
-                        <input type="date" value={v.dari} disabled={busy}
-                               onChange={(e) =>
-                                 ubah(b.id, { dari: e.target.value })} />
-                      </div>
-                      <div>
-                        <div className="lbl">{k.dSampai}</div>
-                        <input type="date" value={v.sampai} disabled={busy}
-                               min={v.dari || undefined}
-                               onChange={(e) =>
-                                 ubah(b.id, { sampai: e.target.value })} />
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
-            );
-          })}
+                      </Fragment>
+                    );
+                  })}
+                </Fragment>
+              ))}
+            </tbody></table>
+          )}
         </div>
 
         <div className="popup-kaki">
