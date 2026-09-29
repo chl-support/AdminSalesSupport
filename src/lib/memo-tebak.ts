@@ -94,20 +94,31 @@ const LABEL = new RegExp(
  */
 export function rentangBulan(teks: string) {
   const b = "(" + Object.keys(BULAN).join("|") + ")";
+  // "s/d" ditulis sesering "s.d." pada memo yang sama, dan tanggal harinya
+  // kerap disebutkan — "1 Januari 2026 s/d 30 Juni 2026". Harinya dipakai
+  // bila memang tertulis; bila memonya hanya menyebut bulan, barulah
+  // diambil hari pertama dan hari terakhir bulannya.
   const re = new RegExp(
-    `${b}\\.?\\s*(?:(\\d{4})\\s*)?(?:s\\.?d\\.?|sampai(?:\\s+dengan)?|hingga|[–—-])\\s*` +
-    `${b}\\.?\\s*(\\d{4})`, "i");
+    `(?:(\\d{1,2})\\s*)?${b}\\.?\\s*(?:(\\d{4})\\s*)?` +
+    `(?:s\\s*[./]?\\s*d\\.?|sampai(?:\\s+dengan)?|hingga|[–—-])\\s*` +
+    `(?:(\\d{1,2})\\s*)?${b}\\.?\\s*(\\d{4})`, "i");
   const m = re.exec(teks);
   if (!m) return {};
-  const b1 = BULAN[m[1].toLowerCase()], b2 = BULAN[m[3].toLowerCase()];
-  const th2 = Number(m[4]);
-  const th1 = m[2] ? Number(m[2]) : (b1 <= b2 ? th2 : th2 - 1);
+  const b1 = BULAN[m[2].toLowerCase()], b2 = BULAN[m[5].toLowerCase()];
+  const th2 = Number(m[6]);
+  const th1 = m[3] ? Number(m[3]) : (b1 <= b2 ? th2 : th2 - 1);
   if (!b1 || !b2 || !th2) return {};
   const p = (n: number) => String(n).padStart(2, "0");
-  const akhir = new Date(Date.UTC(th2, b2, 0)).getUTCDate();
+  const akhirBulan = new Date(Date.UTC(th2, b2, 0)).getUTCDate();
+  const hari = (v: string | undefined, bawaan: number, batas: number) => {
+    const n = v ? Number(v) : bawaan;
+    return n >= 1 && n <= batas ? n : bawaan;
+  };
+  const awalBulan = new Date(Date.UTC(th1, b1, 0)).getUTCDate();
   return {
-    berlaku_dari: `${th1}-${p(b1)}-01`,
-    berlaku_sampai: `${th2}-${p(b2)}-${p(akhir)}`,
+    berlaku_dari: `${th1}-${p(b1)}-${p(hari(m[1], 1, awalBulan))}`,
+    berlaku_sampai:
+      `${th2}-${p(b2)}-${p(hari(m[4], akhirBulan, akhirBulan))}`,
   };
 }
 

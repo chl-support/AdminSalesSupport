@@ -22,6 +22,8 @@
 import { inflateRawSync } from "node:zlib";
 
 import { BULAN, rentangBulan, tebakKolom, type Tebakan } from "./memo-tebak";
+import type { BarisSkema } from "./memo-skema";
+import { skemaXlsx, teksXlsx } from "./memo-xlsx";
 
 export { tebakKolom, type Tebakan } from "./memo-tebak";
 
@@ -125,6 +127,10 @@ export async function teksBerkas(buf: Buffer, contentType: string,
     if (tipe.includes("wordprocessingml") || nama.endsWith(".docx")) {
       return teksDariDocx(buf);
     }
+    if (tipe.includes("spreadsheetml") || nama.endsWith(".xlsx") ||
+        nama.endsWith(".xlsm")) {
+      return await teksXlsx(buf);
+    }
   } catch {
     // Berkas rusak, terkunci sandi, atau bentuk yang tidak dikenali. Yang
     // gagal dibaca diperlakukan sama dengan yang tidak berisi teks: kosong.
@@ -212,20 +218,47 @@ export function tebakDariNama(namaBerkas: string): Tebakan {
 export type HasilBaca = {
   sumber: "isi" | "nama" | "tidak-ada";
   kolom: Tebakan;
+  /**
+   * Baris tabel skemanya, bila berkasnya memang menyebutkan letaknya sendiri.
+   *
+   * Hanya berkas Excel yang sampai ke sini: di dalamnya kolom masih berupa
+   * kolom, jadi tidak ada yang perlu ditebak. PDF dan pindaian dibedah di
+   * peramban dari koordinat katanya, dan medan ini dibiarkan kosong.
+   */
+  skema?: BarisSkema[];
 };
+
+/** Berkas yang baris tabelnya dapat dibaca langsung, bukan dibedah. */
+function berkasPetak(contentType: string, namaBerkas: string): boolean {
+  const tipe = String(contentType ?? "").toLowerCase();
+  const nama = String(namaBerkas ?? "").toLowerCase();
+  return tipe.includes("spreadsheetml") ||
+         nama.endsWith(".xlsx") || nama.endsWith(".xlsm");
+}
 
 export async function bacaMemo(
   buf: Buffer, contentType: string, namaBerkas: string,
 ): Promise<HasilBaca> {
   const teks = await teksBerkas(buf, contentType, namaBerkas);
   const dariIsi = tebakKolom(teks);
+
+  // Lembar kerja membawa tabelnya sendiri, beserta letak tiap selnya.
+  let skema: BarisSkema[] | undefined;
+  if (berkasPetak(contentType, namaBerkas)) {
+    skema = await skemaXlsx(buf).catch(() => []);
+    if (!skema.length) skema = undefined;
+  }
   if (Object.keys(dariIsi).length >= 3) {
     // Nama berkas tetap dipakai untuk menambal kolom yang tidak terbaca dari
     // isinya — bukan untuk menimpa yang sudah terbaca.
-    return { sumber: "isi", kolom: { ...tebakDariNama(namaBerkas), ...dariIsi } };
+    return { sumber: "isi", skema,
+             kolom: { ...tebakDariNama(namaBerkas), ...dariIsi } };
   }
   const dariNama = tebakDariNama(namaBerkas);
   const gabung = { ...dariNama, ...dariIsi };
-  if (!Object.keys(gabung).length) return { sumber: "tidak-ada", kolom: {} };
-  return { sumber: Object.keys(dariIsi).length ? "isi" : "nama", kolom: gabung };
+  if (!Object.keys(gabung).length) {
+    return { sumber: "tidak-ada", kolom: {}, skema };
+  }
+  return { sumber: Object.keys(dariIsi).length ? "isi" : "nama",
+           kolom: gabung, skema };
 }

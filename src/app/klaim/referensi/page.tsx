@@ -25,7 +25,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { useBahasa, useKata } from "../../bahasa";
-import { bedahSkema } from "@/lib/memo-skema";
+import { bedahSkema, type BarisSkema } from "@/lib/memo-skema";
 import { KATEGORI_JENIS, namaKategori } from "@/lib/kategori";
 import { bacaPindaian, kataTeksPdf, type Kemajuan } from "../../memo/ocr";
 import { pasangBerkas, periksaUkuran, perluDipecah, titipBerkas }
@@ -71,7 +71,7 @@ const KATA = {
     usulan: "Usulan", berlaku: "Berlaku",
     kosong: "Belum ada memo pada project ini. Unggah memonya di atas.",
     memuat: "Memuat…",
-    berlakukan: "Berlakukan", cabut: "Cabut",
+    berlakukan: "Berlakukan", cabut: "Nonaktifkan",
     pBerlaku: (n: number) => `✓ ${n} baris berlaku`,
     pUsulan: (n: number) => `⏳ ${n} baris usulan`,
 
@@ -104,8 +104,8 @@ const KATA = {
     dSimpan: "Berlakukan", dBatal: "Batal",
     dTanggalWajib: "Berlaku dari harus diisi.",
     berlakuKabar: "Baris diberlakukan sebagai skema insentif.",
-    cabutKabar: "Pemberlakuan dicabut; barisnya kembali menjadi usulan.",
-    cabutTanya: "Cabut pemberlakuan baris ini?",
+    cabutKabar: "Baris dinonaktifkan; kembali menjadi usulan.",
+    cabutTanya: "Nonaktifkan pemberlakuan baris ini?",
   },
   en: {
     judul: "Submission Reference",
@@ -139,7 +139,7 @@ const KATA = {
     usulan: "Proposed", berlaku: "In force",
     kosong: "No memos on this project yet. Upload them above.",
     memuat: "Loading…",
-    berlakukan: "Put in force", cabut: "Withdraw",
+    berlakukan: "Put in force", cabut: "Deactivate",
     pBerlaku: (n: number) => `✓ ${n} rows in force`,
     pUsulan: (n: number) => `⏳ ${n} proposed rows`,
 
@@ -296,12 +296,18 @@ export default function ReferensiPengajuanPage() {
     }
     const kolom = hasil.kolom ?? {};
 
-    // Tabel skemanya dibedah dari kotak letak tiap kata. Dua sumbernya, dan
+    // Berkas Excel dibaca di peladen, sel demi sel: di dalamnya kolom masih
+    // berupa kolom, jadi tidak ada yang perlu dibedah maupun ditebak, dan
+    // yang muncul di ringkasan persis yang tertulis di lembarnya.
+    let rinci: BarisSkema[] =
+      Array.isArray(hasil.skema) ? (hasil.skema as BarisSkema[]) : [];
+
+    // Sisanya dibedah dari kotak letak tiap kata. Dua sumbernya, dan
     // yang murah dicoba lebih dulu: PDF yang lahir digital sudah membawa
     // huruf beserta koordinatnya, sehingga OCR di sana hanya menebak ulang
     // apa yang sudah tertulis — belasan detik, dengan kesalahan baca.
     // Pindaian tidak punya lapisan itu, dan baru di sanalah OCR dijalankan.
-    let rinci = bedahSkema((await kataTeksPdf(f)).kata);
+    if (!rinci.length) rinci = bedahSkema((await kataTeksPdf(f)).kata);
     if (!rinci.length) {
       const pindai = await bacaPindaian(f, (m: Kemajuan) => {
         if (m.tahap === "menyiapkan") setKemajuan(k.ocrSiap);
@@ -479,7 +485,7 @@ export default function ReferensiPengajuanPage() {
               <th>{k.kNilai}</th>
               <th>{k.kKeterangan}</th>
               <th>{k.kKeadaan}</th>
-              {bolehBerlaku && <th style={{ width: 110 }}>{k.kTindakan}</th>}
+              {bolehBerlaku && <th style={{ width: 150 }}>{k.kTindakan}</th>}
             </tr>
 
             {baris.map((b, i) => (
@@ -514,18 +520,21 @@ export default function ReferensiPengajuanPage() {
                     </>
                   ) : <span className="pill">{k.usulan}</span>}
                 </td>
+                  {/* Keduanya berdiri berdampingan, dan yang tidak berlaku
+                      pada baris ini dimatikan — bukan dihilangkan. Tombol
+                      yang muncul-hilang membuat orang mencari-cari di mana
+                      sebuah baris dinonaktifkan; yang mati di tempatnya
+                      sudah mengatakan bahwa barisnya memang belum berlaku. */}
                 {bolehBerlaku && (
-                  <td>
-                    {b.scheme_id ? (
-                      <button disabled={busy} onClick={() => void cabut(b)}>
-                        {k.cabut}
-                      </button>
-                    ) : (
-                      <button className="pri" disabled={busy}
-                              onClick={() => { setDialog(b); setGalat(null); }}>
-                        {k.berlakukan}
-                      </button>
-                    )}
+                  <td className="tindakan-rujukan">
+                    <button className="pri" disabled={busy || !!b.scheme_id}
+                            onClick={() => { setDialog(b); setGalat(null); }}>
+                      {k.berlakukan}
+                    </button>
+                    <button disabled={busy || !b.scheme_id}
+                            onClick={() => void cabut(b)}>
+                      {k.cabut}
+                    </button>
                   </td>
                 )}
               </tr>

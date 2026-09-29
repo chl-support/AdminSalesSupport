@@ -2144,3 +2144,8 @@ td.sel-tindakan > a.tautan-klaim:last-child { margin-bottom: 0; }
   color: var(--mut); border-color: var(--line);
   background: transparent; cursor: default;
 }
+
+/* Dua tombol pada kolom Tindakan Referensi Pengajuan: berdampingan bila
+   muat, bertumpuk bila kolomnya sempit. */
+.tindakan-rujukan { display: flex; flex-wrap: wrap; gap: 6px; }
+.tindakan-rujukan button { flex: 1 1 auto; white-space: nowrap; }

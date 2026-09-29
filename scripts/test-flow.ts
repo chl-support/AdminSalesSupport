@@ -19,6 +19,7 @@ import { KATEGORI_JENIS, kategoriAwal } from "../src/lib/kategori";
 import { hapusMarketing, tambahMarketing } from "../src/lib/spesimen";
 import { rekapOverriding } from "../src/lib/overriding";
 import { penandatanganRekap } from "../src/lib/penandatangan";
+import { skemaXlsx } from "../src/lib/memo-xlsx";
 import { berlakukan, cabut, daftarRujukan, nominal, persenDesimal }
   from "../src/lib/rujukan";
 import { seed } from "./seed";
@@ -968,6 +969,65 @@ async function main() {
     });
     assert(pdf.subarray(0, 5).toString() === "%PDF-",
            "citra rusak tidak boleh menggagalkan seluruh dokumen");
+  });
+
+  await check("memo Excel dibaca sel demi sel, sebagaimana tertulis",
+              async () => {
+    // Lembar kerja membawa kolomnya sendiri. Yang diuji di sini tiga hal
+    // yang paling mudah berubah diam-diam: bentuk tampilan angka (sel
+    // persen menyimpan 0,015 dan menampilkan 1,50%), sel yang digabung ke
+    // bawah, dan sel tanpa format yang tidak boleh dibulatkan.
+    const ExcelJS = (await import("exceljs")).default;
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet("Skema Fee");
+    ws.addRow(["Nomor: UJI/XLS/001"]);
+    ws.addRow(["1. Skema Komisi & Reward Sales Inhouse"]);
+    ws.addRow(["No", "Kategori", "Nilai", "Keterangan"]);
+    ws.addRow([1, "Komisi Inhouse", 0.015, "1 unit"]);
+    ws.addRow([2, null, 0.0175, "2 unit"]);
+    ws.addRow([3, "Cash Reward", 5000000, "per unit"]);
+    ws.addRow([4, "Overiding", 0.0025, "reguler"]);
+    ws.mergeCells("B4:B5");
+    ws.getCell("C4").numFmt = "0.00%";
+    ws.getCell("C5").numFmt = "0.00%";
+    ws.getCell("C6").numFmt = "#,##0";
+    const buf = Buffer.from(await wb.xlsx.writeBuffer());
+
+    const baris = await skemaXlsx(buf);
+    assert(baris.length === 4, `seharusnya 4 baris, bukan ${baris.length}`);
+    assert(baris[0].nilai === "1,50%",
+           `persen ditulis sebagaimana tampil, bukan ${baris[0].nilai}`);
+    assert(baris[1].kategori === "Komisi Inhouse",
+           "sel gabungan menurunkan kategorinya ke baris di bawahnya");
+    assert(baris[2].nilai === "5.000.000",
+           `nominal mengikuti formatnya, bukan ${baris[2].nilai}`);
+    assert(baris[3].nilai === "0,0025",
+           `sel tanpa format tidak boleh dibulatkan: ${baris[3].nilai}`);
+    assert(baris[0].kelompok === "Skema Komisi & Reward Sales Inhouse",
+           `judul tabelnya ikut terbaca, bukan ${baris[0].kelompok}`);
+    assert(persenDesimal(baris[0].nilai) === "0.015",
+           "bacaan 1,50% menjadi tarif 0,015");
+  });
+
+  await check("periode program terbaca dari cara memo menuliskannya",
+              async () => {
+    const { rentangBulan } = await import("../src/lib/memo-tebak");
+    // "s/d" sesering "s.d." pada memo yang sama, dan harinya sering
+    // disebutkan. Periode yang tidak terbaca membuat kolom Periode Program
+    // pada ringkasan kosong, dan skemanya seolah berlaku selamanya.
+    assert(rentangBulan("Periode Program: 1 Januari 2026 s/d 30 Juni 2026")
+             .berlaku_dari === "2026-01-01", "s/d dengan hari: awal");
+    assert(rentangBulan("Periode Program: 1 Januari 2026 s/d 30 Juni 2026")
+             .berlaku_sampai === "2026-06-30", "s/d dengan hari: akhir");
+    assert(rentangBulan("Periode 15 Februari 2026 sampai dengan 14 Agustus 2026")
+             .berlaku_sampai === "2026-08-14",
+           "hari yang tertulis dipakai apa adanya");
+    // Tanpa hari, bulannya yang dipakai — dari tanggal 1 sampai tanggal
+    // terakhir; menebak lebih tepat dari itu berarti mengarang.
+    assert(rentangBulan("berlaku Oktober 2025 - Maret 2026")
+             .berlaku_dari === "2025-10-01", "tahun awal disimpulkan mundur");
+    assert(!rentangBulan("tidak ada periode di sini").berlaku_dari,
+           "yang memang tidak menyebut periode tidak boleh ditebak");
   });
 
   await check("persentase memo dibaca dari tulisan orang, bukan tebakan",
