@@ -152,7 +152,18 @@ const KUMPULAN = KOLOM.reduce<
   return kump;
 }, []);
 
-export function RekapOverriding({ rekap }: { rekap: Rekap }) {
+/**
+ * Lembar perhitungan: rekap Overriding, dan — dengan judul yang berbeda —
+ * Detail Perhitungan Closing Fee, Cash Reward, dan Komisi.
+ *
+ * Satu komponen untuk keempatnya, sebab yang diperiksa memang kolom yang
+ * sama: nilai kontrak, penerimaan, tarif, lalu DPP, PPN dan pajaknya. Yang
+ * berganti hanya judul lembarnya, judul kelompok kolom skemanya, dan sebutan
+ * orang yang menerimanya.
+ */
+export function RekapOverriding({ rekap, judul, labelSkema, labelPenerima }: {
+  rekap: Rekap; judul?: string; labelSkema?: string; labelPenerima?: string;
+}) {
   const sm = rekap.sales_manager;
   const ttd = penandatanganRekap(rekap.project?.slug);
   return (
@@ -168,7 +179,9 @@ export function RekapOverriding({ rekap }: { rekap: Rekap }) {
           Manager-nya — ketiganya tertulis tepat di bawah sini. Nomor klaim
           penanda di dalam sistem, dan pada dokumen yang beredar ke tangan
           direksi ia hanya deret yang tidak berarti apa-apa. */}
-      <h2 className="judul-rekap">Detail Perhitungan Overiding</h2>
+      <h2 className="judul-rekap">
+        {judul ?? "Detail Perhitungan Overiding"}
+      </h2>
       <div className="kepala-rekap">
         <div>Cluster {atau(rekap.cluster)}</div>
         <div>
@@ -187,7 +200,7 @@ export function RekapOverriding({ rekap }: { rekap: Rekap }) {
           Agent — sengaja tidak ikut: ia keterangan orang, bukan keterangan
           rekap, dan pada kepala dokumen ia hanya ramai. */}
       <div className="sm-rekap">
-        <span>Sales Manager</span>
+        <span>{labelPenerima ?? "Sales Manager"}</span>
         <b>{atau(sm?.full_name)}</b>
       </div>
 
@@ -209,7 +222,8 @@ export function RekapOverriding({ rekap }: { rekap: Rekap }) {
                 <th key={i} className={g.kelas}
                     colSpan={g.jumlah > 1 ? g.jumlah : undefined}
                     rowSpan={g.bertingkat ? undefined : 2}>
-                  {g.atas}
+                  {labelSkema && g.atas === "Skema Overiding"
+                    ? labelSkema : g.atas}
                 </th>
               ))}
             </tr>

@@ -2287,3 +2287,12 @@ td.sel-tindakan > a.tautan-klaim:last-child { margin-bottom: 0; }
 .tabel-berlaku tr.sudah td { color: var(--mut); }
 .tabel-berlaku tr.tolak-baris td { color: var(--stop); font-size: 11px;
                                    padding-top: 0; }
+
+/* Detail Perhitungan sebagai halaman kedua formulirnya. Pemutus halaman
+   ditulis tegas: lembarnya melintang sedangkan formulirnya tegak, dan yang
+   dicetak menyambung pada satu halaman akan terpotong di tengah tabel. */
+.lembar-lanjutan { break-before: page; page-break-before: always; }
+@media screen {
+  .lembar-lanjutan { margin-top: 18px; padding-top: 18px;
+                     border-top: 1px dashed var(--line); }
+}
