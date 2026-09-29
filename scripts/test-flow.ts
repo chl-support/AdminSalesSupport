@@ -972,6 +972,40 @@ async function main() {
            "citra rusak tidak boleh menggagalkan seluruh dokumen");
   });
 
+  await check("Detail Perhitungan menyertai formulir fee, bukan hanya rekap OR",
+              async () => {
+    const { detailFee } = await import("../src/lib/detail-fee");
+    const klaim = await one<any>(
+      `SELECT id, claim_number, gross_amount, net_amount, withholding_tax
+         FROM claims WHERE claim_type='commission' ORDER BY created_at LIMIT 1`);
+    assert(Boolean(klaim), "perlu satu klaim komisi pada data contoh");
+    const d = await detailFee(klaim.id);
+    assert(Boolean(d), "klaim komisi harus punya lembar detailnya");
+    assert(d!.bagian.length === 1 && d!.bagian[0].baris.length === 1,
+           "lembar ini satu unit saja — unit yang sedang diajukan");
+    const b = d!.bagian[0].baris[0];
+    // Angkanya bukan hitungan baru: ia angka klaim itu sendiri. Lembar yang
+    // menghitung ulang akan menyebut jumlah yang berbeda dari formulirnya.
+    assert(b.amount === Number(klaim.gross_amount),
+           `amount ${b.amount} harus sama dengan klaimnya ${klaim.gross_amount}`);
+    assert(b.net === Number(klaim.net_amount), "net mengikuti klaimnya");
+    assert(d!.bagian[0].total.net === Number(klaim.net_amount),
+           "TOTAL satu baris sama dengan barisnya");
+    // Kolom Selisih hanya berlaku bagi Overriding; di sini ia dikosongkan,
+    // bukan diisi angka yang tidak berarti apa-apa.
+    assert(b.selisih_persen === null && b.selisih_amount === 0,
+           "kolom Selisih tidak diisi pada jenis selain Overriding");
+    assert(b.nilai_excl > 0 && b.dpp_nilai_lain > 0,
+           "nilai tanpa PPN dan DPP Nilai Lain ikut terhitung");
+    // Overriding tetap memakai rekapnya sendiri, bukan lembar ini.
+    const or = await one<any>(
+      "SELECT id FROM claims WHERE claim_type='overriding' LIMIT 1");
+    if (or) {
+      assert((await detailFee(or.id)) === null,
+             "klaim Overriding tidak memakai lembar Detail Perhitungan");
+    }
+  });
+
   await check("memo Excel dibaca sel demi sel, sebagaimana tertulis",
               async () => {
     // Bentuk memo yang sebenarnya: nomor, kategori dan nilai digabung

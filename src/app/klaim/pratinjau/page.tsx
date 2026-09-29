@@ -22,6 +22,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { FormPengajuan } from "../form-pengajuan";
 import { RekapOverriding } from "../rekap-overriding";
+import { JENIS_DETAIL, JUDUL_DETAIL, SKEMA_DETAIL } from "@/lib/detail-label";
 import type { Rekap } from "@/lib/overriding";
 import { DOKUMEN, DOKUMEN_KODE, type Jenis } from "../jenis";
 import { useKata } from "../../bahasa";
@@ -264,6 +265,9 @@ export default function PratinjauPage() {
    * tabel itu untuk klaim jenis lain yang tidak memerlukannya.
    */
   const [rekap, setRekap] = useState<Record<string, Rekap>>({});
+  /** Detail Perhitungan Closing Fee, Cash Reward, dan Komisi — halaman kedua
+   *  formulirnya. */
+  const [detail, setDetail] = useState<Record<string, Rekap>>({});
 
   /** Hanya Admin Sales yang mengirim klaim ke tim pajak — lihat /api/.../submit. */
   const bolehKirim = sesi?.role === "admin_sales";
@@ -367,6 +371,22 @@ export default function PratinjauPage() {
       })();
     }
   }, [klaim, rekap]);
+
+  // Detail Perhitungan tiga jenis fee yang lain, dengan alasan yang sama:
+  // gagalnya menghilangkan lampirannya saja, bukan formulirnya.
+  useEffect(() => {
+    for (const c of klaim) {
+      if (!JENIS_DETAIL.includes(c.claim_type) || detail[c.id]) continue;
+      void (async () => {
+        try {
+          const r = await fetch(`/api/claims/${c.id}/detail-perhitungan`);
+          if (!r.ok) return;
+          const b = await r.json();
+          setDetail((lama) => ({ ...lama, [c.id]: b }));
+        } catch { /* biar */ }
+      })();
+    }
+  }, [klaim, detail]);
 
   /** Dokumen yang wajib dicentang untuk satu klaim. */
   const wajib = (c: any): string[] => DOKUMEN[c.claim_type as Jenis] ?? [];
@@ -585,6 +605,22 @@ export default function PratinjauPage() {
                 }
               : undefined} />
           ))}
+
+          {/* Halaman kedua formulirnya: dari mana angkanya datang. Nilai
+              kontrak unitnya, berapa yang sudah diterima, tarif mana yang
+              dipakai, lalu DPP, PPN dan potongan pajaknya — tabel yang sama
+              dengan rekap Overriding, sebab yang diperiksa memang hal yang
+              sama. Ikut tercetak bersama formulirnya, bukan lembar terpisah
+              yang harus dicari sendiri. */}
+          {!lunas(c) && detail[c.id] && (
+            <div className="lembar-lanjutan">
+              <RekapOverriding
+                rekap={detail[c.id]}
+                judul={JUDUL_DETAIL[c.claim_type]}
+                labelSkema={SKEMA_DETAIL[c.claim_type]}
+                labelPenerima="Penerima" />
+            </div>
+          )}
 
           {/* Dokumen full sign, bukti transfer, dan tanggal uang keluar:
               tiga hal yang dicari orang ketika menengok klaim yang sudah

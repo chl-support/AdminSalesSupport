@@ -2321,6 +2321,15 @@ td.sel-tindakan > a.tautan-klaim:last-child { margin-bottom: 0; }
   background: #BFBFBF; font-weight: 700; color: var(--ink);
 }
 
+/* Detail Perhitungan sebagai halaman kedua formulirnya. Pemutus halaman
+   ditulis tegas: lembarnya melintang sedangkan formulirnya tegak, dan yang
+   dicetak menyambung pada satu halaman akan terpotong di tengah tabel. */
+.lembar-lanjutan { break-before: page; page-break-before: always; }
+@media screen {
+  .lembar-lanjutan { margin-top: 18px; padding-top: 18px;
+                     border-top: 1px dashed var(--line); }
+}
+
 /* Kolom depan laporan tidak ikut bergeser saat tabelnya digulir ke samping:
    No., Tanggal, Konsumen, dan Unit tetap terlihat, sama seperti panel beku
    pada berkas Excel-nya. Latarnya wajib pekat — sel tembus pandang yang diam
