@@ -1009,6 +1009,50 @@ async function main() {
            "bacaan 1,50% menjadi tarif 0,015");
   });
 
+  await check("satu butir bernomor tetap satu baris, sepanjang apa pun",
+              async () => {
+    // Bentuk memo yang sebenarnya: satu butir bernomor menaungi beberapa
+    // baris lembar lewat sel gabungan, dan keterangannya ditulis berbaris-
+    // baris. Dipecah per baris lembar, tarifnya tercatat berulang kali pada
+    // memo yang menyebutkannya sekali — dan karena kolom Nilai dan kolom
+    // Keterangan bergabung pada baris yang berbeda, pecahan itu memasangkan
+    // nilai dengan keterangan yang bukan miliknya.
+    const ExcelJS = (await import("exceljs")).default;
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet("Jul");
+    ws.addRow(["1. Skema Sales Inhouse"]);
+    ws.addRow(["No", "Kategori", "Nilai", "Keterangan"]);
+    ws.addRow([1, "Komisi Inhouse", "1 unit = 1.5%", "Cash & Cicilan"]);
+    ws.addRow([null, null, null, "DP 15%, diproses setelah PPJB"]);
+    ws.addRow([null, null, null, "KPR"]);
+    ws.addRow([2, "Cash Reward", "Sales Manager", "Akad Kredit"]);
+    ws.addRow([null, null, "Rp. 800.000/per unit", null]);
+    ws.addRow([null, null, "Sales Koordinator", null]);
+    ws.addRow([null, null, "Rp. 600.000/per unit", null]);
+    // Nomor, kategori, dan nilai membentang; keterangannya tidak.
+    ws.mergeCells("A3:A5"); ws.mergeCells("B3:B5"); ws.mergeCells("C3:C5");
+    ws.mergeCells("A6:A9"); ws.mergeCells("B6:B9"); ws.mergeCells("D6:D9");
+    const buf = Buffer.from(await wb.xlsx.writeBuffer());
+
+    const baris = await skemaXlsx(buf);
+    assert(baris.length === 2, `seharusnya 2 butir, bukan ${baris.length}`);
+    assert(baris[0].nilai === "1 unit = 1.5%",
+           `tarif tidak boleh berulang: ${JSON.stringify(baris[0].nilai)}`);
+    assert(baris[0].keterangan ===
+             "Cash & Cicilan\nDP 15%, diproses setelah PPJB\nKPR",
+           `keterangan berbaris-baris tetap utuh dan berurutan: ` +
+           JSON.stringify(baris[0].keterangan));
+    // Dua nominal yang dilebur menjadi satu kalimat adalah salah baca yang
+    // paling mahal di tabel yang menentukan komisi.
+    assert(baris[1].nilai ===
+             "Sales Manager\nRp. 800.000/per unit\n" +
+             "Sales Koordinator\nRp. 600.000/per unit",
+           `nominal tidak boleh beradu: ${JSON.stringify(baris[1].nilai)}`);
+    assert(baris[1].keterangan === "Akad Kredit",
+           `keterangan yang membentang hanya dicatat sekali: ` +
+           JSON.stringify(baris[1].keterangan));
+  });
+
   await check("periode program terbaca dari cara memo menuliskannya",
               async () => {
     const { rentangBulan } = await import("../src/lib/memo-tebak");

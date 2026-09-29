@@ -829,8 +829,12 @@ function Kotak({ no, baris, k, bahasa, busy, bolehBerlaku, cabut, hapusMemo,
                   kolomnya dengan kalimat yang belum tentu sedang dibaca, dan
                   itulah yang membuat tabelnya terbaca semrawut. Isinya tidak
                   hilang; ia kembali utuh begitu kategorinya dipilih. */}
-              <td>{buka[b.id] ? (b.nilai ?? "—") : null}</td>
-              <td>{buka[b.id] ? (b.keterangan ?? "—") : null}</td>
+              <td className="sel-rinci">
+                {buka[b.id] ? (b.nilai ?? "—") : null}
+              </td>
+              <td className="sel-rinci">
+                {buka[b.id] ? (b.keterangan ?? "—") : null}
+              </td>
               {/* Keduanya berdiri berdampingan, dan yang tidak berlaku pada
                   baris ini dimatikan — bukan dihilangkan. Tombol yang
                   muncul-hilang membuat orang mencari-cari di mana sebuah

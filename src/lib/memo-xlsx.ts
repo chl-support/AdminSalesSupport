@@ -19,8 +19,19 @@ import ExcelJS from "exceljs";
 
 import type { BarisSkema } from "./memo-skema";
 
-/** Satu lembar kerja sebagai petak: baris berisi teks tiap kolom. */
-export type Lembar = { nama: string; petak: string[][] };
+/**
+ * Satu lembar kerja sebagai petak: baris berisi teks tiap kolom.
+ *
+ * `sambungan` menandai sel yang hanya dinaungi sebuah gabungan, bukan
+ * pemiliknya. Teksnya sama dengan sel induk di atasnya — sengaja disebarkan,
+ * agar tiap baris tetap tahu kategorinya — tetapi ia bukan isi yang baru.
+ * Tanpa tanda ini, satu kategori yang menaungi lima baris terbaca sebagai
+ * lima kategori dengan nilai komisi yang sama, dan nilai itu terhitung lima
+ * kali.
+ */
+export type Lembar = {
+  nama: string; petak: string[][]; sambungan: boolean[][];
+};
 
 // ── Menulis angka sebagaimana Excel menampilkannya ────────────────────────
 
@@ -99,20 +110,26 @@ export async function lembarXlsx(buf: Buffer): Promise<Lembar[]> {
   const hasil: Lembar[] = [];
   wb.eachSheet((ws) => {
     const petak: string[][] = [];
+    const sambungan: boolean[][] = [];
     ws.eachRow({ includeEmpty: true }, (row, nomor) => {
       const baris: string[] = [];
+      const ikut: boolean[] = [];
       row.eachCell({ includeEmpty: true }, (sel, kolom) => {
         // Sel yang tergabung hanya menyimpan isinya pada sel induk. Yang
         // dibaca orang pada baris di bawahnya tetap isi yang sama, jadi
         // isinya disebarkan — tanpa itu satu kategori yang menaungi empat
         // baris membuat tiga baris berikutnya kehilangan kategorinya.
-        const induk = sel.isMerged && sel.master !== sel ? sel.master : sel;
-        baris[kolom - 1] = teksSel(induk);
+        const naungan = sel.isMerged && sel.master !== sel;
+        baris[kolom - 1] = teksSel(naungan ? sel.master : sel);
+        ikut[kolom - 1] = naungan;
       });
       petak[nomor - 1] = baris;
+      sambungan[nomor - 1] = ikut;
     });
-    for (let i = 0; i < petak.length; i++) petak[i] ??= [];
-    hasil.push({ nama: ws.name, petak });
+    for (let i = 0; i < petak.length; i++) {
+      petak[i] ??= []; sambungan[i] ??= [];
+    }
+    hasil.push({ nama: ws.name, petak, sambungan });
   });
   return hasil;
 }
@@ -155,6 +172,25 @@ function isi(baris: string[], i: number): string {
  * yang lain tidak, dan keduanya sah. Bila tidak ada baris kepala sama sekali,
  * barisnya dibaca menurut urutan kolom apa adanya, karena itulah satu-satunya
  * susunan yang tersisa.
+ *
+ * Satu baris skema kerap menempati beberapa baris lembar, dan yang
+ * menyatukannya adalah NOMORNYA, bukan sel gabungan pada kolom mana pun.
+ * Nomor yang sama berturut-turut berarti satu butir yang keterangannya
+ * ditulis berbaris-baris; nomor yang berganti berarti butir berikutnya,
+ * sekalipun kategorinya digabung ke bawah — "Komisi Inhouse" yang menaungi
+ * nomor 1 untuk 1 unit dan nomor 2 untuk 2 unit tetap dua tarif yang
+ * berbeda, dan meleburnya akan menghilangkan salah satunya.
+ *
+ * Sebaliknya, memecah satu butir bernomor satu menjadi lima baris membuat
+ * "1 unit = 1.5%" tercatat lima kali pada memo yang menyebutkannya sekali —
+ * dan karena kolom Nilai dan kolom Keterangan tidak selalu bergabung pada
+ * baris yang sama, pemecahan itu memasangkan "1.2.2 Sales Manager" dengan
+ * keterangan milik baris lain. Maka isi tiap kolom dirangkai dengan ganti
+ * baris, dalam urutan aslinya, tanpa ada yang dibuang atau bertukar tempat.
+ *
+ * Pada lembar tanpa kolom nomor, yang menyatukan kembali sel gabungan pada
+ * kolom kategorinya. Pada lembar tanpa keduanya, tiap baris tetap menjadi
+ * satu baris skema seperti adanya.
  */
 export function barisSkemaPetak(lembar: Lembar): BarisSkema[] {
   const hasil: BarisSkema[] = [];
@@ -162,15 +198,44 @@ export function barisSkemaPetak(lembar: Lembar): BarisSkema[] {
   let kelompok = lembar.nama;
   let urutan = 0;
 
-  for (const baris of lembar.petak) {
+  type Kumpulan = {
+    no: string; kelompok: string;
+    kategori: string[]; nilai: string[]; ket: string[];
+  };
+  let kini: Kumpulan | null = null;
+
+  const tutup = () => {
+    if (!kini) return;
+    const kategori = kini.kategori.join("\n");
+    const nilai = kini.nilai.join("\n");
+    // Baris tanpa kategori maupun nilai bukan baris skema: ia sisa baris
+    // kosong atau catatan kaki yang ikut terbawa di antara dua tabel.
+    if (kategori || nilai) {
+      urutan += 1;
+      hasil.push({
+        kelompok: kini.kelompok,
+        urutan: /^\d+$/.test(kini.no) ? Number(kini.no) : urutan,
+        kategori, nilai, keterangan: kini.ket.join("\n"),
+      });
+    }
+    kini = null;
+  };
+
+  for (let i = 0; i < lembar.petak.length; i++) {
+    const baris = lembar.petak[i] ?? [];
+    const naungan = lembar.sambungan[i] ?? [];
     const terisi = baris.filter((s) => (s ?? "").trim());
-    if (!terisi.length) continue;
+    if (!terisi.length) { tutup(); continue; }
 
     const kepalaBaru = petaKepala(baris);
-    if (kepalaBaru) { peta = kepalaBaru; urutan = 0; continue; }
+    if (kepalaBaru) { tutup(); peta = kepalaBaru; urutan = 0; continue; }
 
-    // Baris yang hanya berisi satu sel adalah judul tabelnya, bukan data.
-    if (terisi.length === 1) {
+    // Baris yang hanya berisi satu sel adalah judul tabelnya, bukan data —
+    // kecuali bila sel itu sendiri hanya dinaungi gabungan dari baris di
+    // atasnya, sebab yang begitu adalah lanjutan kategori yang sedang
+    // berjalan, bukan judul tabel baru.
+    if (terisi.length === 1 && !naungan.some(Boolean)) {
+      tutup();
       const j = JUDUL.exec(terisi[0].trim());
       if (j) { kelompok = j[1].trim(); urutan = 0; }
       else kelompok = terisi[0].trim();
@@ -178,19 +243,35 @@ export function barisSkemaPetak(lembar: Lembar): BarisSkema[] {
     }
     if (!peta) continue;
 
-    const kategori = isi(baris, peta.kategori);
-    const nilai = isi(baris, peta.nilai);
-    const ket = isi(baris, peta.ket);
-    if (!kategori && !nilai) continue;
+    // Sel yang hanya dinaungi gabungan tidak membawa isi baru: teksnya sama
+    // dengan sel induk yang sudah tercatat, dan mencatatnya lagi berarti
+    // menulis satu keterangan sebanyak baris yang dinaunginya.
+    const ambil = (kolom: number) =>
+      kolom >= 0 && !naungan[kolom] ? (baris[kolom] ?? "").trim() : "";
+    const utuh = (kolom: number) =>
+      kolom >= 0 ? (baris[kolom] ?? "").trim() : "";
 
-    const noSel = isi(baris, peta.no);
-    urutan += 1;
-    hasil.push({
-      kelompok,
-      urutan: /^\d+$/.test(noSel) ? Number(noSel) : urutan,
-      kategori, nilai, keterangan: ket,
-    });
+    // Nomor yang berganti menutup butir sebelumnya. Nomor yang kosong —
+    // karena selnya dinaungi gabungan — maupun nomor yang sama berarti
+    // baris ini masih lanjutan butir yang sedang berjalan.
+    const no = ambil(peta.no);
+    if (peta.no >= 0 ? (no && no !== kini?.no) : !!ambil(peta.kategori)) tutup();
+
+    const dibuka = !kini;
+    kini ??= { no, kelompok, kategori: [], nilai: [], ket: [] };
+
+    // Pada baris pembuka, kolom yang selnya dinaungi gabungan tetap diambil
+    // isinya: kategori yang membentang dari butir sebelumnya memang berlaku
+    // bagi butir ini juga, dan tanpa itu butir ini kehilangan namanya.
+    const isian = (kolom: number) => {
+      const t = ambil(kolom);
+      return t || (dibuka ? utuh(kolom) : "");
+    };
+    const kat = isian(peta.kategori); if (kat) kini.kategori.push(kat);
+    const nil = isian(peta.nilai);    if (nil) kini.nilai.push(nil);
+    const ket = isian(peta.ket);      if (ket) kini.ket.push(ket);
   }
+  tutup();
   return hasil;
 }
 
