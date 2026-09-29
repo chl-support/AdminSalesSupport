@@ -1359,8 +1359,8 @@ button.hapus-klaim:hover:not(:disabled) {
    biru baru yang dibawa dari luar: satu warna tambahan yang hanya dipakai di
    satu kotak akan terbaca sebagai bagian dari sistem lain. */
 .kotak-seret {
-  display: flex; flex-direction: column; align-items: center; gap: 11px;
-  padding: 34px 18px; text-align: center; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; gap: 7px;
+  padding: 18px 16px; text-align: center; cursor: pointer;
   /* Nyaris putih dengan semburat biru, bukan --notebg yang pekat: kotak ini
      bidang terbesar di kepala layar, dan warna yang cukup untuk sebuah banner
      setinggi dua baris menjadi terlalu berat bila dipakai selebar ini. */
@@ -1374,15 +1374,15 @@ button.hapus-klaim:hover:not(:disabled) {
 .kotak-seret:hover, .kotak-seret.aktif {
   border-color: var(--note); background: var(--notebg);
 }
-.kotak-seret .ikon-unggah { width: 34px; height: 34px; color: var(--note); }
-.kotak-seret b { font-size: 15px; }
+.kotak-seret .ikon-unggah { width: 24px; height: 24px; color: var(--note); }
+.kotak-seret b { font-size: 13.5px; }
 .kotak-seret span { font-size: 12.5px; color: var(--sub); }
 .kotak-seret .tombol-berkas.pri {
-  display: inline-flex; align-items: center; gap: 7px; margin-top: 2px;
-  padding: 8px 16px; border: 1px solid var(--note); border-radius: var(--lengkung);
+  display: inline-flex; align-items: center; gap: 6px; margin-top: 1px;
+  padding: 5px 13px; border: 1px solid var(--note); border-radius: var(--lengkung);
   background: var(--note); color: #fff; font-size: 13px; font-weight: 650;
 }
-.kotak-seret .tombol-berkas.pri svg { width: 15px; height: 15px; }
+.kotak-seret .tombol-berkas.pri svg { width: 13px; height: 13px; }
 .kotak-seret:hover .tombol-berkas.pri { background: #24406B; border-color: #24406B; }
 /* Baris jenis berkas: lambangnya sejajar tengah dengan tulisannya, bukan
    duduk di garis dasar huruf. */
@@ -2220,3 +2220,20 @@ td.sel-tindakan > a.tautan-klaim:last-child { margin-bottom: 0; }
   font-size: 12px; color: var(--sub);
 }
 .baris-kunci button { padding: 3px 10px; font-size: 11.5px; }
+
+/* Hapus memo, di bawah nomornya. Sengaja tidak setegas tombol pada kolom
+   Tindakan: ia membuang seluruh memo beserta belasan baris skemanya, dan
+   tombol sebesar itu di sel yang dilewati mata setiap kali menelusuri nomor
+   memo adalah tombol yang cepat atau lambat tertekan tanpa sengaja. */
+.hapus-memo {
+  display: block; margin-top: 6px; padding: 2px 8px;
+  border: 1px solid var(--line); border-radius: var(--lengkung);
+  background: #fff; font: inherit; font-size: 11px; font-weight: 600;
+  color: var(--sub); cursor: pointer;
+}
+.hapus-memo:hover:not(:disabled) {
+  border-color: var(--stop); background: var(--stopbg); color: var(--stop);
+}
+.hapus-memo:focus-visible {
+  outline: 2px solid rgba(140, 47, 47, .35); outline-offset: 1px;
+}

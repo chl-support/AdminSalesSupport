@@ -563,6 +563,47 @@ export async function hapusMemo(id: string, projectId: string, aktor: string) {
     [id, projectId]);
   if (!m) throw new WorkflowError("Memo tidak ditemukan.", "not_found", 404);
 
+  // Baris skema memo ikut terhapus sendiri lewat ON DELETE CASCADE, tetapi
+  // TARIF yang lahir dari baris itu tidak: incentive_schemes berdiri di tabel
+  // lain, dan claims menunjuk ke sana lewat snapshot->>'scheme_id'.
+  //
+  // Dibiarkan begitu, menghapus memo meninggalkan tarif yang tetap menghitung
+  // pembayaran sementara dasar tertulisnya sudah tidak ada — persis keadaan
+  // yang dicegah cabut(), yang menolak melepas tarif yang sudah dipakai
+  // menghitung klaim. Penghapusan memo tidak boleh menjadi jalan memutar bagi
+  // penjagaan itu, jadi ia diperiksa dengan ukuran yang sama.
+  //
+  // Keberadaan kolomnya diperiksa lebih dulu, bukan dengan memanggil
+  // ensureKolomRujukan(): rujukan.ts sudah mengimpor berkas ini, dan memanggil
+  // baliknya membentuk lingkaran impor yang bekerja hari ini lalu pecah pada
+  // hari seseorang memakai salah satunya lebih awal. Kolom yang belum ada
+  // berarti belum pernah ada baris yang diberlakukan, jadi tidak ada tarif
+  // yang perlu dijaga maupun dilepas.
+  const adaKolom = await one<{ ada: string }>(
+    `SELECT '1' AS ada FROM information_schema.columns
+      WHERE table_name = 'memo_skema' AND column_name = 'scheme_id'`);
+  if (adaKolom) {
+    const dipakai = await one<{ n: string }>(
+      `SELECT COUNT(*)::text AS n
+         FROM claims c
+         JOIN memo_skema s ON s.scheme_id::text = c.snapshot->>'scheme_id'
+        WHERE s.memo_id = $1`, [id]);
+    if (Number(dipakai?.n ?? 0) > 0) {
+      throw new WorkflowError(
+        "Memo ini memuat skema yang sudah dipakai menghitung klaim, jadi " +
+        "tidak dapat dihapus. Terbitkan memo penggantinya dan berlakukan " +
+        "barisnya.", "sudah_dipakai", 409);
+    }
+
+    // Tarif yang belum dipakai dilepas lebih dulu, bukan ditinggalkan. Baris
+    // yang menautkannya ke memo ini hilang bersama memonya, sehingga tarif
+    // yang tertinggal tidak lagi dapat ditemukan lewat layar mana pun.
+    await query(
+      `DELETE FROM incentive_schemes
+        WHERE id IN (SELECT scheme_id FROM memo_skema
+                      WHERE memo_id = $1 AND scheme_id IS NOT NULL)`, [id]);
+  }
+
   await query("DELETE FROM memos WHERE id=$1", [id]);
   await audit({
     entityType: "memo", entityId: id, action: "memo_deleted", actor: aktor,

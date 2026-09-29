@@ -44,7 +44,7 @@ const KATA = {
       "Memo Yang Menjadi Dasar Pengajuan Fee. Baris Yang Sudah Diberlakukan " +
       "Menjadi Acuan Nilai; Yang Belum, Belum Mengikat Apa Pun.",
     galat: "Tidak dapat dikerjakan",
-    unggahJudul: "UNGGAH MEMO",
+    unggahJudul: "Lampirkan Memo",
     seret: "Unggah Referensi Memo",
     pilih: "Pilih File",
     jenisBerkas: "PDF, Word, Excel, atau gambar · Maks. 10 MB per file",
@@ -100,6 +100,11 @@ const KATA = {
     berlakuKabar: "Baris diberlakukan sebagai skema insentif.",
     cabutKabar: "Pemberlakuan dicabut; barisnya kembali menjadi usulan.",
     cabutTanya: "Cabut pemberlakuan baris ini?",
+    hapusMemo: "Hapus memo",
+    hapusMemoTanya: (n: string) =>
+      `Hapus memo ${n} beserta seluruh baris skemanya? Tindakan ini tidak ` +
+      `dapat dibatalkan.`,
+    hapusMemoKabar: "Memo dihapus beserta seluruh baris skemanya.",
   },
   en: {
     judul: "Submission Reference",
@@ -107,7 +112,7 @@ const KATA = {
       "The memos fee submissions rest on. Rows already in force set the " +
       "rates; rows not yet in force bind nothing.",
     galat: "This could not be done",
-    unggahJudul: "UPLOAD MEMOS",
+    unggahJudul: "Attach memo",
     seret: "Upload memo reference",
     pilih: "Choose files",
     jenisBerkas: "PDF, Word, Excel or image · 10 MB per file at most",
@@ -158,6 +163,10 @@ const KATA = {
     berlakuKabar: "The row is now an incentive scheme.",
     cabutKabar: "Withdrawn; the row is a proposal again.",
     cabutTanya: "Withdraw this row from force?",
+    hapusMemo: "Delete memo",
+    hapusMemoTanya: (n: string) =>
+      `Delete memo ${n} and all of its scheme rows? This cannot be undone.`,
+    hapusMemoKabar: "The memo and all of its scheme rows were deleted.",
   },
 };
 
@@ -387,6 +396,29 @@ export default function ReferensiPengajuanPage() {
     } finally { setBusy(false); }
   };
 
+  /**
+   * Hapus satu memo beserta seluruh baris skemanya.
+   *
+   * Servernya menolak bila ada skema memo ini yang sudah dipakai menghitung
+   * klaim — memo adalah dasar tertulis angka yang sudah dibayarkan, dan
+   * membuangnya meninggalkan pertanyaan "mana dasarnya" tanpa jawaban.
+   * Penolakan itu muncul apa adanya di banner galat.
+   */
+  const hapusMemo = async (memoId: string, nomor: string | null) => {
+    if (!confirm(k.hapusMemoTanya(nomor ?? "—"))) return;
+    setBusy(true); setGalat(null); setKabar(null);
+    try {
+      const res = await fetch(`/api/memos/${memoId}`, { method: "DELETE" });
+      if (res.status === 401) { location.href = "/login"; return; }
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) { setGalat(j.detail ?? `HTTP ${res.status}`); return; }
+      setKabar(k.hapusMemoKabar);
+      await muat();
+    } catch (e: any) {
+      setGalat(String(e?.message ?? e));
+    } finally { setBusy(false); }
+  };
+
   const cabut = async (b: Baris) => {
     if (!confirm(k.cabutTanya)) return;
     setBusy(true); setGalat(null); setKabar(null);
@@ -566,7 +598,7 @@ export default function ReferensiPengajuanPage() {
                  tertinggal. */
               <Kotak key={g.kunci} no={i + 1} baris={g.baris} k={k}
                      bahasa={bahasa} busy={busy} bolehBerlaku={bolehBerlaku}
-                     cabut={cabut}
+                     cabut={cabut} hapusMemo={hapusMemo}
                      berlakukan={(b) => { setDialog(b); setGalat(null); }} />
             ))}
 
@@ -608,10 +640,12 @@ export default function ReferensiPengajuanPage() {
  * bagian itu akan tampak sebagai satu blok, dan kategori di antaranya ikut
  * tersedot ke dalamnya.
  */
-function Kotak({ no, baris, k, bahasa, busy, bolehBerlaku, cabut, berlakukan }: {
+function Kotak({ no, baris, k, bahasa, busy, bolehBerlaku, cabut, hapusMemo,
+                berlakukan }: {
   no: number; baris: Baris[]; k: any; bahasa: "id" | "en"; busy: boolean;
   bolehBerlaku: boolean;
   cabut: (b: Baris) => Promise<void> | void;
+  hapusMemo: (memoId: string, nomor: string | null) => Promise<void> | void;
   berlakukan: (b: Baris) => void;
 }) {
   const memo = baris[0];
@@ -701,7 +735,23 @@ function Kotak({ no, baris, k, bahasa, busy, bolehBerlaku, cabut, berlakukan }: 
               {pertama && (
                 <>
                   <td className="n" rowSpan={totalBaris}>{no}</td>
-                  <td rowSpan={totalBaris}>{memo.no_memo ?? "—"}</td>
+                  {/* Hapus berdiri di sel nomor memo, bukan di kolom
+                      Tindakan: Tindakan berisi perbuatan atas SATU baris
+                      skema, sedangkan yang ini membuang seluruh memonya.
+                      Tombol yang membuang sebelas baris sekaligus tidak boleh
+                      berdiri sebaris dengan tombol yang hanya menyentuh
+                      satu. */}
+                  <td rowSpan={totalBaris}>
+                    {memo.no_memo ?? "—"}
+                    {bolehBerlaku && (
+                      <button type="button" className="hapus-memo"
+                              disabled={busy}
+                              onClick={() => void hapusMemo(memo.memo_id,
+                                                            memo.no_memo)}>
+                        {k.hapusMemo}
+                      </button>
+                    )}
+                  </td>
                   <td rowSpan={totalBaris}>{tglPanjang(memo.tanggal)}</td>
                   <td rowSpan={totalBaris}>{memo.perihal ?? "—"}</td>
                   <td rowSpan={totalBaris}>
@@ -730,7 +780,23 @@ function Kotak({ no, baris, k, bahasa, busy, bolehBerlaku, cabut, berlakukan }: 
               {pertama && (
                 <>
                   <td className="n" rowSpan={totalBaris}>{no}</td>
-                  <td rowSpan={totalBaris}>{memo.no_memo ?? "—"}</td>
+                  {/* Hapus berdiri di sel nomor memo, bukan di kolom
+                      Tindakan: Tindakan berisi perbuatan atas SATU baris
+                      skema, sedangkan yang ini membuang seluruh memonya.
+                      Tombol yang membuang sebelas baris sekaligus tidak boleh
+                      berdiri sebaris dengan tombol yang hanya menyentuh
+                      satu. */}
+                  <td rowSpan={totalBaris}>
+                    {memo.no_memo ?? "—"}
+                    {bolehBerlaku && (
+                      <button type="button" className="hapus-memo"
+                              disabled={busy}
+                              onClick={() => void hapusMemo(memo.memo_id,
+                                                            memo.no_memo)}>
+                        {k.hapusMemo}
+                      </button>
+                    )}
+                  </td>
                   <td rowSpan={totalBaris}>{tglPanjang(memo.tanggal)}</td>
                   <td rowSpan={totalBaris}>{memo.perihal ?? "—"}</td>
                   <td rowSpan={totalBaris}>
