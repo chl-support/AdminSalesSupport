@@ -887,9 +887,9 @@ async function main() {
       prev.sections.map((s) => [s.label, s.row_count]));
     assert(labels["BATAL UNIT"] === 1, JSON.stringify(labels));
     assert(labels["(Pindah Unit ke Unit lain)"] === 1, JSON.stringify(labels));
-    assert(labels["MANAGEMENT (NO CLOSING FEE, REWARD & COMMISSION)"] === 1,
+    assert(labels["MANAGEMENT (NO CLOSING FEE, REWARD & KOMISI)"] === 1,
            JSON.stringify(labels));
-    assert(labels["CLOSING FEE, REWARD & COMMISSION"] === 3, JSON.stringify(labels));
+    assert(labels["CLOSING FEE, REWARD & KOMISI"] === 3, JSON.stringify(labels));
   });
 
   await check("workbook berisi baris TOTAL berformula, bukan konstanta", async () => {
@@ -898,8 +898,9 @@ async function main() {
     const ws = wb.worksheets[0];
     let found = false;
     ws.eachRow((row) => {
-      if (row.getCell(5).value === "TOTAL") {
-        const cell = row.getCell(13);
+      // Kolom A memuat "TOTAL", kolom I memuat Nilai Kontrak yang dijumlah.
+      if (row.getCell(1).value === "TOTAL") {
+        const cell = row.getCell(9);
         found = typeof cell.value === "object" && cell.value !== null &&
                 "formula" in (cell.value as any);
       }
