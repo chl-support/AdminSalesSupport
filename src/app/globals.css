@@ -2313,3 +2313,12 @@ td.sel-tindakan > a.tautan-klaim:last-child { margin-bottom: 0; }
 .tabel-laporan tr.total-laporan > td {
   background: #BFBFBF; font-weight: 700; color: var(--ink);
 }
+
+/* Detail Perhitungan sebagai halaman kedua formulirnya. Pemutus halaman
+   ditulis tegas: lembarnya melintang sedangkan formulirnya tegak, dan yang
+   dicetak menyambung pada satu halaman akan terpotong di tengah tabel. */
+.lembar-lanjutan { break-before: page; page-break-before: always; }
+@media screen {
+  .lembar-lanjutan { margin-top: 18px; padding-top: 18px;
+                     border-top: 1px dashed var(--line); }
+}

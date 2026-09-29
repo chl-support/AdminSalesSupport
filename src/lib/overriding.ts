@@ -111,7 +111,7 @@ export type Rekap = {
   catatan: { teks: string; nilai: string | null }[];
 };
 
-const tgl = (v: any): string | null =>
+export const tgl = (v: any): string | null =>
   !v ? null
      : v instanceof Date ? v.toISOString().slice(0, 10)
      : String(v).slice(0, 10);
@@ -120,7 +120,7 @@ const BULAN = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli",
                "Agustus", "September", "Oktober", "November", "Desember"];
 
 /** "2025-07-22" menjadi "Juli 2025", untuk judul bagian per bulan. */
-function namaBulan(t: string | null): string {
+export function namaBulan(t: string | null): string {
   if (!t) return "TANPA TANGGAL KONTRAK";
   const [th, bl] = t.split("-").map(Number);
   return `${BULAN[(bl ?? 1) - 1] ?? bl} ${th}`;
@@ -140,7 +140,7 @@ const STATUS_UNIT: Record<string, string> = {
  * luar, sebab ia berlaku juga bagi unit yang belum punya klaim sama sekali:
  * justru unit-unit itulah yang seluruh haknya menjadi Selisih Overiding.
  */
-function barisDari(r: any, urut: number, persenTotal: number | null,
+export function barisDari(r: any, urut: number, persenTotal: number | null,
                    namaPenerima: string | null = null): BarisRekap {
   const incl = Number(r.contract_value_incl_vat ?? 0);
   // Tarif PPN mengikuti tanggal kontraknya, sebagaimana seluruh sistem ini:
@@ -248,7 +248,7 @@ const NAMA_TINGKAT: Record<string, string> = {
   coordinator_agent_2: "Koordinator Agent 2",
 };
 
-function totalkan(baris: BarisRekap[]) {
+export function totalkan(baris: BarisRekap[]) {
   return baris.reduce((t, b) => ({
     amount: t.amount + b.amount, dpp: t.dpp + b.dpp, ppn: t.ppn + b.ppn,
     pph23: t.pph23 + b.pph23, net: t.net + b.net,
