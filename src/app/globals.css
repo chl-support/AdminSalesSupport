@@ -2237,6 +2237,13 @@ td.sel-tindakan > a.tautan-klaim:last-child { margin-bottom: 0; }
 .hapus-memo:focus-visible {
   outline: 2px solid rgba(140, 47, 47, .35); outline-offset: 1px;
 }
+/* Nilai dan Keterangan pada Referensi Pengajuan kerap berisi beberapa baris
+   — di memonya pun begitu: satu sel Keterangan yang menaungi lima baris
+   syarat pembayaran. Pemutus barisnya dipertahankan; disatukan menjadi satu
+   paragraf, urutan "Cash & Cicilan" lalu syaratnya, "KPR" lalu syaratnya,
+   tidak lagi terbaca sebagai pasangan. */
+.tabel-rujukan .sel-baris { white-space: pre-line; }
+
 /* Dua tombol pada kolom Tindakan Referensi Pengajuan: berdampingan bila
    muat, bertumpuk bila kolomnya sempit. */
 .tindakan-rujukan { display: flex; flex-wrap: wrap; gap: 6px; }

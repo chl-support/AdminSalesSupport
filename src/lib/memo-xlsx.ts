@@ -19,8 +19,19 @@ import ExcelJS from "exceljs";
 
 import type { BarisSkema } from "./memo-skema";
 
-/** Satu lembar kerja sebagai petak: baris berisi teks tiap kolom. */
-export type Lembar = { nama: string; petak: string[][] };
+/**
+ * Satu lembar kerja sebagai petak: baris berisi teks tiap kolom.
+ *
+ * Dua petak, bukan satu. `petak` adalah apa yang terbaca di layar Excel —
+ * sel gabungan menurunkan isinya ke seluruh baris yang dinaunginya. `sendiri`
+ * hanya isi yang benar-benar ditulis pada sel itu; pada baris lanjutan sebuah
+ * gabungan ia kosong. Bedanya yang menentukan di mana satu baris memo
+ * berakhir: nomor yang digabung menaungi lima baris adalah SATU baris memo
+ * dengan lima baris keterangan, bukan lima baris memo yang nomornya sama.
+ */
+export type Lembar = {
+  nama: string; petak: string[][]; sendiri: string[][];
+};
 
 // ── Menulis angka sebagaimana Excel menampilkannya ────────────────────────
 
@@ -99,20 +110,25 @@ export async function lembarXlsx(buf: Buffer): Promise<Lembar[]> {
   const hasil: Lembar[] = [];
   wb.eachSheet((ws) => {
     const petak: string[][] = [];
+    const sendiri: string[][] = [];
     ws.eachRow({ includeEmpty: true }, (row, nomor) => {
       const baris: string[] = [];
+      const milik: string[] = [];
       row.eachCell({ includeEmpty: true }, (sel, kolom) => {
         // Sel yang tergabung hanya menyimpan isinya pada sel induk. Yang
         // dibaca orang pada baris di bawahnya tetap isi yang sama, jadi
         // isinya disebarkan — tanpa itu satu kategori yang menaungi empat
         // baris membuat tiga baris berikutnya kehilangan kategorinya.
-        const induk = sel.isMerged && sel.master !== sel ? sel.master : sel;
+        const lanjutan = sel.isMerged && sel.master !== sel;
+        const induk = lanjutan ? sel.master : sel;
         baris[kolom - 1] = teksSel(induk);
+        milik[kolom - 1] = lanjutan ? "" : teksSel(sel);
       });
       petak[nomor - 1] = baris;
+      sendiri[nomor - 1] = milik;
     });
-    for (let i = 0; i < petak.length; i++) petak[i] ??= [];
-    hasil.push({ nama: ws.name, petak });
+    for (let i = 0; i < petak.length; i++) { petak[i] ??= []; sendiri[i] ??= []; }
+    hasil.push({ nama: ws.name, petak, sendiri });
   });
   return hasil;
 }
@@ -161,36 +177,61 @@ export function barisSkemaPetak(lembar: Lembar): BarisSkema[] {
   let peta: Peta | null = null;
   let kelompok = lembar.nama;
   let urutan = 0;
+  let berjalan: BarisSkema | null = null;
 
-  for (const baris of lembar.petak) {
-    const terisi = baris.filter((s) => (s ?? "").trim());
-    if (!terisi.length) continue;
+  /** Baris lanjutan menambah barisnya, bukan menggantinya. */
+  const sambung = (lama: string, baru: string) =>
+    !baru ? lama : lama ? `${lama}\n${baru}` : baru;
+
+  lembar.petak.forEach((baris, i) => {
+    const milik = lembar.sendiri[i] ?? [];
+    const terisi = baris
+      .map((sel, kolom) => ({ kolom, teks: (sel ?? "").trim() }))
+      .filter((s) => s.teks);
+    if (!terisi.length) return;
 
     const kepalaBaru = petaKepala(baris);
-    if (kepalaBaru) { peta = kepalaBaru; urutan = 0; continue; }
-
-    // Baris yang hanya berisi satu sel adalah judul tabelnya, bukan data.
-    if (terisi.length === 1) {
-      const j = JUDUL.exec(terisi[0].trim());
-      if (j) { kelompok = j[1].trim(); urutan = 0; }
-      else kelompok = terisi[0].trim();
-      continue;
+    if (kepalaBaru) {
+      peta = kepalaBaru; urutan = 0; berjalan = null; return;
     }
-    if (!peta) continue;
+
+    // Baris lanjutan sebuah sel gabungan: nomornya tidak ditulis ulang,
+    // karena di Excel nomor itu memang masih nomor yang sama. Diperiksa
+    // lebih dulu daripada aturan judul — baris yang hanya berisi satu sel
+    // Keterangan adalah kelanjutan barisnya, bukan judul tabel baru.
+    if (peta && berjalan) {
+      const jangkar = peta.no >= 0 ? peta.no : peta.kategori;
+      if (!isi(milik, jangkar)) {
+        berjalan.kategori = sambung(berjalan.kategori, isi(milik, peta.kategori));
+        berjalan.nilai = sambung(berjalan.nilai, isi(milik, peta.nilai));
+        berjalan.keterangan =
+          sambung(berjalan.keterangan, isi(milik, peta.ket));
+        return;
+      }
+    }
+
+    // Judul tabelnya berdiri sendiri pada kolom paling kiri.
+    if (terisi.length === 1 && (!peta || terisi[0].kolom === 0)) {
+      const j = JUDUL.exec(terisi[0].teks);
+      kelompok = j ? j[1].trim() : terisi[0].teks;
+      urutan = 0; berjalan = null;
+      return;
+    }
+    if (!peta) return;
 
     const kategori = isi(baris, peta.kategori);
     const nilai = isi(baris, peta.nilai);
-    const ket = isi(baris, peta.ket);
-    if (!kategori && !nilai) continue;
+    if (!kategori && !nilai) return;
 
     const noSel = isi(baris, peta.no);
     urutan += 1;
-    hasil.push({
+    berjalan = {
       kelompok,
       urutan: /^\d+$/.test(noSel) ? Number(noSel) : urutan,
-      kategori, nilai, keterangan: ket,
-    });
-  }
+      kategori, nilai, keterangan: isi(baris, peta.ket),
+    };
+    hasil.push(berjalan);
+  });
   return hasil;
 }
 
