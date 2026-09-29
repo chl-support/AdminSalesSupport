@@ -2251,8 +2251,8 @@ td.sel-tindakan > a.tautan-klaim:last-child { margin-bottom: 0; }
 }
 /* Dua tombol pada kolom Tindakan Referensi Pengajuan: berdampingan bila
    muat, bertumpuk bila kolomnya sempit. */
-.tindakan-rujukan { display: flex; flex-wrap: wrap; gap: 6px; }
-.tindakan-rujukan button { flex: 1 1 auto; white-space: nowrap; }
+.tindakan-isi { display: flex; flex-wrap: wrap; gap: 6px; }
+.tindakan-isi button { flex: 1 1 auto; white-space: nowrap; }
 
 /* Satu baris memo di dalam dialog pemberlakuan: kotaknya sendiri, supaya
    isian sebelas baris tidak terbaca sebagai satu formulir panjang yang
