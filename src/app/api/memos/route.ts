@@ -2,8 +2,6 @@ import { handler, currentUser, projectAktif } from "@/lib/api";
 import { WorkflowError } from "@/lib/workflow";
 import { daftarMemo, lampiranProject, namaDikenal, rakitUnggah, simpanMemo }
   from "@/lib/memo";
-import { bedahSkemaExcel, type KolomMemo } from "@/lib/memo-excel";
-import { bisaDibacaExcel } from "@/lib/lembar-kerja";
 
 /** Menulis berkas memo ke basis data; beri waktu yang cukup. */
 export const maxDuration = 60;
@@ -70,34 +68,15 @@ export const POST = handler(async (req) => {
     } catch { /* rinciannya hilang; memonya sendiri tetap tersimpan */ }
   }
 
-  // Memo yang datang sebagai lembar kerja dibaca di sini, bukan di peramban.
-  // Pembedah di peramban bekerja dari koordinat tiap kata hasil OCR, dan lembar
-  // kerja tidak punya halaman maupun koordinat: ia sudah berupa baris dan
-  // kolom. Lihat bedahSkemaExcel() pada @/lib/memo-excel.
-  let dariExcel: KolomMemo = {};
-  if (!skema?.length && bisaDibacaExcel(isi.file_name, isi.content_type)) {
-    try {
-      const hasil = await bedahSkemaExcel(isi.buf);
-      dariExcel = hasil.kolom;
-      if (hasil.skema.length) skema = hasil.skema;
-    } catch {
-      // Lembarnya tidak tersusun seperti memo, atau berkasnya cacat. Memonya
-      // sendiri tetap tersimpan sebagai lampiran, dan barisnya dapat diisi
-      // tangan — kegagalan membaca bukan alasan menolak berkasnya.
-    }
-  }
-
-  // Yang diisi di formulir selalu menang: pembacaan otomatis hanya mengisi
-  // yang dibiarkan kosong.
   return simpanMemo(projectId, user.username, {
     skema,
-    judul: teks("judul") ?? dariExcel.judul ?? isi.file_name,
-    nomor: teks("nomor") ?? dariExcel.nomor ?? null,
+    judul: teks("judul") ?? isi.file_name,
+    nomor: teks("nomor"),
     keterangan: teks("keterangan"),
-    berlaku_dari: teks("berlaku_dari") ?? dariExcel.berlaku_dari ?? null,
-    berlaku_sampai: teks("berlaku_sampai") ?? dariExcel.berlaku_sampai ?? null,
-    tanggal_memo: teks("tanggal_memo") ?? dariExcel.tanggal_memo ?? null,
-    dari: teks("dari") ?? dariExcel.dari ?? null,
+    berlaku_dari: teks("berlaku_dari"),
+    berlaku_sampai: teks("berlaku_sampai"),
+    tanggal_memo: teks("tanggal_memo"),
+    dari: teks("dari"),
     kepada: teks("kepada"),
     nilai_skema: teks("nilai_skema"),
     dokumen_wajib: teks("dokumen_wajib"),
