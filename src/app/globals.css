@@ -2322,3 +2322,14 @@ td.sel-tindakan > a.tautan-klaim:last-child { margin-bottom: 0; }
   .lembar-lanjutan { margin-top: 18px; padding-top: 18px;
                      border-top: 1px dashed var(--line); }
 }
+
+/* Satu tanda tangan pada lembar Detail Perhitungan: rata kiri, selebar nama
+   terpanjang yang masuk akal. Bukan grid empat kolom seperti rekap
+   Overriding — satu kolom yang dipaksa masuk grid itu akan berdiri di
+   seperempat kiri halaman dengan garis sepanjang seperempatnya juga. */
+.ttd-tunggal { margin-top: 26px; width: 240px; text-align: left; }
+.ttd-tunggal .peran { display: block; font-size: 11.5px; color: var(--sub); }
+.ttd-tunggal .kotak-ttd { height: 54px; }
+.ttd-tunggal .nama-ttd { display: block; font-size: 11.5px;
+                         font-weight: 650; color: var(--ink); }
+.ttd-tunggal .garis-nama { border-top: 1px solid var(--ink); margin-top: 2px; }

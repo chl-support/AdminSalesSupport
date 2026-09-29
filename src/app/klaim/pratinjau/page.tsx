@@ -614,11 +614,23 @@ export default function PratinjauPage() {
               yang harus dicari sendiri. */}
           {!lunas(c) && detail[c.id] && (
             <div className="lembar-lanjutan">
+              {/* Satu tanda tangan saja, dan namanya nama marketing yang
+                  mengajukan — bukan empat kolom pengesahan. Halaman pertama
+                  formulirnya sudah membawa blok Pemohon, Admin & Finance,
+                  dan Management; mengulangnya di lampiran perhitungan
+                  berarti meminta empat orang yang sama menandatangani hal
+                  yang sama dua kali. Nama agensinya dipotong: yang bertanda
+                  tangan orangnya. */}
               <RekapOverriding
                 rekap={detail[c.id]}
                 judul={JUDUL_DETAIL[c.claim_type]}
                 labelSkema={SKEMA_DETAIL[c.claim_type]}
-                labelPenerima="Penerima" />
+                labelPenerima="Penerima"
+                tanpaSelisih
+                ttdMarketing={
+                  (detail[c.id].bagian[0]?.baris[0]?.marketing
+                   ?? detail[c.id].sales_manager?.full_name
+                   ?? "").split(" / ")[0]} />
             </div>
           )}
 
