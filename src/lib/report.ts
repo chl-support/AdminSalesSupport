@@ -202,6 +202,8 @@ const CLOSING_FEE_COLS: Record<string, [number, number]> = {
   sales_manager_inhouse: [K.managerFee, K.managerTgl],
   sales_markom: [K.marcommFee, K.marcommTgl],
   markom: [K.marcommFee, K.marcommTgl],
+  // PIC Proyek pada berkas acuannya adalah Sales Koordinator.
+  sales_coordinator: [K.picFee, K.picTgl],
 };
 
 /**
