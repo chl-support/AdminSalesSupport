@@ -98,6 +98,48 @@ const angka = new Set(KOLOM_ANGKA);
 
 const KOLOM = Array.from({ length: KOLOM_TERAKHIR }, (_, i) => i + 1);
 
+/**
+ * Kolom yang tidak ikut bergeser saat tabelnya digulir ke samping.
+ *
+ * Yang diminta tetap terlihat adalah No., Konsumen, dan Unit — tetapi
+ * ketiganya tidak berdampingan: Tanggal Kontrak dan Tanggal Batal duduk di
+ * antara No. dan Konsumen. Yang dibekukan karenanya kolom pertama sampai
+ * kelima sekaligus. Membekukan tiga kolom yang terpisah berarti kolom keempat
+ * dan kelima harus dipindahkan ke depan, dan urutan kolom laporan ini tidak
+ * boleh berubah; sedangkan membiarkan Tanggal bergeser di bawah Konsumen yang
+ * diam akan membuat dua kolom saling menindih.
+ *
+ * Berkas Excel-nya pun membekukan lima kolom yang sama — panel bekunya
+ * disetel pada xSplit 5 — jadi layar dan unduhannya berhenti di tempat yang
+ * sama.
+ */
+const BEKU = 5;
+
+/** Jarak tiap kolom dari tepi kiri tabel, untuk menempelkan kolom beku. */
+const KIRI: number[] = (() => {
+  const hasil: number[] = [];
+  let jumlah = 0;
+  for (let i = 0; i < KOLOM_TERAKHIR; i++) { hasil.push(jumlah); jumlah += px(LEBAR[i]); }
+  return hasil;
+})();
+
+/** Sifat satu sel data: beku bila di kolom depan, rata kanan bila angka. */
+const selData = (kolom: number) => {
+  const b = beku(kolom);
+  const kelas = [b.className, angka.has(kolom) ? "n" : null]
+    .filter(Boolean).join(" ");
+  return { ...b, className: kelas || undefined };
+};
+
+/** Sifat sel beku: menempel pada jarak kolomnya sendiri dari tepi kiri. */
+const beku = (kolom: number) => kolom <= BEKU
+  // Kolom beku terakhir diberi garis tegak: tanpa itu, tidak ada yang
+  // memberi tahu di mana bagian yang diam berakhir dan bagian yang bergeser
+  // dimulai, dan kolom yang lewat di belakangnya terbaca seolah bersambung.
+  ? { className: kolom === BEKU ? "beku beku-tepi" : "beku",
+      style: { left: KIRI[kolom - 1] } }
+  : {};
+
 export default function LaporanPage() {
   const { sesi, memuat } = useSesi();
   const k = useKata(KATA);
@@ -174,7 +216,8 @@ export default function LaporanPage() {
                         .sort((a, b) => a[2] - b[2])
                         .map(([teks, r1, c1, r2, c2]) => (
                           <th key={`${r1}:${c1}`}
-                              rowSpan={r2 - r1 + 1} colSpan={c2 - c1 + 1}>
+                              rowSpan={r2 - r1 + 1} colSpan={c2 - c1 + 1}
+                              {...beku(c1)}>
                             {/* "Luas (m2)" ditulis dengan angka dua
                                 superskrip, sama seperti pada unduhannya —
                                 satuan meter persegi, bukan huruf m diikuti
@@ -190,13 +233,19 @@ export default function LaporanPage() {
                   {rincian.seksi.map((s) => (
                     <Fragment key={s.label}>
                       <tr className="seksi-laporan">
-                        <td colSpan={KOLOM_TERAKHIR}>{s.label}</td>
+                        {/* Selnya membentang selebar seluruh tabel, jadi ia
+                            tidak dapat menempel di tepi kiri: sel yang sudah
+                            memenuhi barisnya tidak punya ruang untuk bergeser
+                            terhadap barisnya sendiri. Yang ditempelkan
+                            tulisannya. */}
+                        <td colSpan={KOLOM_TERAKHIR}>
+                          <span className="label-seksi">{s.label}</span>
+                        </td>
                       </tr>
                       {s.baris.map((b) => (
                         <tr key={`${s.label}:${b.no}`}>
                           {KOLOM.map((c) => (
-                            <td key={c}
-                                className={angka.has(c) ? "n" : undefined}>
+                            <td key={c} {...selData(c)}>
                               {c === 1 ? b.no : (b.sel[c] ?? "")}
                             </td>
                           ))}
@@ -205,11 +254,11 @@ export default function LaporanPage() {
                     </Fragment>
                   ))}
                   <tr className="total-laporan">
-                    <td colSpan={4}>{k.total}</td>
+                    <td colSpan={4} className="beku" style={{ left: 0 }}>
+                      {k.total}
+                    </td>
                     {KOLOM.slice(4).map((c) => (
-                      <td key={c} className={angka.has(c) ? "n" : undefined}>
-                        {rincian.total[c] ?? ""}
-                      </td>
+                      <td key={c} {...selData(c)}>{rincian.total[c] ?? ""}</td>
                     ))}
                   </tr>
                   {!jumlahBaris && (
