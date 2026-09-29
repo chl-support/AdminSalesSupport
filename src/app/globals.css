@@ -96,10 +96,14 @@ td.n { text-align: right; font-variant-numeric: tabular-nums; color: var(--ink);
    akan melayang di pertengahan sepuluh baris, jauh dari baris pertama yang
    ia awali. */
 .tabel-rujukan td { vertical-align: top; }
-/* Garis pemisah antarmemo. Tanpa itu sepuluh baris satu memo dan enam baris
-   memo berikutnya mengalir menjadi satu blok, sebab garis antarbaris di
-   dalam satu memo sama tebalnya dengan garis di antara keduanya. */
+/* Satu nomor, satu kotak. Baris-baris di dalam satu memo tidak dipisah garis
+   mendatar: keempat skemanya — Sales Inhouse, Agent, Koordinator Pemasaran,
+   Supporting Team — adalah isi memo yang sama, dan garis di antaranya membuat
+   satu memo terbaca sebagai empat. Yang tersisa garis tegak antarkolom, dan
+   satu garis mendatar di antara dua memo. */
+.tabel-rujukan td { border-top: 0; border-bottom: 0; }
 .tabel-rujukan tr.kepala-memo > td { border-top: 1px solid var(--line); }
+.tabel-rujukan tr:last-child > td { border-bottom: 1px solid var(--line); }
 
 /* Kategorinya sendiri yang menjadi tombolnya, dan rupanya tetap tulisan
    biasa: ia isi sel, bukan perintah. Yang menandainya dapat dibuka hanya
@@ -2249,3 +2253,13 @@ td.sel-tindakan > a.tautan-klaim:last-child { margin-bottom: 0; }
    muat, bertumpuk bila kolomnya sempit. */
 .tindakan-rujukan { display: flex; flex-wrap: wrap; gap: 6px; }
 .tindakan-rujukan button { flex: 1 1 auto; white-space: nowrap; }
+
+/* Satu baris memo di dalam dialog pemberlakuan: kotaknya sendiri, supaya
+   isian sebelas baris tidak terbaca sebagai satu formulir panjang yang
+   kolomnya berulang tanpa ujung. */
+.baris-berlaku {
+  padding: 10px 12px; margin-bottom: 10px;
+  border: 1px solid var(--line); border-radius: var(--lengkung);
+  background: #FCFCFB;
+}
+.baris-berlaku:last-child { margin-bottom: 0; }

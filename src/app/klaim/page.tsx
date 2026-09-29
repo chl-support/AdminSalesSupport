@@ -64,6 +64,23 @@ function tanpaPpn(incl?: number | null, tglKontrak?: string | null): number {
 }
 
 /**
+ * Tanggal penjualan sebagaimana dibaca orang: 1 Jul 2026.
+ *
+ * Pendek, bukan panjang: ia berdiri pada kolom paling kiri sebuah tabel yang
+ * sudah memuat sebelas kolom lain, dan "1 Juli 2026" memaksa kolomnya
+ * selebar dua kali isinya sendiri.
+ */
+const BULAN_PENDEK = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun",
+                      "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
+
+function tglPendek(v?: string | null): string {
+  const t = v ? String(v).slice(0, 10) : "";
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(t)) return "—";
+  const [th, bl, hr] = t.split("-");
+  return `${Number(hr)} ${BULAN_PENDEK[Number(bl) - 1]} ${th}`;
+}
+
+/**
  * Sebab yang melekat pada unitnya, bukan pada jenis fee-nya.
  *
  * Unit yang dibatalkan, dipindahkan, atau milik management tidak menghasilkan
@@ -106,6 +123,7 @@ const KATA = {
     yangBelum: "yang belum dapat diklaim sama sekali",
     dataPenjualan: "Data penjualan",
     barisDitampilkan: (n: number) => `${n} baris ditampilkan`,
+    thTanggal: "Tanggal Penjualan",
     thUnit: "Unit", thPembeli: "Konsumen", thPenerima: "Sales",
     thKoordinator: "Sales Koordinator",
     thSkema: "Skema Cara Bayar",
@@ -196,6 +214,7 @@ const KATA = {
     yangBelum: "with nothing claimable yet",
     dataPenjualan: "Sales data",
     barisDitampilkan: (n: number) => `${n} rows shown`,
+    thTanggal: "Sale date",
     thUnit: "Unit", thPembeli: "Customer", thPenerima: "Sales",
     thKoordinator: "Sales Coordinator",
     thSkema: "Payment Scheme",
@@ -802,6 +821,11 @@ export default function PengajuanFeePage() {
           <table className="tabel-penjualan">
             <tbody>
               <tr>
+                {/* Tanggal penjualan berdiri paling kiri, mendahului unitnya:
+                    ia yang menentukan memo mana yang berlaku atas penjualan
+                    ini — tarif Closing Fee, Komisi dan Overriding diambil dari
+                    memo yang periode programnya menaungi tanggal ini. */}
+                <th className="sel-unit">{k.thTanggal}</th>
                 <th className="sel-unit">{k.thUnit}</th>
                 <th>{k.thPembeli}</th>
                 <th className="sel-penerima">{k.thPenerima}</th>
@@ -840,6 +864,7 @@ export default function PengajuanFeePage() {
 
                 return (
                   <tr key={u.id}>
+                    <td className="sel-unit">{tglPendek(u.contract_date)}</td>
                     <td className="sel-unit"><b>{u.code}</b></td>
                     <td>{u.buyer_name ?? "—"}</td>
                     {/* Sales dan koordinatornya berdiri di kolom masing-masing.
@@ -1006,14 +1031,14 @@ export default function PengajuanFeePage() {
 
               {!terlihat.length && !busy && (
                 <tr>
-                  <td colSpan={11} style={{ color: "var(--mut)" }}>
+                  <td colSpan={12} style={{ color: "var(--mut)" }}>
                     {k.takAdaCocok}
                   </td>
                 </tr>
               )}
               {busy && (
                 <tr>
-                  <td colSpan={11} style={{ color: "var(--mut)" }}>{k.memuat}</td>
+                  <td colSpan={12} style={{ color: "var(--mut)" }}>{k.memuat}</td>
                 </tr>
               )}
             </tbody>
