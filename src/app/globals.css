@@ -2279,6 +2279,11 @@ td.sel-tindakan > a.tautan-klaim:last-child { margin-bottom: 0; }
   background: var(--fill); font-weight: 700; color: var(--ink);
   font-size: 11.5px;
 }
+/* Kolom yang dibaca dari memonya: tulisan biasa, bukan kotak pilihan yang
+   dimatikan. Kotak abu-abu yang tidak dapat ditekan mengundang orang
+   mencoba menekannya; tulisan biasa sudah mengatakan bahwa ia keterangan,
+   bukan isian. */
+.tabel-berlaku td.terkunci { color: var(--sub); font-size: 11.5px; }
 .tabel-berlaku tr.sudah td { color: var(--mut); }
 .tabel-berlaku tr.tolak-baris td { color: var(--stop); font-size: 11px;
                                    padding-top: 0; }

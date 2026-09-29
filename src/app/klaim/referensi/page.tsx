@@ -116,6 +116,10 @@ const KATA = {
       "tekan. Hilangkan centang pada baris yang belum ingin diberlakukan.",
     dSudahBerlaku: "Sudah berlaku",
     dNilaiRingkas: "Nilai", dBersihRingkas: "bersih",
+    dTerkunci:
+      "Jenis fee, penerima, dan cara hitungnya dibaca dari memonya; yang " +
+      "diisi di sini nilainya saja.",
+    dBuka: "Ubah jenis fee & penerima", dKunciLagi: "Kunci lagi",
     dTakAdaBaris: "Seluruh baris memo ini sudah berlaku.",
     dSimpanN: (n: number) => `Berlakukan ${n} baris`,
     berlakuKabarN: (n: number) =>
@@ -198,6 +202,10 @@ const KATA = {
       "press. Untick a row you are not ready to put in force.",
     dSudahBerlaku: "Already in force",
     dNilaiRingkas: "Value", dBersihRingkas: "net",
+    dTerkunci:
+      "Fee type, recipient and method are read from the memo; only the " +
+      "value is typed here.",
+    dBuka: "Change fee type & recipient", dKunciLagi: "Lock again",
     dTakAdaBaris: "Every row of this memo is already in force.",
     dSimpanN: (n: number) => `Put ${n} rows in force`,
     berlakuKabarN: (n: number) => `${n} rows put in force.`,
@@ -1027,6 +1035,16 @@ function DialogBerlaku({ baris, k, bahasa, tutup, selesai, segarkan, galat }: {
   const [dari, setDari] = useState(memo.periode_awal ?? "");
   const [sampai, setSampai] = useState(memo.periode_akhir ?? "");
   const [dasar, setDasar] = useState("contract_value_incl_vat");
+  /**
+   * Jenis fee, penerima dan cara hitungnya terkunci.
+   *
+   * Ketiganya dibaca dari memonya, dan yang dikerjakan di layar ini memang
+   * memeriksa nilainya — tiga pemilih yang terbuka pada dua belas baris
+   * hanya menawarkan dua belas kesempatan mengubah yang tidak perlu diubah.
+   * Kuncinya tetap dapat dibuka: tebakan mesin bisa keliru, dan yang keliru
+   * harus dapat dibetulkan tanpa membongkar memonya dari awal.
+   */
+  const [bebas, setBebas] = useState(false);
   const [busy, setBusy] = useState(false);
   const [pesan, setPesan] = useState<string | null>(null);
   /** Baris yang sudah berhasil diberlakukan pada tekan sebelumnya. */
@@ -1145,6 +1163,18 @@ function DialogBerlaku({ baris, k, bahasa, tutup, selesai, segarkan, galat }: {
           )}
 
           {!!usulan.length && (
+            <div className="row sp" style={{ marginBottom: 0 }}>
+              <span className="hint" style={{ margin: 0, textAlign: "left" }}>
+                {k.dTerkunci}
+              </span>
+              <button type="button" className="tautan" disabled={busy}
+                      onClick={() => setBebas((v) => !v)}>
+                {bebas ? k.dKunciLagi : k.dBuka}
+              </button>
+            </div>
+          )}
+
+          {!!usulan.length && (
             <table className="tabel-berlaku"><tbody>
               <tr>
                 <th style={{ width: 28 }} />
@@ -1181,40 +1211,52 @@ function DialogBerlaku({ baris, k, bahasa, tutup, selesai, segarkan, galat }: {
                               {k.dSudahBerlaku}</span></>}
                             <div className="meta asal">{b.nilai ?? "—"}</div>
                           </td>
-                          <td>
-                            <select value={v.jenis} disabled={mati}
-                                    onChange={(e) => {
-                                      const j = e.target.value;
-                                      const sah = kategoriBoleh(j, v.kategori)
-                                        ? v.kategori
-                                        : (KATEGORI_JENIS[j] ?? [])[0] ?? "";
-                                      ubah(b.id, { jenis: j, kategori: sah });
-                                    }}>
-                              {JENIS.map((j) => (
-                                <option key={j} value={j}>
-                                  {namaJenis(j as any, bahasa)}
-                                </option>
-                              ))}
-                            </select>
+                          {/* Ketiganya dikunci: dibaca dari memonya, bukan
+                              dipilih ulang. Yang boleh diketik hanya
+                              angkanya — itulah satu-satunya hal yang tidak
+                              dapat dibaca mesin dari kalimat seperti
+                              "1 Unit : @Rp. 8.000.000/per unit". */}
+                          <td className={bebas ? undefined : "terkunci"}>
+                            {bebas ? (
+                              <select value={v.jenis} disabled={mati}
+                                      onChange={(e) => {
+                                        const j = e.target.value;
+                                        const sah = kategoriBoleh(j, v.kategori)
+                                          ? v.kategori
+                                          : (KATEGORI_JENIS[j] ?? [])[0] ?? "";
+                                        ubah(b.id, { jenis: j, kategori: sah });
+                                      }}>
+                                {JENIS.map((j) => (
+                                  <option key={j} value={j}>
+                                    {namaJenis(j as any, bahasa)}
+                                  </option>
+                                ))}
+                              </select>
+                            ) : namaJenis(v.jenis as any, bahasa)}
                           </td>
-                          <td>
-                            <select value={v.kategori} disabled={mati}
-                                    onChange={(e) =>
-                                      ubah(b.id, { kategori: e.target.value })}>
-                              {(KATEGORI_JENIS[v.jenis] ?? []).map((kd) => (
-                                <option key={kd} value={kd}>
-                                  {namaKategori(kd, bahasa)}
-                                </option>
-                              ))}
-                            </select>
+                          <td className={bebas ? undefined : "terkunci"}>
+                            {bebas ? (
+                              <select value={v.kategori} disabled={mati}
+                                      onChange={(e) =>
+                                        ubah(b.id, { kategori: e.target.value })}>
+                                {(KATEGORI_JENIS[v.jenis] ?? []).map((kd) => (
+                                  <option key={kd} value={kd}>
+                                    {namaKategori(kd, bahasa)}
+                                  </option>
+                                ))}
+                              </select>
+                            ) : namaKategori(v.kategori, bahasa)}
                           </td>
-                          <td>
-                            <select value={v.cara} disabled={mati}
-                                    onChange={(e) =>
-                                      ubah(b.id, { cara: e.target.value })}>
-                              <option value="persen">{k.dPersenPilih}</option>
-                              <option value="nominal">{k.dNominalPilih}</option>
-                            </select>
+                          <td className={bebas ? undefined : "terkunci"}>
+                            {bebas ? (
+                              <select value={v.cara} disabled={mati}
+                                      onChange={(e) =>
+                                        ubah(b.id, { cara: e.target.value })}>
+                                <option value="persen">{k.dPersenPilih}</option>
+                                <option value="nominal">{k.dNominalPilih}</option>
+                              </select>
+                            ) : (v.cara === "persen" ? k.dPersenPilih
+                                                    : k.dNominalPilih)}
                           </td>
                           <td>
                             <div className="row rapat">
