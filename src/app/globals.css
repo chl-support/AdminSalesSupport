@@ -2237,3 +2237,7 @@ td.sel-tindakan > a.tautan-klaim:last-child { margin-bottom: 0; }
 .hapus-memo:focus-visible {
   outline: 2px solid rgba(140, 47, 47, .35); outline-offset: 1px;
 }
+/* Dua tombol pada kolom Tindakan Referensi Pengajuan: berdampingan bila
+   muat, bertumpuk bila kolomnya sempit. */
+.tindakan-rujukan { display: flex; flex-wrap: wrap; gap: 6px; }
+.tindakan-rujukan button { flex: 1 1 auto; white-space: nowrap; }
