@@ -129,7 +129,6 @@ const KOLOM: { atas: string; bawah?: string; kelas?: string; lebar: number }[] =
   { atas: "Ket.", lebar: 41 },
 ];
 
-const TOTAL_LEBAR = KOLOM.reduce((t, k) => t + k.lebar, 0);
 
 /**
  * Kolom yang berjudul sama dan berdampingan, dikumpulkan menjadi satu kepala.
@@ -139,18 +138,20 @@ const TOTAL_LEBAR = KOLOM.reduce((t, k) => t + k.lebar, 0);
  * pernah membentang: barisnya yang kedua ditempati judul bawahnya, dan
  * membentangkannya akan menggeser seluruh kolom sesudahnya satu langkah.
  */
-const KUMPULAN = KOLOM.reduce<
-  { atas: string; kelas?: string; jumlah: number; bertingkat: boolean }[]
->((kump, k) => {
-  const akhir = kump[kump.length - 1];
-  if (k.bawah && akhir?.bertingkat && akhir.atas === k.atas) {
-    akhir.jumlah++;
+function kumpulkan(kolom: typeof KOLOM) {
+  return kolom.reduce<
+    { atas: string; kelas?: string; jumlah: number; bertingkat: boolean }[]
+  >((kump, k) => {
+    const akhir = kump[kump.length - 1];
+    if (k.bawah && akhir?.bertingkat && akhir.atas === k.atas) {
+      akhir.jumlah++;
+      return kump;
+    }
+    kump.push({ atas: k.atas, kelas: k.bawah ? undefined : k.kelas,
+                jumlah: 1, bertingkat: Boolean(k.bawah) });
     return kump;
-  }
-  kump.push({ atas: k.atas, kelas: k.bawah ? undefined : k.kelas,
-              jumlah: 1, bertingkat: Boolean(k.bawah) });
-  return kump;
-}, []);
+  }, []);
+}
 
 /**
  * Lembar perhitungan: rekap Overriding, dan — dengan judul yang berbeda —
@@ -161,11 +162,38 @@ const KUMPULAN = KOLOM.reduce<
  * berganti hanya judul lembarnya, judul kelompok kolom skemanya, dan sebutan
  * orang yang menerimanya.
  */
-export function RekapOverriding({ rekap, judul, labelSkema, labelPenerima }: {
+export function RekapOverriding({ rekap, judul, labelSkema, labelPenerima,
+                                 ttdMarketing, tanpaSelisih }: {
   rekap: Rekap; judul?: string; labelSkema?: string; labelPenerima?: string;
+  /**
+   * Nama yang membuat lembarnya, bila lembar ini hanya perlu satu tanda
+   * tangan.
+   *
+   * Rekap Overriding beredar sampai direksi: ia ditandatangani Dibuat,
+   * Diperiksa, dan dua Disetujui. Detail Perhitungan Closing Fee, Cash
+   * Reward dan Komisi tidak — ia lampiran formulir yang sudah membawa blok
+   * pengesahannya sendiri di halaman pertama, dan empat kolom tanda tangan
+   * kedua kalinya hanya meminta empat orang yang sama menandatangani hal
+   * yang sama dua kali.
+   */
+  ttdMarketing?: string | null;
+  /**
+   * Kelompok kolom "Selisih Overiding" dibuang.
+   *
+   * Selisih adalah bagian hak yang belum terbayar kepada tingkat di atas
+   * penjualnya — pengertian yang hanya ada pada Overriding. Pada lembar
+   * Closing Fee, Cash Reward dan Komisi keempat kolomnya selalu nol, dan
+   * empat kolom nol pada tabel yang sudah harus dimampatkan ke selebar
+   * kertas hanya memakan tempat kolom yang memang dibaca orang.
+   */
+  tanpaSelisih?: boolean;
 }) {
   const sm = rekap.sales_manager;
   const ttd = penandatanganRekap(rekap.project?.slug);
+  const kolom = tanpaSelisih
+    ? KOLOM.filter((k) => k.atas !== "Selisih Overiding") : KOLOM;
+  const kumpulan = kumpulkan(kolom);
+  const lebarTotal = kolom.reduce((t, k) => t + k.lebar, 0);
   return (
     <div className="cetak rekap-or">
       {/* Tanpa kop berisi nama PT di puncak lembar. Formulir pengajuan memang
@@ -207,9 +235,9 @@ export function RekapOverriding({ rekap, judul, labelSkema, labelPenerima }: {
       <div className="tscroll">
         <table className="tabel-rekap">
           <colgroup>
-            {KOLOM.map((k, i) => (
+            {kolom.map((k, i) => (
               <col key={i}
-                   style={{ width: `${(k.lebar / TOTAL_LEBAR * 100).toFixed(3)}%` }} />
+                   style={{ width: `${(k.lebar / lebarTotal * 100).toFixed(3)}%` }} />
             ))}
           </colgroup>
           {/* Judul bertingkat: yang berjudul sama dan berdampingan digabung
@@ -218,7 +246,7 @@ export function RekapOverriding({ rekap, judul, labelSkema, labelPenerima }: {
               kali pada kolom selebar dua kata. */}
           <thead>
             <tr>
-              {KUMPULAN.map((g, i) => (
+              {kumpulan.map((g, i) => (
                 <th key={i} className={g.kelas}
                     colSpan={g.jumlah > 1 ? g.jumlah : undefined}
                     rowSpan={g.bertingkat ? undefined : 2}>
@@ -228,7 +256,7 @@ export function RekapOverriding({ rekap, judul, labelSkema, labelPenerima }: {
               ))}
             </tr>
             <tr>
-              {KOLOM.filter((k) => k.bawah).map((k, i) => (
+              {kolom.filter((k) => k.bawah).map((k, i) => (
                 <th key={i} className={k.kelas}>
                   <span className="sub">{k.bawah}</span>
                 </th>
@@ -239,7 +267,7 @@ export function RekapOverriding({ rekap, judul, labelSkema, labelPenerima }: {
           {rekap.bagian.map((b) => (
             <tbody key={b.judul}>
               <tr className="judul-bagian">
-                <td colSpan={KOLOM.length}>{b.judul}</td>
+                <td colSpan={kolom.length}>{b.judul}</td>
               </tr>
               {b.baris.map((r) => (
                 <tr key={`${b.judul}:${r.unit}:${r.no}`}>
@@ -265,10 +293,14 @@ export function RekapOverriding({ rekap, judul, labelSkema, labelPenerima }: {
                   <td className="angka">{rp(r.pph23)}</td>
                   <td className="angka">{rp(r.net)}</td>
                   <td>{tglPendek(r.tgl_transfer)}</td>
-                  <td className="angka">{rp(r.selisih_amount)}</td>
-                  <td className="angka">{rp(r.selisih_pph21)}</td>
-                  <td className="angka">{rp(r.selisih_net)}</td>
-                  <td className="angka">{persen(r.selisih_persen)}</td>
+                  {!tanpaSelisih && (
+                    <>
+                      <td className="angka">{rp(r.selisih_amount)}</td>
+                      <td className="angka">{rp(r.selisih_pph21)}</td>
+                      <td className="angka">{rp(r.selisih_net)}</td>
+                      <td className="angka">{persen(r.selisih_persen)}</td>
+                    </>
+                  )}
                   <td>{atau(r.keterangan)}</td>
                 </tr>
               ))}
@@ -278,7 +310,7 @@ export function RekapOverriding({ rekap, judul, labelSkema, labelPenerima }: {
                   berdiri di bawah judul yang salah tanpa ada yang keliru
                   terlihat. */}
               <tr className="total-bagian">
-                <td colSpan={KOLOM.findIndex(
+                <td colSpan={kolom.findIndex(
                   (k) => k.bawah === "Amount Unit (Rp.)")}>TOTAL</td>
                 <td className="angka">{rp(b.total.amount)}</td>
                 <td className="angka">{rp(b.total.dpp)}</td>
@@ -286,10 +318,16 @@ export function RekapOverriding({ rekap, judul, labelSkema, labelPenerima }: {
                 <td className="angka">{rp(b.total.pph23)}</td>
                 <td className="angka">{rp(b.total.net)}</td>
                 <td />
-                <td className="angka">{rp(b.total.selisih_amount)}</td>
-                <td className="angka">{rp(b.total.selisih_pph21)}</td>
-                <td className="angka">{rp(b.total.selisih_net)}</td>
-                <td colSpan={2} />
+                {!tanpaSelisih && (
+                  <>
+                    <td className="angka">{rp(b.total.selisih_amount)}</td>
+                    <td className="angka">{rp(b.total.selisih_pph21)}</td>
+                    <td className="angka">{rp(b.total.selisih_net)}</td>
+                  </>
+                )}
+                {/* Kolom Selisih % dan Ket. dibiarkan kosong; tanpa kelompok
+                    Selisih, yang tersisa Ket. saja. */}
+                <td colSpan={tanpaSelisih ? 1 : 2} />
               </tr>
             </tbody>
           ))}
@@ -328,22 +366,31 @@ export function RekapOverriding({ rekap, judul, labelSkema, labelPenerima }: {
           ditetapkan untuk sebagian project, dan garis tanpa nama masih dapat
           diisi tangan, sedangkan nama yang ditebak tidak dapat ditarik kembali
           setelah lembarnya beredar. */}
-      <div className="ttd-rekap">
-        <span className="peran">Dibuat Oleh,</span>
-        <span className="peran">Diperiksa Oleh,</span>
-        <span className="peran dua">Disetujui Oleh,</span>
-        {[ttd.dibuat, ttd.diperiksa, ttd.disetujui[0], ttd.disetujui[1]]
-          .map((nama, i) => (
-          <div key={i}>
-            <div className="kotak-ttd" />
-            {/* Spasi mati, bukan span hampa: yang hampa tidak setinggi apa pun,
-                dan garis di bawahnya naik sebaris lebih tinggi daripada
-                tetangganya yang bernama. */}
-            <span className="nama-ttd">{nama || "\u00A0"}</span>
-            <div className="garis-nama" />
-          </div>
-        ))}
-      </div>
+      {ttdMarketing !== undefined ? (
+        <div className="ttd-tunggal">
+          <span className="peran">Dibuat Oleh,</span>
+          <div className="kotak-ttd" />
+          <span className="nama-ttd">{ttdMarketing || "\u00A0"}</span>
+          <div className="garis-nama" />
+        </div>
+      ) : (
+        <div className="ttd-rekap">
+          <span className="peran">Dibuat Oleh,</span>
+          <span className="peran">Diperiksa Oleh,</span>
+          <span className="peran dua">Disetujui Oleh,</span>
+          {[ttd.dibuat, ttd.diperiksa, ttd.disetujui[0], ttd.disetujui[1]]
+            .map((nama, i) => (
+            <div key={i}>
+              <div className="kotak-ttd" />
+              {/* Spasi mati, bukan span hampa: yang hampa tidak setinggi apa
+                  pun, dan garis di bawahnya naik sebaris lebih tinggi
+                  daripada tetangganya yang bernama. */}
+              <span className="nama-ttd">{nama || "\u00A0"}</span>
+              <div className="garis-nama" />
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
