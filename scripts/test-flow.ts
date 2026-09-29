@@ -974,38 +974,61 @@ async function main() {
 
   await check("memo Excel dibaca sel demi sel, sebagaimana tertulis",
               async () => {
-    // Lembar kerja membawa kolomnya sendiri. Yang diuji di sini tiga hal
-    // yang paling mudah berubah diam-diam: bentuk tampilan angka (sel
-    // persen menyimpan 0,015 dan menampilkan 1,50%), sel yang digabung ke
-    // bawah, dan sel tanpa format yang tidak boleh dibulatkan.
+    // Bentuk memo yang sebenarnya: nomor, kategori dan nilai digabung
+    // menaungi beberapa baris, sedangkan Keterangannya terpecah baris demi
+    // baris di sebelahnya. Satu gabungan seperti itu adalah SATU baris memo
+    // dengan beberapa baris keterangan — bukan lima baris memo bernomor
+    // sama, dan bukan pula lima baris yang keterangannya tercerai-berai.
     const ExcelJS = (await import("exceljs")).default;
     const wb = new ExcelJS.Workbook();
-    const ws = wb.addWorksheet("Skema Fee");
-    ws.addRow(["Nomor: UJI/XLS/001"]);
-    ws.addRow(["1. Skema Komisi & Reward Sales Inhouse"]);
+    const ws = wb.addWorksheet("Jul");
+    ws.addRow(["No. Memo : 013/UJI/VII/2026"]);
+    ws.addRow(["Periode Program : Juli - September 2026"]);
+    ws.addRow(["1. Skema Sales Inhouse"]);
     ws.addRow(["No", "Kategori", "Nilai", "Keterangan"]);
-    ws.addRow([1, "Komisi Inhouse", 0.015, "1 unit"]);
-    ws.addRow([2, null, 0.0175, "2 unit"]);
-    ws.addRow([3, "Cash Reward", 5000000, "per unit"]);
-    ws.addRow([4, "Overiding", 0.0025, "reguler"]);
-    ws.mergeCells("B4:B5");
-    ws.getCell("C4").numFmt = "0.00%";
-    ws.getCell("C5").numFmt = "0.00%";
-    ws.getCell("C6").numFmt = "#,##0";
-    const buf = Buffer.from(await wb.xlsx.writeBuffer());
+    ws.addRow([1, "Komisi Inhouse", "1 unit = 1.5%",
+               "Pembayaran sampai periode Program Berakhir :"]);
+    ws.addRow([null, null, null, "Cash & Cicilan"]);
+    ws.addRow([null, null, null, "DP 15%, komisi diproses 100%"]);
+    ws.addRow([2, "Cash Reward", 8000000, "per unit setelah akad"]);
+    ws.addRow([3, "Overiding", 0.002, "DP 15% H+30"]);
+    ws.mergeCells("A5:A7");
+    ws.mergeCells("B5:B7");
+    ws.mergeCells("C5:C7");
+    ws.getCell("C8").numFmt = "#,##0";
 
-    const baris = await skemaXlsx(buf);
-    assert(baris.length === 4, `seharusnya 4 baris, bukan ${baris.length}`);
-    assert(baris[0].nilai === "1,50%",
-           `persen ditulis sebagaimana tampil, bukan ${baris[0].nilai}`);
-    assert(baris[1].kategori === "Komisi Inhouse",
-           "sel gabungan menurunkan kategorinya ke baris di bawahnya");
-    assert(baris[2].nilai === "5.000.000",
-           `nominal mengikuti formatnya, bukan ${baris[2].nilai}`);
-    assert(baris[3].nilai === "0,0025",
-           `sel tanpa format tidak boleh dibulatkan: ${baris[3].nilai}`);
-    assert(baris[0].kelompok === "Skema Komisi & Reward Sales Inhouse",
+    const baris = await skemaXlsx(Buffer.from(await wb.xlsx.writeBuffer()));
+    assert(baris.length === 3, `seharusnya 3 baris, bukan ${baris.length}`);
+    assert(baris[0].kategori === "Komisi Inhouse",
+           `kategori baris pertama: ${baris[0].kategori}`);
+    assert(baris[0].nilai === "1 unit = 1.5%",
+           `nilai ditulis apa adanya, bukan ${baris[0].nilai}`);
+    assert(baris[0].keterangan.split("\n").length === 3,
+           "tiga baris keterangan tetap tiga baris pada satu sel");
+    assert(baris[0].keterangan.split("\n")[1] === "Cash & Cicilan",
+           "urutan baris keterangannya tidak berubah");
+    assert(baris[1].nilai === "8.000.000",
+           `nominal mengikuti formatnya, bukan ${baris[1].nilai}`);
+    assert(baris[2].nilai === "0,002",
+           `sel tanpa format tidak boleh dibulatkan: ${baris[2].nilai}`);
+    assert(baris[0].kelompok === "Skema Sales Inhouse",
            `judul tabelnya ikut terbaca, bukan ${baris[0].kelompok}`);
+  });
+
+  await check("persen pada sel Excel dibaca sebagaimana ditampilkan",
+              async () => {
+    // Sel persen menyimpan 0,015 dan menampilkan 1,50%. Yang tertulis pada
+    // memo — dan yang kemudian diperiksa orang — adalah 1,50%.
+    const ExcelJS = (await import("exceljs")).default;
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet("Skema");
+    ws.addRow(["Kategori", "Nilai", "Keterangan"]);
+    ws.addRow(["Komisi Inhouse", 0.015, "1 unit"]);
+    ws.getCell("B2").numFmt = "0.00%";
+    const baris = await skemaXlsx(Buffer.from(await wb.xlsx.writeBuffer()));
+    assert(baris.length === 1, `satu baris, bukan ${baris.length}`);
+    assert(baris[0].nilai === "1,50%",
+           `persen sebagaimana tampil, bukan ${baris[0].nilai}`);
     assert(persenDesimal(baris[0].nilai) === "0.015",
            "bacaan 1,50% menjadi tarif 0,015");
   });

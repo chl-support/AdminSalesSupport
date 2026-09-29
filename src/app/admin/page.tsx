@@ -139,28 +139,6 @@ const KATA = {
     ringkasAgen: (baru: number, d: number, dilewati: number, rek: number, baris: number) =>
       `${baru} marketing baru · ${d} diperbarui · ${dilewati} dilewati · ` +
       `${rek} rekening dicatat · dari ${baris} orang`,
-    ujiJudul: "MEMO SEBAGAI DASAR PENOLAKAN KLAIM",
-    ujiPengantar:
-      "Ketika dinyalakan, klaim yang tanggal kontraknya tidak tercakup memo " +
-      "skema insentif mana pun akan ditolak — itu perilaku seharusnya, karena " +
-      "tarif yang tidak bersandar pada memo adalah angka yang tidak pernah " +
-      "diputuskan siapa pun.",
-    ujiCara:
-      "Selama dimatikan, klaim seperti itu tetap dapat dihitung: dipakai skema " +
-      "terdekat yang ada, dengan masa berlakunya diabaikan. Jenis fee, peran, " +
-      "dan tingkat overriding tetap harus cocok. Klaim yang lahir dari jalur " +
-      "ini ditandai pada catatannya, jadi dapat ditemukan kembali nanti.",
-    ujiAwas: "Angka yang keluar selama dimatikan belum tentu benar.",
-    ujiAwasB:
-      " Ia memakai tarif dari memo yang berlaku untuk periode lain. Nyalakan " +
-      "kembali begitu seluruh memo selesai diunggah.",
-    ujiNyala: "Menyala — memo menjadi dasar penolakan",
-    ujiMati: "Dimatikan sementara — klaim tidak ditolak karena memo",
-    ujiNyalakan: "Nyalakan", ujiMatikan: "Matikan sementara",
-    ujiMengubah: "Menyimpan…",
-    ujiDiubah: (n: boolean): string => n
-      ? "Memo kembali menjadi dasar penolakan klaim."
-      : "Untuk sementara memo tidak lagi menolak klaim.",
     kosongJudul: "KOSONGKAN DATA OPERASIONAL",
     kosongCatatanA:
       "Menghapus data penjualan, marketing, rekening, klaim, tanda tangan, " +
@@ -317,27 +295,6 @@ const KATA = {
     ringkasAgen: (baru: number, d: number, dilewati: number, rek: number, baris: number) =>
       `${baru} new marketing · ${d} updated · ${dilewati} skipped · ` +
       `${rek} accounts recorded · from ${baris} people`,
-    ujiJudul: "MEMOS AS GROUNDS FOR REJECTING CLAIMS",
-    ujiPengantar:
-      "When on, a claim whose contract date falls outside every incentive " +
-      "scheme memo is rejected — which is the correct behaviour, because a " +
-      "rate with no memo behind it is a number nobody ever decided.",
-    ujiCara:
-      "While off, such claims can still be calculated: the nearest existing " +
-      "scheme is used and its validity dates ignored. Fee type, role and " +
-      "overriding level must still match. Claims born this way are marked in " +
-      "their record, so they can be found again later.",
-    ujiAwas: "Figures produced while this is off may not be correct.",
-    ujiAwasB:
-      " They use rates from memos meant for other periods. Turn it back on as " +
-      "soon as all the memos are uploaded.",
-    ujiNyala: "On — memos are grounds for rejection",
-    ujiMati: "Temporarily off — claims are not rejected over memos",
-    ujiNyalakan: "Turn on", ujiMatikan: "Turn off for now",
-    ujiMengubah: "Saving…",
-    ujiDiubah: (n: boolean): string => n
-      ? "Memos are grounds for rejecting claims again."
-      : "For now, memos no longer reject claims.",
     kosongJudul: "CLEAR OPERATIONAL DATA",
     kosongCatatanA:
       "Deletes the sales, marketing, bank account, claim, signature, and " +
@@ -419,11 +376,6 @@ export default function AdminPage() {
   const [sibukAgen, setSibukAgen] = useState(false);
   const [galatAgen, setGalatAgen] = useState<string | null>(null);
   // Pengosongan data: isi tabel sekarang, kata penegasan, dan hasilnya.
-  const [uji, setUji] = useState<{ wajib: boolean } | null>(null);
-  const [sibukUji, setSibukUji] = useState(false);
-  const [galatUji, setGalatUji] = useState<string | null>(null);
-  const [kabarUji, setKabarUji] = useState<string | null>(null);
-
   const [isiTabel, setIsiTabel] = useState<Record<string, number> | null>(null);
   const [penegasan, setPenegasan] = useState("");
   const [sibukKosong, setSibukKosong] = useState(false);
@@ -472,34 +424,6 @@ export default function AdminPage() {
 
   useEffect(() => { if (sesi) void muatKalibrasi(); }, [sesi, muatKalibrasi]);
 
-  const muatUji = useCallback(async () => {
-    if (!bolehKelola) return;
-    try {
-      const res = await fetch("/api/admin/skema-wajib");
-      const b = await res.json().catch(() => ({}));
-      if (!res.ok) { setGalatUji(b.detail ?? b.title ?? `HTTP ${res.status}`); return; }
-      setUji(b);
-      setGalatUji(null);
-    } catch (e: any) { setGalatUji(String(e?.message ?? e)); }
-  }, [bolehKelola]);
-
-  useEffect(() => { if (sesi) void muatUji(); }, [sesi, muatUji]);
-
-  /** Nyalakan atau matikan memo sebagai dasar penolakan klaim. */
-  const aturUji = async (wajib: boolean) => {
-    setSibukUji(true); setGalatUji(null); setKabarUji(null);
-    try {
-      const res = await fetch("/api/admin/skema-wajib", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ wajib }) });
-      const b = await res.json().catch(() => ({}));
-      if (!res.ok) { setGalatUji(b.detail ?? b.title ?? `HTTP ${res.status}`); return; }
-      setKabarUji(k.ujiDiubah(b.wajib));
-      await muatUji();
-    } catch (e: any) {
-      setGalatUji(String(e?.message ?? e));
-    } finally { setSibukUji(false); }
-  };
 
   useEffect(() => {
     if (!bolehKelola) return;
@@ -1133,42 +1057,6 @@ export default function AdminPage() {
                 </div>
               </>
             )}
-          </div>
-
-          {/* ── Skema insentif uji coba ── */}
-          <div className="panel sp">
-            <div className="form-blok">
-              <h3>{k.ujiJudul}</h3>
-              <p className="hint" style={{ textAlign: "left", marginTop: 0 }}>
-                {k.ujiPengantar}
-              </p>
-              <p className="hint" style={{ textAlign: "left" }}>{k.ujiCara}</p>
-
-              <div className="banner warn">
-                <b>{k.ujiAwas}</b>
-                {k.ujiAwasB}
-              </div>
-
-              {galatUji && <div className="banner stop">{galatUji}</div>}
-              {kabarUji && <div className="banner ok">{kabarUji}</div>}
-
-              <div className="row" style={{ marginTop: 10 }}>
-                <span className={`pill ${uji?.wajib ? "ok" : "warn"}`}>
-                  {uji?.wajib ? k.ujiNyala : k.ujiMati}
-                </span>
-              </div>
-
-              <div className="row" style={{ marginTop: 12, marginBottom: 0 }}>
-                <button className="pri" disabled={sibukUji || uji?.wajib === true}
-                        onClick={() => void aturUji(true)}>
-                  {sibukUji ? k.ujiMengubah : k.ujiNyalakan}
-                </button>
-                <button disabled={sibukUji || uji?.wajib === false}
-                        onClick={() => void aturUji(false)}>
-                  {sibukUji ? k.ujiMengubah : k.ujiMatikan}
-                </button>
-              </div>
-            </div>
           </div>
 
           {/* ── Pengosongan data ── */}
