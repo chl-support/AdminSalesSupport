@@ -471,7 +471,11 @@ export default function ReferensiPengajuanPage() {
   }
 
   return (
-    <Kerangka sesi={sesi} judul={
+    // Sama seperti layar Pengajuan: tabel ringkasan memo punya sepuluh
+    // kolom, dan dua di antaranya berisi kalimat utuh dari memonya. Pada
+    // konsol biasa selebar 1240px, Nilai dan Keterangan tinggal selebar
+    // beberapa kata dan harus digulir ke samping untuk dibaca.
+    <Kerangka sesi={sesi} lebar judul={
       <div>
         <h1>{k.judul}</h1>
         <p>{k.pengantar}</p>
