@@ -788,14 +788,20 @@ function Kotak({ no, baris, k, bahasa, busy, bolehBerlaku, cabutMemo,
      pemeriksaannya yang dikumpulkan ke dalam satu dialog. */
   const selTindakan = bolehBerlaku ? (
     <td rowSpan={totalBaris} className="tindakan-rujukan">
-      <button className="pri" disabled={busy || !adaUsulan}
-              onClick={() => berlakukan(baris)}>
-        {k.berlakukan}
-      </button>
-      <button disabled={busy || !adaBerlaku}
-              onClick={() => void cabutMemo(baris)}>
-        {k.cabut}
-      </button>
+      {/* Tombolnya dibungkus div, dan BUKAN sel ini yang dijadikan flex:
+          `display: flex` pada sebuah <td> mengeluarkannya dari tata letak
+          tabel, rowSpan-nya diabaikan, dan tingginya menekan baris pertama
+          memo — itulah jarak menganga antara kategori pertama dan kedua. */}
+      <div className="tindakan-isi">
+        <button className="pri" disabled={busy || !adaUsulan}
+                onClick={() => berlakukan(baris)}>
+          {k.berlakukan}
+        </button>
+        <button disabled={busy || !adaBerlaku}
+                onClick={() => void cabutMemo(baris)}>
+          {k.cabut}
+        </button>
+      </div>
     </td>
   ) : null;
 
