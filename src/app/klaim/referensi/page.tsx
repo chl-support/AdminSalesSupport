@@ -79,15 +79,6 @@ const KATA = {
     pUsulan: (n: number) => `📋 Referensi Tersedia · ${n}`,
 
     kunciJudul: "Kunci pengajuan fee",
-    kunciOn:
-      "Menyala. Pengajuan fee yang tidak dinaungi memo berlaku pada tanggal " +
-      "kontraknya tidak dapat dijalankan.",
-    kunciOff:
-      "Longgar. Pengajuan tetap dapat dijalankan memakai skema terdekat " +
-      "walau memonya belum berlaku, dan klaimnya ditandai pada jejak audit.",
-    kunciAdmin:
-      "Kunci ini hanya dapat diubah oleh Admin IT. Memberlakukan memo " +
-      "pada tabel di bawah tetap dapat dilakukan oleh Admin Sales.",
     kunciNyalakan: "Kunci", kunciLonggarkan: "Longgarkan",
     kunciBerubah: (on: boolean): string =>
       on ? "Kunci dinyalakan." : "Kunci dilonggarkan.",
@@ -146,15 +137,6 @@ const KATA = {
     pUsulan: (n: number) => `📋 Available reference · ${n}`,
 
     kunciJudul: "Fee submission lock",
-    kunciOn:
-      "On. A fee submission not covered by a memo in force on its contract " +
-      "date cannot be run.",
-    kunciOff:
-      "Loose. Submissions still run on the nearest scheme even when no memo " +
-      "is in force, and the claim is flagged in the audit trail.",
-    kunciAdmin:
-      "Only IT Admin can change this lock. Putting a memo in force in " +
-      "the table below remains open to Sales Admin.",
     kunciNyalakan: "Lock", kunciLonggarkan: "Loosen",
     kunciBerubah: (on: boolean): string =>
       on ? "Lock turned on." : "Lock loosened.",
@@ -460,21 +442,24 @@ export default function ReferensiPengajuanPage() {
       {galat && <div className="banner stop"><b>{k.galat}</b>{galat}</div>}
       {kabar && <div className="banner ok">{kabar}</div>}
 
-      {/* Kunci berdiri di atas, bukan di kaki layar: ia yang menentukan apakah
-          seluruh daftar di bawahnya mengikat atau sekadar catatan. */}
-      <div className={`banner ${kunci ? "ok" : "warn"} sp`}>
-        <b>{k.kunciJudul}</b>
-        {kunci ? k.kunciOn : k.kunciOff}
-        {bolehKunci ? (
-          <div className="row" style={{ marginTop: 8 }}>
-            <button disabled={busy} onClick={() => void ubahKunci(!kunci)}>
-              {kunci ? k.kunciLonggarkan : k.kunciNyalakan}
-            </button>
-          </div>
-        ) : (
-          <div className="meta" style={{ marginTop: 6 }}>{k.kunciAdmin}</div>
-        )}
-      </div>
+      {/* Banner kunci dihapus atas permintaan: ia memakan tiga baris di kepala
+          layar untuk menyebut satu setelan yang jarang berubah.
+
+          Yang TIDAK ikut dihapus: saklarnya, bagi Admin IT. Membuang banner
+          berarti membuang tampilannya; membuang saklarnya berarti membuang
+          satu-satunya tempat setelan itu dapat diubah, sementara kuncinya
+          sendiri tetap bekerja menolak pengajuan di belakang layar — setelan
+          yang menolak pekerjaan orang tetapi tidak dapat dijangkau siapa pun
+          adalah yang paling mahal untuk ditelusuri. Jadi ia tinggal sebagai
+          satu baris kecil, hanya terlihat oleh yang berhak mengubahnya. */}
+      {bolehKunci && (
+        <div className="baris-kunci sp">
+          <span>{k.kunciJudul}</span>
+          <button disabled={busy} onClick={() => void ubahKunci(!kunci)}>
+            {kunci ? k.kunciLonggarkan : k.kunciNyalakan}
+          </button>
+        </div>
+      )}
 
       <div className="panel sp">
         <h2>{k.unggahJudul}</h2>

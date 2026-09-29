@@ -2211,3 +2211,12 @@ td.sel-tindakan > a.tautan-klaim:last-child { margin-bottom: 0; }
   color: var(--mut); border-color: var(--line);
   background: transparent; cursor: default;
 }
+
+/* Saklar kunci pengajuan fee, sisa dari banner yang dihapus. Satu baris
+   kecil, rata kanan: ia setelan yang jarang disentuh dan tidak boleh
+   menyaingi isi layarnya sendiri. */
+.baris-kunci {
+  display: flex; align-items: center; justify-content: flex-end; gap: 10px;
+  font-size: 12px; color: var(--sub);
+}
+.baris-kunci button { padding: 3px 10px; font-size: 11.5px; }
