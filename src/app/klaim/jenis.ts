@@ -132,19 +132,34 @@ export const LABEL_PERAN_EN: Record<string, string> = { ...LABEL_PERAN };
 
 export const TINGKAT_EN: Record<string, string> = {
   sales_manager_inhouse: "Sales Manager In-house",
+  coordinator_agent_1: "Agent Coordinator",
+  // Tiga tingkat di bawah tidak lagi dipakai; sebutannya tetap ada supaya
+  // klaim lama yang memakainya terbaca dengan nama, bukan dengan kodenya.
   kantor_agent: "Agent Office",
   lead_agent: "Lead Agent",
-  coordinator_agent_1: "Agent Coordinator 1",
   coordinator_agent_2: "Agent Coordinator 2",
 };
 
-/** Tingkat overriding, hanya dipakai bila jenisnya overriding. */
+/**
+ * Tingkat overriding yang dapat dipilih, hanya dipakai bila jenisnya
+ * overriding.
+ *
+ * Dua saja: Sales Manager dan Koordinator Agent — sama persis dengan kedua
+ * blok Overiding pada laporannya. Kantor Agent, Lead Agent, dan Koordinator
+ * Agent 2 tidak lagi dipakai dan karenanya tidak ditawarkan; pilihan yang
+ * tidak akan dipakai hanya menunggu salah dipilih, dan pembetulannya baru
+ * ketahuan di laporan.
+ *
+ * Urutannya tidak diacak: keduanya tetap pada urutan semula, hanya yang
+ * pensiun yang diangkat keluar.
+ *
+ * Yang dihilangkan pilihannya, bukan datanya: nilai enum-nya tetap ada di
+ * basis data dan klaim lama yang memakainya tetap utuh, tetap terbaca, dan
+ * tetap tercetak dengan sebutannya sendiri.
+ */
 export const TINGKAT_OVERRIDING: [string, string][] = [
   ["sales_manager_inhouse", "Sales Manager In-house"],
-  ["kantor_agent", "Kantor Agent"],
-  ["lead_agent", "Lead Agent"],
-  ["coordinator_agent_1", "Koordinator Agent 1"],
-  ["coordinator_agent_2", "Koordinator Agent 2"],
+  ["coordinator_agent_1", "Koordinator Agent"],
 ];
 
 /**

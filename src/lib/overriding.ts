@@ -240,9 +240,11 @@ function selisih(r: any, excl: number, persenTotal: number | null) {
  */
 const NAMA_TINGKAT: Record<string, string> = {
   sales_manager_inhouse: "Sales Manager (reguler) Inhouse",
+  coordinator_agent_1: "Koordinator Agent",
+  // Tiga tingkat di bawah tidak lagi ditawarkan saat mengajukan, tetapi
+  // dokumen periode lama masih memuatnya dan harus tetap terbaca.
   kantor_agent: "Kantor Agent",
   lead_agent: "Lead Agent",
-  coordinator_agent_1: "Koordinator Agent 1",
   coordinator_agent_2: "Koordinator Agent 2",
 };
 

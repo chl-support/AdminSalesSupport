@@ -209,12 +209,15 @@ const CLOSING_FEE_COLS: Record<string, [number, number]> = {
 /**
  * Blok Overiding beserta urutan kolomnya.
  *
- * Bentuk laporan ini hanya menyediakan dua blok, sedangkan basis data mengenal
- * lima tingkat overriding. Tingkat yang tidak punya blok di sini —
- * kantor_agent, lead_agent, dan coordinator_agent_2 — tidak dipaksakan masuk ke
- * blok milik tingkat lain: angkanya akan tertimpa atau terbaca sebagai milik
- * orang yang salah. Barisnya tetap ada di basis data dan tetap terlihat pada
- * layar Overriding; yang tidak memuatnya adalah laporan ini.
+ * Dua blok, sama persis dengan dua tingkat yang dipakai: Sales Manager
+ * (InHouse) dan Coordinator Agent. Tidak ada tingkat yang dipakai tetapi tidak
+ * tercetak.
+ *
+ * Kantor Agent, Lead Agent, dan Koordinator Agent 2 sudah tidak dipakai lagi
+ * dan tidak punya blok di sini. Barisnya yang lama tidak dipaksakan masuk ke
+ * blok milik tingkat lain — angkanya akan tertimpa atau terbaca sebagai milik
+ * orang yang salah; datanya tetap tersimpan dan tetap terlihat pada layar
+ * Overriding.
  */
 const OVERRIDING_COLS: Record<string, [number, string[]]> = {
   sales_manager_inhouse: [K.orManager,
