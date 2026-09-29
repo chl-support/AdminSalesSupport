@@ -614,13 +614,18 @@ export default function PratinjauPage() {
               yang harus dicari sendiri. */}
           {!lunas(c) && detail[c.id] && (
             <div className="lembar-lanjutan">
-              {/* Satu tanda tangan saja, dan namanya nama marketing yang
-                  mengajukan — bukan empat kolom pengesahan. Halaman pertama
-                  formulirnya sudah membawa blok Pemohon, Admin & Finance,
-                  dan Management; mengulangnya di lampiran perhitungan
-                  berarti meminta empat orang yang sama menandatangani hal
-                  yang sama dua kali. Nama agensinya dipotong: yang bertanda
-                  tangan orangnya. */}
+              {/* Satu tanda tangan saja, dan namanya nama PENERIMA fee ini —
+                  bukan empat kolom pengesahan. Halaman pertama formulirnya
+                  sudah membawa blok Pemohon, Admin & Finance, dan
+                  Management; mengulangnya di lampiran perhitungan berarti
+                  meminta orang yang sama menandatangani hal yang sama dua
+                  kali.
+
+                  Penerima, bukan marketing yang tercatat pada unitnya:
+                  keduanya kerap berbeda orang — Closing Fee sebuah unit
+                  dapat jatuh kepada Sales Manager-nya — dan yang membuat
+                  lalu menandatangani lembar ini yang menerima uangnya. Nama
+                  agensinya dipotong: yang bertanda tangan orangnya. */}
               <RekapOverriding
                 rekap={detail[c.id]}
                 judul={JUDUL_DETAIL[c.claim_type]}
@@ -628,8 +633,8 @@ export default function PratinjauPage() {
                 labelPenerima="Penerima"
                 tanpaSelisih
                 ttdMarketing={
-                  (detail[c.id].bagian[0]?.baris[0]?.marketing
-                   ?? detail[c.id].sales_manager?.full_name
+                  (detail[c.id].sales_manager?.full_name
+                   ?? detail[c.id].bagian[0]?.baris[0]?.marketing
                    ?? "").split(" / ")[0]} />
             </div>
           )}
