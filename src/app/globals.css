@@ -2287,3 +2287,29 @@ td.sel-tindakan > a.tautan-klaim:last-child { margin-bottom: 0; }
 .tabel-berlaku tr.sudah td { color: var(--mut); }
 .tabel-berlaku tr.tolak-baris td { color: var(--stop); font-size: 11px;
                                    padding-top: 0; }
+
+/* Laporan Closing Fee, Reward & Komisi.
+
+   Lebar tiap kolomnya ditetapkan lewat colgroup, mengikuti perbandingan lebar
+   pada unduhan Excel-nya; table-layout:fixed supaya lebar itu benar-benar
+   dipatuhi dan tidak diatur ulang browser menurut isi selnya — kolom yang
+   melar sendiri membuat tabel di layar dan tabel di Excel tidak lagi dapat
+   dibaca berdampingan. */
+.tabel-laporan { table-layout: fixed; border-collapse: collapse; }
+.tabel-laporan th, .tabel-laporan td {
+  border: 1px solid var(--line); padding: 4px 6px; font-size: 11px;
+  vertical-align: top; overflow-wrap: anywhere;
+}
+.tabel-laporan th {
+  text-align: center; vertical-align: middle; background: #D9D9D9;
+  color: var(--ink); font-weight: 650; line-height: 1.25;
+}
+.tabel-laporan td.n { text-align: right; font-variant-numeric: tabular-nums; }
+/* Seksi dan TOTAL memakai abu yang sama dengan unduhannya: yang membedakan
+   baris seksi dari baris data di sana adalah latarnya, bukan cetak tebalnya. */
+.tabel-laporan tr.seksi-laporan > td {
+  background: #D8D8D8; font-weight: 700; color: var(--ink);
+}
+.tabel-laporan tr.total-laporan > td {
+  background: #BFBFBF; font-weight: 700; color: var(--ink);
+}

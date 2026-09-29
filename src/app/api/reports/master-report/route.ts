@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { currentUser, handler, projectAktif } from "@/lib/api";
-import { exportBuffer, preview } from "@/lib/report";
+import { exportBuffer, preview, rincian } from "@/lib/report";
 
 export const GET = handler(async (req) => {
   const q = new URL(req.url).searchParams;
@@ -15,6 +15,10 @@ export const GET = handler(async (req) => {
     contractTo: q.get("contract_to"),
   };
   if (q.get("format") === "json") return preview(filters);
+  // Isi laporannya untuk ditampilkan di layar, bukan diunduh. Dilayani alamat
+  // yang sama dengan unduhannya supaya keduanya tidak mungkin menyaring dua
+  // himpunan unit yang berbeda.
+  if (q.get("format") === "rincian") return rincian(filters);
   const namaProject = user.project_name ?? "—";
   const buf = await exportBuffer(filters, namaProject);
   const bersih = namaProject.replace(/[^A-Za-z0-9]+/g, "_").replace(/^_|_$/g, "");

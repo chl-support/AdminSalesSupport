@@ -29,26 +29,12 @@
 
 import ExcelJS from "exceljs";
 import { query } from "./db";
+import {
+  BULAN_SINGKAT, FORMAT, K, KEPALA, KOLOM_TERAKHIR, KOLOM_TOTAL, LEBAR,
+  LUAS, PCT, RP, RP2, TGL,
+} from "./report-susunan";
 
 const FONT = "Twentieth Century";
-
-/** Akuntansi rupiah dengan lambang berkode wilayah, seperti pada berkasnya. */
-const RP = '_-[$Rp-421]* #,##0_-;-[$Rp-421]* #,##0_-;_-[$Rp-421]* "-"_-;_-@';
-/** Akuntansi rupiah dengan lambang biasa — dipakai pada kolom komisi. */
-const RP2 = '_-"Rp"* #,##0_-;-"Rp"* #,##0_-;_-"Rp"* "-"_-;_-@';
-const PCT = "0.00%";
-/**
- * Bentuk tanggal yang dipakai seluruh kolom tanggal.
- *
- * Berkas acuannya sendiri campur — dari 173 sel yang benar-benar bertipe
- * tanggal, 119 memakai bentuk ini, 34 memakai dd"-"mmm"-"yy, dan 20 memakai
- * [$-C09]dd-mmm-yy; sebagiannya bahkan diketik sebagai teks, bukan tanggal.
- * Campuran itu tidak ditiru: yang ditiru bentuk yang paling banyak dipakainya,
- * dan dipakai seragam. Tanggal yang tersimpan sebagai teks tidak dapat diurut
- * maupun disaring, dan itu kelemahan berkasnya, bukan bagian dari susunannya.
- */
-const TGL = "d-mmm-yy";
-const LUAS = "#,##0.00";
 
 const STATUS_LABEL: Record<string, string> = {
   belum_pengajuan: "Belum Pengajuan Komisi",
@@ -57,145 +43,6 @@ const STATUS_LABEL: Record<string, string> = {
   management: "Management (No Closing Fee, Reward & Komisi)",
   batal_unit: "BATAL UNIT",
 };
-
-/**
- * Nomor kolom, memakai nama agar tidak ada angka telanjang di dalam kode.
- *
- * Angkanya adalah nomor kolom Excel: 1 = A, 56 = BD.
- */
-const K = {
-  no: 1, tglKontrak: 2, tglBatal: 3, konsumen: 4, unit: 5,
-  tanah: 6, bangunan: 7, caraBayar: 8, nilaiKontrak: 9,
-  inhouseFee: 10, inhouseTgl: 11,
-  managerFee: 12, managerTgl: 13,
-  marcommFee: 14, marcommTgl: 15,
-  picFee: 16, picTgl: 17,
-  bonus: 18, bonusTgl: 19,
-  voucher: 20, hadiah: 21, hadiahTgl: 22,
-  reward: 23, rewardTgl: 24,
-  terimaRp: 25, terimaPct: 26,
-  komisiPct: 27, komisiNominal: 28,
-  ppn: 29, pph21: 30, pph23: 31, komisiBayar: 32,
-  statusKomisi: 33, tglTransferKomisi: 34,
-  agen: 35, subKoordinator: 36,
-  gimmickTrip: 37, gimmickHadiah: 38, gimmickTgl: 39,
-  orManager: 40,      // 40..46, tujuh kolom
-  orKoordinator: 47,  // 47..55, sembilan kolom
-  keterangan: 56,
-} as const;
-
-const KOLOM_TERAKHIR = K.keterangan;
-
-/** Lebar tiap kolom, persis seperti pada berkas acuannya. */
-const LEBAR: number[] = [
-  4.7, 11.7, 11.7, 38.7, 10.7, 9.7, 9.7, 29.1, 22.7, 17.7, 19.7, 17.2, 19.7,
-  19.7, 19.7, 19.7, 19.7, 18.7, 19.7, 15.7, 82.1, 19.1, 15.7, 24.1, 18.7, 7.7,
-  7.7, 20.7, 15.7, 22.1, 26.4, 18.7, 39.7, 22.5, 52.7, 29.7, 8.7, 11.7, 17.7,
-  7.7, 19.7, 16.7, 20.6, 13.7, 16.7, 10.7, 7.7, 24.7, 16.7, 16.7, 15.7, 13.7,
-  16.7, 16.7, 15.7, 80.7,
-];
-
-/** Bentuk tampilan angka tiap kolom; yang tidak disebut ditulis apa adanya. */
-const FORMAT: Record<number, string> = {
-  [K.tglKontrak]: TGL, [K.tglBatal]: TGL,
-  [K.tanah]: LUAS, [K.bangunan]: LUAS,
-  [K.nilaiKontrak]: RP,
-  [K.inhouseFee]: RP, [K.inhouseTgl]: TGL,
-  [K.managerFee]: RP, [K.managerTgl]: TGL,
-  [K.marcommFee]: RP, [K.marcommTgl]: TGL,
-  [K.picFee]: RP, [K.picTgl]: TGL,
-  [K.bonus]: RP, [K.bonusTgl]: TGL,
-  [K.hadiahTgl]: TGL,
-  [K.reward]: RP, [K.rewardTgl]: TGL,
-  [K.terimaRp]: RP2, [K.terimaPct]: PCT,
-  [K.komisiPct]: PCT, [K.komisiNominal]: RP2,
-  [K.ppn]: RP2, [K.pph21]: RP2, [K.pph23]: RP2, [K.komisiBayar]: RP2,
-  [K.tglTransferKomisi]: TGL,
-  [K.gimmickTgl]: TGL,
-  40: PCT, 42: RP2, 43: RP2, 44: RP2, 45: TGL, 46: TGL,
-  47: PCT, 49: RP2, 50: RP2, 51: RP2, 52: RP2, 54: TGL, 55: TGL,
-};
-
-/**
- * Kepala tabel, empat baris bertingkat.
- *
- * Ditulis sebagai daftar penggabungan sel apa adanya — [teks, baris awal, kolom
- * awal, baris akhir, kolom akhir] — bukan diturunkan dari pengelompokan kolom.
- * Kepalanya tidak beraturan: sebagiannya membentang empat baris, sebagiannya
- * dua lalu bercabang, dan "Luas (m2)" membentang tiga baris di atas dua kolom.
- * Aturan yang dipaksakan menutupi yang tidak ikut aturan, dan yang tertutup
- * itulah yang bergeser diam-diam.
- */
-const KEPALA: [string, number, number, number, number][] = [
-  ["No.", 5, 1, 8, 1],
-  ["Tanggal", 5, 2, 6, 3], ["Kontrak", 7, 2, 8, 2], ["Batal", 7, 3, 8, 3],
-  ["Konsumen", 5, 4, 8, 4],
-  ["Unit", 5, 5, 8, 5],
-  ["Luas (m2)", 5, 6, 7, 7], ["Tanah", 8, 6, 8, 6], ["Bangunan", 8, 7, 8, 7],
-  ["Cara Bayar", 5, 8, 8, 8],
-  ["Nilai Kontrak (Incl. VAT)", 5, 9, 8, 9],
-  ["Sales Inhouse", 5, 10, 6, 11],
-  ["Closing Fee (Rp.)", 7, 10, 8, 10], ["Tanggal Transfer", 7, 11, 8, 11],
-  ["Sales Manager (Inhouse)", 5, 12, 6, 13],
-  ["Closing Fee (Rp.)", 7, 12, 8, 12], ["Tanggal Transfer", 7, 13, 8, 13],
-  ["Sales Marcomm", 5, 14, 6, 15],
-  ["Closing Fee (Rp.)", 7, 14, 8, 14], ["Tanggal Transfer", 7, 15, 8, 15],
-  ["PIC Proyek", 5, 16, 6, 17],
-  ["Closing Fee (Rp.)", 7, 16, 8, 16], ["Tanggal Transfer", 7, 17, 8, 17],
-  ["Bonus Penjualan", 5, 18, 6, 19],
-  ["Bonus", 7, 18, 8, 18], ["Tanggal Transfer", 7, 19, 8, 19],
-  ["Konsumen", 5, 20, 6, 22],
-  ["Hadiah Promosi Konsumen", 7, 20, 7, 21],
-  ["Voucher", 8, 20, 8, 20], ["Hadiah", 8, 21, 8, 21],
-  ["Tanggal Realisasi", 7, 22, 8, 22],
-  ["Reward (Rp.)", 5, 23, 8, 23],
-  ["Tanggal Transfer Reward", 5, 24, 8, 24],
-  ["Penerimaan", 5, 25, 6, 26], ["(Rp.)", 7, 25, 8, 25], ["%", 7, 26, 8, 26],
-  ["Komisi Agent/InHouse/Member", 5, 27, 6, 28],
-  ["%", 7, 27, 8, 27], ["Nominal", 7, 28, 8, 28],
-  ["PPn", 5, 29, 8, 29],
-  ["PPh 21 (NPWP Pribadi)", 5, 30, 8, 30],
-  ["PPh 23 (NPWP Perusahaan)", 5, 31, 8, 31],
-  ["Komisi Dibayarkan", 5, 32, 8, 32],
-  ["Status Pembayaran Komisi Agent/InHouse", 5, 33, 8, 33],
-  ["Tanggal Transfer Komisi", 5, 34, 8, 34],
-  ["Agent/Sales InHouse", 5, 35, 8, 35],
-  ["Sub Koordinator", 5, 36, 8, 36],
-  ["Gimmick Agent/Sales InHouse", 5, 37, 7, 38],
-  ["Trip", 8, 37, 8, 37], ["Hadiah", 8, 38, 8, 38],
-  ["Tanggal Realisasi Hadiah Promosi Agent/Sales InHouse", 5, 39, 8, 39],
-
-  ["OVERIDING Sales Manager (InHouse)", 5, 40, 5, 46],
-  ["Status Pembayaran", 6, 40, 6, 46],
-  ["%", 7, 40, 8, 40], ["Remarks", 7, 41, 8, 41],
-  ["Nominal Unit (Rp.)", 7, 42, 8, 42],
-  ["PPh 21 (NPWP Pribadi)", 7, 43, 8, 43], ["Net", 7, 44, 8, 44],
-  ["Tanggal", 7, 45, 7, 46], ["Proses", 8, 45, 8, 45], ["Transfer", 8, 46, 8, 46],
-
-  ["OVERIDING Coordinator Agent", 5, 47, 5, 55],
-  ["Status Pembayaran", 6, 47, 6, 55],
-  ["%", 7, 47, 8, 47], ["Remarks", 7, 48, 8, 48],
-  ["Nominal Unit (Rp.)", 7, 49, 8, 49],
-  ["PPn", 7, 50, 8, 50], ["PPh 23", 7, 51, 8, 51], ["Net", 7, 52, 8, 52],
-  ["Tahap", 7, 53, 8, 53],
-  ["Tanggal", 7, 54, 7, 55], ["Proses", 8, 54, 8, 54], ["Transfer", 8, 55, 8, 55],
-
-  ["Keterangan", 5, 56, 8, 56],
-];
-
-/**
- * Kolom yang dijumlahkan pada baris TOTAL.
- *
- * Hanya kolom uang yang memang dijumlahkan pada berkas acuannya. Bonus, Reward,
- * dan seluruh blok Overiding Coordinator Agent sengaja tidak ikut — berkasnya
- * pun tidak menjumlahkannya, dan menambahkan total yang tidak ada di sana akan
- * membuat dua laporan yang seharusnya sama berbeda pada baris paling bawah.
- */
-const KOLOM_TOTAL = [
-  K.nilaiKontrak, K.inhouseFee, K.managerFee, K.marcommFee, K.picFee,
-  K.terimaRp, K.komisiNominal, K.ppn, K.pph21, K.pph23, K.komisiBayar,
-  42, 43, 44,
-];
 
 const CLOSING_FEE_COLS: Record<string, [number, number]> = {
   sales_inhouse: [K.inhouseFee, K.inhouseTgl],
@@ -526,6 +373,82 @@ export async function exportBuffer(
 ): Promise<Buffer> {
   const wb = await buildWorkbook(await collect(filters), namaProject);
   return Buffer.from(await wb.xlsx.writeBuffer());
+}
+
+/**
+ * Satu sel sebagaimana tampil, untuk layar.
+ *
+ * Diubah menjadi tulisan di sini, di tempat yang sama dengan yang menyusun
+ * workbook-nya, dan mengikuti bentuk tampilan kolom yang sama pula. Dibiarkan
+ * ke layar sebagai angka mentah, layar akan menuliskannya dengan aturannya
+ * sendiri, dan dua tempat yang menuliskan angka yang sama dengan aturan yang
+ * berbeda cepat atau lambat menampilkan dua angka yang berbeda.
+ */
+function tampil(kolom: number, nilai: unknown): string {
+  if (nilai === null || nilai === undefined || nilai === "") return "";
+  const fmt = FORMAT[kolom];
+
+  if (fmt === TGL || fmt === 'dd"-"mmm"-"yy') {
+    const d = nilai instanceof Date ? nilai : new Date(String(nilai));
+    if (Number.isNaN(d.getTime())) return String(nilai);
+    return `${d.getDate()}-${BULAN_SINGKAT[d.getMonth()]}-` +
+           `${String(d.getFullYear()).slice(2)}`;
+  }
+  const n = Number(nilai);
+  if (Number.isNaN(n)) return String(nilai);
+  if (fmt === PCT) {
+    return `${(n * 100).toLocaleString("id-ID", { minimumFractionDigits: 2,
+                                                  maximumFractionDigits: 2 })}%`;
+  }
+  if (fmt === RP || fmt === RP2) {
+    return `Rp ${Math.round(n).toLocaleString("id-ID")}`;
+  }
+  if (fmt === LUAS) {
+    return n.toLocaleString("id-ID", { minimumFractionDigits: 2,
+                                       maximumFractionDigits: 2 });
+  }
+  return String(nilai);
+}
+
+export type BarisLayar = { no: number; sel: Record<number, string> };
+export type SeksiLayar = { label: string; baris: BarisLayar[] };
+
+/**
+ * Isi laporan untuk ditampilkan di layar.
+ *
+ * Sel yang kosong tidak ikut dikirim. Laporan ini 56 kolom dan sebagian
+ * besarnya memang kosong pada tiap barisnya; mengirim seluruh petaknya berarti
+ * menyeberangkan ribuan tulisan kosong pada tiap kali layar dibuka.
+ */
+export async function rincian(filters: Saringan = {}): Promise<{
+  as_of: string; seksi: SeksiLayar[]; total: Record<number, string>;
+}> {
+  const sections = await collect(filters);
+
+  const seksi: SeksiLayar[] = sections.map((s) => ({
+    label: s.label,
+    baris: s.rows.map((r, i) => {
+      const sel: Record<number, string> = {};
+      for (const [kolomStr, nilai] of Object.entries(r.cells)) {
+        const t = tampil(Number(kolomStr), nilai);
+        if (t) sel[Number(kolomStr)] = t;
+      }
+      return { no: i + 1, sel };
+    }),
+  }));
+
+  // TOTAL menjumlah seksi terakhir saja, sama seperti baris TOTAL pada
+  // workbook-nya — unit yang batal, pindah, maupun milik management memang
+  // bukan uang yang keluar.
+  const terakhir = sections[sections.length - 1]?.rows ?? [];
+  const total: Record<number, string> = {};
+  for (const kolom of KOLOM_TOTAL) {
+    let jumlah = 0;
+    for (const r of terakhir) jumlah += Number(r.cells[kolom] ?? 0) || 0;
+    total[kolom] = tampil(kolom, jumlah);
+  }
+
+  return { as_of: new Date().toISOString().slice(0, 10), seksi, total };
 }
 
 export async function preview(filters: Saringan = {}) {
