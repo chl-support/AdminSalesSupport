@@ -73,8 +73,12 @@ export async function detailFee(claimId: string): Promise<Rekap | null> {
   if (!baris.length) return null;
 
   // persenTotal null: kolom Selisih memang tidak berlaku bagi jenis ini.
-  const isi = baris.map((r, i) =>
-    barisDari(r, i + 1, null, penerima?.full_name ?? null));
+  const isi = baris.map((r, i) => {
+    const b = barisDari(r, i + 1, null, penerima?.full_name ?? null);
+    // Ket. yang diketik pada lembarnya menang atas keterangan unitnya: yang
+    // pertama menerangkan pengajuan ini, yang kedua menerangkan unitnya.
+    return { ...b, keterangan: klaim.detail_keterangan ?? null };
+  });
   const kontrak = tgl(baris[0].contract_date);
 
   const bagian: BagianRekap[] = [{

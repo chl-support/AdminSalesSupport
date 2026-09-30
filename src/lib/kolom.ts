@@ -155,6 +155,14 @@ async function pasang(): Promise<void> {
       `ALTER TABLE claims ADD COLUMN IF NOT EXISTS received_at_${n} DATE`);
   }
 
+  // Kolom Ket. pada lembar Detail Perhitungan, diisi tangan. Keterangan yang
+  // ada — remarks pada unitnya — menerangkan UNITNYA, dan lembar ini
+  // menerangkan satu pengajuan atas unit itu; keduanya kerap berbeda, dan
+  // menumpangkan yang satu pada yang lain berarti keterangan sebuah unit ikut
+  // tercetak pada tiap pengajuan yang menyentuhnya.
+  await query(
+    "ALTER TABLE claims ADD COLUMN IF NOT EXISTS detail_keterangan TEXT");
+
   await query(
     `DO $$ BEGIN
        ALTER TABLE marketings ADD CONSTRAINT marketings_category_check
