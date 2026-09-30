@@ -515,7 +515,6 @@ export default function ReferensiPengajuanPage() {
 
   if (memuat || !sesi) return <MemeriksaSesi />;
 
-  const jumlahBerlaku = baris.filter((b) => b.scheme_id).length;
 
   /**
    * Baris dikelompokkan menurut nomor memonya.
@@ -542,6 +541,23 @@ export default function ReferensiPengajuanPage() {
       g.baris.push(b);
     }
   }
+
+  /**
+   * Penghitungnya membaca MEMO, bukan baris skema.
+   *
+   * Satu memo memuat belasan baris — Komisi Inhouse, Cash Reward, Overriding,
+   * dan seterusnya — sehingga "3 berlaku, 9 usulan" pada dua memo terbaca
+   * seolah ada dua belas memo di layar ini. Yang dicari orang di kepala
+   * layar berapa memo yang sudah menjadi acuan, dan berapa yang baru
+   * diunggah dan menunggu diperiksa.
+   *
+   * Sebuah memo terhitung aktif begitu ADA barisnya yang berlaku, bukan
+   * setelah seluruhnya berlaku: memo yang setengah diberlakukan sudah
+   * menjadi acuan bagi pengajuan yang jatuh pada baris itu.
+   */
+  const memoAktif = kelompok.filter(
+    (g) => g.baris.some((b) => b.scheme_id)).length;
+  const memoUsulan = kelompok.length - memoAktif;
 
   return (
     // Sama seperti layar Pengajuan: tabel ringkasan memo punya sepuluh
@@ -636,10 +652,8 @@ export default function ReferensiPengajuanPage() {
         <h2>
           {k.tabel}
           <span className="pil-sirkulasi">
-            <span className="pill ok">{k.pBerlaku(jumlahBerlaku)}</span>
-            <span className="pill">
-              {k.pUsulan(baris.length - jumlahBerlaku)}
-            </span>
+            <span className="pill ok">{k.pBerlaku(memoAktif)}</span>
+            <span className="pill">{k.pUsulan(memoUsulan)}</span>
           </span>
         </h2>
 
