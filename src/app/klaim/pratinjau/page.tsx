@@ -388,6 +388,28 @@ export default function PratinjauPage() {
     }
   }, [klaim, detail]);
 
+  /**
+   * Simpan kolom Ket. pada lembar Detail Perhitungan.
+   *
+   * Diam-diam: yang mengisi sedang membaca lembarnya, bukan menunggu kabar.
+   * Yang gagal disebutkan pada banner galat — sel yang terlihat terisi
+   * padahal tidak tersimpan adalah keterangan yang hilang tanpa ada yang
+   * tahu.
+   */
+  const simpanKeterangan = async (id: string, nilai: string) => {
+    try {
+      const res = await fetch(`/api/claims/${id}/detail-perhitungan/keterangan`,
+        { method: "POST", headers: { "content-type": "application/json" },
+          body: JSON.stringify({ keterangan: nilai }) });
+      if (res.status === 401) { location.href = "/login"; return; }
+      const b = await res.json().catch(() => ({}));
+      if (!res.ok) setGalat(b.detail ?? `HTTP ${res.status}`);
+      else setGalat(null);
+    } catch (e: any) {
+      setGalat(String(e?.message ?? e));
+    }
+  };
+
   /** Dokumen yang wajib dicentang untuk satu klaim. */
   const wajib = (c: any): string[] => DOKUMEN[c.claim_type as Jenis] ?? [];
 
@@ -632,6 +654,8 @@ export default function PratinjauPage() {
                 labelSkema={SKEMA_DETAIL[c.claim_type]}
                 labelPenerima="Penerima"
                 tanpaSelisih
+                tanpaCatatan
+                onKeterangan={(nilai) => void simpanKeterangan(c.id, nilai)}
                 ttdMarketing={
                   (detail[c.id].sales_manager?.full_name
                    ?? detail[c.id].bagian[0]?.baris[0]?.marketing

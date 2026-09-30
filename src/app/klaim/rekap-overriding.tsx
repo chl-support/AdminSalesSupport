@@ -163,7 +163,8 @@ function kumpulkan(kolom: typeof KOLOM) {
  * orang yang menerimanya.
  */
 export function RekapOverriding({ rekap, judul, labelSkema, labelPenerima,
-                                 ttdMarketing, tanpaSelisih }: {
+                                 ttdMarketing, tanpaSelisih, tanpaCatatan,
+                                 onKeterangan }: {
   rekap: Rekap; judul?: string; labelSkema?: string; labelPenerima?: string;
   /**
    * Nama yang membuat lembarnya, bila lembar ini hanya perlu satu tanda
@@ -187,6 +188,21 @@ export function RekapOverriding({ rekap, judul, labelSkema, labelPenerima,
    * kertas hanya memakan tempat kolom yang memang dibaca orang.
    */
   tanpaSelisih?: boolean;
+  /**
+   * Blok "Note:" di bawah tabel dibuang.
+   *
+   * Pada rekap Overriding ia mendaftar seluruh tarif yang berlaku — beberapa
+   * baris, dan memang dibaca. Pada lembar satu unit ia hanya mengulang satu
+   * tarif yang angkanya sudah berdiri di kolom % tepat di atasnya.
+   */
+  tanpaCatatan?: boolean;
+  /**
+   * Kolom Ket. menjadi isian, bukan tulisan.
+   *
+   * Diberikan hanya pada lembar yang memang boleh diisi tangan; tanpa itu
+   * kolomnya tetap berupa tulisan, sebagaimana lembar yang dicetak.
+   */
+  onKeterangan?: (nilai: string) => void;
 }) {
   const sm = rekap.sales_manager;
   const ttd = penandatanganRekap(rekap.project?.slug);
@@ -301,7 +317,17 @@ export function RekapOverriding({ rekap, judul, labelSkema, labelPenerima,
                       <td className="angka">{persen(r.selisih_persen)}</td>
                     </>
                   )}
-                  <td>{atau(r.keterangan)}</td>
+                  {/* Ket. diisi tangan bila lembarnya mengizinkan: yang
+                      ditulis di sana keterangan pengajuan ini, dan tidak ada
+                      sumbernya di basis data. Saat dicetak, kotaknya tidak
+                      bergaris — lihat .isi-ket pada globals.css. */}
+                  <td>
+                    {onKeterangan ? (
+                      <input className="isi-ket" defaultValue={r.keterangan ?? ""}
+                             placeholder="Isi Data" maxLength={200}
+                             onBlur={(e) => onKeterangan(e.target.value)} />
+                    ) : atau(r.keterangan)}
+                  </td>
                 </tr>
               ))}
               {/* colSpan dihitung dari daftar kolomnya, bukan ditulis sebagai
@@ -334,7 +360,7 @@ export function RekapOverriding({ rekap, judul, labelSkema, labelPenerima,
         </table>
       </div>
 
-      {rekap.catatan.length > 0 && (
+      {!tanpaCatatan && rekap.catatan.length > 0 && (
         <div className="catatan-rekap">
           <b>Note:</b>
           <ul>
