@@ -2371,3 +2371,14 @@ td.sel-tindakan > a.tautan-klaim:last-child { margin-bottom: 0; }
   .tabel-rekap .isi-ket { border: 0; background: transparent; padding: 0; }
   .tabel-rekap .isi-ket::placeholder { color: transparent; }
 }
+
+/* Daftar unit yang ikut satu pengajuan Overiding, di dalam dialognya. Rapat
+   dan bergulir sendiri: sepuluh unit tidak boleh mendorong tombol Ajukan ke
+   luar layar. */
+.daftar-unit-or {
+  margin: 4px 0 0; padding: 6px 10px 6px 22px; max-height: 132px;
+  overflow: auto; border: 1px solid var(--line); border-radius: var(--lengkung);
+  background: #FCFCFB; font-size: 12px; color: var(--sub);
+}
+.daftar-unit-or li { margin: 1px 0; }
+.daftar-unit-or b { color: var(--ink); }
