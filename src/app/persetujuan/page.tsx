@@ -825,7 +825,8 @@ export default function PersetujuanPage() {
    * Hanya baris ini yang disegarkan, bukan seluruh tabel: memuat ulang
    * semuanya akan memindahkan baris lain di bawah jari yang sedang mengetik.
    */
-  const simpanAlur = async (c: any, medan: MedanAlur, nilai: string) => {
+  const simpanAlur = async (c: any, medan: MedanAlur, nilai: string,
+                            grup?: any[]) => {
     if (nilai.trim() === String(c[medan] ?? "").trim()) return;
     const kunci = `${c.id}:${medan}`;
     // Bentuk tanggalnya diperiksa di sini juga, bukan hanya di server.
@@ -855,6 +856,23 @@ export default function PersetujuanPage() {
       setTegur((s) => (tglGagal === kunci ? null : s));
       setKlaim((lama) => lama.map((x) => x.id === c.id
         ? { ...x, [medan]: j[medan] } : x));
+
+      // Satu pengajuan beberapa unit berdiri sebagai satu baris, jadi isian
+      // tangannya milik barisnya — bukan milik klaim yang kebetulan paling
+      // atas. Nomor IOM dan catatan peredaran ditulis ke seluruh klaim dalam
+      // pengajuan itu; kalau tidak, membuka saringan lain akan memperlihatkan
+      // dua unit sepengajuan dengan nomor IOM yang berbeda.
+      const lainnya = (grup ?? []).filter((x) => x.id !== c.id);
+      for (const x of lainnya) {
+        const r2 = await fetch(`/api/claims/${x.id}/sirkulasi`, {
+          method: "POST", headers: { "content-type": "application/json" },
+          body: JSON.stringify({ [medan]: nilai }),
+        });
+        if (!r2.ok) continue;
+        const j2 = await r2.json().catch(() => ({}));
+        setKlaim((lama) => lama.map((y) => y.id === x.id
+          ? { ...y, [medan]: j2[medan] } : y));
+      }
     } catch (e: any) {
       setGalat(String(e?.message ?? e));
     } finally { setIomSimpan(null); }
@@ -872,7 +890,8 @@ export default function PersetujuanPage() {
    * tanpa menyentuh server — tidak ada yang hilang, dan pertanyaan yang
    * jawabannya selalu "ya" mengajari orang menekan "ya" tanpa membaca.
    */
-  const hapusKotak = async (c: any, dasar: DasarAlur, n: number) => {
+  const hapusKotak = async (c: any, dasar: DasarAlur, n: number,
+                            grup?: any[]) => {
     const lama = URUT_ALUR.map((i) => String(c[bernomor(dasar, i)] ?? ""));
     const dibuang = lama[n - 1];
     // Ditanyakan dalam bentuk yang tertulis di kolomnya. Pertanyaan yang
@@ -918,6 +937,22 @@ export default function PersetujuanPage() {
       // menyisakan satu kotak kosong tepat di tempat yang baru dihapus.
       setBarisAlur((s) => kunci in s
         ? { ...s, [kunci]: Math.max(1, s[kunci] - 1) } : s);
+
+      // Sama alasannya dengan simpanAlur: catatan peredaran milik barisnya.
+      for (const x of (grup ?? []).filter((y) => y.id !== c.id)) {
+        const r2 = await fetch(`/api/claims/${x.id}/sirkulasi`, {
+          method: "POST", headers: { "content-type": "application/json" },
+          body: JSON.stringify(ubah),
+        });
+        if (!r2.ok) continue;
+        const j2 = await r2.json().catch(() => ({}));
+        setKlaim((l) => l.map((y) => {
+          if (y.id !== x.id) return y;
+          const disalin: Record<string, any> = { ...y };
+          for (const m of Object.keys(ubah)) disalin[m] = j2[m] ?? null;
+          return disalin;
+        }));
+      }
     } catch (e: any) {
       setGalat(String(e?.message ?? e));
     } finally { setIomSimpan(null); }
@@ -939,7 +974,8 @@ export default function PersetujuanPage() {
    * baris tanpa penanda apa pun, dan yang membacanya tidak punya cara
    * mengetahui yang mana. Yang tersimpan tidak berubah: tetap "yyyy-mm-dd".
    */
-  const isiAlur = (c: any, medan: MedanAlur, petunjuk?: string) => {
+  const isiAlur = (c: any, medan: MedanAlur, petunjuk?: string,
+                   grup?: any[]) => {
     const tanggal = TANGGAL_ALUR.includes(medan);
     if (!bolehIom) {
       if (!c[medan]) return "\u2014";
@@ -1003,7 +1039,7 @@ export default function PersetujuanPage() {
                  return;
                }
                if (tanggal) { setTglBuka(null); setTglGagal(null); setTegur(null); }
-               void simpanAlur(c, medan, e.target.value);
+               void simpanAlur(c, medan, e.target.value, grup);
              }}
              onKeyDown={(e) => {
                if (e.key === "Enter") e.currentTarget.blur();
@@ -1028,7 +1064,8 @@ export default function PersetujuanPage() {
    * Bagi yang hanya membaca, tidak ada kotak kosong sama sekali, dan tidak ada
    * tombolnya: ia tidak dapat mengisi, jadi tempat kosong hanya menyita ruang.
    */
-  const isiEmpat = (c: any, dasar: DasarAlur, petunjuk?: string) => {
+  const isiEmpat = (c: any, dasar: DasarAlur, petunjuk?: string,
+                    grup?: any[]) => {
     // Bentuknya dibaca dari TANGGAL_ALUR, bukan dari nama dasarnya: satu
     // perbandingan nama yang ditulis tangan akan diam-diam meleset begitu
     // kolom tanggal ketiga menyusul, dan tanggalnya tercetak sebagai teks ISO.
@@ -1051,7 +1088,7 @@ export default function PersetujuanPage() {
       <div className="alur-empat">
         {URUT_ALUR.slice(0, tampak).map((n) => (
           <div key={n} className="alur-baris">
-            {isiAlur(c, bernomor(dasar, n), petunjuk)}
+            {isiAlur(c, bernomor(dasar, n), petunjuk, grup)}
             {/* Satu tombol hapus pada tiap kotak, sama di keempat kolom dan
                 tanpa perkecualian — kotak yang berisi maupun yang kosong.
                 Sebelumnya hanya kotak kosong berlebih yang dapat ditutup, dan
@@ -1061,7 +1098,7 @@ export default function PersetujuanPage() {
                     title={k.hapusKotak} aria-label={k.hapusKotak}
                     disabled={iomSimpan === c.id
                               || (tampak === 1 && !c[bernomor(dasar, n)])}
-                    onClick={() => void hapusKotak(c, dasar, n)}>
+                    onClick={() => void hapusKotak(c, dasar, n, grup)}>
               ×
             </button>
           </div>
@@ -1079,10 +1116,35 @@ export default function PersetujuanPage() {
     );
   };
 
+  /**
+   * Satu permintaan, seluruh klaim dalam pengajuan yang sama.
+   *
+   * Overiding atas tiga unit berdiri sebagai satu baris keputusan di layar
+   * ini, jadi tombol pada baris itu harus menggerakkan ketiganya. Berurutan,
+   * bukan serentak: tiap langkah menulis jejak audit dan membaca keadaan
+   * terakhir klaimnya, dan permintaan yang berlomba membuat dua di antaranya
+   * membaca keadaan yang sama sebelum salah satunya sempat menulis.
+   *
+   * Yang dikembalikan jawaban yang GAGAL bila ada — itulah yang perlu dibaca
+   * orang — dan jawaban pertama bila seluruhnya berhasil.
+   */
+  const kirimSepengajuan = async (c: any, jalur: string, init: RequestInit) => {
+    const daftar = c.batch_id
+      ? klaim.filter((x) => x.batch_id === c.batch_id) : [c];
+    let pertama: Response | null = null;
+    let gagal: Response | null = null;
+    for (const x of daftar) {
+      const r = await fetch(`/api/claims/${x.id}${jalur}`, init);
+      pertama ??= r;
+      if (!r.ok && !gagal) gagal = r;
+    }
+    return (gagal ?? pertama)!;
+  };
+
   const pindahTahap = async (c: any, n: number) => {
     setGerak(c.id); setGalat(null); setKabar(null);
     try {
-      const res = await fetch(`/api/claims/${c.id}/tahap`, {
+      const res = await kirimSepengajuan(c, "/tahap", {
         method: "POST", headers: { "content-type": "application/json" },
         body: JSON.stringify({ tahap: n }),
       });
@@ -1126,7 +1188,7 @@ export default function PersetujuanPage() {
             setFsKemajuan(Math.round((terkirim / dari) * 100)))
         : null;
 
-      const res = await fetch(`/api/claims/${c.id}/full-sign`, {
+      const res = await kirimSepengajuan(c, "/full-sign", {
         method: "POST", headers: { "content-type": "application/json" },
         body: JSON.stringify({
           file_name: fsBerkas.name, content_type: fsBerkas.type,
@@ -1172,7 +1234,7 @@ export default function PersetujuanPage() {
         if (pjkPpn.trim()) angka.vat = isi(pjkPpn);
         if (pjkPph.trim()) angka.withholding_tax = isi(pjkPph);
       }
-      const res = await fetch(`/api/claims/${c.id}/tax-verification`, {
+      const res = await kirimSepengajuan(c, "/tax-verification", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           decision: keputusan,
@@ -1206,7 +1268,7 @@ export default function PersetujuanPage() {
   const tinjauTtd = async (c: any, keputusan: string) => {
     setGerak(c.id); setGalat(null); setKabar(null);
     try {
-      const res = await fetch(`/api/claims/${c.id}/signature-review`, {
+      const res = await kirimSepengajuan(c, "/signature-review", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ decision: keputusan,
                                reason: ttdAlasan.trim() || undefined }),
@@ -1231,7 +1293,7 @@ export default function PersetujuanPage() {
   const selesaikanCrosscheck = async (c: any, pihak: string) => {
     setGerak(c.id); setGalat(null); setKabar(null);
     try {
-      const res = await fetch(`/api/claims/${c.id}/crosscheck`, {
+      const res = await kirimSepengajuan(c, "/crosscheck", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ party: pihak, decision: "complete" }),
       });
@@ -1259,7 +1321,7 @@ export default function PersetujuanPage() {
   const hapusKlaim = async (c: any) => {
     setGerak(c.id); setGalat(null); setKabar(null);
     try {
-      const res = await fetch(`/api/claims/${c.id}`, {
+      const res = await kirimSepengajuan(c, "", {
         method: "DELETE", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ reason: hapAlasan.trim() }),
       });
@@ -1277,7 +1339,7 @@ export default function PersetujuanPage() {
   const catatPembayaran = async (c: any) => {
     setGerak(c.id); setGalat(null); setKabar(null);
     try {
-      const res = await fetch(`/api/claims/${c.id}/pembayaran`, {
+      const res = await kirimSepengajuan(c, "/pembayaran", {
         method: "POST", headers: { "content-type": "application/json" },
         body: JSON.stringify({
           transfer_date: byrTgl,
@@ -1334,6 +1396,29 @@ export default function PersetujuanPage() {
     .sort((a, b) => saring !== "unit" ? 0
       : String(a.unit?.code ?? "").localeCompare(String(b.unit?.code ?? ""),
                                                  "id", { numeric: true }));
+
+  /**
+   * Baris dikelompokkan menurut pengajuannya, bukan menurut klaimnya.
+   *
+   * Overiding diajukan atas beberapa unit sekaligus — satu penerima, satu
+   * periode, satu keputusan — tetapi tiap unit tetap klaim tersendiri, sebab
+   * nilai, PPN dan PPh-nya dihitung per unit. Di layar ini ketiganya berdiri
+   * sebagai SATU baris: kolom Unit memuat ketiga unitnya sebagai poin, kolom
+   * uangnya menjumlahkan ketiganya, dan tombol apa pun pada baris itu berlaku
+   * bagi ketiganya.
+   *
+   * Yang tidak punya penanda berdiri sendiri, sebagaimana sebelumnya.
+   */
+  const kelompok: any[][] = [];
+  {
+    const peta = new Map<string, any[]>();
+    for (const c of terlihat) {
+      const kunci = c.batch_id ? `b:${c.batch_id}` : `c:${c.id}`;
+      let g = peta.get(kunci);
+      if (!g) { g = []; peta.set(kunci, g); kelompok.push(g); }
+      g.push(c);
+    }
+  }
 
   /**
    * Keempat angka pada kepala panel; susunannya ada pada kotakKeadaan.
@@ -1491,28 +1576,44 @@ export default function PersetujuanPage() {
               <th style={{ width: 140 }}>{k.thDokumen}</th>
             </tr>
 
-            {terlihat.map((c, i) => (
-              <tr key={c.id}>
+            {kelompok.map((g, i) => {
+              // Klaim pertama mewakili keterangan yang memang sama bagi
+              // seluruh kelompoknya: tanggal pengajuan, jenis, penerima,
+              // pengaju, dan keadaannya.
+              const c = g[0];
+              const banyak = g.length > 1;
+              const jml = (medan: string) =>
+                g.reduce((t, x) => t + Number(x[medan] ?? 0), 0);
+              return (
+              <tr key={c.batch_id ? `b:${c.batch_id}` : c.id}>
                 <td className="sel-no">{i + 1}</td>
                 <td>{tglPendek(c.created_at)}</td>
                 {/* Nomor unitnya — itulah yang dipakai orang untuk mengenali
                     pengajuan ini. Sebelumnya hanya ada di lembar rekap dan di
                     formulir pratinjau, sehingga dua pengajuan sejenis untuk
                     penerima yang sama tidak dapat dibedakan dari tabel. */}
-                <td className="sel-unit">{c.unit?.code ?? "—"}</td>
+                <td className="sel-unit">
+                  {banyak ? (
+                    <ul className="unit-grup">
+                      {g.map((x) => (
+                        <li key={x.id}>{x.unit?.code ?? "—"}</li>
+                      ))}
+                    </ul>
+                  ) : (c.unit?.code ?? "—")}
+                </td>
                 <td>{namaJenis(c.claim_type, bahasa)}</td>
                 {/* Nomor Internal Office Memo. Terbit di luar sistem ini, jadi
                     diisi tangan di sini — dan hanya di sini, sejak layar
                     Sirkulasi Dokumen dibuang. Yang tidak berhak mengisinya
                     tetap membacanya: isinya memang untuk dibaca. */}
-                <td>{isiAlur(c, "office_memo_no", k.isiData)}</td>
+                <td>{isiAlur(c, "office_memo_no", k.isiData, g)}</td>
                 <td>{kategori(c, k, bahasa) ?? "—"}</td>
                 <td className="sel-penerima">{c.marketing?.full_name ?? "—"}</td>
                 <td>{pengaju(c)}</td>
-                <td className="n">{rp(c.gross_amount)}</td>
-                <td className="n">{rp(c.vat)}</td>
-                <td className="n">{rp(c.withholding_tax)}</td>
-                <td className="n"><b>{rp(c.net_amount)}</b></td>
+                <td className="n">{rp(jml("gross_amount"))}</td>
+                <td className="n">{rp(jml("vat"))}</td>
+                <td className="n">{rp(jml("withholding_tax"))}</td>
+                <td className="n"><b>{rp(jml("net_amount"))}</b></td>
                 {/* Tanggal uang keluar menurut bukti bank, bukan tanggal
                     klaimnya disetujui: ia tersimpan di settlements, sebab satu
                     transfer dapat melunasi beberapa klaim sekaligus. Kosong
@@ -1536,10 +1637,10 @@ export default function PersetujuanPage() {
                     layar itu dibuang, di sinilah tempatnya. Medan dan
                     endpoint-nya sama, jadi yang sudah pernah diisi tetap
                     terbaca. */}
-                <td>{isiEmpat(c, "sender_division", k.isiData)}</td>
-                <td>{isiEmpat(c, "handed_to", k.isiData)}</td>
-                <td>{isiEmpat(c, "distributed_at")}</td>
-                <td>{isiEmpat(c, "received_at")}</td>
+                <td>{isiEmpat(c, "sender_division", k.isiData, g)}</td>
+                <td>{isiEmpat(c, "handed_to", k.isiData, g)}</td>
+                <td>{isiEmpat(c, "distributed_at", undefined, g)}</td>
+                <td>{isiEmpat(c, "received_at", undefined, g)}</td>
                 <td className="sel-keadaan">
                   {/* Panah peringkas. Hanya panah, tanpa tulisan: ia berdiri
                       di atas empat kotak yang semuanya bertulisan, dan tulisan
@@ -1786,7 +1887,8 @@ export default function PersetujuanPage() {
                   )}
                 </td>
               </tr>
-            ))}
+              );
+            })}
 
             {!terlihat.length && !busy && (
               <tr>

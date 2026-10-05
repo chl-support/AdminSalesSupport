@@ -150,6 +150,11 @@ const KATA = {
       "Tercetak pada kepala rekap Overiding sebagai periode penjualannya. " +
       "Bila dikosongkan, periodenya diambil dari tanggal kontrak unit yang " +
       "masuk rekap.",
+    orUnitJudul: (n: number) => `Unit yang diajukan (${n})`,
+    orUnitCatatan:
+      "Centang Overiding pada baris lain di tabel untuk menambahkan unitnya " +
+      "ke pengajuan ini; seluruhnya diajukan sekali tekan, atas penerima dan " +
+      "periode yang sama.",
     dialogPeriodeTerbalik:
       "Tanggal \"Sampai\" tidak boleh lebih awal daripada \"Dari\".",
     dialogSamakan: "Samakan untuk semua",
@@ -243,6 +248,11 @@ const KATA = {
       "Printed on the Overiding recap header as its sales period. Left " +
       "empty, the period is taken from the contract dates of the units in " +
       "the recap.",
+    orUnitJudul: (n: number) => `Units submitted (${n})`,
+    orUnitCatatan:
+      "Tick Overriding on other rows to add their units to this submission; " +
+      "all of them are submitted in one press, to the same recipient and " +
+      "period.",
     dialogPeriodeTerbalik: "The \"To\" date cannot be earlier than \"From\".",
     dialogSamakan: "Use for all",
     katJudul: "Recipient category", katNama: "Registered name",
@@ -532,6 +542,26 @@ export default function PengajuanFeePage() {
   const terpilihPada = (unitId: string) =>
     JENIS.filter((j) => pilih[`${unitId}:${j.slug}`]).map((j) => j.slug);
 
+  /**
+   * Unit yang Overriding-nya dicentang, di seluruh layar — bukan hanya pada
+   * baris yang tombolnya ditekan.
+   *
+   * Overriding memang dibayarkan atas beberapa unit sekaligus: yang
+   * menerimanya tingkat di atas penjualnya, dan haknya terbit dari setiap
+   * unit yang terjual di bawahnya pada periode itu. Mengajukannya satu unit
+   * per satu berarti membuka dialog yang sama sepuluh kali untuk satu
+   * periode yang sama.
+   *
+   * Jenis lain tidak ikut: satu unit satu lembar, dan mencampurkannya akan
+   * mengirim Closing Fee unit sebelah atas nama orang yang tidak pernah
+   * dipilih pada barisnya.
+   */
+  const unitOverriding = (unitDialog: Unit): Unit[] => {
+    const lain = units.filter((x) => x.id !== unitDialog.id
+                                     && pilih[`${x.id}:overriding`]);
+    return [unitDialog, ...lain];
+  };
+
   const muat = useCallback(async () => {
     setBusy(true);
     setGalat(null);
@@ -611,6 +641,8 @@ export default function PengajuanFeePage() {
     const dibuat: string[] = [];
     const gagal: string[] = [];
     const berhasil: Jenis[] = [];
+    /** Unit yang Overriding-nya berhasil diajukan; centangnya dilepas. */
+    const orBerhasil: string[] = [];
     try {
       for (const slug of jenisTerpilih) {
         const f = u.fees[slug];
@@ -636,10 +668,21 @@ export default function PengajuanFeePage() {
             orangKategori(kat).length ? k.pilihNama : k.katKosong}`);
           continue;
         }
+        // Overriding diajukan atas SELURUH unit yang dicentang; jenis lain
+        // atas unit barisnya sendiri. Berurutan, sebab pemeriksaan
+        // anti-duplikat di server membaca klaim yang barusan dibuat.
+        const sasaran = slug === "overriding" ? unitOverriding(u) : [u];
+        let adaYangJadi = false;
+        // Satu penanda untuk seluruh unit yang diajukan bersama. Dengan itu
+        // layar Approval menyatukannya kembali menjadi satu baris keputusan,
+        // sementara nilai, PPN dan PPh tetap dihitung per unit.
+        const penanda = sasaran.length > 1 && typeof crypto !== "undefined"
+          ? crypto.randomUUID() : null;
+        for (const unit of sasaran) {
         const res = await fetch("/api/claims", {
           method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            unit_id: u.id,
+            unit_id: unit.id,
             marketing_id: idPenerima,
             claim_type: slug,
             // Peran penerima = kategori yang dipilih. Keduanya memang satu hal
@@ -663,17 +706,23 @@ export default function PengajuanFeePage() {
               ? periode.start || null : null,
             sales_period_end: slug === "overriding"
               ? periode.end || null : null,
+            batch_id: penanda,
             transfer: tujuan[slug] ?? null,
           }),
         });
         if (res.status === 401) { location.href = "/login"; return; }
         const b = await res.json().catch(() => ({}));
         if (!res.ok) {
-          gagal.push(`${namaJenis(slug, bahasa)}: ${b.detail ?? b.title ?? res.status}`);
+          // Unitnya disebut bila yang diajukan lebih dari satu: "Overriding
+          // gagal" tanpa menyebut unit mana tidak dapat dibetulkan siapa pun.
+          gagal.push(`${namaJenis(slug, bahasa)}${
+            sasaran.length > 1 ? ` (${unit.code})` : ""}: ${
+            b.detail ?? b.title ?? res.status}`);
           continue;
         }
         dibuat.push(b.id);
-        berhasil.push(slug);
+        adaYangJadi = true;
+        if (slug === "overriding") orBerhasil.push(unit.id);
 
         // Buku rekening yang tadi dibaca ikut menempel pada klaimnya. Ia
         // memang dokumen yang diminta checklist Komisi, dan yang barusan
@@ -695,6 +744,8 @@ export default function PengajuanFeePage() {
             });
           } catch { /* biar — lihat alasannya di atas */ }
         }
+        }
+        if (adaYangJadi) berhasil.push(slug);
       }
 
       // Yang berhasil dilepas centangnya; yang gagal dipertahankan apa adanya.
@@ -703,6 +754,9 @@ export default function PengajuanFeePage() {
       setPilih((lama) => {
         const baru = { ...lama };
         for (const slug of berhasil) delete baru[`${u.id}:${slug}`];
+        // Overriding dicentang pada beberapa baris sekaligus; yang berhasil
+        // dilepas seluruhnya, bukan hanya baris yang tombolnya ditekan.
+        for (const id of orBerhasil) delete baru[`${id}:overriding`];
         return baru;
       });
 
@@ -1187,6 +1241,26 @@ export default function PengajuanFeePage() {
                         <p className="hint" style={{ textAlign: "left" }}>
                           {periodeSalah ? k.dialogPeriodeTerbalik
                                         : k.dialogPeriodeCatatan}
+                        </p>
+
+                        {/* Unit mana saja yang ikut. Overriding dicentang
+                            pada beberapa baris sekaligus, dan yang menekan
+                            Ajukan harus melihat daftarnya sebelum menekan —
+                            bukan menghitung ulang centang di tabel yang
+                            sudah tergulir jauh ke bawah. */}
+                        <div className="lbl" style={{ marginTop: 8 }}>
+                          {k.orUnitJudul(unitOverriding(siapkan.unit).length)}
+                        </div>
+                        <ul className="daftar-unit-or">
+                          {unitOverriding(siapkan.unit).map((x) => (
+                            <li key={x.id}>
+                              <b>{x.code}</b>
+                              {x.buyer_name ? ` · ${x.buyer_name}` : ""}
+                            </li>
+                          ))}
+                        </ul>
+                        <p className="hint" style={{ textAlign: "left" }}>
+                          {k.orUnitCatatan}
                         </p>
                       </>
                     ) : (
