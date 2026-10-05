@@ -972,6 +972,47 @@ async function main() {
            "citra rusak tidak boleh menggagalkan seluruh dokumen");
   });
 
+  await check("memo yang berlaku menjadi dasar pengajuan maupun penolakannya",
+              async () => {
+    // Bawaannya menyala: tarif keempat jenis fee datang dari memo yang
+    // diberlakukan di Referensi Pengajuan, dan penjualan yang tidak dinaungi
+    // memo mana pun ditolak — bukan dihitung dengan tarif yang tidak pernah
+    // diputuskan siapa pun.
+    const { setting } = await import("../src/lib/db");
+    // Dibaca lewat setting(), bukan dari tetapan dalam kode: yang menentukan
+    // perilaku memang yang terbaca di sini — bawaannya bila belum pernah
+    // disimpan, dan nilai tersimpan bila pernah diubah Admin IT.
+    assert((await setting("skema_wajib")) === "true",
+           "kunci pengajuan fee harus menyala pada pemasangan yang bersih");
+
+    const unit = await one<any>(
+      "SELECT * FROM units WHERE code = 'BIOBA2-017'");
+    const marketing = await one<any>(
+      "SELECT * FROM marketings WHERE id = $1", [unit.marketing_id]);
+
+    // Jenis yang memonya memang ada untuk tanggal kontrak unit ini: terhitung.
+    const ada = await calc.calculate(
+      unit, marketing, null, "closing_fee", "sales_inhouse");
+    assert(ada.gross_amount > 0, "yang dinaungi memo tetap terhitung");
+    assert(!ada.snapshot.skema_darurat,
+           "yang dinaungi memo bukan jalur darurat");
+    assert(Boolean(ada.snapshot.scheme_memo),
+           "nomor memonya ikut tersimpan pada snapshot klaimnya");
+
+    // Peran yang tidak disebut memo mana pun: ditolak, dengan kalimat yang
+    // menyebut ke mana harus pergi membetulkannya.
+    let tertolak: any = null;
+    try {
+      await calc.calculate(unit, marketing, null, "closing_fee", "bgb");
+    } catch (e: any) { tertolak = e; }
+    assert(tertolak instanceof WorkflowError,
+           "yang tanpa memo ditolak sebagai WorkflowError, bukan galat mentah");
+    assert(tertolak.code === "skema_tidak_ada",
+           `kode penolakannya skema_tidak_ada, bukan ${tertolak?.code}`);
+    assert(String(tertolak.message).includes("Referensi Pengajuan"),
+           "penolakannya menyebut Referensi Pengajuan sebagai tempat membetulkannya");
+  });
+
   await check("Detail Perhitungan menyertai formulir fee, bukan hanya rekap OR",
               async () => {
     const { detailFee } = await import("../src/lib/detail-fee");

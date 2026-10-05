@@ -331,20 +331,29 @@ const DEFAULT_SETTINGS: Record<string, string> = {
   kontak_admin_wa: "",
   kontak_admin_email: "",
   /**
-   * Apakah memo skema insentif menjadi dasar penolakan klaim.
+   * Apakah memo yang berlaku menjadi dasar pengajuan dan penolakan fee.
    *
-   * Sementara "false": selama memo-memonya belum selesai diunggah, menolak
-   * klaim karena tidak ada memo yang berlaku menutup seluruh alur sesudahnya —
-   * pajak, tanda tangan, cetak, serah terima — sehingga tidak satu pun dapat
-   * dicoba. Selama mati, perhitungan memakai skema terdekat yang ada sambil
-   * mengabaikan masa berlakunya, dan menandai klaimnya bahwa dasar memonya
-   * belum ditetapkan.
+   * "true", dan itulah perilaku yang seharusnya: tarif Closing Fee, Cash
+   * Reward, Komisi dan Overiding diambil dari memo yang diberlakukan di
+   * Referensi Pengajuan, dan pengajuan yang tanggal penjualannya tidak
+   * dinaungi memo mana pun ditolak — bukan dihitung dengan tarif yang tidak
+   * pernah diputuskan siapa pun.
    *
-   * Dinyalakan dari menu Administrasi begitu memonya lengkap. Sesudah itu
-   * perilakunya kembali seperti seharusnya: tanpa memo yang berlaku, klaim
-   * tidak dapat dihitung.
+   * Dahulu "false" sebagai keadaan sementara, selama memo-memonya belum
+   * selesai diunggah: menolak seluruh pengajuan saat itu akan menutup alur
+   * sesudahnya — pajak, tanda tangan, cetak, serah terima — sehingga tidak
+   * satu pun dapat dicoba. Memonya kini diunggah dan diberlakukan dari
+   * Referensi Pengajuan, jadi kelonggaran itu tidak lagi diperlukan.
+   *
+   * Admin IT tetap dapat melonggarkannya dari Referensi Pengajuan untuk
+   * keadaan yang memang tidak dapat menunggu memonya; selama longgar,
+   * perhitungan memakai skema terdekat dengan masa berlakunya diabaikan, dan
+   * klaimnya ditandai `skema_darurat` supaya dapat ditemukan kembali.
+   *
+   * Catatan: setelan yang sudah pernah disimpan menang atas bawaan ini —
+   * yang pernah ditekan "Longgarkan" tetap longgar sampai dinyalakan lagi.
    */
-  skema_wajib: "false",
+  skema_wajib: "true",
 };
 
 export async function setting(key: string): Promise<string> {
