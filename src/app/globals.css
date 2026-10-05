@@ -416,6 +416,15 @@ td.sel-skema, th.sel-skema { min-width: 120px; }
    membuat baris kepala terbaca sebagai catatan kaki, bukan nama kolom. */
 /* Judul kolom rata tengah, seukuran isinya. */
 .tabel-penjualan th { font-size: inherit; text-align: center; }
+/* Judul kolom yang dapat diurutkan: tetap terbaca sebagai judul kolom, bukan
+   sebagai tombol di dalam tabel. Yang membedakannya hanya kursor dan panah
+   arah urutannya — tombol berbingkai di baris kepala terbaca sebagai perintah,
+   dan yang membacanya menduga ada sesuatu yang akan berubah di luar urutan. */
+.tabel-penjualan th .th-urut {
+  background: none; border: 0; padding: 0; cursor: pointer;
+  font: inherit; font-weight: inherit; color: inherit;
+}
+.tabel-penjualan th .th-urut:hover { text-decoration: underline; }
 .tabel-penjualan th .satuan { font-weight: 400; color: var(--mut); }
 /* Delapan kolom pada satu baris: jarak dalam selnya dirapatkan supaya
    seluruhnya muat tanpa tabel ini harus digeser mendatar. */

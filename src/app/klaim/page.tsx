@@ -125,6 +125,8 @@ const KATA = {
     dataPenjualan: "Data penjualan",
     barisDitampilkan: (n: number) => `${n} baris ditampilkan`,
     thTanggal: "Tanggal Penjualan",
+    urutTerbaru: "Urutkan dari yang terbaru",
+    urutTerlama: "Urutkan dari yang terlama",
     thUnit: "Unit", thPembeli: "Konsumen", thPenerima: "Sales",
     thKoordinator: "Sales Koordinator",
     thSkema: "Skema Cara Bayar",
@@ -226,6 +228,8 @@ const KATA = {
     dataPenjualan: "Sales data",
     barisDitampilkan: (n: number) => `${n} rows shown`,
     thTanggal: "Sale date",
+    urutTerbaru: "Sort newest first",
+    urutTerlama: "Sort oldest first",
     thUnit: "Unit", thPembeli: "Customer", thPenerima: "Sales",
     thKoordinator: "Sales Coordinator",
     thSkema: "Payment Scheme",
@@ -368,6 +372,15 @@ export default function PengajuanFeePage() {
   const [galat, setGalat] = useState<string | null>(null);
   const [cari, setCari] = useState("");
   const [saring, setSaring] = useState<Saring>("semua");
+  /**
+   * Urutan tanggal penjualan: yang terlama lebih dulu, kecuali dibalik.
+   *
+   * Dulu daftarnya terurut menurut kode unit — urutan yang tidak berarti
+   * apa-apa bagi yang mengerjakannya, karena kode unit tidak menyebut kapan
+   * unitnya terjual. Yang paling lama menunggu justru yang paling perlu
+   * dikerjakan lebih dulu, jadi itu yang berdiri di atas.
+   */
+  const [urutNaik, setUrutNaik] = useState(true);
   /**
    * Fee yang dicentang, sebagai kunci "<unit>:<jenis>".
    *
@@ -828,6 +841,21 @@ export default function PengajuanFeePage() {
     if (saring === "sudah") return adaKlaim(u);
     if (saring === "belum_syarat") return !adaKlaim(u) && !adaBisa(u);
     return true;
+  }).sort((a, b) => {
+    // Tanggalnya dibandingkan sebagai teks ISO (YYYY-MM-DD), bukan sebagai
+    // Date: nilainya datang dari basis data dalam bentuk itu, dan membuat
+    // objek Date untuk tiap perbandingan hanya menambah pekerjaan tanpa
+    // mengubah hasilnya.
+    const t = (u: Unit) => String(u.contract_date ?? "").slice(0, 10);
+    const x = t(a), y = t(b);
+    // Yang belum bertanggal selalu di bawah, ke arah mana pun diurutkan:
+    // menaruhnya di puncak hanya karena nilainya kosong membuat yang paling
+    // lama menunggu terdorong turun oleh baris yang belum tentu pekerjaan.
+    if (!x || !y) return !x && !y ? 0 : (!x ? 1 : -1);
+    // Kode unit menjadi penentu kedua. Tanpa itu, dua penjualan pada hari
+    // yang sama dapat bertukar tempat tiap kali daftarnya dimuat ulang.
+    if (x !== y) return urutNaik ? x.localeCompare(y) : y.localeCompare(x);
+    return a.code.localeCompare(b.code);
   });
 
   // Dihitung per pasangan unit–jenis, bukan per unit: satu unit dapat memenuhi
@@ -896,7 +924,15 @@ export default function PengajuanFeePage() {
                     ia yang menentukan memo mana yang berlaku atas penjualan
                     ini — tarif Closing Fee, Komisi dan Overriding diambil dari
                     memo yang periode programnya menaungi tanggal ini. */}
-                <th className="sel-unit">{k.thTanggal}</th>
+                <th className="sel-unit"
+                    aria-sort={urutNaik ? "ascending" : "descending"}>
+                  <button className="th-urut" type="button"
+                          title={urutNaik ? k.urutTerbaru : k.urutTerlama}
+                          onClick={() => setUrutNaik(!urutNaik)}>
+                    {k.thTanggal}
+                    <span aria-hidden="true">{urutNaik ? " ↑" : " ↓"}</span>
+                  </button>
+                </th>
                 <th className="sel-unit">{k.thUnit}</th>
                 <th>{k.thPembeli}</th>
                 <th className="sel-penerima">{k.thPenerima}</th>
