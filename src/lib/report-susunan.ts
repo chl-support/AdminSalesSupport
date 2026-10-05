@@ -186,3 +186,17 @@ export const KOLOM_ANGKA: number[] = Object.entries(FORMAT)
  */
 export const BULAN_SINGKAT = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun",
                               "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
+
+/**
+ * Baris cadangan kosong di bawah tiap seksi.
+ *
+ * Bukan hiasan: berkas acuannya pun menyediakannya — di bawah seksi MANAGEMENT
+ * ada tiga baris bernomor 1, 2, 3 yang isinya kosong, siap diisi tangan. Tanpa
+ * itu, seksi yang belum punya satu baris pun langsung bertumpuk pada seksi
+ * berikutnya, dan empat pita abu-abu yang saling menempel tidak lagi terbaca
+ * sebagai empat kelompok melainkan sebagai satu blok.
+ *
+ * Pada seksi terakhir, ketiganya ikut masuk jangkauan SUM baris TOTAL — justru
+ * itu gunanya baris cadangan: angka yang diketikkan di sana langsung terhitung.
+ */
+export const BARIS_CADANGAN = 3;

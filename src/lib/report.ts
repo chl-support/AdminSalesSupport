@@ -30,7 +30,8 @@
 import ExcelJS from "exceljs";
 import { query } from "./db";
 import {
-  BULAN_SINGKAT, FORMAT, K, KEPALA, KOLOM_TERAKHIR, KOLOM_TOTAL, LEBAR,
+  BARIS_CADANGAN, BULAN_SINGKAT, FORMAT, K, KEPALA, KOLOM_TERAKHIR,
+  KOLOM_TOTAL, LEBAR,
   LUAS, PCT, RP, RP2, TGL,
 } from "./report-susunan";
 
@@ -323,13 +324,7 @@ export async function buildWorkbook(
     baris++;
 
     const awal = baris;
-    seksi.rows.forEach((rec, n) => {
-      ws.getCell(baris, K.no).value = n + 1;
-      for (const [kolomStr, nilai] of Object.entries(rec.cells)) {
-        const kolom = Number(kolomStr);
-        if (nilai === null || nilai === undefined) continue;
-        ws.getCell(baris, kolom).value = nilai as any;
-      }
+    const rapikan = () => {
       for (let c = 1; c <= KOLOM_TERAKHIR; c++) {
         const s = ws.getCell(baris, c);
         s.font = { name: FONT, size: 10 };
@@ -338,8 +333,24 @@ export async function buildWorkbook(
         if (fmt) s.numFmt = fmt;
       }
       baris++;
+    };
+
+    seksi.rows.forEach((rec, n) => {
+      ws.getCell(baris, K.no).value = n + 1;
+      for (const [kolomStr, nilai] of Object.entries(rec.cells)) {
+        const kolom = Number(kolomStr);
+        if (nilai === null || nilai === undefined) continue;
+        ws.getCell(baris, kolom).value = nilai as any;
+      }
+      rapikan();
     });
-    if (seksi.rows.length) rentangAkhir = [awal, baris - 1];
+
+    // Baris cadangan, bernomor tetapi kosong — lihat BARIS_CADANGAN.
+    for (let n = 0; n < BARIS_CADANGAN; n++) {
+      ws.getCell(baris, K.no).value = seksi.rows.length + n + 1;
+      rapikan();
+    }
+    rentangAkhir = [awal, baris - 1];
   }
 
   // Baris TOTAL: formula, bukan konstanta (FR-9.11). Yang dijumlah hanya seksi
@@ -421,20 +432,27 @@ export type SeksiLayar = { label: string; baris: BarisLayar[] };
  * menyeberangkan ribuan tulisan kosong pada tiap kali layar dibuka.
  */
 export async function rincian(filters: Saringan = {}): Promise<{
-  as_of: string; seksi: SeksiLayar[]; total: Record<number, string>;
+  as_of: string; jumlah: number; seksi: SeksiLayar[];
+  total: Record<number, string>;
 }> {
   const sections = await collect(filters);
 
   const seksi: SeksiLayar[] = sections.map((s) => ({
     label: s.label,
-    baris: s.rows.map((r, i) => {
-      const sel: Record<number, string> = {};
-      for (const [kolomStr, nilai] of Object.entries(r.cells)) {
-        const t = tampil(Number(kolomStr), nilai);
-        if (t) sel[Number(kolomStr)] = t;
-      }
-      return { no: i + 1, sel };
-    }),
+    baris: [
+      ...s.rows.map((r, i) => {
+        const sel: Record<number, string> = {};
+        for (const [kolomStr, nilai] of Object.entries(r.cells)) {
+          const t = tampil(Number(kolomStr), nilai);
+          if (t) sel[Number(kolomStr)] = t;
+        }
+        return { no: i + 1, sel };
+      }),
+      // Baris cadangan yang sama dengan unduhannya — lihat BARIS_CADANGAN.
+      ...Array.from({ length: BARIS_CADANGAN }, (_, n) => ({
+        no: s.rows.length + n + 1, sel: {} as Record<number, string>,
+      })),
+    ],
   }));
 
   // TOTAL menjumlah seksi terakhir saja, sama seperti baris TOTAL pada
@@ -448,7 +466,11 @@ export async function rincian(filters: Saringan = {}): Promise<{
     total[kolom] = tampil(kolom, jumlah);
   }
 
-  return { as_of: new Date().toISOString().slice(0, 10), seksi, total };
+  // Jumlah baris yang benar-benar berisi, tanpa baris cadangan. Dihitung di
+  // sini sebab dari luar keduanya tidak dapat dibedakan — dan layar memakainya
+  // untuk tahu kapan harus mengatakan bahwa project ini belum punya unit.
+  const jumlah = sections.reduce((n, s) => n + s.rows.length, 0);
+  return { as_of: new Date().toISOString().slice(0, 10), jumlah, seksi, total };
 }
 
 export async function preview(filters: Saringan = {}) {

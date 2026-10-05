@@ -2409,3 +2409,22 @@ td.sel-tindakan > a.tautan-klaim:last-child { margin-bottom: 0; }
 .unduh-laporan svg { flex: none; }
 /* Tabelnya menempel pada pita kepalanya, tanpa ruang kosong di antaranya. */
 .panel > .form-blok:first-child { margin-bottom: 0; }
+
+/* Kepala tabel Laporan dibekukan di puncak, seperti panel beku pada Excel-nya.
+
+   Wadah gulirnya sendiri, mendatar dan tegak sekaligus: .tscroll hanya
+   menggulir mendatar, sehingga gulir tegaknya ikut halaman — dan kepala yang
+   dibekukan pada halaman akan melayang menutupi kepala layar di atasnya. */
+.gulir-laporan { overflow: auto; max-height: calc(100vh - 210px); }
+
+/* Tiap baris kepala menempel pada jaraknya sendiri dari puncak; jaraknya
+   diukur di layar, bukan dipatok — lihat bekuKepala() pada laporan/page.tsx. */
+.tabel-laporan th.beku-atas { position: sticky; z-index: 3; }
+/* Sel pojok: beku mendatar sekaligus tegak, jadi ia harus di atas keduanya. */
+.tabel-laporan th.beku-atas.beku { z-index: 6; }
+
+/* Pita seksi ikut menempel tepat di bawah kepala, supaya yang sedang dibaca
+   selalu menyebutkan seksinya. Baris tabel hanya dapat ditempelkan ketika
+   garisnya tidak dipakai bersama — border-collapse pada tabel ini memang
+   separate, lihat bagian atas berkas ini. */
+.tabel-laporan tr.seksi-laporan { position: sticky; z-index: 5; }

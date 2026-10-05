@@ -26,7 +26,8 @@
  * angka pada laporan berbeda dari angka pada klaim yang menghasilkannya.
  */
 
-import { Fragment, useCallback, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState }
+  from "react";
 
 import { useKata } from "../bahasa";
 import { Kerangka, MemeriksaSesi } from "../kerangka";
@@ -64,7 +65,10 @@ const KATA = {
 
 type Baris = { no: number; sel: Record<number, string> };
 type Seksi = { label: string; baris: Baris[] };
-type Rincian = { as_of: string; seksi: Seksi[]; total: Record<number, string> };
+type Rincian = {
+  as_of: string; jumlah: number; seksi: Seksi[];
+  total: Record<number, string>;
+};
 
 /**
  * Lebar kolom Excel menjadi lebar piksel.
@@ -154,6 +158,17 @@ export default function LaporanPage() {
   const { sesi, memuat } = useSesi();
   const k = useKata(KATA);
 
+  // Jarak tiap baris kepala dari puncak tabel, diukur dari layarnya sendiri.
+  //
+  // Tidak dipatok angka: tinggi baris kepala bergantung pada berapa baris
+  // tulisan yang muat di kolom tersempitnya, dan itu berubah menurut ukuran
+  // huruf yang dipakai peramban maupun perbesaran layar. Angka yang dipatok
+  // akan tepat pada satu mesin dan meleset pada mesin berikutnya — melesetnya
+  // berupa baris kepala yang saling menindih beberapa piksel.
+  const kepalaRef = useRef<HTMLTableSectionElement>(null);
+  const [atasKepala, setAtasKepala] = useState<number[]>([0, 0, 0, 0]);
+  const [tinggiKepala, setTinggiKepala] = useState(0);
+
   const [rincian, setRincian] = useState<Rincian | null>(null);
   const [busy, setBusy] = useState(false);
   const [galat, setGalat] = useState<string | null>(null);
@@ -173,10 +188,46 @@ export default function LaporanPage() {
 
   useEffect(() => { if (sesi) void ambil(); }, [sesi, ambil]);
 
+  useLayoutEffect(() => {
+    const ukur = () => {
+      const baris = kepalaRef.current?.rows;
+      if (!baris?.length) return;
+      const jarak: number[] = [];
+      let jumlah = 0;
+      for (const b of Array.from(baris)) {
+        jarak.push(jumlah);
+        jumlah += b.getBoundingClientRect().height;
+      }
+      setAtasKepala(jarak);
+      setTinggiKepala(jumlah);
+    };
+    ukur();
+    window.addEventListener("resize", ukur);
+    return () => window.removeEventListener("resize", ukur);
+  }, [rincian]);
+
   if (memuat || !sesi) return <MemeriksaSesi />;
 
-  const jumlahBaris = (rincian?.seksi ?? [])
-    .reduce((n, s) => n + s.baris.length, 0);
+  // Baris cadangan tidak ikut dihitung: tabel yang hanya berisi baris kosong
+  // tetaplah project yang belum punya unit.
+  const jumlahBaris = rincian?.jumlah ?? 0;
+
+  /**
+   * Sifat satu sel kepala: menempel di puncak menurut barisnya, dan menempel
+   * di tepi kiri pula bila ia salah satu kolom depan.
+   *
+   * Sel pojok — yang beku pada kedua arah — perlu lapisan paling atas: ia
+   * dilewati baik oleh kolom yang bergeser mendatar maupun oleh baris yang
+   * bergulir tegak, dan yang paling bawah di antara ketiganya akan tertimpa.
+   */
+  const bekuKepala = (kolom: number, barisKepala: number) => {
+    const sisi = beku(kolom);
+    const atas = atasKepala[barisKepala - 5] ?? 0;
+    return {
+      className: ["beku-atas", sisi.className].filter(Boolean).join(" "),
+      style: { ...(sisi.style ?? {}), top: atas },
+    };
+  };
 
   return (
     <Kerangka sesi={sesi} judul={
@@ -215,14 +266,18 @@ export default function LaporanPage() {
 
         {rincian && (
           <>
-            <div className="tscroll">
+            {/* Wadah gulirnya sendiri, mendatar dan tegak. .tscroll hanya
+                menggulir mendatar, sehingga gulir tegaknya ikut halaman — dan
+                kepala tabel yang dibekukan pada halaman akan melayang menutupi
+                kepala layar di atasnya. */}
+            <div className="gulir-laporan">
               <table className="tabel-laporan">
                 <colgroup>
                   {KOLOM.map((c) => (
                     <col key={c} style={{ width: lebarKolom(c) }} />
                   ))}
                 </colgroup>
-                <thead>
+                <thead ref={kepalaRef}>
                   {[5, 6, 7, 8].map((r) => (
                     <tr key={r}>
                       {KEPALA
@@ -231,7 +286,7 @@ export default function LaporanPage() {
                         .map(([teks, r1, c1, r2, c2]) => (
                           <th key={`${r1}:${c1}`}
                               rowSpan={r2 - r1 + 1} colSpan={c2 - c1 + 1}
-                              {...beku(c1)}>
+                              {...bekuKepala(c1, r1)}>
                             {/* "Luas (m2)" ditulis dengan angka dua
                                 superskrip, sama seperti pada unduhannya —
                                 satuan meter persegi, bukan huruf m diikuti
@@ -246,7 +301,8 @@ export default function LaporanPage() {
                 <tbody>
                   {rincian.seksi.map((s) => (
                     <Fragment key={s.label}>
-                      <tr className="seksi-laporan">
+                      <tr className="seksi-laporan"
+                          style={{ top: tinggiKepala }}>
                         {/* Selnya membentang selebar seluruh tabel, jadi ia
                             tidak dapat menempel di tepi kiri: sel yang sudah
                             memenuhi barisnya tidak punya ruang untuk bergeser
