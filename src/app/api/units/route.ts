@@ -1,7 +1,7 @@
 import { handler, projectAktif } from "@/lib/api";
 import { query } from "@/lib/db";
-import { dapatDiklaim, eligibility, penjagaMemo, type ClaimType }
-  from "@/lib/calc";
+import { AWAL_PENJUALAN_TAMPIL, dapatDiklaim, eligibility, penjagaMemo,
+         type ClaimType } from "@/lib/calc";
 
 /**
  * Data penjualan, dan — bila diminta untuk satu jenis klaim — keadaan klaimnya.
@@ -72,7 +72,17 @@ export const GET = handler(async (req) => {
    * jenis fee. Tanpa `eligible_for`, endpoint ini adalah daftar unit apa
    * adanya, dan yang memanggilnya memang perlu melihat yang batal juga.
    */
-  const saring = eligibleFor ? " AND u.status <> 'cancelled'" : "";
+  /**
+   * Penjualan sebelum Januari 2026 juga tidak ikut.
+   *
+   * Batasnya ada di AWAL_PENJUALAN_TAMPIL, dan alasannya ditulis di sana.
+   * Penyaringnya menempel pada `eligible_for` yang sama: daftar unit apa adanya
+   * — yang dipakai Data Penjualan dan laporan — tetap memuat seluruh tahun.
+   */
+  const saring = eligibleFor
+    ? ` AND u.status <> 'cancelled'
+        AND u.contract_date >= '${AWAL_PENJUALAN_TAMPIL}'::date`
+    : "";
 
   const rows = await query(
     cluster
