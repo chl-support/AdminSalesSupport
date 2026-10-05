@@ -26,7 +26,7 @@
  * angka pada laporan berbeda dari angka pada klaim yang menghasilkannya.
  */
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState }
+import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState }
   from "react";
 
 import { useKata } from "../bahasa";
@@ -173,23 +173,20 @@ export default function LaporanPage() {
   const [atasKepala, setAtasKepala] = useState<number[]>([0, 0, 0, 0]);
   const [tinggiKepala, setTinggiKepala] = useState(0);
 
-  // Seksi yang pitanya sedang ditempelkan — hanya satu pada satu saat.
-  //
-  // Memisahkan tiap seksi menjadi tbody sendiri sudah cukup pada peramban yang
-  // menghitung batas gerak baris menempel terhadap tubuh tabelnya. Yang
-  // menghitungnya terhadap seluruh tabel tidak pernah melepas satu pita pun,
-  // dan keempatnya menumpuk di puncak: pita seksi yang barisnya sudah lama
-  // lewat tetap tertahan di sana, menutupi baris seksi yang sedang dibaca.
-  //
-  // Maka yang menempel ditentukan di sini, bukan diserahkan pada peramban:
-  // satu pita, yang seksinya sedang melintasi garis bawah kepala. Menumpuk
-  // menjadi mustahil, bukan sekadar tidak terjadi.
-  const gulirRef = useRef<HTMLDivElement>(null);
-  const [seksiMenempel, setSeksiMenempel] = useState(0);
-  // Jarak pita yang sedang menempel dari puncak. Biasanya tepat di bawah
-  // kepala; menjelang pergantian seksi ia bergerak naik, didorong keluar oleh
-  // pita seksi berikutnya — lihat perhitungannya di bawah.
-  const [atasPita, setAtasPita] = useState(0);
+  /**
+   * Tinggi satu pita seksi, untuk menyusun kelimanya bertingkat.
+   *
+   * Keempat pita seksi tetap terlihat seluruhnya, masing-masing pada anak
+   * tangganya sendiri di bawah kepala: yang pertama tepat di bawah kepala,
+   * yang kedua di bawahnya, dan seterusnya. Ditempelkan pada satu titik yang
+   * sama, keempatnya saling menimpa dan dua nama seksi terbaca bertumpuk pada
+   * satu pita — itulah yang terjadi sebelum ini.
+   *
+   * Diukur dari pitanya sendiri, tidak dipatok: tingginya mengikuti ukuran
+   * huruf peramban, dan jarak antartangga yang dipatok akan menyisakan celah
+   * atau tumpang tindih beberapa piksel pada mesin yang hurufnya berbeda.
+   */
+  const [tinggiPita, setTinggiPita] = useState(0);
 
   const [rincian, setRincian] = useState<Rincian | null>(null);
   const [busy, setBusy] = useState(false);
@@ -222,58 +219,17 @@ export default function LaporanPage() {
       }
       setAtasKepala(jarak);
       setTinggiKepala(jumlah);
+
+      const pita = kepalaRef.current
+        ?.closest("table")
+        ?.querySelector<HTMLTableRowElement>("tr.seksi-laporan");
+      if (pita) setTinggiPita(pita.getBoundingClientRect().height);
     };
     ukur();
     window.addEventListener("resize", ukur);
     return () => window.removeEventListener("resize", ukur);
   }, [rincian]);
 
-  useEffect(() => {
-    const g = gulirRef.current;
-    if (!g || !rincian) return;
-    let rangka = 0;
-    const hitung = () => {
-      rangka = 0;
-      const batas = g.getBoundingClientRect().top + tinggiKepala;
-      const badan = g.querySelectorAll<HTMLTableSectionElement>("tbody[data-seksi]");
-      let aktif = 0;
-      badan.forEach((b, i) => {
-        const r = b.getBoundingClientRect();
-        // Seksi yang sedang melintasi garis bawah kepala: puncaknya sudah
-        // lewat garis itu, dan kakinya belum.
-        if (r.top <= batas + 1 && r.bottom > batas) aktif = i;
-      });
-      setSeksiMenempel(aktif);
-
-      // Serah terima antarpita. Tanpa ini, pita yang menempel tetap diam di
-      // tempatnya sampai detik pergantian, dan pita seksi berikutnya lewat
-      // menimpanya separuh-separuh — dua nama seksi terbaca bertumpuk pada
-      // satu pita. Yang lama didorong naik persis sejauh pita berikutnya
-      // sudah masuk, sehingga ia keluar tepat ketika penggantinya tiba.
-      const pita = badan[aktif]?.querySelector<HTMLTableRowElement>("tr");
-      const berikut = badan[aktif + 1];
-      const tinggiPita = pita?.getBoundingClientRect().height ?? 0;
-      let atas = tinggiKepala;
-      if (berikut && tinggiPita) {
-        const jarak = berikut.getBoundingClientRect().top - batas;
-        if (jarak < tinggiPita) atas = tinggiKepala - (tinggiPita - jarak);
-      }
-      setAtasPita(atas);
-    };
-    // Dihitung pada rangka gambar berikutnya, bukan pada tiap kejadian gulir:
-    // menggulir membangkitkan kejadian jauh lebih sering daripada layar
-    // digambar ulang, dan mengukur pada tiap kejadian membuat gulirannya
-    // tersendat pada tabel sepanjang ini.
-    const saatGulir = () => {
-      if (!rangka) rangka = requestAnimationFrame(hitung);
-    };
-    hitung();
-    g.addEventListener("scroll", saatGulir, { passive: true });
-    return () => {
-      g.removeEventListener("scroll", saatGulir);
-      if (rangka) cancelAnimationFrame(rangka);
-    };
-  }, [rincian, tinggiKepala]);
 
   if (memuat || !sesi) return <MemeriksaSesi />;
 
@@ -339,7 +295,7 @@ export default function LaporanPage() {
                 menggulir mendatar, sehingga gulir tegaknya ikut halaman — dan
                 kepala tabel yang dibekukan pada halaman akan melayang menutupi
                 kepala layar di atasnya. */}
-            <div className="gulir-laporan" ref={gulirRef}>
+            <div className="gulir-laporan">
               <table className="tabel-laporan">
                 <colgroup>
                   {KOLOM.map((c) => (
@@ -367,20 +323,19 @@ export default function LaporanPage() {
                     </tr>
                   ))}
                 </thead>
-                {/* Tiap seksi berdiri sebagai tbody-nya sendiri.
-                    Pita seksi menempel di bawah kepala, dan sebuah baris yang
-                    menempel hanya dapat bergeser di dalam tubuh tabel yang
-                    memuatnya. Disatukan dalam satu tbody, keempat pita
-                    menempel pada titik yang sama dan bertumpuk — pita BATAL
-                    UNIT tetap tertahan di puncak padahal barisnya sudah lama
-                    lewat, lalu tertimpa pita seksi berikutnya, dan baris di
-                    bawahnya tertutup. Dipisah, tiap pita menyingkir begitu
-                    seksinya habis, digantikan pita seksi yang sedang dibaca. */}
-                {rincian.seksi.map((s, i) => (
-                  <tbody key={s.label} data-seksi={i}>
-                    <tr className={i === seksiMenempel
-                                     ? "seksi-laporan menempel" : "seksi-laporan"}
-                        style={{ top: i === seksiMenempel ? atasPita : undefined }}>
+                {/* Satu tubuh tabel untuk seluruh seksi, bukan satu per
+                    seksi. Baris yang menempel hanya dapat bergeser di dalam
+                    tubuh tabel yang memuatnya: dipisah per seksi, pita akan
+                    menyingkir begitu seksinya habis — padahal yang diminta
+                    justru kelimanya tetap terlihat sepanjang gulir. */}
+                <tbody>
+                  {rincian.seksi.map((s, i) => (
+                    <Fragment key={s.label}>
+                      {/* Tiap pita pada anak tangganya sendiri di bawah
+                          kepala. Ditempelkan pada satu titik yang sama,
+                          keempatnya saling menimpa. */}
+                      <tr className="seksi-laporan"
+                          style={{ top: tinggiKepala + i * tinggiPita }}>
                       {/* Selnya membentang selebar seluruh tabel, jadi ia
                           tidak dapat menempel di tepi kiri: sel yang sudah
                           memenuhi barisnya tidak punya ruang untuk bergeser
@@ -399,9 +354,11 @@ export default function LaporanPage() {
                         ))}
                       </tr>
                     ))}
-                  </tbody>
-                ))}
-                <tbody>
+                    </Fragment>
+                  ))}
+                  {/* TOTAL ditempelkan di kaki wadah gulirnya, bukan di
+                      puncak: ia merangkum seluruh tabel, dan tempatnya di
+                      bawah — sebagaimana pada berkas unduhannya. */}
                   <tr className="total-laporan">
                     <td colSpan={4} className="beku" style={{ left: 0 }}>
                       {k.total}
