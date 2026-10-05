@@ -1,6 +1,7 @@
 import { handler, projectAktif } from "@/lib/api";
 import { query } from "@/lib/db";
-import { dapatDiklaim, eligibility, type ClaimType } from "@/lib/calc";
+import { dapatDiklaim, eligibility, penjagaMemo, type ClaimType }
+  from "@/lib/calc";
 
 /**
  * Data penjualan, dan — bila diminta untuk satu jenis klaim — keadaan klaimnya.
@@ -139,11 +140,22 @@ export const GET = handler(async (req) => {
           kategori: u.marketing_category,
           kantor: u.agency_name, alamat_kantor: u.agency_address };
 
+  /**
+   * Memo yang berlaku, dibaca sekali untuk seluruh daftar.
+   *
+   * Selama kunci pengajuan menyala, jenis fee yang tidak punya memo berlaku
+   * pada tanggal penjualan unitnya tidak dapat diajukan sama sekali. Yang
+   * dikirim ke layar bukan hanya `claimable: false` melainkan juga sebabnya,
+   * supaya kotak centang yang mati tidak tampak mati tanpa alasan.
+   */
+  const adaMemoUntuk = await penjagaMemo(projectId);
+
   /** Keadaan satu unit untuk satu jenis klaim. */
   const keadaan = (u: any, jenis: ClaimType) => {
     const { ok, missing, codes } = eligibility(u, jenis);
     const ada = perUnitJenis.get(`${u.id}:${jenis}`) ?? null;
     const p = penerima(u, jenis);
+    const memo = adaMemoUntuk(jenis, u.contract_date);
     return {
       eligible: ok,
       missing_requirements: missing,
@@ -174,7 +186,10 @@ export const GET = handler(async (req) => {
       // Aturannya ada di lib/calc — dipakai juga oleh pemberitahuan saat masuk,
       // yang menghitung berapa fee sudah dapat diklaim tapi belum diajukan.
       // Ditulis dua kali, keduanya akan berbeda cepat atau lambat.
-      claimable: dapatDiklaim(u, jenis, Boolean(ada)),
+      claimable: dapatDiklaim(u, jenis, Boolean(ada), memo),
+      // Sebab yang berdiri sendiri: bukan unitnya yang kurang, melainkan
+      // memonya yang belum diberlakukan untuk tanggal penjualan ini.
+      memo_missing: !memo,
     };
   };
 
