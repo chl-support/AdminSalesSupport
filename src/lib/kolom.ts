@@ -155,6 +155,13 @@ async function pasang(): Promise<void> {
       `ALTER TABLE claims ADD COLUMN IF NOT EXISTS received_at_${n} DATE`);
   }
 
+  // Penanda satu pengajuan yang mencakup beberapa unit. Overiding diajukan
+  // atas beberapa unit sekaligus — satu penerima, satu periode, satu keputusan
+  // — tetapi tiap unit tetap klaim tersendiri, sebab nilai, PPN dan PPh-nya
+  // dihitung per unit. Penanda inilah yang menyatukannya kembali di layar
+  // Approval: satu baris, dengan unitnya tertulis sebagai beberapa poin.
+  await query("ALTER TABLE claims ADD COLUMN IF NOT EXISTS batch_id UUID");
+
   // Kolom Ket. pada lembar Detail Perhitungan, diisi tangan. Keterangan yang
   // ada — remarks pada unitnya — menerangkan UNITNYA, dan lembar ini
   // menerangkan satu pengajuan atas unit itu; keduanya kerap berbeda, dan

@@ -28,6 +28,7 @@ export const POST = handler(async (req) => {
       notes: p.notes ?? null, transfer: p.transfer ?? null,
       salesPeriod: { start: p.sales_period_start ?? null,
                      end: p.sales_period_end ?? null },
+      batchId: p.batch_id ?? null,
       actor: user.username,
     })));
 });
