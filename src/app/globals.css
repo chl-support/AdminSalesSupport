@@ -2362,6 +2362,11 @@ td.sel-tindakan > a.tautan-klaim:last-child { margin-bottom: 0; }
    abu-abunya tetap terlihat tetapi tanpa ini tidak lagi menyebutkan seksi apa
    yang sedang dibaca. */
 .tabel-laporan .label-seksi { position: sticky; left: 6px; display: inline-block; }
+/* Tombol buka-tutup seksi memeluk tulisannya, tidak selebar selnya: selnya
+   membentang selebar seluruh tabel, dan tombol selebar itu akan menangkap
+   klik di mana pun orang menekan pitanya — termasuk saat ia hanya hendak
+   menyeret tabelnya ke samping. */
+.tabel-laporan .label-seksi .buka-kategori { width: auto; }
 
 /* Satu tanda tangan pada lembar Detail Perhitungan: rata kiri, selebar nama
    terpanjang yang masuk akal. Bukan grid empat kolom seperti rekap

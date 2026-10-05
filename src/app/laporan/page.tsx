@@ -44,6 +44,7 @@ const KATA = {
     galat: "Laporan tidak dapat dibaca",
     masterJudul: "CLOSING FEE, REWARD, KOMISI & OVERIDING",
     masterUnduh: "Unduh Laporan (.xlsx)",
+    tutupSeksi: "Tutup data", bukaSeksi: "Lihat data",
     memuat: "Memuat laporan…",
     total: "TOTAL",
     kosong: "Belum ada unit pada project ini.",
@@ -57,6 +58,7 @@ const KATA = {
     galat: "The report could not be read",
     masterJudul: "CLOSING FEE, REWARD, KOMISI & OVERIDING",
     masterUnduh: "Download the report (.xlsx)",
+    tutupSeksi: "Hide the rows", bukaSeksi: "Show the rows",
     memuat: "Loading the report…",
     total: "TOTAL",
     kosong: "This project has no units yet.",
@@ -187,6 +189,16 @@ export default function LaporanPage() {
    * atau tumpang tindih beberapa piksel pada mesin yang hurufnya berbeda.
    */
   const [tinggiPita, setTinggiPita] = useState(0);
+
+  /**
+   * Seksi yang barisnya sedang disembunyikan.
+   *
+   * Yang disimpan yang TERTUTUP, bukan yang terbuka: laporan ini dibuka untuk
+   * dibaca, jadi keadaan wajarnya semua terbuka — dan daftar yang menyimpan
+   * yang terbuka harus diisi ulang tiap kali datanya dimuat, sedangkan daftar
+   * yang menyimpan yang tertutup cukup dibiarkan kosong.
+   */
+  const [tertutup, setTertutup] = useState<Record<number, boolean>>({});
 
   const [rincian, setRincian] = useState<Rincian | null>(null);
   const [busy, setBusy] = useState(false);
@@ -342,10 +354,26 @@ export default function LaporanPage() {
                           terhadap barisnya sendiri. Yang ditempelkan
                           tulisannya. */}
                       <td colSpan={KOLOM_TERAKHIR}>
-                        <span className="label-seksi">{s.label}</span>
+                        <span className="label-seksi">
+                          {/* Judulnya sendiri yang menjadi tombolnya, sama
+                              seperti kategori pada layar Referensi — bukan
+                              tombol tersendiri di sebelahnya, yang hanya
+                              menambah satu benda kecil untuk dibidik pada
+                              pita setipis ini. */}
+                          <button type="button" className="buka-kategori"
+                                  aria-expanded={!tertutup[i]}
+                                  title={tertutup[i] ? k.bukaSeksi : k.tutupSeksi}
+                                  onClick={() => setTertutup((t) =>
+                                    ({ ...t, [i]: !t[i] }))}>
+                            <span className="tanda">
+                              {tertutup[i] ? "▸" : "▾"}
+                            </span>
+                            {s.label}
+                          </button>
+                        </span>
                       </td>
                     </tr>
-                    {s.baris.map((b) => (
+                    {!tertutup[i] && s.baris.map((b) => (
                       <tr key={`${s.label}:${b.no}`}>
                         {KOLOM.map((c) => (
                           <td key={c} {...selData(c)}>
