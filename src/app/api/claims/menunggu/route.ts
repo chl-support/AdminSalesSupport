@@ -1,6 +1,6 @@
 import { handler, currentUser, projectAktif } from "@/lib/api";
 import { query } from "@/lib/db";
-import { dapatDiklaim, type ClaimType } from "@/lib/calc";
+import { dapatDiklaim, penjagaMemo, type ClaimType } from "@/lib/calc";
 
 /**
  * Berapa dokumen yang sedang menunggu orang ini.
@@ -69,6 +69,7 @@ const SEMUA_FEE: ClaimType[] =
 async function siapDiklaim(projectId: string): Promise<number> {
   const unit = await query<any>(
     `SELECT u.id, u.status, u.contract_value_incl_vat, u.received_amount,
+            u.contract_date,
             u.marketing_id, u.sub_coordinator_id, u.coordinator_id,
             m.status  AS marketing_status,
             sk.status AS sub_coordinator_status,
@@ -88,10 +89,17 @@ async function siapDiklaim(projectId: string): Promise<number> {
         AND status NOT IN ('rejected','cancelled','clawback')`, [projectId]);
   const sudah = new Set(klaim.map((k) => `${k.unit_id}:${k.claim_type}`));
 
+  // Angka ini harus sama dengan yang terbaca di daftar penjualan. Sejak kunci
+  // pengajuan menyala, fee tanpa memo berlaku tidak dapat diajukan di sana —
+  // menghitungnya di sini berarti memberitahu ada pekerjaan yang tombolnya
+  // justru mati.
+  const adaMemoUntuk = await penjagaMemo(projectId);
+
   let n = 0;
   for (const u of unit) {
     for (const jenis of SEMUA_FEE) {
-      if (dapatDiklaim(u, jenis, sudah.has(`${u.id}:${jenis}`))) n++;
+      if (dapatDiklaim(u, jenis, sudah.has(`${u.id}:${jenis}`),
+                       adaMemoUntuk(jenis, u.contract_date))) n++;
     }
   }
   return n;

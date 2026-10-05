@@ -1013,6 +1013,33 @@ async function main() {
            "penolakannya menyebut Referensi Pengajuan sebagai tempat membetulkannya");
   });
 
+  await check("tombol pengajuan mati sejak awal bila memonya belum ada",
+              async () => {
+    // Penolakan yang sudah pasti tidak menunggu tombolnya ditekan: daftar
+    // penjualan membaca memo yang berlaku, dan jenis fee yang tidak dinaungi
+    // memo mana pun datang ke layar sebagai claimable:false — kotak centangnya
+    // mati, jadi tombol Ajukan tidak pernah menyala untuknya.
+    const unit = await one<any>(
+      "SELECT * FROM units WHERE code = 'BIOBA2-017'");
+    const penjaga = await calc.penjagaMemo(unit.project_id ?? null);
+
+    assert(penjaga("closing_fee", unit.contract_date),
+           "jenis yang dinaungi memo tetap dapat dicentang");
+    assert(calc.dapatDiklaim(unit, "closing_fee", false,
+                             penjaga("closing_fee", unit.contract_date))
+           === calc.dapatDiklaim(unit, "closing_fee", false),
+           "penjaga memo tidak mengubah apa pun selama memonya ada");
+
+    // Tanggal yang jauh di luar masa berlaku memo mana pun: tidak ada yang
+    // menaunginya, dan tombolnya memang harus mati.
+    const jauh = { ...unit, contract_date: "1999-01-01" };
+    assert(!penjaga("closing_fee", jauh.contract_date),
+           "tanggal di luar seluruh masa berlaku memo tidak dinaungi siapa pun");
+    assert(!calc.dapatDiklaim(jauh, "closing_fee", false,
+                              penjaga("closing_fee", jauh.contract_date)),
+           "yang tidak dinaungi memo tidak dapat diklaim dari daftar penjualan");
+  });
+
   await check("Detail Perhitungan menyertai formulir fee, bukan hanya rekap OR",
               async () => {
     const { detailFee } = await import("../src/lib/detail-fee");

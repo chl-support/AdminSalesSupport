@@ -184,6 +184,10 @@ const KATA = {
     belumTercatat: "belum tercatat",
     dariKontrak: (p: string) => `${p}% dari kontrak`,
     belum: "belum",
+    tanpaMemo: "belum ada memo",
+    tanpaMemoJelas: "Belum ada memo yang berlaku untuk fee ini pada tanggal " +
+                    "penjualannya. Unggah memonya di Referensi Pengajuan lalu " +
+                    "berlakukan barisnya.",
     syaratLengkap: "Syarat terpenuhi",
     penerimaanKurang: (p: number) =>
       `Penerimaan baru ${p.toFixed(1)}%, syaratnya ${AMBANG * 100}%`,
@@ -281,6 +285,10 @@ const KATA = {
     belumTercatat: "not recorded yet",
     dariKontrak: (p: string) => `${p}% of contract`,
     belum: "not yet",
+    tanpaMemo: "no memo in force",
+    tanpaMemoJelas: "No memo is in force for this fee on the unit's sales " +
+                    "date. Upload it under Referensi Pengajuan and put the " +
+                    "row in force.",
     syaratLengkap: "Requirement met",
     penerimaanKurang: (p: number) =>
       `Received is only ${p.toFixed(1)}%, the requirement is ${AMBANG * 100}%`,
@@ -313,6 +321,8 @@ type Fee = {
                         branch: string | null } | null };
   marketing_missing: boolean; marketing_inactive: boolean;
   claimable: boolean;
+  /** Tidak ada memo berlaku untuk jenis ini pada tanggal penjualannya. */
+  memo_missing?: boolean;
   claim: { id: string; claim_number: string; status: string;
            net_amount: number; recipient_role: string } | null;
 };
@@ -981,7 +991,14 @@ export default function PengajuanFeePage() {
                                   </span>
                                 </span>
                               ) : f?.claimable ? null : (
-                                <span className="fee-belum">{k.belum}</span>
+                                /* Sebabnya disebut, bukan hanya "belum":
+                                   kotak centang yang mati tanpa alasan membuat
+                                   yang mengajukan mengira layarnya rusak. */
+                                <span className="fee-belum"
+                                      title={f?.memo_missing
+                                        ? k.tanpaMemoJelas : undefined}>
+                                  {f?.memo_missing ? k.tanpaMemo : k.belum}
+                                </span>
                               )}
                             </div>
                           );

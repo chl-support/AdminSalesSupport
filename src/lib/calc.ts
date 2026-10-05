@@ -452,8 +452,15 @@ export function penerimaFee(unit: any, claimType: ClaimType): {
  */
 export function dapatDiklaim(
   unit: any, claimType: ClaimType, adaKlaimAktif: boolean,
+  adaMemo = true,
 ): boolean {
   if (!eligibility(unit, claimType).ok || adaKlaimAktif) return false;
+
+  // Tanpa memo yang menaungi tanggal penjualannya, pengajuannya pasti ditolak
+  // calculate(). Yang dimatikan tombolnya, bukan pengajuannya di ujung jalan.
+  // Pemanggil yang tidak memeriksa memo mengirimkan true — penjagaMemo() yang
+  // menjawabnya, dan ia sendiri selalu true selama kuncinya longgar.
+  if (!adaMemo) return false;
 
   /**
    * Overriding tidak menuntut penerimanya sudah tercatat pada data penjualan.
@@ -509,4 +516,52 @@ export function missingDocuments(
     need.push(pkpStatus === "pkp" ? "tax_invoice" : "non_pkp_statement");
   }
   return need.filter((d) => !uploaded.includes(d));
+}
+
+/**
+ * Penjaga memo untuk daftar penjualan: jenis fee mana yang punya memo berlaku
+ * pada tanggal penjualan sebuah unit.
+ *
+ * Dulu tidak adanya memo baru ketahuan setelah tombol Ajukan ditekan —
+ * calculate() melemparnya sebagai penolakan 422, dan yang mengajukan sudah
+ * terlanjur memilih penerima, mengisi keterangan, dan menekan tombolnya.
+ * Penolakan yang sudah pasti sejak layarnya dimuat tidak pantas ditunda sampai
+ * sejauh itu: kotak centangnya yang dimatikan, dengan sebabnya tertulis di
+ * sebelahnya.
+ *
+ * Yang diperiksa hanya jenis fee dan tanggalnya, bukan peran penerimanya —
+ * perannya baru dipilih di dialog, sesudah kotak ini dicentang. Jadi penjaga
+ * ini sengaja lebih longgar daripada findScheme(): ia mematikan tombol hanya
+ * bila memang tidak ada satu pun memo jenis itu yang menaungi tanggalnya.
+ * calculate() tetap menjadi penolak yang sebenarnya untuk kasus yang lebih
+ * halus (peran atau tingkat overriding yang tidak tercantum di memonya).
+ *
+ * Selama kunci `skema_wajib` longgar, penjaga ini tidak menahan apa pun: jalur
+ * skema darurat di calculate() memang masih menerima pengajuan tanpa memo.
+ */
+export async function penjagaMemo(
+  projectId: string | null, client?: PoolClient,
+): Promise<(claimType: ClaimType, contractDate: any) => boolean> {
+  if ((await setting("skema_wajib")) !== "true") return () => true;
+
+  // Penyaring projectnya sama persis dengan findScheme(): saat unitnya milik
+  // sebuah project, hanya memo project itu yang menaunginya.
+  const rows = await query<{
+    claim_type: ClaimType; effective_from: any; effective_to: any;
+  }>(
+    `SELECT claim_type, effective_from, effective_to FROM incentive_schemes
+      WHERE ($1::uuid IS NULL OR project_id = $1)`,
+    [projectId ?? null], client);
+
+  const hari = (d: any) => (d instanceof Date
+    ? d.toISOString().slice(0, 10)
+    : String(d ?? "").slice(0, 10));
+
+  return (claimType, contractDate) => {
+    const tgl = hari(contractDate);
+    if (!tgl) return false;
+    return rows.some((r) => r.claim_type === claimType
+      && hari(r.effective_from) <= tgl
+      && (r.effective_to === null || hari(r.effective_to) >= tgl));
+  };
 }

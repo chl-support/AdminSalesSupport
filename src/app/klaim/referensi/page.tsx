@@ -91,7 +91,8 @@ const KATA = {
     pUsulan: (n: number) => `📋 Referensi Tersedia · ${n}`,
 
     kunciJudul: "Kunci pengajuan fee",
-    kunciNyala: "menyala — pengajuan tanpa memo yang berlaku ditolak",
+    kunciNyala: "menyala — fee tanpa memo yang berlaku tidak dapat " +
+                "diajukan, tombolnya mati di layar Pengajuan Fee",
     kunciMati: "longgar — pengajuan tetap jalan memakai skema terdekat",
     kunciNyalakan: "Kunci", kunciLonggarkan: "Longgarkan",
     kunciBerubah: (on: boolean): string =>
@@ -179,7 +180,8 @@ const KATA = {
     pUsulan: (n: number) => `📋 Available reference · ${n}`,
 
     kunciJudul: "Fee submission lock",
-    kunciNyala: "on — a submission with no memo in force is refused",
+    kunciNyala: "on — a fee with no memo in force cannot be submitted; " +
+                "its button is off on the Pengajuan Fee screen",
     kunciMati: "loose — submissions still run on the nearest scheme",
     kunciNyalakan: "Lock", kunciLonggarkan: "Loosen",
     kunciBerubah: (on: boolean): string =>
