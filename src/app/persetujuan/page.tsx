@@ -86,8 +86,6 @@ const kategori = (c: any, k: { katAgent: string; katInhouse: string },
 const KATA = {
   id: {
     judul: "Manajemen Alur Kerja Dokumen",
-    pengantar: "Rincian dokumen pengajuan pada project ini. Pratinjau " +
-               "formulirnya dibuka dari kolom paling kanan.",
     galat: "Data klaim tidak dapat dibaca",
     tampilkan: "Search",
     sUnit: "Unit", sJalan: "Diproses / Berlangsung", sSelesai: "Selesai",
@@ -244,8 +242,6 @@ const KATA = {
   },
   en: {
     judul: "Document Workflow Management",
-    pengantar: "Submission details for this project. The form preview opens " +
-               "from the rightmost column.",
     galat: "Claim data could not be read",
     tampilkan: "Search",
     sUnit: "Unit", sJalan: "In progress", sSelesai: "Completed",
@@ -1485,7 +1481,6 @@ export default function PersetujuanPage() {
     <Kerangka sesi={sesi} lebar judul={
       <div>
         <h1>{k.judul}</h1>
-        <p>{k.pengantar}</p>
       </div>
     }>
 

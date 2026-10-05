@@ -29,9 +29,6 @@ import { useSesi } from "../session";
 const KATA = {
   id: {
     judul: "Memo Approval",
-    pengantar:
-      "Memo Skema Dan Persetujuan Tersimpan Sebagai Dasar Tertulis Sesuai " +
-      "Project Terkait. Perhitungan Tarif Tetap Mengacu Pada Skema Insentif.",
     galat: "Tidak dapat dikerjakan",
     unggahJudul: "UNGGAH MEMO",
     fJudul: "Judul", cJudul: "mis. Skema Komisi Triwulan I",
@@ -104,9 +101,6 @@ const KATA = {
   },
   en: {
     judul: "Approval Memo",
-    pengantar:
-      "The written basis for the project concerned; rates still refer to the " +
-      "Incentive Scheme",
     galat: "Could not be completed",
     unggahJudul: "UPLOAD MEMO",
     fJudul: "Title", cJudul: "e.g. Commission Scheme Q1",
@@ -631,7 +625,6 @@ export default function MemoPage() {
     <Kerangka sesi={sesi} judul={
       <div>
         <h1>{k.judul}</h1>
-        <p>{k.pengantar}</p>
       </div>
     }>
 

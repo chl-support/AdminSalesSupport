@@ -22,10 +22,6 @@ import { useSesi } from "../session";
 const KATA = {
   id: {
     judul: "Jejak audit",
-    pengantar:
-      "Append-only: basis data menolak UPDATE dan DELETE lewat RULE, yang " +
-      "berlaku bahkan bagi pemilik tabel. Entri yang keliru diperbaiki dengan " +
-      "entri baru, tidak pernah dengan menyuntingnya.",
     peranBisa: (peran: string) =>
       `Peran ${peran}: dapat membaca dan membubuhkan koreksi`,
     peranBaca: (peran: string) => `Peran ${peran}: hanya dapat membaca`,
@@ -69,10 +65,6 @@ const KATA = {
   },
   en: {
     judul: "Audit trail",
-    pengantar:
-      "Append-only: the database refuses UPDATE and DELETE through a RULE, " +
-      "which applies even to the table owner. A mistaken entry is corrected " +
-      "with a new entry, never by editing it.",
     peranBisa: (peran: string) =>
       `Role ${peran}: can read and append corrections`,
     peranBaca: (peran: string) => `Role ${peran}: read-only`,
@@ -265,7 +257,6 @@ export default function AuditPage() {
     <Kerangka sesi={sesi} judul={
       <div>
         <h1>{k.judul}</h1>
-        <p>{k.pengantar}</p>
       </div>
     }>
 

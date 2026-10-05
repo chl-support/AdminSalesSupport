@@ -80,9 +80,6 @@ const KATA = {
     // BIO District di bawah Serpong Bangun Lestari, Permai Indah di bawah Bumi
     // Mahardika Makmur — satu nama tetap di sini membuat lima dari enam project
     // mencetak nama perusahaan yang salah pada formulirnya.
-    pengantar: (pt: string) =>
-      `${pt}. Nominal dihitung sistem dari memo skema yang berlaku pada ` +
-      "tanggal kontrak, tidak diisi tangan.",
     kembali: "← Kembali ke data penjualan",
     memuatUnit: "Memuat data unit…",
     takAdaUnitJudul: "Unit tidak ditemukan",
@@ -169,9 +166,6 @@ const KATA = {
   },
   en: {
     judul: (jenis: string) => `${jenis} Submission Form`,
-    pengantar: (pt: string) =>
-      `${pt}. The amount is computed by the system from ` +
-      "the scheme memo in force on the contract date; it is not typed in.",
     kembali: "← Back to sales data",
     memuatUnit: "Loading unit data…",
     takAdaUnitJudul: "Unit not found",
@@ -398,7 +392,6 @@ export default function FormKlaimPage() {
     <Kerangka sesi={sesi} judul={
       <div>
         <h1>{k.judul(namaJenis)}</h1>
-        <p>{k.pengantar(sesi.project_company ?? "—")}</p>
       </div>
     }>
 

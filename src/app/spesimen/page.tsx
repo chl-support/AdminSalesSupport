@@ -43,10 +43,6 @@ const PILL: Record<string, string> = {
 const KATA = {
   id: {
     judul: "Spesimen Tanda Tangan",
-    pengantar:
-      "Spesimen Tanda Tangan Didaftarkan Satu Kali Dan Menjadi Acuan " +
-      "Seterusnya. Tautan Pendaftaran Hanya Tersedia Bagi Yang Belum " +
-      "Terdaftar Atau Memerlukan Pembaruan.",
     takBerwenangJudul: "Peran Anda tidak berwenang atas pendaftaran tanda tangan",
     takBerwenangIsi:
       "Hanya Admin Sales dan Admin IT yang dapat menerbitkan tautan dan " +
@@ -192,10 +188,6 @@ const KATA = {
   },
   en: {
     judul: "Specimen Signature",
-    pengantar:
-      "A signature specimen is registered once and becomes the reference from " +
-      "then on. The registration link is only available to those not yet " +
-      "registered or needing an update.",
     takBerwenangJudul: "Your role is not authorised over signature registration",
     takBerwenangIsi:
       "Only Admin Sales and IT Admin can issue links and decide the baseline.",
@@ -589,7 +581,6 @@ export default function SpesimenPage() {
     <Kerangka sesi={sesi} judul={
       <div>
         <h1>{k.judul}</h1>
-        <p>{k.pengantar}</p>
       </div>
     }>
 

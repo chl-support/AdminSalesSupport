@@ -52,9 +52,6 @@ const TINGKAT_OR = ["sales_manager_inhouse", "kantor_agent", "lead_agent",
 const KATA = {
   id: {
     judul: "Referensi Pengajuan",
-    pengantar:
-      "Memo Yang Menjadi Dasar Pengajuan Fee. Baris Yang Sudah Diberlakukan " +
-      "Menjadi Acuan Nilai; Yang Belum, Belum Mengikat Apa Pun.",
     galat: "Tidak dapat dikerjakan",
     unggahJudul: "Lampirkan Memo",
     seret: "Unggah Referensi Memo",
@@ -146,9 +143,6 @@ const KATA = {
   },
   en: {
     judul: "Submission Reference",
-    pengantar:
-      "The memos fee submissions rest on. Rows already in force set the " +
-      "rates; rows not yet in force bind nothing.",
     galat: "This could not be done",
     unggahJudul: "Attach memo",
     seret: "Upload memo reference",
@@ -573,7 +567,6 @@ export default function ReferensiPengajuanPage() {
     <Kerangka sesi={sesi} lebar judul={
       <div>
         <h1>{k.judul}</h1>
-        <p>{k.pengantar}</p>
       </div>
     }>
       {galat && <div className="banner stop"><b>{k.galat}</b>{galat}</div>}

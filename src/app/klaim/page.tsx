@@ -105,9 +105,6 @@ const KODE_UNIT = ["unit_cancelled", "unit_moved", "unit_management"];
 const KATA = {
   id: {
     judul: "Pengajuan Fee",
-    pengantar: "Proses Pengajuan Fee Dapat Dilakukan Setelah Penerimaan " +
-               "Mencapai Minimal 20% Dari Nilai Kontrak. Fee Yang Memenuhi " +
-               "Syarat Dapat Langsung Diajukan.",
     dapatDiklaim: (n: number) => `${n} dapat diklaim`,
     penjualan: (n: number) => `${n} penjualan`,
     sejakKapan: "penjualan sejak Januari 2026",
@@ -211,9 +208,6 @@ const KATA = {
   },
   en: {
     judul: "Fee Submission",
-    pengantar: "Fee submission can proceed once receipts reach at least 20% " +
-               "of the contract value. Fees that meet the requirement can be " +
-               "submitted directly.",
     dapatDiklaim: (n: number) => `${n} claimable`,
     penjualan: (n: number) => `${n} sales`,
     sejakKapan: "sales from January 2026 onwards",
@@ -868,7 +862,6 @@ export default function PengajuanFeePage() {
     <Kerangka sesi={sesi} lebar judul={
       <div>
         <h1>{k.judul}</h1>
-        <p>{k.pengantar}</p>
       </div>
     }>
 

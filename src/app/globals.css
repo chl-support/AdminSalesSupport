@@ -694,13 +694,16 @@ ul.cetak-ceklis .kotak { border: 1px solid var(--ink); width: 14px; height: 14px
 /* Judul dan identitas. Isinya rata tengah secara tegak terhadap blok merek di
    sebelahnya: rata atas menyisakan bidang kosong sepanjang blok itu pada
    halaman berketerangan pendek, persis di bawah judulnya. */
-/* Tinggi minimum setara keterangan dua baris, supaya garis di bawah bilah
-   berada di tempat yang sama pada setiap menu. Tanpa ini, halaman berketerangan
-   satu baris menaikkan garisnya dan halaman dua baris menurunkannya —
-   berpindah tiap kali menu diganti, persis yang membuat kepala halaman terasa
-   bergoyang. Keterangan yang lebih panjang tetap mendorongnya turun; itu batas
-   yang disadari, bukan yang terlewat. */
-.kepala { flex: 1; min-width: 0; min-height: 84px; display: flex;
+/* Tinggi minimum setara judul beserta nama menu induknya di atasnya, supaya
+   garis di bawah bilah berada di tempat yang sama pada setiap menu. Tanpa ini,
+   halaman yang menyebut induknya menurunkan garis itu dan halaman yang tidak
+   menaikkannya — berpindah tiap kali menu diganti, persis yang membuat kepala
+   halaman terasa bergoyang.
+
+   Dahulu 84 piksel, setara keterangan dua baris di bawah judulnya. Keterangan
+   itu sudah dihapus dari seluruh layar, dan tinggi yang tetap disediakan
+   untuknya hanya menyisakan bidang kosong di bawah tiap judul. */
+.kepala { flex: 1; min-width: 0; min-height: 58px; display: flex;
           align-items: center; justify-content: space-between; gap: 20px;
           flex-wrap: wrap; }
 .kepala .judul { flex: 1; min-width: 0; }

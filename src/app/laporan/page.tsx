@@ -38,9 +38,6 @@ import { KEPALA, KOLOM_ANGKA, KOLOM_PERSEN, KOLOM_TERAKHIR, LEBAR }
 const KATA = {
   id: {
     judul: "Report / Laporan",
-    pengantar: (p: string) =>
-      `Rekap Dan Unduhan Data Klaim Project ${p}. Laporan Bersifat Read-Only ` +
-      "Dan Tidak Dapat Diedit; Setiap Koreksi Dilakukan Pada Data Klaim.",
     galat: "Laporan tidak dapat dibaca",
     masterJudul: "CLOSING FEE, REWARD, KOMISI & OVERIDING",
     masterUnduh: "Unduh Laporan (.xlsx)",
@@ -51,10 +48,6 @@ const KATA = {
   },
   en: {
     judul: "Marketing Report",
-    pengantar: (p: string) =>
-      `Summaries and downloads of Project ${p}'s claim data. Reports are ` +
-      "read-only and cannot be edited; every correction is made on the " +
-      "claim data.",
     galat: "The report could not be read",
     masterJudul: "CLOSING FEE, REWARD, KOMISI & OVERIDING",
     masterUnduh: "Download the report (.xlsx)",
@@ -291,7 +284,6 @@ export default function LaporanPage() {
     <Kerangka sesi={sesi} judul={
       <div>
         <h1>{k.judul}</h1>
-        <p>{k.pengantar(sesi.project_name ?? "—")}</p>
       </div>
     }>
       {galat && (

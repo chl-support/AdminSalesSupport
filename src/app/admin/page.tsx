@@ -39,9 +39,6 @@ type Hasil = {
 const KATA = {
   id: {
     judul: "Administrasi",
-    pengantar:
-      "Data penjualan dan akun pengguna. Seluruhnya dikerjakan dari layar " +
-      "ini — tidak ada langkah yang memerlukan baris perintah.",
     takBerwenang: (peran: string) => `Peran ${peran} tidak berwenang atas menu ini`,
     takBerwenangIsi:
       "Unggah Laporan Penjualan, kalibrasi ambang tanda tangan, dan penggantian " +
@@ -195,9 +192,6 @@ const KATA = {
   },
   en: {
     judul: "Administration",
-    pengantar:
-      "Sales data and user accounts. Everything is done from this screen — no " +
-      "step requires a command line.",
     takBerwenang: (peran: string) =>
       `The ${peran} role is not authorised over this menu`,
     takBerwenangIsi:
@@ -616,7 +610,6 @@ export default function AdminPage() {
     <Kerangka sesi={sesi} judul={
       <div>
         <h1>{k.judul}</h1>
-        <p>{k.pengantar}</p>
       </div>
     }>
 
