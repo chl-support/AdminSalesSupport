@@ -172,6 +172,10 @@ export const KOLOM_TOTAL = [
 
 
 /** Kolom yang isinya angka, supaya layar merapatkannya ke kanan. */
+/** Kolom berisi persentase, yang di layar perlu ruang sedikit lebih lega. */
+export const KOLOM_PERSEN: number[] = Object.entries(FORMAT)
+  .filter(([, f]) => f === PCT).map(([c]) => Number(c));
+
 export const KOLOM_ANGKA: number[] = Object.entries(FORMAT)
   .filter(([, f]) => f === RP || f === RP2 || f === PCT || f === LUAS)
   .map(([c]) => Number(c));

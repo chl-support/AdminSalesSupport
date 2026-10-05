@@ -31,7 +31,8 @@ import { Fragment, useCallback, useEffect, useState } from "react";
 import { useKata } from "../bahasa";
 import { Kerangka, MemeriksaSesi } from "../kerangka";
 import { useSesi } from "../session";
-import { KEPALA, KOLOM_ANGKA, KOLOM_TERAKHIR, LEBAR } from "@/lib/report-susunan";
+import { KEPALA, KOLOM_ANGKA, KOLOM_PERSEN, KOLOM_TERAKHIR, LEBAR }
+  from "@/lib/report-susunan";
 
 const KATA = {
   id: {
@@ -93,6 +94,26 @@ type Rincian = { as_of: string; seksi: Seksi[]; total: Record<number, string> };
  */
 const px = (lebar: number) => Math.round(lebar * 7);
 
+/**
+ * Lebar kolom persen, yang dilebarkan sedikit dari ukuran Excel-nya.
+ *
+ * Di berkasnya kolom ini selebar 7,7 — cukup untuk "86,50%" tetapi kurang
+ * beberapa piksel untuk "100,00%", sehingga tanda persennya turun ke baris
+ * kedua dan satu angka terbaca seolah dua baris. Excel menyembunyikan
+ * kekurangan itu dengan menampilkan ####; di layar, melebarkannya sedikit
+ * lebih jujur daripada memotong angkanya.
+ *
+ * Hanya di layar. Lebar pada berkas unduhannya tidak diubah — berkas itu
+ * dibaca berdampingan dengan berkas yang sudah beredar.
+ */
+const LEBAR_PERSEN = 64;
+
+const persen = new Set(KOLOM_PERSEN);
+
+const lebarKolom = (kolom: number) => persen.has(kolom)
+  ? Math.max(px(LEBAR[kolom - 1]), LEBAR_PERSEN)
+  : px(LEBAR[kolom - 1]);
+
 /** Kolom yang isinya angka dirapatkan ke kanan, sama seperti di Excel. */
 const angka = new Set(KOLOM_ANGKA);
 
@@ -115,11 +136,18 @@ const KOLOM = Array.from({ length: KOLOM_TERAKHIR }, (_, i) => i + 1);
  */
 const BEKU = 5;
 
-/** Jarak tiap kolom dari tepi kiri tabel, untuk menempelkan kolom beku. */
+/**
+ * Jarak tiap kolom dari tepi kiri tabel, untuk menempelkan kolom beku.
+ *
+ * Dihitung dari lebarKolom(), bukan langsung dari lebar Excel-nya: kolom beku
+ * ditempelkan pada jarak yang dihitung di sini, dan bila perhitungannya
+ * memakai lebar yang berbeda dari lebar yang benar-benar dipakai colgroup,
+ * kolom beku akan meleset — meleset sedikit pun ia menutupi kolom sebelahnya.
+ */
 const KIRI: number[] = (() => {
   const hasil: number[] = [];
   let jumlah = 0;
-  for (let i = 0; i < KOLOM_TERAKHIR; i++) { hasil.push(jumlah); jumlah += px(LEBAR[i]); }
+  for (let i = 1; i <= KOLOM_TERAKHIR; i++) { hasil.push(jumlah); jumlah += lebarKolom(i); }
   return hasil;
 })();
 
@@ -205,7 +233,7 @@ export default function LaporanPage() {
               <table className="tabel-laporan">
                 <colgroup>
                   {KOLOM.map((c) => (
-                    <col key={c} style={{ width: px(LEBAR[c - 1]) }} />
+                    <col key={c} style={{ width: lebarKolom(c) }} />
                   ))}
                 </colgroup>
                 <thead>
