@@ -26,7 +26,7 @@
  * angka pada laporan berbeda dari angka pada klaim yang menghasilkannya.
  */
 
-import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState }
+import { useCallback, useEffect, useLayoutEffect, useRef, useState }
   from "react";
 
 import { useKata } from "../bahasa";
@@ -302,31 +302,40 @@ export default function LaporanPage() {
                     </tr>
                   ))}
                 </thead>
-                <tbody>
-                  {rincian.seksi.map((s) => (
-                    <Fragment key={s.label}>
-                      <tr className="seksi-laporan"
-                          style={{ top: tinggiKepala }}>
-                        {/* Selnya membentang selebar seluruh tabel, jadi ia
-                            tidak dapat menempel di tepi kiri: sel yang sudah
-                            memenuhi barisnya tidak punya ruang untuk bergeser
-                            terhadap barisnya sendiri. Yang ditempelkan
-                            tulisannya. */}
-                        <td colSpan={KOLOM_TERAKHIR}>
-                          <span className="label-seksi">{s.label}</span>
-                        </td>
+                {/* Tiap seksi berdiri sebagai tbody-nya sendiri.
+                    Pita seksi menempel di bawah kepala, dan sebuah baris yang
+                    menempel hanya dapat bergeser di dalam tubuh tabel yang
+                    memuatnya. Disatukan dalam satu tbody, keempat pita
+                    menempel pada titik yang sama dan bertumpuk — pita BATAL
+                    UNIT tetap tertahan di puncak padahal barisnya sudah lama
+                    lewat, lalu tertimpa pita seksi berikutnya, dan baris di
+                    bawahnya tertutup. Dipisah, tiap pita menyingkir begitu
+                    seksinya habis, digantikan pita seksi yang sedang dibaca. */}
+                {rincian.seksi.map((s) => (
+                  <tbody key={s.label}>
+                    <tr className="seksi-laporan"
+                        style={{ top: tinggiKepala }}>
+                      {/* Selnya membentang selebar seluruh tabel, jadi ia
+                          tidak dapat menempel di tepi kiri: sel yang sudah
+                          memenuhi barisnya tidak punya ruang untuk bergeser
+                          terhadap barisnya sendiri. Yang ditempelkan
+                          tulisannya. */}
+                      <td colSpan={KOLOM_TERAKHIR}>
+                        <span className="label-seksi">{s.label}</span>
+                      </td>
+                    </tr>
+                    {s.baris.map((b) => (
+                      <tr key={`${s.label}:${b.no}`}>
+                        {KOLOM.map((c) => (
+                          <td key={c} {...selData(c)}>
+                            {c === 1 ? b.no : (b.sel[c] ?? "")}
+                          </td>
+                        ))}
                       </tr>
-                      {s.baris.map((b) => (
-                        <tr key={`${s.label}:${b.no}`}>
-                          {KOLOM.map((c) => (
-                            <td key={c} {...selData(c)}>
-                              {c === 1 ? b.no : (b.sel[c] ?? "")}
-                            </td>
-                          ))}
-                        </tr>
-                      ))}
-                    </Fragment>
-                  ))}
+                    ))}
+                  </tbody>
+                ))}
+                <tbody>
                   <tr className="total-laporan">
                     <td colSpan={4} className="beku" style={{ left: 0 }}>
                       {k.total}
