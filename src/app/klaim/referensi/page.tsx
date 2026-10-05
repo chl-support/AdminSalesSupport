@@ -91,6 +91,8 @@ const KATA = {
     pUsulan: (n: number) => `📋 Referensi Tersedia · ${n}`,
 
     kunciJudul: "Kunci pengajuan fee",
+    kunciNyala: "menyala — pengajuan tanpa memo yang berlaku ditolak",
+    kunciMati: "longgar — pengajuan tetap jalan memakai skema terdekat",
     kunciNyalakan: "Kunci", kunciLonggarkan: "Longgarkan",
     kunciBerubah: (on: boolean): string =>
       on ? "Kunci dinyalakan." : "Kunci dilonggarkan.",
@@ -177,6 +179,8 @@ const KATA = {
     pUsulan: (n: number) => `📋 Available reference · ${n}`,
 
     kunciJudul: "Fee submission lock",
+    kunciNyala: "on — a submission with no memo in force is refused",
+    kunciMati: "loose — submissions still run on the nearest scheme",
     kunciNyalakan: "Lock", kunciLonggarkan: "Loosen",
     kunciBerubah: (on: boolean): string =>
       on ? "Lock turned on." : "Lock loosened.",
@@ -585,7 +589,14 @@ export default function ReferensiPengajuanPage() {
           satu baris kecil, hanya terlihat oleh yang berhak mengubahnya. */}
       {bolehKunci && (
         <div className="baris-kunci sp">
-          <span>{k.kunciJudul}</span>
+          {/* Keadaannya disebut, bukan hanya tombolnya: satu tombol
+              bertuliskan "Kunci" tidak memberitahukan apakah kuncinya sedang
+              menyala atau sedang mati — dan setelan yang menolak pekerjaan
+              orang harus dapat dibaca keadaannya, bukan ditebak dari kata
+              pada tombolnya. */}
+          <span>
+            {k.kunciJudul}: <b>{kunci ? k.kunciNyala : k.kunciMati}</b>
+          </span>
           <button disabled={busy} onClick={() => void ubahKunci(!kunci)}>
             {kunci ? k.kunciLonggarkan : k.kunciNyalakan}
           </button>
