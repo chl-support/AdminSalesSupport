@@ -186,6 +186,10 @@ export default function LaporanPage() {
   // menjadi mustahil, bukan sekadar tidak terjadi.
   const gulirRef = useRef<HTMLDivElement>(null);
   const [seksiMenempel, setSeksiMenempel] = useState(0);
+  // Jarak pita yang sedang menempel dari puncak. Biasanya tepat di bawah
+  // kepala; menjelang pergantian seksi ia bergerak naik, didorong keluar oleh
+  // pita seksi berikutnya — lihat perhitungannya di bawah.
+  const [atasPita, setAtasPita] = useState(0);
 
   const [rincian, setRincian] = useState<Rincian | null>(null);
   const [busy, setBusy] = useState(false);
@@ -240,6 +244,21 @@ export default function LaporanPage() {
         if (r.top <= batas + 1 && r.bottom > batas) aktif = i;
       });
       setSeksiMenempel(aktif);
+
+      // Serah terima antarpita. Tanpa ini, pita yang menempel tetap diam di
+      // tempatnya sampai detik pergantian, dan pita seksi berikutnya lewat
+      // menimpanya separuh-separuh — dua nama seksi terbaca bertumpuk pada
+      // satu pita. Yang lama didorong naik persis sejauh pita berikutnya
+      // sudah masuk, sehingga ia keluar tepat ketika penggantinya tiba.
+      const pita = badan[aktif]?.querySelector<HTMLTableRowElement>("tr");
+      const berikut = badan[aktif + 1];
+      const tinggiPita = pita?.getBoundingClientRect().height ?? 0;
+      let atas = tinggiKepala;
+      if (berikut && tinggiPita) {
+        const jarak = berikut.getBoundingClientRect().top - batas;
+        if (jarak < tinggiPita) atas = tinggiKepala - (tinggiPita - jarak);
+      }
+      setAtasPita(atas);
     };
     // Dihitung pada rangka gambar berikutnya, bukan pada tiap kejadian gulir:
     // menggulir membangkitkan kejadian jauh lebih sering daripada layar
@@ -361,7 +380,7 @@ export default function LaporanPage() {
                   <tbody key={s.label} data-seksi={i}>
                     <tr className={i === seksiMenempel
                                      ? "seksi-laporan menempel" : "seksi-laporan"}
-                        style={{ top: tinggiKepala }}>
+                        style={{ top: i === seksiMenempel ? atasPita : undefined }}>
                       {/* Selnya membentang selebar seluruh tabel, jadi ia
                           tidak dapat menempel di tepi kiri: sel yang sudah
                           memenuhi barisnya tidak punya ruang untuk bergeser

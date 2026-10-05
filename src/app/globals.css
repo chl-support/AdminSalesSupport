@@ -2428,10 +2428,14 @@ td.sel-tindakan > a.tautan-klaim:last-child { margin-bottom: 0; }
 .gulir-laporan { overflow: auto; max-height: calc(100vh - 210px); }
 
 /* Tiap baris kepala menempel pada jaraknya sendiri dari puncak; jaraknya
-   diukur di layar, bukan dipatok — lihat bekuKepala() pada laporan/page.tsx. */
-.tabel-laporan th.beku-atas { position: sticky; z-index: 3; }
+   diukur di layar, bukan dipatok — lihat bekuKepala() pada laporan/page.tsx.
+
+   Lapisannya di atas pita seksi: pita yang sedang didorong keluar bergerak
+   naik melewati garis kepala, dan bila ia yang di atas, ia akan tergambar
+   menutupi nama kolom selama perpindahan antar seksi. */
+.tabel-laporan th.beku-atas { position: sticky; z-index: 7; }
 /* Sel pojok: beku mendatar sekaligus tegak, jadi ia harus di atas keduanya. */
-.tabel-laporan th.beku-atas.beku { z-index: 6; }
+.tabel-laporan th.beku-atas.beku { z-index: 8; }
 
 /* Pita seksi ikut menempel tepat di bawah kepala, supaya yang sedang dibaca
    selalu menyebutkan seksinya. Baris tabel hanya dapat ditempelkan ketika
@@ -2442,3 +2446,10 @@ td.sel-tindakan > a.tautan-klaim:last-child { margin-bottom: 0; }
    Diserahkan pada peramban, sebagiannya tidak pernah melepas satu pita pun
    dan keempatnya menumpuk di puncak. */
 .tabel-laporan tr.seksi-laporan.menempel { position: sticky; z-index: 5; }
+/* Pita seksi yang BELUM menempel tetap diberi posisi, meski tidak digeser.
+   Tanpa posisi, z-index tidak berlaku padanya dan ia tergambar di lapisan
+   aliran biasa — sehingga pita yang sedang datang lewat DI BELAKANG pita yang
+   sedang menempel, dan keduanya tampak saling menimpa separuh-separuh. Diberi
+   lapisan di atasnya, yang datang menutupi yang lama, sementara yang lama
+   didorong naik keluar oleh perhitungan pada laporan/page.tsx. */
+.tabel-laporan tr.seksi-laporan { position: relative; z-index: 6; }

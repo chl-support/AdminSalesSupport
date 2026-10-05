@@ -103,7 +103,7 @@ const STATUS_COLOR: Record<string, string> = {
 
 const SECTION_ORDER = [
   "BATAL UNIT",
-  "(Pindah Unit ke Unit lain)",
+  "PINDAH UNIT",
   "MANAGEMENT (NO CLOSING FEE, REWARD & KOMISI)",
   "CLOSING FEE, REWARD & KOMISI",
 ];

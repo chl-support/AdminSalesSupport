@@ -886,7 +886,7 @@ async function main() {
     const labels = Object.fromEntries(
       prev.sections.map((s) => [s.label, s.row_count]));
     assert(labels["BATAL UNIT"] === 1, JSON.stringify(labels));
-    assert(labels["(Pindah Unit ke Unit lain)"] === 1, JSON.stringify(labels));
+    assert(labels["PINDAH UNIT"] === 1, JSON.stringify(labels));
     assert(labels["MANAGEMENT (NO CLOSING FEE, REWARD & KOMISI)"] === 1,
            JSON.stringify(labels));
     assert(labels["CLOSING FEE, REWARD & KOMISI"] === 3, JSON.stringify(labels));
