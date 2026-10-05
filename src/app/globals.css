@@ -2388,3 +2388,24 @@ td.sel-tindakan > a.tautan-klaim:last-child { margin-bottom: 0; }
 .unit-grup { margin: 0; padding: 0; list-style: none; }
 .unit-grup li { white-space: nowrap; }
 .unit-grup li::before { content: "· "; color: var(--mut); }
+
+/* Kepala panel Laporan: judul di kiri, tombol unduh di kanan, pada satu pita.
+   Sebelumnya judul, satu paragraf keterangan, dan tombolnya bertumpuk ke bawah
+   dan menyita hampir sepertiga layar — padahal yang dicari orang di layar ini
+   tabelnya, bukan keterangan tentang tabelnya. */
+.form-blok > h3.kepala-laporan {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; padding: 5px 6px 5px 10px; margin-bottom: 0;
+}
+/* Tombolnya putih di atas pita hitam, bukan hitam di atas hitam. Garis tepinya
+   ikut putih supaya tombol tetap berbentuk tombol ketika dilayangi. */
+.unduh-laporan {
+  display: inline-flex; align-items: center; gap: 6px; flex: none;
+  padding: 3px 11px; font-size: 11px; font-weight: 650; letter-spacing: 0;
+  color: var(--ink); background: #fff; border: 1px solid #fff;
+  border-radius: var(--lengkung); text-decoration: none;
+}
+.unduh-laporan:hover { background: var(--emas); border-color: var(--emas); }
+.unduh-laporan svg { flex: none; }
+/* Tabelnya menempel pada pita kepalanya, tanpa ruang kosong di antaranya. */
+.panel > .form-blok:first-child { margin-bottom: 0; }

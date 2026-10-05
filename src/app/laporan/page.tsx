@@ -42,19 +42,10 @@ const KATA = {
       "Dan Tidak Dapat Diedit; Setiap Koreksi Dilakukan Pada Data Klaim.",
     galat: "Laporan tidak dapat dibaca",
     masterJudul: "CLOSING FEE, REWARD & KOMISI",
-    masterIsi: "Seluruh unit beserta konsumen, closing fee, reward, komisi, " +
-               "pajak, dan overiding-nya dalam satu workbook Excel. Barisnya " +
-               "terbagi empat seksi — BATAL UNIT, (Pindah Unit ke Unit lain), " +
-               "MANAGEMENT (NO CLOSING FEE, REWARD & KOMISI), dan CLOSING " +
-               "FEE, REWARD & KOMISI. Baris TOTAL-nya berformula, jadi " +
-               "angkanya ikut berubah bila Anda menyaring sendiri di Excel.",
     masterUnduh: "Unduh Laporan (.xlsx)",
     memuat: "Memuat laporan…",
     total: "TOTAL",
     kosong: "Belum ada unit pada project ini.",
-    perBaris: (n: number) => `${n} baris`,
-    geser: "Tabelnya lebih lebar dari layar — geser ke samping untuk melihat " +
-           "kolom berikutnya.",
   },
   en: {
     judul: "Marketing Report",
@@ -64,19 +55,10 @@ const KATA = {
       "claim data.",
     galat: "The report could not be read",
     masterJudul: "CLOSING FEE, REWARD & KOMISI",
-    masterIsi: "Every unit with its buyer, closing fee, reward, commission, " +
-               "tax and overriding in one Excel workbook. The rows are split " +
-               "into four sections — BATAL UNIT, (Pindah Unit ke Unit lain), " +
-               "MANAGEMENT (NO CLOSING FEE, REWARD & KOMISI), and CLOSING " +
-               "FEE, REWARD & KOMISI. The TOTAL row carries formulas, so the " +
-               "figures follow along when you filter it yourself in Excel.",
     masterUnduh: "Download the report (.xlsx)",
     memuat: "Loading the report…",
     total: "TOTAL",
     kosong: "This project has no units yet.",
-    perBaris: (n: number) => `${n} rows`,
-    geser: "The table is wider than the screen — scroll sideways for the " +
-           "remaining columns.",
   },
 };
 
@@ -208,16 +190,23 @@ export default function LaporanPage() {
       )}
 
       <div className="panel">
+        {/* Judul dan tombol unduhnya duduk pada satu baris. Dipisah menjadi
+            dua blok, kepala panel ini menyita tinggi layar untuk dua kata dan
+            satu tombol — padahal yang dicari orang di layar ini tabelnya. */}
         <div className="form-blok">
-          <h3>{k.masterJudul}</h3>
-          <p className="hint" style={{ textAlign: "left", marginTop: 0 }}>
-            {k.masterIsi}
-          </p>
-          <div className="row" style={{ marginBottom: 0 }}>
-            <a className="tombol-klaim" href="/api/reports/master-report">
+          <h3 className="kepala-laporan">
+            <span>{k.masterJudul}</span>
+            <a className="unduh-laporan" href="/api/reports/master-report">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" strokeWidth="2.2"
+                   strokeLinecap="round" strokeLinejoin="round"
+                   aria-hidden="true">
+                <path d="M12 3v12" /><path d="m7 11 5 5 5-5" />
+                <path d="M4 20h16" />
+              </svg>
               {k.masterUnduh}
             </a>
-          </div>
+          </h3>
         </div>
 
         {busy && !rincian && (
@@ -226,9 +215,6 @@ export default function LaporanPage() {
 
         {rincian && (
           <>
-            <p className="hint" style={{ padding: "0 14px", textAlign: "left" }}>
-              {k.perBaris(jumlahBaris)} · {k.geser}
-            </p>
             <div className="tscroll">
               <table className="tabel-laporan">
                 <colgroup>
