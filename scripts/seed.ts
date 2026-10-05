@@ -175,6 +175,25 @@ const SCHEMES: Skema[] = [
    null, 1_000_000, null, "2026-04-01", "2026-12-31", true],
   ["002/SBL-BD/MS/III/2026", "continuity_reward", "sales_markom", null,
    null, 1_000_000, null, "2026-04-01", "2026-12-31", true],
+
+  // ── Closing Fee: IOM 014/SBL-BD/PM/MS/IV/2026, berlaku sejak 1 Apr 2026 ──
+  //
+  // Memo penerus 008, yang masa berlakunya habis 31 Maret 2026. Tanpa memo
+  // penerus, penjualan sesudah tanggal itu tidak punya dasar sama sekali —
+  // dan sejak memo yang berlaku menjadi dasar pengajuan maupun penolakan,
+  // "tidak punya dasar" berarti pengajuannya ditolak. Data contoh ini
+  // meneruskannya supaya alur penuh tetap dapat dicoba; nominal sungguhannya
+  // tetap datang dari memo yang diunggah di Referensi Pengajuan.
+  ["014/SBL-BD/PM/MS/IV/2026", "closing_fee", "sales_inhouse", null,
+   null, 10_000_000, null, "2026-04-01", null, true],
+  ["014/SBL-BD/PM/MS/IV/2026", "closing_fee", "agent", null,
+   null, 10_000_000, null, "2026-04-01", null, true],
+  ["014/SBL-BD/PM/MS/IV/2026", "closing_fee", "markom", null,
+   null, 2_000_000, null, "2026-04-01", null, true],
+  ["014/SBL-BD/PM/MS/IV/2026", "closing_fee", "sales_markom", null,
+   null, 2_000_000, null, "2026-04-01", null, true],
+  ["014/SBL-BD/PM/MS/IV/2026", "closing_fee", "sales_manager_inhouse", null,
+   null, 800_000, null, "2026-04-01", null],
 ];
 
 // tax_type, rate, pkp, recipient, has_skb, npwp, level, from, to, note
