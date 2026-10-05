@@ -1091,6 +1091,14 @@ ul.cetak-ceklis .kotak { border: 1px solid var(--ink); width: 14px; height: 14px
    tautan — bukan tombol yang berjajar dengan tindakan pendaftaran di atasnya.
    Yang menghilangkan baris tidak boleh setara bentuknya dengan yang
    menggerakkannya. */
+/* Unggah manual: jalan kedua menuju pendaftaran, jadi ia dipisahkan garis
+   dari tombol tautan di atasnya tetapi tetap berwarna seperti tindakan biasa —
+   bukan pudar seperti Hapus, yang satu-satunya tindakan tak terbatalkan di
+   kolom ini. */
+.unggah-baris { margin-top: 10px; padding-top: 8px;
+                border-top: 1px solid var(--line); }
+.unggah-baris button.tautan { font-weight: 500; font-size: 11.5px; }
+
 .hapus-baris { margin-top: 10px; padding-top: 8px;
                border-top: 1px solid var(--line); }
 .hapus-baris button.tautan { color: var(--mut); font-weight: 500;
