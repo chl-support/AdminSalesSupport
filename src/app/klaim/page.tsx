@@ -673,6 +673,11 @@ export default function PengajuanFeePage() {
         // anti-duplikat di server membaca klaim yang barusan dibuat.
         const sasaran = slug === "overriding" ? unitOverriding(u) : [u];
         let adaYangJadi = false;
+        // Satu penanda untuk seluruh unit yang diajukan bersama. Dengan itu
+        // layar Approval menyatukannya kembali menjadi satu baris keputusan,
+        // sementara nilai, PPN dan PPh tetap dihitung per unit.
+        const penanda = sasaran.length > 1 && typeof crypto !== "undefined"
+          ? crypto.randomUUID() : null;
         for (const unit of sasaran) {
         const res = await fetch("/api/claims", {
           method: "POST", headers: { "Content-Type": "application/json" },
@@ -701,6 +706,7 @@ export default function PengajuanFeePage() {
               ? periode.start || null : null,
             sales_period_end: slug === "overriding"
               ? periode.end || null : null,
+            batch_id: penanda,
             transfer: tujuan[slug] ?? null,
           }),
         });

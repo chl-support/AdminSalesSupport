@@ -176,6 +176,10 @@ async function rekeningTujuan(marketingId: string, t: Transfer, c: any) {
  * bentuk lain dan menafsirkannya sendiri, dan tafsir itu berbeda antara
  * "03/04" yang dimaksud 3 April dan yang dimaksud 4 Maret.
  */
+/** Bentuk UUID, untuk memeriksa penanda pengajuan sebelum masuk basis data. */
+const UUID =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 function periodeSah(v?: string | null): string | null {
   const t = typeof v === "string" ? v.trim() : "";
   if (!t) return null;
@@ -198,6 +202,15 @@ export async function createClaim(params: {
   // yang direkap lembar itu, dari tanggal sekian sampai tanggal sekian.
   // Hanya Overriding yang punya periode — jenis lain satu unit satu lembar.
   salesPeriod?: { start?: string | null; end?: string | null } | null;
+  /**
+   * Penanda pengajuan yang mencakup beberapa unit sekaligus.
+   *
+   * Overiding diajukan atas beberapa unit dalam satu tekan — satu penerima,
+   * satu periode, satu keputusan — tetapi tiap unit tetap klaim tersendiri,
+   * sebab nilai, PPN dan PPh-nya dihitung per unit. Penanda ini yang
+   * menyatukannya kembali di layar Approval.
+   */
+  batchId?: string | null;
   // Project yang sedang dikerjakan. Unit dan marketing harus benar-benar milik
   // project itu — id keduanya datang dari layar, dan layar dapat keliru atau
   // dikelabui.
@@ -269,9 +282,9 @@ export async function createClaim(params: {
            marketing_id, bank_account_id, status, gross_amount, vat,
            withholding_tax, withholding_tax_type, net_amount, amount_in_words,
            total_payment, payment_percent, snapshot, notes, project_id,
-           sales_period_start, sales_period_end)
+           sales_period_start, sales_period_end, batch_id)
          VALUES ($1,$2,$3,$4,$5,$6,'draft',$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,
-                 $17,$18::date,$19::date)
+                 $17,$18::date,$19::date,$20::uuid)
          RETURNING *`,
         [number, params.claimType, params.recipientRole, params.unitId,
          params.marketingId, bank?.id ?? null, r.gross_amount, r.vat,
@@ -280,7 +293,11 @@ export async function createClaim(params: {
          JSON.stringify(r.snapshot), params.notes?.trim() || null,
          unit.project_id,
          periodeSah(params.salesPeriod?.start),
-         periodeSah(params.salesPeriod?.end)], c);
+         periodeSah(params.salesPeriod?.end),
+         // Penanda pengajuan beberapa unit sekaligus; kosong pada pengajuan
+         // satu unit, dan bentuknya diperiksa supaya yang bukan UUID tidak
+         // sampai ke basis data sebagai galat yang tidak terbaca.
+         UUID.test(String(params.batchId ?? "")) ? params.batchId : null], c);
 
       await audit({
         entityType: "claim", entityId: claim!.id, action: "create",

@@ -2382,3 +2382,9 @@ td.sel-tindakan > a.tautan-klaim:last-child { margin-bottom: 0; }
 }
 .daftar-unit-or li { margin: 1px 0; }
 .daftar-unit-or b { color: var(--ink); }
+
+/* Kolom Unit pada baris pengajuan yang mencakup beberapa unit: satu poin per
+   unit, rapat, tanpa butir bulat yang memakan lebar kolom yang sudah sempit. */
+.unit-grup { margin: 0; padding: 0; list-style: none; }
+.unit-grup li { white-space: nowrap; }
+.unit-grup li::before { content: "· "; color: var(--mut); }
