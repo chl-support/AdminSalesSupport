@@ -376,6 +376,19 @@ ALTER TABLE claims ADD COLUMN IF NOT EXISTS sender_division TEXT;
 ALTER TABLE claims ADD COLUMN IF NOT EXISTS handed_to TEXT;
 ALTER TABLE claims ADD COLUMN IF NOT EXISTS distributed_at DATE;
 
+-- Keempat kolom berikut jatuh ke lubang yang sama persis, belakangan: periode
+-- penjualan yang diklaim, penanda satu pengajuan yang mencakup beberapa unit,
+-- dan kolom Ket. pada lembar Detail Perhitungan. Ketiganya hanya ada di
+-- src/lib/kolom.ts, dan basis data uji dibangun dari berkas ini saja — tanpa
+-- pernah memanggil penambal itu, sebab penambalnya berjalan saat orang masuk.
+-- Akibatnya tiga puluh uji gagal dengan "column batch_id does not exist",
+-- bukan karena ada yang rusak melainkan karena yang diuji dan yang dipakai
+-- bukan basis data yang sama.
+ALTER TABLE claims ADD COLUMN IF NOT EXISTS sales_period_start DATE;
+ALTER TABLE claims ADD COLUMN IF NOT EXISTS sales_period_end DATE;
+ALTER TABLE claims ADD COLUMN IF NOT EXISTS batch_id UUID;
+ALTER TABLE claims ADD COLUMN IF NOT EXISTS detail_keterangan TEXT;
+
 -- Satu berkas berpindah beberapa kali sebelum selesai, jadi keempat catatan
 -- perpindahannya — divisi pengirim, divisi penerima, tanggal distribusi dan
 -- tanggal penerima — masing-masing bertempat empat, sebanyak baris yang
