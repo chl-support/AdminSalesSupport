@@ -332,6 +332,9 @@ export async function buildWorkbook(
         const fmt = FORMAT[c];
         if (fmt) s.numFmt = fmt;
       }
+      // Nomor urut rata tengah, sebagaimana pada berkas acuannya: ia penanda
+      // baris, bukan angka yang dijumlah.
+      ws.getCell(baris, K.no).alignment = { horizontal: "center" };
       baris++;
     };
 

@@ -105,6 +105,9 @@ const angka = new Set(KOLOM_ANGKA);
 
 const KOLOM = Array.from({ length: KOLOM_TERAKHIR }, (_, i) => i + 1);
 
+/** Kolom nomor urut. */
+const K_NO = 1;
+
 /**
  * Kolom yang tidak ikut bergeser saat tabelnya digulir ke samping.
  *
@@ -140,7 +143,8 @@ const KIRI: number[] = (() => {
 /** Sifat satu sel data: beku bila di kolom depan, rata kanan bila angka. */
 const selData = (kolom: number) => {
   const b = beku(kolom);
-  const kelas = [b.className, angka.has(kolom) ? "n" : null]
+  const kelas = [b.className, kolom === K_NO ? "sel-no" : null,
+                 angka.has(kolom) ? "n" : null]
     .filter(Boolean).join(" ");
   return { ...b, className: kelas || undefined };
 };

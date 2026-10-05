@@ -2312,6 +2312,16 @@ td.sel-tindakan > a.tautan-klaim:last-child { margin-bottom: 0; }
   color: var(--ink); font-weight: 650; line-height: 1.25;
 }
 .tabel-laporan td.n { text-align: right; font-variant-numeric: tabular-nums; }
+/* Nomor urut rata tengah, sama seperti pada berkas acuannya — ia penanda
+   baris, bukan angka yang dijumlah, jadi tidak ikut dirapatkan ke kanan
+   bersama kolom uang.
+
+   Ditandai kelasnya sendiri, bukan dipilih sebagai td:first-child. Sel pertama
+   sebuah baris belum tentu kolom No.: pita seksi satu sel membentang selebar
+   seluruh tabel, dan baris TOTAL menggabung empat kolom pertamanya. Dirata
+   tengahkan, keduanya melemparkan tulisannya ke tengah tabel yang delapan ribu
+   piksel lebarnya — jauh di luar layar, sehingga pitanya tampak kosong. */
+.tabel-laporan td.sel-no { text-align: center; }
 /* Seksi dan TOTAL memakai abu yang sama dengan unduhannya: yang membedakan
    baris seksi dari baris data di sana adalah latarnya, bukan cetak tebalnya. */
 .tabel-laporan tr.seksi-laporan > td {
