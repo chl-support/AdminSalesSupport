@@ -377,6 +377,26 @@ export type SebabTakLayak =
  */
 export const AMBANG_PENERIMAAN = 0.20;
 
+/**
+ * Tanggal penjualan paling awal yang masih ditampilkan di Pengajuan Fee.
+ *
+ * Penjualan 2023 sampai 2025 tidak lagi menjadi pekerjaan siapa pun di layar
+ * ini: feenya sudah selesai, atau memang tidak akan pernah diajukan. Selama ia
+ * ikut berbaris, daftarnya panjang oleh baris yang tidak pernah disentuh, dan
+ * yang mencari penjualan bulan ini harus melewatinya lebih dulu.
+ *
+ * Yang disembunyikan hanya daftar pengajuannya. Unitnya tetap utuh di basis
+ * data, tetap terbaca di Laporan, dan klaim yang pernah lahir darinya tetap
+ * berdiri di Approval maupun Administrasi — ini penyaring tampilan, bukan
+ * penghapusan.
+ *
+ * Unit yang tanggal penjualannya belum tercatat ikut tersembunyi. Tanpa
+ * tanggal, tidak ada memo yang dapat menaunginya (lihat penjagaMemo), jadi
+ * feenya memang tidak dapat diajukan sampai tanggalnya diisi di Data
+ * Penjualan.
+ */
+export const AWAL_PENJUALAN_TAMPIL = "2026-01-01";
+
 export function eligibility(unit: any, claimType: ClaimType): {
   ok: boolean; missing: string[]; codes: SebabTakLayak[];
 } {

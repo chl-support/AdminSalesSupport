@@ -1,6 +1,7 @@
 import { handler, currentUser, projectAktif } from "@/lib/api";
 import { query } from "@/lib/db";
-import { dapatDiklaim, penjagaMemo, type ClaimType } from "@/lib/calc";
+import { AWAL_PENJUALAN_TAMPIL, dapatDiklaim, penjagaMemo, type ClaimType }
+  from "@/lib/calc";
 
 /**
  * Berapa dokumen yang sedang menunggu orang ini.
@@ -67,6 +68,9 @@ const SEMUA_FEE: ClaimType[] =
  * hanya yang membuka daftar penjualan dan membacanya baris demi baris.
  */
 async function siapDiklaim(projectId: string): Promise<number> {
+  // Penyaringnya harus sama persis dengan daftar Pengajuan Fee — yang batal dan
+  // yang terjual sebelum Januari 2026 tidak ada di sana, jadi menghitungnya di
+  // sini berarti menyebut pekerjaan yang tidak ada barisnya untuk dikerjakan.
   const unit = await query<any>(
     `SELECT u.id, u.status, u.contract_value_incl_vat, u.received_amount,
             u.contract_date,
@@ -78,7 +82,8 @@ async function siapDiklaim(projectId: string): Promise<number> {
        LEFT JOIN marketings m  ON m.id  = u.marketing_id
        LEFT JOIN marketings sk ON sk.id = u.sub_coordinator_id
        LEFT JOIN marketings ko ON ko.id = u.coordinator_id
-      WHERE u.project_id = $1 AND u.status <> 'cancelled'`, [projectId]);
+      WHERE u.project_id = $1 AND u.status <> 'cancelled'
+        AND u.contract_date >= '${AWAL_PENJUALAN_TAMPIL}'::date`, [projectId]);
 
   // Klaim yang ditolak, dibatalkan, atau di-clawback sengaja tidak dihitung
   // sebagai "sudah diajukan" — unitnya memang boleh diajukan ulang, sama
