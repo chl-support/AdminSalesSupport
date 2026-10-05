@@ -2437,4 +2437,8 @@ td.sel-tindakan > a.tautan-klaim:last-child { margin-bottom: 0; }
    selalu menyebutkan seksinya. Baris tabel hanya dapat ditempelkan ketika
    garisnya tidak dipakai bersama — border-collapse pada tabel ini memang
    separate, lihat bagian atas berkas ini. */
-.tabel-laporan tr.seksi-laporan { position: sticky; z-index: 5; }
+/* Hanya pita seksi yang sedang dibaca yang ditempelkan, dan yang mana itu
+   ditentukan layarnya sendiri — lihat seksiMenempel pada laporan/page.tsx.
+   Diserahkan pada peramban, sebagiannya tidak pernah melepas satu pita pun
+   dan keempatnya menumpuk di puncak. */
+.tabel-laporan tr.seksi-laporan.menempel { position: sticky; z-index: 5; }
