@@ -26,8 +26,8 @@
  * angka pada laporan berbeda dari angka pada klaim yang menghasilkannya.
  */
 
-import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState }
-  from "react";
+import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState,
+  type ReactNode } from "react";
 
 import { useKata } from "../bahasa";
 import { Kerangka, MemeriksaSesi } from "../kerangka";
@@ -109,6 +109,27 @@ const KOLOM = Array.from({ length: KOLOM_TERAKHIR }, (_, i) => i + 1);
 
 /** Kolom nomor urut. */
 const K_NO = 1;
+
+/**
+ * Nama kolom, dipecah menjadi baris-barisnya.
+ *
+ * Yang berada di dalam kurung turun ke barisnya sendiri: "PPh 21 (NPWP
+ * Pribadi)" menjadi "PPh 21" lalu "(NPWP Pribadi)". Dibiarkan mengalir,
+ * peramban memutusnya di mana pun kata itu kebetulan tidak muat — "PPh 21
+ * (NPWP" lalu "Pribadi)" — dan kurung yang terbelah terbaca seperti salah
+ * ketik, bukan seperti keterangan.
+ *
+ * Nama yang SELURUHNYA di dalam kurung tidak dipecah. Kolom Penerimaan
+ * bernama "(Rp.)" saja; dipecah, ia menyisakan satu baris kosong di atasnya.
+ */
+function barisKepala(teks: string): ReactNode[] {
+  // "Luas (m2)" ditulis dengan angka dua superskrip, sama seperti pada
+  // unduhannya — satuan meter persegi, bukan huruf m diikuti angka 2.
+  if (teks === "Luas (m2)") return ["Luas", <>(m<sup>2</sup>)</>];
+  const kurung = teks.indexOf("(");
+  if (kurung <= 0) return [teks];
+  return [teks.slice(0, kurung).trim(), teks.slice(kurung).trim()];
+}
 
 /**
  * Kolom yang tidak ikut bergeser saat tabelnya digulir ke samping.
@@ -324,12 +345,11 @@ export default function LaporanPage() {
                           <th key={`${r1}:${c1}`}
                               rowSpan={r2 - r1 + 1} colSpan={c2 - c1 + 1}
                               {...bekuKepala(c1, r1)}>
-                            {/* "Luas (m2)" ditulis dengan angka dua
-                                superskrip, sama seperti pada unduhannya —
-                                satuan meter persegi, bukan huruf m diikuti
-                                angka 2. */}
-                            {teks === "Luas (m2)"
-                              ? <>Luas (m<sup>2</sup>)</> : teks}
+                            {barisKepala(teks).map((bagian, n) => (
+                              <span key={n} className="baris-kepala">
+                                {bagian}
+                              </span>
+                            ))}
                           </th>
                         ))}
                     </tr>

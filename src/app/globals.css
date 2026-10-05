@@ -2320,6 +2320,9 @@ td.sel-tindakan > a.tautan-klaim:last-child { margin-bottom: 0; }
   text-align: center; vertical-align: middle; background: #D9D9D9;
   color: var(--ink); font-weight: 650; line-height: 1.25;
 }
+/* Tiap bagian nama kolom pada barisnya sendiri — lihat barisKepala() pada
+   laporan/page.tsx. Yang di dalam kurung turun ke bawah, utuh. */
+.tabel-laporan th .baris-kepala { display: block; }
 .tabel-laporan td.n { text-align: right; font-variant-numeric: tabular-nums; }
 /* Nomor urut rata tengah, sama seperti pada berkas acuannya — ia penanda
    baris, bukan angka yang dijumlah, jadi tidak ikut dirapatkan ke kanan
