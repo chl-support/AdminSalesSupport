@@ -1,5 +1,5 @@
 /**
- * Penyusun Laporan Closing Fee, Reward & Komisi.
+ * Penyusun Laporan Closing Fee, Reward, Komisi & Overiding.
  *
  * Laporan ini adalah **view**, bukan tabel. Setiap sel diturunkan dari klaim yang
  * sudah ada, lalu disusun ulang menjadi satu baris per unit (PRD 7.B).
@@ -105,7 +105,7 @@ const SECTION_ORDER = [
   "BATAL UNIT",
   "PINDAH UNIT",
   "MANAGEMENT (NO CLOSING FEE, REWARD & KOMISI)",
-  "CLOSING FEE, REWARD & KOMISI",
+  "CLOSING FEE, REWARD, KOMISI & OVERIDING",
 ];
 
 type ReportRow = { status: string; cells: Record<number, unknown> };
@@ -266,7 +266,7 @@ export async function buildWorkbook(
     sel.font = { name: nama, size: ukuran, bold: true };
   };
   judul(1, namaProject.toUpperCase(), 16);
-  judul(2, "CLOSING FEE, REWARD & KOMISI", 16);
+  judul(2, "CLOSING FEE, REWARD, KOMISI & OVERIDING", 16);
   judul(3, `As of ${asOf.toLocaleDateString("id-ID",
     { day: "2-digit", month: "long", year: "numeric" })}`, 10, "Arial");
 

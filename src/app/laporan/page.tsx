@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Report / Laporan — Closing Fee, Reward & Komisi.
+ * Report / Laporan — Closing Fee, Reward, Komisi & Overiding.
  *
  * Sebelumnya layar ini memuat tiga laporan: Laporan Master, rekap pembayaran
  * per periode, dan rekonsiliasi bank. Ketiganya dihapus atas permintaan yang
@@ -42,7 +42,7 @@ const KATA = {
       `Rekap Dan Unduhan Data Klaim Project ${p}. Laporan Bersifat Read-Only ` +
       "Dan Tidak Dapat Diedit; Setiap Koreksi Dilakukan Pada Data Klaim.",
     galat: "Laporan tidak dapat dibaca",
-    masterJudul: "CLOSING FEE, REWARD & KOMISI",
+    masterJudul: "CLOSING FEE, REWARD, KOMISI & OVERIDING",
     masterUnduh: "Unduh Laporan (.xlsx)",
     memuat: "Memuat laporan…",
     total: "TOTAL",
@@ -55,7 +55,7 @@ const KATA = {
       "read-only and cannot be edited; every correction is made on the " +
       "claim data.",
     galat: "The report could not be read",
-    masterJudul: "CLOSING FEE, REWARD & KOMISI",
+    masterJudul: "CLOSING FEE, REWARD, KOMISI & OVERIDING",
     masterUnduh: "Download the report (.xlsx)",
     memuat: "Loading the report…",
     total: "TOTAL",

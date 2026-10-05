@@ -889,7 +889,7 @@ async function main() {
     assert(labels["PINDAH UNIT"] === 1, JSON.stringify(labels));
     assert(labels["MANAGEMENT (NO CLOSING FEE, REWARD & KOMISI)"] === 1,
            JSON.stringify(labels));
-    assert(labels["CLOSING FEE, REWARD & KOMISI"] === 3, JSON.stringify(labels));
+    assert(labels["CLOSING FEE, REWARD, KOMISI & OVERIDING"] === 3, JSON.stringify(labels));
   });
 
   await check("workbook berisi baris TOTAL berformula, bukan konstanta", async () => {

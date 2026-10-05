@@ -1,5 +1,5 @@
 /**
- * Susunan kolom Laporan Closing Fee, Reward & Komisi.
+ * Susunan kolom Laporan Closing Fee, Reward, Komisi & Overiding.
  *
  * Terpisah dari penyusun workbook-nya di report.ts karena layar Laporan pun
  * memakainya: layar itu berjalan di peramban, sedangkan report.ts memuat
