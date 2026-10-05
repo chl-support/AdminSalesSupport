@@ -41,7 +41,7 @@ const STATUS_LABEL: Record<string, string> = {
   belum_pengajuan: "Belum Pengajuan Komisi",
   sudah_dibayarkan: "Sudah Dibayarkan",
   proses_finance: "Proses Finance",
-  management: "Management (No Closing Fee, Reward & Komisi)",
+  management: "Management (No Closing Fee, Reward, Komisi & Overiding)",
   batal_unit: "BATAL UNIT",
 };
 
@@ -104,7 +104,7 @@ const STATUS_COLOR: Record<string, string> = {
 const SECTION_ORDER = [
   "BATAL UNIT",
   "PINDAH UNIT",
-  "MANAGEMENT (NO CLOSING FEE, REWARD & KOMISI)",
+  "MANAGEMENT (NO CLOSING FEE, REWARD, KOMISI & OVERIDING)",
   "CLOSING FEE, REWARD, KOMISI & OVERIDING",
 ];
 
