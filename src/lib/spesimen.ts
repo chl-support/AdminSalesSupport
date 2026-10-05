@@ -208,18 +208,17 @@ export async function setujuiPemakaian(token: string, versi: string) {
  * itu memang berasal dari KTP orang tersebut, dan dihapus begitu putusannya
  * diambil.
  */
-export async function simpanKtp(token: string, p: {
+/**
+ * Periksa foto KTP yang diunggah, dari jalur mana pun ia datang.
+ *
+ * Agent mengunggahnya sendiri lewat tautan; Admin Sales mengunggahnya di layar
+ * Spesimen saat fotonya diserahkan di luar sistem. Aturan yang menerima dan
+ * menolak harus sama persis untuk keduanya — batas 3 MB yang hanya berlaku
+ * pada salah satu jalur bukan batas, melainkan saran.
+ */
+function periksaKtp(p: {
   image_base64: string; content_type?: string; signature_png?: string;
-}) {
-  const s = await bukaSesi(token);
-  if (!s.otp_verified) {
-    throw new WorkflowError("Verifikasi kode terlebih dahulu.", "otp_required", 401);
-  }
-  if (!s.consent_at) {
-    throw new WorkflowError("Persetujuan pemakaian data belum diberikan.",
-                            "consent_required", 409);
-  }
-
+}): { buf: Buffer; tipe: string } {
   const raw = p.image_base64 ?? "";
   const koma = raw.indexOf(",");
   const dataUrl = raw.startsWith("data:");
@@ -243,6 +242,22 @@ export async function simpanKtp(token: string, p: {
     throw new WorkflowError(
       "Bagian tanda tangan pada KTP belum ditandai.", "crop_required", 422);
   }
+  return { buf, tipe };
+}
+
+export async function simpanKtp(token: string, p: {
+  image_base64: string; content_type?: string; signature_png?: string;
+}) {
+  const s = await bukaSesi(token);
+  if (!s.otp_verified) {
+    throw new WorkflowError("Verifikasi kode terlebih dahulu.", "otp_required", 401);
+  }
+  if (!s.consent_at) {
+    throw new WorkflowError("Persetujuan pemakaian data belum diberikan.",
+                            "consent_required", 409);
+  }
+
+  const { buf, tipe } = periksaKtp(p);
 
   await query(
     `UPDATE enrollment_sessions
@@ -291,6 +306,102 @@ export async function kirimSet(token: string) {
                 after: { set_id: s.set_id, sumber: "ktp" } });
 
   return { konsistensi: null, jumlah: 1 };
+}
+
+/**
+ * Unggah spesimen secara manual, oleh Admin, tanpa tautan pendaftaran.
+ *
+ * Tautan pendaftaran menuntut tiga hal dari orangnya: ponsel yang menerima
+ * kode, kesediaan membuka tautan, dan kemampuan menandai tanda tangan di layar
+ * kecil. Di lapangan ketiganya tidak selalu ada — nomor yang tidak aktif lagi,
+ * agent yang mengirimkan foto KTP-nya lewat WhatsApp kepada Admin, atau
+ * berkasnya sudah tersimpan di map pendaftaran sejak lama. Tanpa jalan ini,
+ * orang-orang itu berhenti di "belum terdaftar" selamanya, dan fee mereka
+ * tidak pernah dapat dibayarkan.
+ *
+ * Yang TIDAK dilonggarkan:
+ *
+ *   1. Hasilnya tetap masuk sebagai pendaftaran yang harus diperiksa. Admin
+ *      yang mengunggah tidak sekaligus menyetujui; yang memutuskan tetap
+ *      pemeriksaan di layar yang sama dengan pendaftaran mandiri — dan
+ *      sebaiknya bukan orang yang sama.
+ *   2. Mengganti spesimen yang sudah berlaku tetap menuntut alasan tertulis,
+ *      persis seperti meminta revisi lewat tautan. Spesimen adalah pembanding
+ *      pembayaran orang itu; menggantinya tanpa jejak alasan adalah lubang
+ *      yang sama besarnya lewat jalan mana pun.
+ *   3. Foto KTP utuhnya tetap dihapus begitu putusannya diambil.
+ *
+ * Yang memang berbeda, dan dicatat apa adanya: persetujuan pemakaian data
+ * tidak datang dari orangnya lewat layar ini. Admin yang mengunggah menyatakan
+ * memegang berkas itu atas sepengetahuan yang bersangkutan, dan pernyataan itu
+ * tersimpan pada jejak audit beserta namanya — bukan dicatat seolah-olah
+ * orangnya sendiri yang menyetujui di layar.
+ */
+export async function unggahManual(
+  marketingId: string, aktor: string,
+  p: {
+    image_base64: string; content_type?: string; signature_png?: string;
+    alasan?: string; projectId?: string;
+  },
+) {
+  const mkt = await one(
+    "SELECT * FROM marketings WHERE id=$1 AND ($2::uuid IS NULL OR project_id=$2)",
+    [marketingId, p.projectId ?? null]);
+  if (!mkt) throw new WorkflowError("Marketing tidak ditemukan.", "not_found", 404);
+
+  const sudah = await one<{ n: number }>(
+    "SELECT COUNT(*)::int AS n FROM signature_specimens " +
+    "WHERE marketing_id=$1 AND NOT archived", [marketingId]);
+  const mengganti = (sudah?.n ?? 0) > 0;
+  if (mengganti && (!p.alasan || p.alasan.trim().length < 10)) {
+    throw new WorkflowError(
+      `${mkt.full_name} sudah punya ${sudah!.n} spesimen yang berlaku. ` +
+      "Untuk menggantinya, tuliskan alasannya minimal 10 karakter.",
+      "reason_required", 422);
+  }
+
+  const { buf, tipe } = periksaKtp(p);
+
+  // Tautan yang masih hidup dimatikan. Membiarkannya berarti orangnya masih
+  // dapat mengirim spesimen kedua sesudah yang ini diunggah, dan dua set
+  // menunggu pemeriksaan untuk satu orang — yang belakangan diam-diam menimpa.
+  await query(
+    "UPDATE enrollment_sessions SET state='expired' WHERE marketing_id=$1 " +
+    "AND state IN ('sent','opened','capturing')", [marketingId]);
+
+  const setId = (await one<{ id: string }>("SELECT gen_random_uuid() AS id"))!.id;
+  // Tokennya tidak pernah dikirim ke mana pun dan sesinya lahir dalam keadaan
+  // 'submitted', sehingga bukaSesi() menolaknya: baris ini wadah berkas dan
+  // jejak, bukan tautan yang dapat dibuka siapa pun.
+  const token = randomBytes(32).toString("base64url");
+  await query(
+    `INSERT INTO enrollment_sessions (token, marketing_id, set_id, otp_verified,
+       captured, target, state, issued_by, revision_reason, ktp_image,
+       ktp_content_type, ktp_signature_png, ktp_at, expires_at)
+     VALUES ($1,$2,$3,TRUE,1,1,'submitted',$4,$5,$6,$7,$8, now(), now())`,
+    [token, marketingId, setId, aktor,
+     mengganti ? p.alasan!.trim() : null, buf, tipe, p.signature_png]);
+
+  await query(
+    `INSERT INTO signature_specimens (marketing_id, set_id, sequence, image_png,
+       strokes, input_method)
+     VALUES ($1,$2,1,$3,NULL,'ktp')`,
+    [marketingId, setId, p.signature_png]);
+
+  await query("UPDATE marketings SET status='pending_review' WHERE id=$1 " +
+              "AND status IN ('draft','rejected')", [marketingId]);
+
+  await audit({
+    entityType: "marketing", entityId: marketingId,
+    action: "enrollment_manual_uploaded", actor: aktor,
+    reason: mengganti ? p.alasan!.trim() : undefined,
+    after: { set_id: setId, size_bytes: buf.length, content_type: tipe,
+             mengganti, sumber: "unggahan admin",
+             persetujuan: "dinyatakan Admin yang mengunggah, bukan dari layar " +
+                          "pendaftaran" },
+  });
+
+  return { set_id: setId, marketing_id: marketingId, mengganti };
 }
 
 /**

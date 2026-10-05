@@ -16,7 +16,8 @@ import { WorkflowError } from "../src/lib/workflow";
 import { applyRate, ratio, rupiahWords, terbilang } from "../src/lib/money";
 import { collect, preview } from "../src/lib/report";
 import { KATEGORI_JENIS, kategoriAwal } from "../src/lib/kategori";
-import { hapusMarketing, tambahMarketing } from "../src/lib/spesimen";
+import { hapusMarketing, putuskanSet, tambahMarketing, unggahManual }
+  from "../src/lib/spesimen";
 import { rekapOverriding } from "../src/lib/overriding";
 import { penandatanganRekap } from "../src/lib/penandatangan";
 import { skemaXlsx } from "../src/lib/memo-xlsx";
@@ -562,6 +563,91 @@ async function main() {
     assert(!calc.dapatDiklaim(
       { ...tanpaKoordinator, status: "cancelled" }, "overriding", false),
       "unit batal seharusnya tetap menahan");
+  });
+
+  await check("spesimen dapat diunggah Admin tanpa tautan pendaftaran",
+              async () => {
+    // Tautan menuntut ponsel yang menerima kode, kesediaan membukanya, dan
+    // kemampuan menandai tanda tangan di layar kecil. Yang tidak punya
+    // ketiganya dulu berhenti di "belum terdaftar" selamanya, dan feenya tidak
+    // pernah dapat dibayarkan.
+    const p = await one<{ id: string }>(
+      "SELECT id FROM projects ORDER BY created_at LIMIT 1");
+    const orang = await tambahMarketing({
+      nama: "Tuti Unggah Manual", kategori: "markom",
+      telepon: "0813-9999-0001",
+    }, "admin", p!.id);
+
+    // Satu piksel PNG, cukup untuk dua hal yang diuji di sini: bahwa
+    // berkasnya tersimpan, dan bahwa potongannya menjadi spesimen.
+    const png = "data:image/png;base64," + signaturePng(7, 0.06);
+
+    const hasil = await unggahManual(orang.id, "admin", {
+      image_base64: png, signature_png: png, projectId: p!.id });
+    assert(!hasil.mengganti, "yang pertama bukan penggantian");
+
+    // Hasilnya menunggu pemeriksaan — mengunggah bukan menyetujui.
+    const stt = await one<{ status: string }>(
+      "SELECT status FROM marketings WHERE id=$1", [orang.id]);
+    assert(stt!.status === "pending_review", stt!.status);
+    const sesi = await one<{ state: string; ada: boolean; issued_by: string }>(
+      `SELECT state, (ktp_image IS NOT NULL) AS ada, issued_by
+         FROM enrollment_sessions WHERE set_id=$1`, [hasil.set_id]);
+    assert(sesi!.state === "submitted", sesi!.state);
+    assert(sesi!.ada, "foto KTP utuh disimpan sampai putusannya diambil");
+    // Jejaknya menyebut siapa yang mengunggah, bukan orang yang didaftarkan:
+    // persetujuan pada jalur ini datang dari Admin, dan itu ditulis apa adanya.
+    assert(sesi!.issued_by === "admin", sesi!.issued_by);
+
+    // Tokennya tidak dapat dibuka sebagai tautan pendaftaran: sesinya lahir
+    // dalam keadaan 'submitted', jadi bukaSesi menolaknya.
+    const tok = await one<{ token: string }>(
+      "SELECT token FROM enrollment_sessions WHERE set_id=$1", [hasil.set_id]);
+    const { bukaSesi } = await import("../src/lib/spesimen");
+    let tertutup: any = null;
+    try { await bukaSesi(tok!.token); } catch (e: any) { tertutup = e; }
+    assert(tertutup?.code === "session_closed",
+           `tautannya seharusnya tertutup, bukan ${tertutup?.code}`);
+
+    // Disetujui: spesimennya menjadi jangkar, dan foto KTP utuhnya dihapus.
+    await putuskanSet(orang.id, hasil.set_id, "approve", "admin");
+    const aktif = await one<{ status: string; jangkar: string | null }>(
+      `SELECT status, reference_signature_png AS jangkar
+         FROM marketings WHERE id=$1`, [orang.id]);
+    assert(aktif!.status === "active", aktif!.status);
+    assert(Boolean(aktif!.jangkar), "potongan tanda tangannya menjadi jangkar");
+    const sesudah = await one<{ ada: boolean }>(
+      "SELECT (ktp_image IS NOT NULL) AS ada FROM enrollment_sessions WHERE set_id=$1",
+      [hasil.set_id]);
+    assert(!sesudah!.ada, "foto KTP utuh dihapus begitu diputus");
+
+    // Mengganti yang sudah berlaku tetap menuntut alasan tertulis — lubang
+    // yang sama besarnya lewat jalan mana pun.
+    let tanpaAlasan: any = null;
+    try {
+      await unggahManual(orang.id, "admin", {
+        image_base64: png, signature_png: png, projectId: p!.id });
+    } catch (e: any) { tanpaAlasan = e; }
+    assert(tanpaAlasan?.code === "reason_required",
+           `penggantian tanpa alasan seharusnya ditolak, bukan ${tanpaAlasan?.code}`);
+
+    const ganti = await unggahManual(orang.id, "admin", {
+      image_base64: png, signature_png: png, projectId: p!.id,
+      alasan: "KTP diperbarui, fotonya dikirim lewat WhatsApp." });
+    assert(ganti.mengganti, "yang kedua tercatat sebagai penggantian");
+
+    // Berkas yang bukan gambar ditolak pada jalur ini juga: aturan yang hanya
+    // berlaku pada salah satu jalur bukan aturan, melainkan saran.
+    let salahTipe: any = null;
+    try {
+      await unggahManual(orang.id, "admin", {
+        image_base64: "data:application/pdf;base64,JVBERi0=", signature_png: png,
+        projectId: p!.id, alasan: "Mencoba berkas yang bukan gambar." });
+    } catch (e: any) { salahTipe = e; }
+    assert(salahTipe?.code === "file_type_rejected",
+           `berkas bukan gambar seharusnya ditolak, bukan ${salahTipe?.code}`);
+
+    await hapusMarketing(orang.id, "admin", p!.id);
   });
 
   await check("marketing salah input dapat dihapus, yang terpakai tidak",

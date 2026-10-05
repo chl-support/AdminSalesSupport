@@ -14,11 +14,12 @@
  * angka konsistensi saja.
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useBahasa, useKata } from "../bahasa";
 import { SEMUA_KATEGORI, namaKategori } from "@/lib/kategori";
 import { Kerangka, MemeriksaSesi } from "../kerangka";
+import { PenandaKtp, type PenandaKtpRef } from "../penanda-ktp";
 import { useSesi } from "../session";
 
 type Baris = {
@@ -115,6 +116,35 @@ const KATA = {
     nomorKosong:
       "Nomor telepon belum terisi. Isi nomornya pada kolom Marketing lebih dulu.",
     kirimTautan: "Kirim tautan pendaftaran",
+    unggahManual: "Unggah spesimen manual",
+    unggahJudul: (nama: string) => `Unggah spesimen — ${nama}`,
+    unggahBanner: "Untuk berkas yang sudah Anda pegang",
+    unggahBannerIsi:
+      "Dipakai saat fotonya diserahkan di luar sistem — lewat WhatsApp, surel, " +
+      "atau map pendaftaran — atau saat nomornya tidak lagi aktif sehingga " +
+      "tautan pendaftaran tidak sampai. Unggah foto KTP-nya, tandai tanda " +
+      "tangan yang tercetak, lalu kirim untuk diperiksa.",
+    unggahPeriksa:
+      "Hasilnya tetap menunggu pemeriksaan, sama seperti pendaftaran mandiri. " +
+      "Mengunggah tidak sekaligus menyetujui.",
+    unggahPdp:
+      "Dengan mengunggah, Anda menyatakan memegang berkas ini atas " +
+      "sepengetahuan yang bersangkutan. Pernyataan itu tercatat pada jejak " +
+      "audit beserta nama Anda. Foto KTP utuhnya dihapus begitu putusannya " +
+      "diambil — yang tersimpan hanya potongan tanda tangannya.",
+    unggahGanti: (nama: string) =>
+      `${nama} sudah punya spesimen yang berlaku`,
+    unggahGantiIsi:
+      "Spesimen adalah pembanding pembayaran orang ini, jadi penggantiannya " +
+      "menuntut alasan tertulis — sama seperti meminta revisi lewat tautan.",
+    unggahAlasan: "Alasan penggantian (minimal 10 karakter, tercatat)",
+    phUnggahAlasan: "mis. KTP lama sudah diperbarui, fotonya dikirim via WhatsApp.",
+    unggahKirim: "Kirim untuk diperiksa", unggahMengirim: "Mengirim…",
+    kUnggahSelesai: (nama: string) => `Spesimen ${nama} terunggah`,
+    kUnggahSelesaiIsi:
+      "Statusnya menjadi menunggu diperiksa. Buka \u201cPeriksa tanda " +
+      "tangan\u201d pada barisnya untuk memutuskan.",
+    kUnggahGagal: "Spesimen tidak dapat diunggah",
     takAdaMarketing: "Tidak ada marketing pada penyaringan ini.",
     massalJudul: "Minta revisi spesimen lama",
     massalBanner: (n: number) =>
@@ -261,6 +291,34 @@ const KATA = {
     nomorKosong:
       "The phone number is empty. Fill it in under the Marketing column first.",
     kirimTautan: "Send registration link",
+    unggahManual: "Upload specimen manually",
+    unggahJudul: (nama: string) => `Upload specimen — ${nama}`,
+    unggahBanner: "For a file you already hold",
+    unggahBannerIsi:
+      "Use this when the photo arrived outside the system — WhatsApp, email, " +
+      "or a paper file — or when the phone number is no longer active so the " +
+      "registration link never arrives. Upload the ID card photo, mark the " +
+      "printed signature, then send it for review.",
+    unggahPeriksa:
+      "The result still waits for review, exactly like self-registration. " +
+      "Uploading is not approving.",
+    unggahPdp:
+      "By uploading, you state that you hold this file with the person's " +
+      "knowledge. That statement is recorded in the audit trail under your " +
+      "name. The full ID photo is deleted once the decision is made — only " +
+      "the signature crop is kept.",
+    unggahGanti: (nama: string) => `${nama} already has a valid specimen`,
+    unggahGantiIsi:
+      "A specimen is this person's payment reference, so replacing it needs a " +
+      "written reason — the same as requesting a revision by link.",
+    unggahAlasan: "Reason for the replacement (at least 10 characters, recorded)",
+    phUnggahAlasan: "e.g. The ID card was renewed; the photo came via WhatsApp.",
+    unggahKirim: "Send for review", unggahMengirim: "Sending…",
+    kUnggahSelesai: (nama: string) => `${nama}'s specimen uploaded`,
+    kUnggahSelesaiIsi:
+      "Their status becomes pending review. Open \u201cCheck signature\u201d " +
+      "on their row to decide.",
+    kUnggahGagal: "The specimen could not be uploaded",
     takAdaMarketing: "No marketing matches this filter.",
     massalJudul: "Request revision of old specimens",
     massalBanner: (n: number) =>
@@ -370,6 +428,17 @@ export default function SpesimenPage() {
    */
   /** Baris yang sedang ditanyakan penghapusannya. */
   const [hapus, setHapus] = useState<Baris | null>(null);
+  /**
+   * Unggahan spesimen manual: baris yang sedang diunggahkan berkasnya.
+   *
+   * Alatnya sama persis dengan yang dipakai agent pada tautan pendaftaran —
+   * satu komponen, dua layar — supaya potongan yang lahir dari sini dipotong
+   * dengan aturan yang sama dengan yang dipakai membandingkannya.
+   */
+  const [unggah, setUnggah] = useState<Baris | null>(null);
+  const [alasanUnggah, setAlasanUnggah] = useState("");
+  const [siapUnggah, setSiapUnggah] = useState(false);
+  const penanda = useRef<PenandaKtpRef>(null);
   const [tambah, setTambah] = useState<{
     full_name: string; category: string; marketing_type: string;
     phone: string; email: string; npwp: string;
@@ -423,6 +492,39 @@ export default function SpesimenPage() {
     } catch (e: any) {
       setKabar({ kind: "stop", html:
         `<b>${k.kTautanGagal}</b>${e.body?.detail ?? ""}` });
+    } finally { setBusy(false); }
+  };
+
+  /**
+   * Kirim berkas yang diunggah Admin sebagai pendaftaran yang menunggu periksa.
+   *
+   * Dua pemeriksaan dilakukan di sini hanya supaya kalimatnya terbaca lebih
+   * cepat daripada perjalanan ke server; server tetap memeriksa keduanya lagi,
+   * karena yang menolak sungguhan bukan layar.
+   */
+  const kirimUnggahan = async (b: Baris) => {
+    const berkas = penanda.current?.berkas();
+    const potongan = penanda.current?.potong() ?? null;
+    if (!berkas || !potongan) {
+      setKabar({ kind: "warn", html:
+        `<b>${k.kUnggahGagal}</b>${!berkas ? k.unggahBannerIsi : ""}` });
+      return;
+    }
+    setBusy(true); setKabar(null);
+    try {
+      await api(`/marketings/${b.id}/specimen-upload`, {
+        method: "POST",
+        body: JSON.stringify({
+          image_base64: berkas.dataUrl, content_type: berkas.tipe,
+          signature_png: potongan,
+          alasan: alasanUnggah.trim() || undefined }) });
+      setKabar({ kind: "ok", html:
+        `<b>${k.kUnggahSelesai(b.full_name)}</b>${k.kUnggahSelesaiIsi}` });
+      setUnggah(null); setAlasanUnggah(""); setSiapUnggah(false);
+      await muat();
+    } catch (e: any) {
+      setKabar({ kind: "stop", html:
+        `<b>${k.kUnggahGagal}</b>${e.body?.detail ?? ""}` });
     } finally { setBusy(false); }
   };
 
@@ -883,6 +985,26 @@ export default function SpesimenPage() {
                             pendaftaran", terbaca sebagai penghapus tautan itu
                             — padahal yang hilang adalah orangnya dari daftar
                             ini. */}
+                        {/* Unggah manual berdiri di antara keduanya: ia
+                            menggerakkan pendaftaran seperti tautan di atasnya,
+                            tetapi lewat jalan lain — berkas yang sudah dipegang
+                            Admin. Tidak ditawarkan selama ada set yang menunggu
+                            diperiksa: dua set menunggu untuk satu orang berarti
+                            putusan atas yang satu diam-diam menimpa yang lain.
+                            Yang perlu dilakukan lebih dulu adalah memutuskan
+                            yang sudah masuk. */}
+                        {b.sesi_state !== "submitted" && (
+                          <div className="unggah-baris">
+                            <button className="tautan" disabled={busy}
+                                    onClick={() => {
+                                      setUnggah(b); setAlasanUnggah("");
+                                      setSiapUnggah(false);
+                                    }}>
+                              {k.unggahManual}
+                            </button>
+                          </div>
+                        )}
+
                         <div className="hapus-baris">
                           <button className="tautan" disabled={busy}
                                   onClick={() => setHapus(b)}>
@@ -1035,6 +1157,79 @@ export default function SpesimenPage() {
                     </button>
                     <button disabled={busy}
                             onClick={() => setTambah(null)}>{k.batal}</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Pop-up unggah spesimen manual. Isinya sama dengan layar
+              pendaftaran agent — pemilih berkas, penanda tanda tangan, tombol
+              kirim — supaya yang memeriksanya nanti melihat potongan yang
+              dibuat dengan cara yang sama. */}
+          {unggah && (
+            <div className="tirai"
+                 onMouseDown={(e) => {
+                   if (e.target === e.currentTarget && !busy) setUnggah(null);
+                 }}>
+              <div className="popup lebar" role="dialog" aria-modal="true"
+                   style={{ maxWidth: 620 }}
+                   aria-label={k.unggahJudul(unggah.full_name)}>
+                <div className="popup-kepala">
+                  <h2>{k.unggahJudul(unggah.full_name)}</h2>
+                  <button className="tautan" aria-label={k.tutup}
+                          onClick={() => setUnggah(null)}>✕</button>
+                </div>
+
+                <div className="popup-isi">
+                  <div className="banner info">
+                    <b>{k.unggahBanner}</b>
+                    {k.unggahBannerIsi}
+                  </div>
+
+                  {/* Yang sudah punya spesimen berlaku: alasannya wajib, dan
+                      kotaknya berdiri sebelum berkasnya dipilih — supaya yang
+                      menggantinya tahu syaratnya sebelum mengunggah, bukan
+                      sesudah tombol kirim ditekan. */}
+                  {unggah.spesimen > 0 && (
+                    <>
+                      <div className="banner warn">
+                        <b>{k.unggahGanti(unggah.full_name)}</b>
+                        {k.unggahGantiIsi}
+                      </div>
+                      <div className="lbl">{k.unggahAlasan}</div>
+                      <textarea value={alasanUnggah}
+                                placeholder={k.phUnggahAlasan}
+                                style={{ width: "100%", minHeight: 62 }}
+                                onChange={(e) => setAlasanUnggah(e.target.value)} />
+                    </>
+                  )}
+
+                  <PenandaKtp ref={penanda} busy={busy}
+                              onBerubah={setSiapUnggah}
+                              onTolak={(judul, kalimat) => setKabar(
+                                { kind: "stop",
+                                  html: `<b>${judul}</b>${kalimat}` })} />
+
+                  <p className="hint" style={{ textAlign: "left", marginTop: 10 }}>
+                    {k.unggahPeriksa}
+                  </p>
+                  <p className="hint" style={{ textAlign: "left", marginTop: 6 }}>
+                    {k.unggahPdp}
+                  </p>
+                </div>
+
+                <div className="popup-kaki">
+                  <div className="row">
+                    <button className="pri"
+                            disabled={busy || !siapUnggah
+                                      || (unggah.spesimen > 0
+                                          && alasanUnggah.trim().length < 10)}
+                            onClick={() => void kirimUnggahan(unggah)}>
+                      {busy ? k.unggahMengirim : k.unggahKirim}
+                    </button>
+                    <button disabled={busy}
+                            onClick={() => setUnggah(null)}>{k.batal}</button>
                   </div>
                 </div>
               </div>
