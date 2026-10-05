@@ -4,7 +4,7 @@
  * Layar yang menunya sudah ada tetapi isinya belum dibuat.
  *
  * Empat menu baru — Memo Approval, Sirkulasi Dokumen, Approval / Persetujuan,
- * dan Report / Laporan — disusun lebih dulu supaya urutan menunya sudah benar
+ * dan Monitoring Laporan — disusun lebih dulu supaya urutan menunya sudah benar
  * sejak sekarang. Tanpa layar di ujungnya, menekan menu itu berakhir pada
  * halaman 404 bawaan Next.js: layar yang tidak memakai kerangka konsol, tidak
  * berbahasa Indonesia, dan terbaca seperti sistemnya rusak.

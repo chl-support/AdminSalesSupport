@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Report / Laporan — Closing Fee, Reward, Komisi & Overiding.
+ * Monitoring Laporan — Closing Fee, Reward, Komisi & Overiding.
  *
  * Sebelumnya layar ini memuat tiga laporan: Laporan Master, rekap pembayaran
  * per periode, dan rekonsiliasi bank. Ketiganya dihapus atas permintaan yang
@@ -37,7 +37,7 @@ import { KEPALA, KOLOM_ANGKA, KOLOM_PERSEN, KOLOM_TERAKHIR, LEBAR }
 
 const KATA = {
   id: {
-    judul: "Report / Laporan",
+    judul: "Monitoring Laporan",
     galat: "Laporan tidak dapat dibaca",
     masterJudul: "CLOSING FEE, REWARD, KOMISI & OVERIDING",
     masterUnduh: "Unduh Laporan (.xlsx)",

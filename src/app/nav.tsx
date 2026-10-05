@@ -76,7 +76,7 @@ const MENU: Butir[] = [
     label: { id: "Manajemen Alur Kerja Dokumen",
              en: "Document Workflow Management" } },
   { href: "/laporan",
-    label: { id: "Report / Laporan", en: "Marketing Report" } },
+    label: { id: "Monitoring Laporan", en: "Marketing Report" } },
   // Administrasi sempat hilang dari menu saat susunannya ditata ulang, padahal
   // layarnya tetap ada: unggah Laporan Penjualan, Laporan Penerimaan, dan
   // Report Agent semuanya di sana. Butir yang hilang membuat satu-satunya jalan
