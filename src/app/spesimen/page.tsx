@@ -25,7 +25,8 @@ import { useSesi } from "../session";
 type Baris = {
   id: string; full_name: string; marketing_type: string; status: string;
   category: string | null;
-  phone: string | null; agency_name: string | null; spesimen: number;
+  phone: string | null; email: string | null;
+  agency_name: string | null; spesimen: number;
   spesimen_lama: number;
   baseline_specimen_set_id: string | null;
   punya_ktp: boolean; reference_signature_source: string | null;
@@ -68,11 +69,13 @@ const KATA = {
     fMenunggu: "Menunggu diperiksa", fAktif: "Sudah aktif",
     muatUlang: "Muat ulang",
     mintaRevisiLama: (n: number) => `Minta revisi ${n} spesimen lama`,
-    thMarketing: "Marketing", thStatus: "Status",
+    thMarketing: "Marketing", thHp: "No. HP", thEmail: "Email",
+    thStatus: "Status",
     thJangkar: "Jangkar KTP",
     thTindakan: "Tindakan",
     belumTerdaftar: "belum terdaftar", ditolak: "ditolak",
     ubahNomor: "Ubah nomor telepon", tanpaNomor: "tanpa nomor telepon",
+    tanpaEmail: "belum ada",
     phNomor: "08xxxxxxxxxx", simpan: "Simpan", batal: "Batal",
     ubahKategori: "Ubah kategori penerima fee",
     hapus: "Hapus data marketing",
@@ -242,11 +245,13 @@ const KATA = {
     fMenunggu: "Awaiting review", fAktif: "Active",
     muatUlang: "Reload",
     mintaRevisiLama: (n: number) => `Request revision of ${n} old specimens`,
-    thMarketing: "Marketing", thStatus: "Status",
+    thMarketing: "Marketing", thHp: "Phone", thEmail: "Email",
+    thStatus: "Status",
     thJangkar: "ID card anchor",
     thTindakan: "Action",
     belumTerdaftar: "not registered", ditolak: "rejected",
     ubahNomor: "Change phone number", tanpaNomor: "no phone number",
+    tanpaEmail: "none yet",
     phNomor: "08xxxxxxxxxx", simpan: "Save", batal: "Cancel",
     ubahKategori: "Change fee recipient category",
     hapus: "Delete this marketing record",
@@ -742,6 +747,14 @@ export default function SpesimenPage() {
                 <tbody>
                   <tr>
                     <th>{k.thMarketing}</th>
+                    {/* Nomor telepon dan surel berdiri di kolomnya sendiri.
+                        Sebelumnya keduanya terselip di baris kecil di bawah
+                        nama, berdempetan dengan jenis marketing, kantornya,
+                        dan pemilih kategori — lima hal pada satu kolom, dan
+                        yang mencari satu nomor harus membaca keempat yang
+                        lain lebih dulu. */}
+                    <th className="sel-hp">{k.thHp}</th>
+                    <th className="sel-surel">{k.thEmail}</th>
                     <th>{k.thJangkar}</th>
                     {/* Satu kolom keadaan, bukan dua. Sebelumnya pil mentah
                         basis data (draft / active / pending_review) berdiri di
@@ -774,15 +787,12 @@ export default function SpesimenPage() {
                           {b.agency_name ? ` · ${b.agency_name}` : ""}
                           {" · "}
                           {/* Kategori penerima fee, disunting di tempat ia
-                              tertulis — sebagaimana nomor teleponnya di
-                              sebelahnya. Tanpa jalan mengubahnya di sini,
-                              Markom dan Sales Manager tidak akan pernah ada:
-                              berkas penjualan hanya mengenal agent dan
-                              inhouse. */}
+                              tertulis. Tanpa jalan mengubahnya di sini, Markom
+                              dan Sales Manager tidak akan pernah ada: berkas
+                              penjualan hanya mengenal agent dan inhouse. */}
                           <select value={b.category ?? "sales_inhouse"}
                                   title={k.ubahKategori} disabled={busy}
-                                  style={{ fontSize: 11, padding: "1px 4px",
-                                           marginRight: 4 }}
+                                  style={{ fontSize: 11, padding: "1px 4px" }}
                                   onChange={(e) =>
                                     void simpanKategori(b, e.target.value)}>
                             {SEMUA_KATEGORI.map((kd) => (
@@ -791,22 +801,24 @@ export default function SpesimenPage() {
                               </option>
                             ))}
                           </select>
-                          {/* Nomornya disunting di tempat ia tertulis. Ke nomor
-                              inilah kode verifikasi pendaftaran dikirim, dan
-                              data yang masuk dari berkas penjualan kerap belum
-                              memuatnya — tanpa jalan memperbaikinya di sini,
-                              barisnya buntu. */}
-                          <button type="button" className="tautan"
-                                  style={{ color: "inherit", fontWeight: 500 }}
-                                  title={k.ubahNomor}
-                                  onClick={() => { setNomor(b.id); setNomorBaru(b.phone ?? ""); }}>
-                            {b.phone || k.tanpaNomor}
-                          </button>
                         </span>
+                      </td>
+                      {/* Nomornya tetap disunting di tempat ia tertulis. Ke
+                          nomor inilah kode verifikasi pendaftaran dikirim, dan
+                          data yang masuk dari berkas penjualan kerap belum
+                          memuatnya — tanpa jalan memperbaikinya di sini,
+                          barisnya buntu. */}
+                      <td className="sel-hp">
+                        <button type="button" className="tautan"
+                                style={{ color: "inherit", fontWeight: 500 }}
+                                title={k.ubahNomor}
+                                onClick={() => { setNomor(b.id); setNomorBaru(b.phone ?? ""); }}>
+                          {b.phone || k.tanpaNomor}
+                        </button>
                         {nomor === b.id && (
                           <div className="row" style={{ marginTop: 6, marginBottom: 0 }}>
                             <input value={nomorBaru} autoFocus inputMode="tel"
-                                   placeholder={k.phNomor} style={{ width: 150 }}
+                                   placeholder={k.phNomor} style={{ width: 140 }}
                                    onChange={(e) => setNomorBaru(e.target.value)} />
                             <button className="pri" disabled={busy}
                                     onClick={() => void simpanNomor(b)}>{k.simpan}</button>
@@ -814,6 +826,16 @@ export default function SpesimenPage() {
                               {k.batal}
                             </button>
                           </div>
+                        )}
+                      </td>
+                      {/* Surel dibaca saja di sini. Ia tidak dipakai jalur
+                          pendaftaran mana pun — kode verifikasi berjalan lewat
+                          nomor telepon — jadi menyediakan penyuntingnya di
+                          layar ini berarti satu tempat lagi yang dapat
+                          berbeda dari Data Marketing tanpa ada yang tahu. */}
+                      <td className="sel-surel">
+                        {b.email || (
+                          <span style={{ color: "var(--mut)" }}>{k.tanpaEmail}</span>
                         )}
                       </td>
                       <td>
@@ -986,14 +1008,22 @@ export default function SpesimenPage() {
                                    Yang tertinggal terpilih sesudah dijalankan
                                    akan terbaca sebagai sesuatu yang sedang
                                    berlaku pada baris itu. */
-                                <select className="menu-tindakan" value=""
+                                <select className="menu-tindakan bayang" value=""
                                         disabled={busy} title={k.menuTindakan}
                                         onChange={(e) => {
                                           const v = e.target.value;
                                           e.target.value = "";
                                           if (v) jalankan(v);
                                         }}>
-                                  <option value="">{k.menuTindakan}</option>
+                                  {/* Judulnya bukan pilihan: ia tulisan bayang
+                                      pada kotaknya, sebagaimana placeholder
+                                      pada kotak isian. `hidden` membuangnya
+                                      dari daftar yang terbuka, `disabled`
+                                      menjaganya tetap tak terpilih pada
+                                      peramban yang mengabaikan `hidden`. */}
+                                  <option value="" disabled hidden>
+                                    {k.menuTindakan}
+                                  </option>
                                   {pilihan.map((o) => (
                                     <option key={o.nilai} value={o.nilai}>
                                       {o.label}
@@ -1034,7 +1064,7 @@ export default function SpesimenPage() {
 
                   {!terlihat.length && (
                     <tr>
-                      <td colSpan={4} style={{ color: "var(--mut)" }}>
+                      <td colSpan={6} style={{ color: "var(--mut)" }}>
                         {k.takAdaMarketing}
                       </td>
                     </tr>

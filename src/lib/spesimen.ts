@@ -436,6 +436,11 @@ export async function daftarPerKategori(projectId: string) {
 export async function daftarMarketing(projectId: string) {
   return query(
     `SELECT m.id, m.full_name, m.marketing_type, m.category, m.status, m.phone,
+            -- Surel ikut terbaca: layar Spesimen memberinya kolom sendiri, di
+            -- samping nomor teleponnya. Keduanya jalan menghubungi orang yang
+            -- sama, dan mencarinya di layar lain untuk satu alamat bukan
+            -- pekerjaan yang pantas diulang tiap kali.
+            m.email,
             a.name AS agency_name,
             COUNT(s.id) FILTER (WHERE NOT s.archived)::int AS spesimen,
             -- Spesimen lama berasal dari perekaman di layar; yang sekarang dari

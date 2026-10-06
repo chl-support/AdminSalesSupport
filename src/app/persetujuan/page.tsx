@@ -42,6 +42,7 @@ import { LANGKAH, keadaanLangkah, sebutanLangkah, warnaLangkah }
 import { BATAS_FULL_SIGN, periksaUkuran, perluDipecah, titipBerkas }
   from "../memo/kirim";
 import { PilihBerkas } from "../pilih-berkas";
+import { KodeQr } from "../kode-qr";
 
 const rp = (n?: number | null) => `Rp ${(n ?? 0).toLocaleString("id-ID")}`;
 const tgl = (v?: string | null) => (v ? String(v).slice(0, 10) : "—");
@@ -235,6 +236,9 @@ const KATA = {
     waBukaWa: "Buka WhatsApp", waSalin: "Salin tautan",
     waTersalin: "Tautan tersalin.",
     waKode: "Kode verifikasi:",
+    waQr: "Pindai untuk membuka tautan",
+    waQrGagal:
+      "Kode QR tidak dapat dibuat di peramban ini. Pakai alamat tautan di atas.",
     waKodeCatatan: "Sampaikan kode lewat jalur terpisah dari tautannya.",
     waGagal: "Tautan tidak dapat diterbitkan",
     waJudul: "Tautan tanda tangan untuk Sales/Agent",
@@ -388,6 +392,9 @@ const KATA = {
     waBukaWa: "Open WhatsApp", waSalin: "Copy the link",
     waTersalin: "Link copied.",
     waKode: "Verification code:",
+    waQr: "Scan to open the link",
+    waQrGagal:
+      "The QR code could not be drawn in this browser. Use the link address above.",
     waKodeCatatan: "Give the code through a channel separate from the link.",
     waGagal: "The link could not be issued",
     waJudul: "Signature link for the Sales/Agent",
@@ -2435,6 +2442,13 @@ export default function PersetujuanPage() {
                   setKabar(k.waTersalin);
                 }}>{k.waSalin}</button>
               </div>
+
+              {/* QR berdiri tepat di atas kode verifikasi: ia jalan menuju
+                  tautannya, dan kode verifikasi adalah hal lain yang sengaja
+                  disampaikan lewat jalur terpisah. Menaruhnya di bawah kode
+                  membuat keduanya terbaca sebagai satu hal. */}
+              <KodeQr nilai={alamat} keterangan={k.waQr}
+                      gagalTeks={k.waQrGagal} />
 
               <div style={{ fontSize: 12.5 }}>
                 {k.waKode} <b>{t.otp_demo}</b>
