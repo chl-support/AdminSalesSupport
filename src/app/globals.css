@@ -1426,12 +1426,18 @@ button.hapus-klaim:hover:not(:disabled) {
    menerima berkas, yang kanan memperlihatkan yang baru saja masuk. Pada
    layar sempit keduanya bertumpuk: dua kotak selebar setengah telepon
    genggam tidak menyisakan ruang untuk melihat apa pun. */
-.seret-dua { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-/* Tingginya ditetapkan, bukan sekadar batas terendah: gambar memo
-   membawa ukurannya sendiri, dan petak yang boleh memanjang akan
-   diregangkannya sampai setinggi gambar aslinya. */
-.seret-dua > * { height: 220px; }
-@media (max-width: 760px) { .seret-dua { grid-template-columns: 1fr; } }
+.seret-dua { display: grid; grid-template-columns: 1fr; gap: 12px; }
+/* Selama belum ada yang dipratinjau, kotak unggahnya berdiri sendirian dan
+   serendah isinya — tidak ada kotak kosong yang menemaninya, dan tidak ada
+   tinggi yang dipaksakan untuk menyamai kotak yang belum ada. */
+.seret-dua.dua { grid-template-columns: 1fr 1fr; }
+/* Begitu pratinjaunya terbuka, tingginya ditetapkan — bukan sekadar batas
+   terendah: gambar memo membawa ukurannya sendiri, dan petak yang boleh
+   memanjang akan diregangkannya sampai setinggi gambar aslinya. */
+.seret-dua.dua > * { height: 220px; }
+@media (max-width: 760px) {
+  .seret-dua.dua { grid-template-columns: 1fr; }
+}
 
 /* Kotak pratinjau. Isinya menempati seluruh tinggi kotak, dan nama berkasnya
    berdiri sebagai kaki — di sanalah ia terbaca sebagai keterangan atas
@@ -1455,13 +1461,22 @@ button.hapus-klaim:hover:not(:disabled) {
 .pratinjau-kosong span { font-size: 11.5px; color: var(--mut); }
 .pratinjau-kosong a { font-size: 12px; font-weight: 600; }
 .nama-pratinjau {
-  padding: 6px 10px; border-top: 1px solid var(--line); font-size: 11.5px;
-  color: var(--sub); overflow: hidden; text-overflow: ellipsis;
+  display: flex; align-items: center; gap: 8px; padding: 5px 6px 5px 10px;
+  border-top: 1px solid var(--line); font-size: 11.5px; color: var(--sub);
+}
+.nama-pratinjau > span {
+  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis;
   white-space: nowrap;
 }
+.tutup-pratinjau {
+  flex: none; display: inline-flex; padding: 3px; border: 0; background: none;
+  color: var(--mut); cursor: pointer; border-radius: var(--lengkung);
+}
+.tutup-pratinjau svg { width: 14px; height: 14px; }
+.tutup-pratinjau:hover { background: var(--fill); color: var(--ink); }
 /* Di dalam pasangan itu kotak unggahnya menjadi tinggi, dan isinya berdiri
    di tengah — menempel di atas, ia terbaca sebagai kotak yang gagal terisi. */
-.seret-dua .kotak-seret { justify-content: center; }
+.seret-dua.dua .kotak-seret { justify-content: center; }
 
 .kotak-seret {
   display: flex; flex-direction: column; align-items: center; gap: 5px;

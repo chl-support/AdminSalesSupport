@@ -56,7 +56,7 @@ const KATA = {
     unggahJudul: "Lampirkan Memo",
     seret: "Unggah Referensi Memo",
     pilih: "Pilih File",
-    pratinjauKosong: "Pratinjau Dokumen",
+    pratinjauTutup: "Tutup pratinjau",
     pratinjauTakBisa: "Berkas ini tidak dapat ditampilkan di layar.",
     pratinjauBuka: "Buka di tab baru",
     membaca: (n: string) => `Membaca ${n}…`,
@@ -149,7 +149,7 @@ const KATA = {
     unggahJudul: "Attach memo",
     seret: "Upload memo reference",
     pilih: "Choose files",
-    pratinjauKosong: "Document Preview",
+    pratinjauTutup: "Close preview",
     pratinjauTakBisa: "This file cannot be displayed on screen.",
     pratinjauBuka: "Open in a new tab",
     membaca: (n: string) => `Reading ${n}…`,
@@ -631,7 +631,7 @@ export default function ReferensiPengajuanPage() {
             memperlihatkan apa yang baru saja masuk. Berdampingan, bukan
             bertumpuk — yang menyeret berkas kedua perlu melihat kotak
             unggahnya dan hasil seretan pertamanya pada saat yang sama. */}
-        <div className="seret-dua">
+        <div className={`seret-dua${pratinjau ? " dua" : ""}`}>
         {/* Seret-dan-lepas, dan tetap ada tombolnya: yang memakai papan ketik
             atau pembaca layar tidak dapat menyeret apa pun. */}
         <label className={`kotak-seret${seret ? " aktif" : ""}`}
@@ -673,42 +673,50 @@ export default function ReferensiPengajuanPage() {
                  }} />
         </label>
 
-        {/* Pratinjaunya dipilih menurut jenis berkasnya, bukan dipaksakan
+        {/* Kotak pratinjau ada hanya selama ada yang dipratinjau. Kotak
+            kosong bertuliskan "Pratinjau Dokumen" memakan separuh kepala
+            layar untuk mengabarkan bahwa belum ada apa-apa — dan selama
+            belum ada apa-apa, yang dibutuhkan di sana justru kotak
+            unggahnya, selebar-lebarnya. Ia terbuka sendiri begitu berkas
+            pertama masuk, dan ditutup kembali dengan tombol di kakinya.
+
+            Pratinjaunya dipilih menurut jenis berkasnya, bukan dipaksakan
             satu cara untuk semuanya: gambar dilukis apa adanya, PDF dibuka
             pembaca bawaan peramban, dan Excel maupun Word tidak dapat
             dilukis peramban mana pun — yang ditawarkan di sana karena itu
             jalan membukanya, bukan kotak kosong tanpa penjelasan. */}
-        <div className="kotak-pratinjau">
-          {!pratinjau ? (
-            <div className="pratinjau-kosong">
-              <svg viewBox="0 0 24 24" aria-hidden="true" fill="none"
-                   stroke="currentColor" strokeWidth="1.5"
-                   strokeLinecap="round" strokeLinejoin="round">
-                <path d="M14 3v5h5" />
-                <path d="M19 9v10a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1
-                         2-2h6z" />
-              </svg>
-              <b>{k.pratinjauKosong}</b>
+        {pratinjau && (
+          <div className="kotak-pratinjau">
+            {pratinjau.jenis.startsWith("image/") ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={pratinjau.url} alt={pratinjau.nama} />
+            ) : pratinjau.jenis === "application/pdf" ? (
+              <iframe src={pratinjau.url} title={pratinjau.nama} />
+            ) : (
+              <div className="pratinjau-kosong">
+                <span>{k.pratinjauTakBisa}</span>
+                <a href={pratinjau.url} target="_blank" rel="noreferrer">
+                  {k.pratinjauBuka}
+                </a>
+              </div>
+            )}
+            <div className="nama-pratinjau">
+              <span title={pratinjau.nama}>{pratinjau.nama}</span>
+              {/* Menutupnya sekaligus mencabut URL obyeknya, lewat pembersih
+                  useEffect di atas — jadi yang menutup pratinjau juga
+                  melepaskan isi berkasnya dari memori. */}
+              <button type="button" className="tutup-pratinjau"
+                      title={k.pratinjauTutup} aria-label={k.pratinjauTutup}
+                      onClick={() => setPratinjau(null)}>
+                <svg viewBox="0 0 24 24" aria-hidden="true" fill="none"
+                     stroke="currentColor" strokeWidth="2"
+                     strokeLinecap="round">
+                  <path d="M18 6 6 18" /><path d="m6 6 12 12" />
+                </svg>
+              </button>
             </div>
-          ) : pratinjau.jenis.startsWith("image/") ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={pratinjau.url} alt={pratinjau.nama} />
-          ) : pratinjau.jenis === "application/pdf" ? (
-            <iframe src={pratinjau.url} title={pratinjau.nama} />
-          ) : (
-            <div className="pratinjau-kosong">
-              <span>{k.pratinjauTakBisa}</span>
-              <a href={pratinjau.url} target="_blank" rel="noreferrer">
-                {k.pratinjauBuka}
-              </a>
-            </div>
-          )}
-          {pratinjau && (
-            <div className="nama-pratinjau" title={pratinjau.nama}>
-              {pratinjau.nama}
-            </div>
-          )}
-        </div>
+          </div>
+        )}
         </div>
         {kemajuan && <p className="hint" style={{ textAlign: "left" }}>
           {kemajuan}
