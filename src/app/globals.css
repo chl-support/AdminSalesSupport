@@ -1116,6 +1116,19 @@ ul.cetak-ceklis .kotak { border: 1px solid var(--ink); width: 14px; height: 14px
    seperti mereka: ia satu-satunya di kolom ini yang tidak dapat dibatalkan.
    Tepinya pudar dan tulisannya kelabu sampai disentuh, lalu keduanya menjadi
    merah — cukup untuk dikenali, tidak cukup untuk ditekan sambil lalu. */
+/* Menu tindakan pendaftaran. Setinggi tombol di sebelahnya dan selebar isinya,
+   supaya ia terbaca sebagai satu tindakan yang menunggu dipilih — bukan sebagai
+   kolom isian yang menyimpan sesuatu. */
+select.menu-tindakan {
+  width: auto; font-size: 11.5px; font-weight: 650; padding: 4px 8px;
+}
+
+/* Sebab yang membuat sebuah pilihan tidak ditawarkan. Memakai selebar kolom
+   supaya kalimatnya tidak terjepit di samping tombol. */
+.sebab-tindakan {
+  flex-basis: 100%; font-size: 11.5px; color: var(--mut); margin-top: 2px;
+}
+
 button.hapus-marketing { color: var(--mut); border-color: var(--line); }
 button.hapus-marketing:hover:not(:disabled) {
   color: var(--stop); border-color: var(--stop);
