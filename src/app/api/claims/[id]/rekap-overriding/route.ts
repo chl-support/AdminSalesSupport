@@ -1,6 +1,6 @@
-import { handler, currentUser } from "@/lib/api";
+import { handler, jagaBukaDokumen } from "@/lib/api";
 import { rekapOverriding } from "@/lib/overriding";
-import { WorkflowError } from "@/lib/workflow";
+import { getClaim, WorkflowError } from "@/lib/workflow";
 
 /**
  * Rekap Overriding satu Sales Manager, sebagaimana dicetak.
@@ -12,7 +12,7 @@ import { WorkflowError } from "@/lib/workflow";
  */
 export const GET = handler(async (req, { params }) => {
   const { id } = await params;
-  await currentUser(req);
+  await jagaBukaDokumen(req, await getClaim(id));
   const rekap = await rekapOverriding(id);
   if (!rekap) {
     throw new WorkflowError(

@@ -32,7 +32,7 @@ import { Kerangka, MemeriksaSesi } from "../kerangka";
 import { useSesi } from "../session";
 import { namaJenis } from "../klaim/jenis";
 import { namaKategori } from "@/lib/kategori";
-import { TAHAP, bolehGerak, tahapDari } from "@/lib/tahap";
+import { TAHAP, bolehBukaDokumen, bolehGerak, tahapDari } from "@/lib/tahap";
 import { LANGKAH, keadaanLangkah, sebutanLangkah, warnaLangkah }
   from "@/lib/langkah";
 // Pemecah berkas yang sudah terbukti pada memo. Mekanismenya tidak
@@ -217,6 +217,9 @@ const KATA = {
     thStatus: "Status", thDokumen: "Tindakan",
     katInhouse: "Sales Inhouse", katAgent: "Agent",
     pratinjau: "Preview Dokumen",
+    pratinjauTertutup:
+      "Belum dikirim ke Pajak — dokumennya terbuka sendiri begitu Admin " +
+      "Sales meneruskannya ke verifikasi pajak.",
     kosong: "Belum ada pengajuan pada project ini.",
     memuat: "Memuat…",
     kabarJudul: "Dokumen sudah dikirim ke tim pajak",
@@ -367,6 +370,9 @@ const KATA = {
     thBersih: "Commission paid", thTglBayar: "Payment date",
     thStatus: "Status", thDokumen: "Action",
     pratinjau: "Review Document",
+    pratinjauTertutup:
+      "Not sent to Tax yet — it opens by itself once Admin Sales forwards it " +
+      "to tax verification.",
     kosong: "No submissions on this project yet.",
     memuat: "Loading…",
     kabarJudul: "Sent to the tax team",
@@ -1756,10 +1762,23 @@ export default function PersetujuanPage() {
                     diperiksa dan dicetak, dan mencetaknya dari dalam layar ini
                     berarti ikut mencetak menu dan seluruh tabelnya. */}
                 <td className="sel-tindakan">
-                  <button onClick={() => window.open(
+                  {/* Pajak baru dapat membukanya sesudah dokumennya dikirim
+                      kepadanya. Aturannya satu, di lib/tahap, dan ditegakkan
+                      juga oleh route handler-nya — tombol yang mati di sini
+                      bukan pagar, sebab alamatnya dapat diketik langsung.
+                      Yang mati disebutkan sebabnya: tombol mati tanpa
+                      keterangan terbaca sebagai layar yang rusak. */}
+                  <button
+                    disabled={!bolehBukaDokumen(sesi.role, c.status)}
+                    title={bolehBukaDokumen(sesi.role, c.status)
+                             ? undefined : k.pratinjauTertutup}
+                    onClick={() => window.open(
                             `/klaim/pratinjau?ids=${c.id}`, "_blank")}>
                     {k.pratinjau}
                   </button>
+                  {!bolehBukaDokumen(sesi.role, c.status) && (
+                    <div className="sebab-tindakan">{k.pratinjauTertutup}</div>
+                  )}
 
                   {/* Pengiriman tautan ke Sales/Agent, hanya untuk Admin Sales
                       — merekalah yang berhubungan dengan Sales/Agent, dan

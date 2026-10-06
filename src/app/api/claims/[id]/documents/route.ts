@@ -1,10 +1,11 @@
-import { handler, currentUser, body } from "@/lib/api";
+import { handler, currentUser, body, jagaBukaDokumen } from "@/lib/api";
 import { audit, one } from "@/lib/db";
 import { assertNotSealed, getClaim } from "@/lib/workflow";
 import { daftarLampiran, simpanLampiran } from "@/lib/lampiran";
 
-export const GET = handler(async (_req, { params }) => {
+export const GET = handler(async (req, { params }) => {
   const { id } = await params;
+  await jagaBukaDokumen(req, await getClaim(id));
   return { documents: await daftarLampiran(id) };
 });
 

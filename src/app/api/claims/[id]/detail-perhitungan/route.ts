@@ -1,6 +1,6 @@
-import { handler, currentUser } from "@/lib/api";
+import { handler, jagaBukaDokumen } from "@/lib/api";
 import { detailFee } from "@/lib/detail-fee";
-import { WorkflowError } from "@/lib/workflow";
+import { getClaim, WorkflowError } from "@/lib/workflow";
 
 /**
  * Detail Perhitungan satu klaim Closing Fee, Cash Reward, atau Komisi.
@@ -10,8 +10,8 @@ import { WorkflowError } from "@/lib/workflow";
  * tentu yang mengajukannya.
  */
 export const GET = handler(async (req, { params }) => {
-  await currentUser(req);
   const { id } = await params;
+  await jagaBukaDokumen(req, await getClaim(id));
   const detail = await detailFee(id);
   if (!detail) {
     throw new WorkflowError(

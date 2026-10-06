@@ -77,3 +77,33 @@ const BOLEH_GERAK = [
 ];
 
 export const bolehGerak = (status: string) => BOLEH_GERAK.includes(status);
+
+/**
+ * Status yang berarti dokumennya belum sampai ke meja Pajak.
+ *
+ * Pengajuan berjalan: dibuat (draft) → dikirim (submitted) → diperiksa Admin
+ * Sales (pending_admin_review) → baru kemudian diteruskan ke verifikasi pajak.
+ * Selama masih pada ketiga status pertama, belum ada yang menyerahkannya
+ * kepada Pajak.
+ */
+const BELUM_SAMPAI_PAJAK = ["draft", "submitted", "pending_admin_review"];
+
+/**
+ * Pajak baru boleh membuka dokumen sesudah dokumennya dikirim kepadanya.
+ *
+ * Selama masih disusun dan diperiksa Admin Sales, isinya belum tentu yang akan
+ * diverifikasi: nilai masih dapat berubah, lampiran masih dapat diganti,
+ * bahkan pengajuannya masih dapat dihapus karena salah input. Yang membuka
+ * dokumen pada keadaan itu membaca angka yang belum diserahkan kepada siapa
+ * pun — dan pertanyaan atasnya menjadi pekerjaan yang tidak perlu ada.
+ *
+ * Yang dijaga hanya peran Pajak. Admin Sales menyusunnya, dan finance_manager
+ * menaungi verifikasinya — keduanya memang perlu melihat sejak awal.
+ *
+ * Dipakai dua kali dengan maksud yang sama: layar Approval memakainya untuk
+ * mematikan tombol Preview Dokumen, dan route handler memakainya untuk menolak
+ * permintaannya. Tombol yang mati tanpa pagar di server bukan pagar.
+ */
+export function bolehBukaDokumen(role: string, status: string): boolean {
+  return role !== "finance_tax" || !BELUM_SAMPAI_PAJAK.includes(status);
+}

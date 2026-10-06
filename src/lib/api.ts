@@ -16,6 +16,7 @@ import { explainDbError, one, query } from "./db";
 import { COOKIE, userFromToken } from "./auth";
 import { WorkflowError } from "./workflow";
 import { ensureKolomMarketing } from "./kolom";
+import { bolehBukaDokumen } from "./tahap";
 
 export type User = {
   id: string; username: string; full_name: string; role: string;
@@ -71,6 +72,32 @@ export async function requireRole(
     throw new WorkflowError(
       `Peran '${user.role}' tidak berwenang. Diperlukan: ${roles.join(", ")}.`,
       "forbidden", 403);
+  }
+  return user;
+}
+
+/**
+ * Pajak baru boleh membuka dokumen sesudah dokumennya dikirim kepadanya.
+ *
+ * Aturannya sendiri ada di lib/tahap — satu tempat, dibaca juga oleh layar
+ * Approval untuk mematikan tombol Preview Dokumen. Yang di sini adalah
+ * pagarnya: tombol yang mati di layar bukan pagar, karena alamatnya dapat
+ * diketik langsung.
+ *
+ * Dipanggil dari tiap route yang menyerahkan isi dokumen — rincian klaim,
+ * daftar lampiran, berkas lampirannya, gabungan cetaknya, rekap Overriding,
+ * dan Detail Perhitungan. Yang luput satu saja membuat pagarnya tidak ada.
+ */
+export async function jagaBukaDokumen(
+  req: NextRequest, klaim: { status?: string | null; claim_number?: string | null },
+): Promise<User> {
+  const user = await currentUser(req);
+  if (!bolehBukaDokumen(user.role, String(klaim.status ?? ""))) {
+    throw new WorkflowError(
+      `Pengajuan ${klaim.claim_number ?? "ini"} belum dikirim ke Pajak, ` +
+      "jadi dokumennya belum dapat dibuka. Ia terbuka sendiri begitu Admin " +
+      "Sales meneruskannya ke verifikasi pajak.",
+      "belum_dikirim_ke_pajak", 403);
   }
   return user;
 }
