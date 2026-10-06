@@ -1403,6 +1403,47 @@ button.hapus-klaim:hover:not(:disabled) {
    Birunya diambil dari --note/--notebg yang sudah ada pada palet ini, bukan
    biru baru yang dibawa dari luar: satu warna tambahan yang hanya dipakai di
    satu kotak akan terbaca sebagai bagian dari sistem lain. */
+/* Kotak unggah dan kotak pratinjau berdampingan, sama besar. Yang kiri
+   menerima berkas, yang kanan memperlihatkan yang baru saja masuk. Pada
+   layar sempit keduanya bertumpuk: dua kotak selebar setengah telepon
+   genggam tidak menyisakan ruang untuk melihat apa pun. */
+.seret-dua { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+/* Tingginya ditetapkan, bukan sekadar batas terendah: gambar memo
+   membawa ukurannya sendiri, dan petak yang boleh memanjang akan
+   diregangkannya sampai setinggi gambar aslinya. */
+.seret-dua > * { height: 220px; }
+@media (max-width: 760px) { .seret-dua { grid-template-columns: 1fr; } }
+
+/* Kotak pratinjau. Isinya menempati seluruh tinggi kotak, dan nama berkasnya
+   berdiri sebagai kaki — di sanalah ia terbaca sebagai keterangan atas
+   gambar di atasnya, bukan sebagai judul kotaknya. */
+.kotak-pratinjau {
+  display: flex; flex-direction: column; overflow: hidden; background: #fff;
+  border: 1px solid var(--line); border-radius: var(--lengkung-besar);
+}
+.kotak-pratinjau img, .kotak-pratinjau iframe {
+  flex: 1; width: 100%; min-height: 0; border: 0; background: var(--fill);
+}
+/* Gambar dimuat utuh, tidak dipotong: memo yang terpotong tepinya tidak
+   dapat dipakai memeriksa apa pun. */
+.kotak-pratinjau img { object-fit: contain; }
+.pratinjau-kosong {
+  flex: 1; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 6px; padding: 12px; text-align: center;
+}
+.pratinjau-kosong svg { width: 26px; height: 26px; color: var(--mut); }
+.pratinjau-kosong b { font-size: 12.5px; color: var(--sub); }
+.pratinjau-kosong span { font-size: 11.5px; color: var(--mut); }
+.pratinjau-kosong a { font-size: 12px; font-weight: 600; }
+.nama-pratinjau {
+  padding: 6px 10px; border-top: 1px solid var(--line); font-size: 11.5px;
+  color: var(--sub); overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Di dalam pasangan itu kotak unggahnya menjadi tinggi, dan isinya berdiri
+   di tengah — menempel di atas, ia terbaca sebagai kotak yang gagal terisi. */
+.seret-dua .kotak-seret { justify-content: center; }
+
 .kotak-seret {
   display: flex; flex-direction: column; align-items: center; gap: 5px;
   padding: 11px 14px; text-align: center; cursor: pointer;

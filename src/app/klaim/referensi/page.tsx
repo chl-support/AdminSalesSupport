@@ -56,6 +56,9 @@ const KATA = {
     unggahJudul: "Lampirkan Memo",
     seret: "Unggah Referensi Memo",
     pilih: "Pilih File",
+    pratinjauKosong: "Pratinjau Dokumen",
+    pratinjauTakBisa: "Berkas ini tidak dapat ditampilkan di layar.",
+    pratinjauBuka: "Buka di tab baru",
     membaca: (n: string) => `Membaca ${n}…`,
     ocrSiap: "Menyiapkan pembaca tulisan…",
     ocrGambar: (h: number, d: number) => `Menggambar halaman ${h} dari ${d}…`,
@@ -146,6 +149,9 @@ const KATA = {
     unggahJudul: "Attach memo",
     seret: "Upload memo reference",
     pilih: "Choose files",
+    pratinjauKosong: "Document Preview",
+    pratinjauTakBisa: "This file cannot be displayed on screen.",
+    pratinjauBuka: "Open in a new tab",
     membaca: (n: string) => `Reading ${n}…`,
     ocrSiap: "Preparing the text reader…",
     ocrGambar: (h: number, d: number) => `Rendering page ${h} of ${d}…`,
@@ -309,6 +315,22 @@ export default function ReferensiPengajuanPage() {
   const [kabar, setKabar] = useState<string | null>(null);
   const [kemajuan, setKemajuan] = useState<string | null>(null);
   const [seret, setSeret] = useState(false);
+  /**
+   * Berkas terakhir yang masuk, ditahan untuk kotak pratinjau di sebelah
+   * kanan. Yang disimpan bukan berkasnya melainkan keterangan beserta satu
+   * URL obyek — dan URL itu harus dicabut sendiri: selama ia hidup, seluruh
+   * isi berkasnya ikut hidup di memori peramban sampai halamannya ditutup,
+   * dan memo berupa pindaian berukuran puluhan megabita.
+   */
+  const [pratinjau, setPratinjau] = useState<
+    { nama: string; jenis: string; url: string } | null>(null);
+
+  // Pembersihnya berjalan dengan nilai yang lama — jadi tiap berkas baru
+  // mencabut URL pendahulunya, dan yang terakhir dicabut saat layarnya
+  // ditinggalkan.
+  useEffect(() => () => {
+    if (pratinjau) URL.revokeObjectURL(pratinjau.url);
+  }, [pratinjau]);
   /** Baris yang sedang diperiksa di dialog pemberlakuan. */
   const [dialog, setDialog] = useState<Baris[] | null>(null);
 
@@ -411,6 +433,13 @@ export default function ReferensiPengajuanPage() {
 
   const terima = async (daftar: File[]) => {
     if (!daftar.length) return;
+    // Yang pertama dari sekumpulan berkas yang masuk berdiri di kotak kanan.
+    // Satu, bukan semuanya: kotak pratinjau menyatakan "ini yang barusan
+    // saya terima", bukan daftar isi unggahan — daftar itu sudah ada di
+    // tabel di bawahnya, lengkap dengan hasil bacaannya.
+    const dilihat = daftar[0];
+    setPratinjau({ nama: dilihat.name, jenis: dilihat.type,
+                   url: URL.createObjectURL(dilihat) });
     setBusy(true); setGalat(null); setKabar(null);
     let tersimpan = 0, barisBaru = 0;
     const gagal: string[] = [];
@@ -598,6 +627,11 @@ export default function ReferensiPengajuanPage() {
 
       <div className="panel sp">
         <h2>{k.unggahJudul}</h2>
+        {/* Dua kotak berdampingan: yang kiri menerima berkas, yang kanan
+            memperlihatkan apa yang baru saja masuk. Berdampingan, bukan
+            bertumpuk — yang menyeret berkas kedua perlu melihat kotak
+            unggahnya dan hasil seretan pertamanya pada saat yang sama. */}
+        <div className="seret-dua">
         {/* Seret-dan-lepas, dan tetap ada tombolnya: yang memakai papan ketik
             atau pembaca layar tidak dapat menyeret apa pun. */}
         <label className={`kotak-seret${seret ? " aktif" : ""}`}
@@ -638,6 +672,44 @@ export default function ReferensiPengajuanPage() {
                    void terima(daftar);
                  }} />
         </label>
+
+        {/* Pratinjaunya dipilih menurut jenis berkasnya, bukan dipaksakan
+            satu cara untuk semuanya: gambar dilukis apa adanya, PDF dibuka
+            pembaca bawaan peramban, dan Excel maupun Word tidak dapat
+            dilukis peramban mana pun — yang ditawarkan di sana karena itu
+            jalan membukanya, bukan kotak kosong tanpa penjelasan. */}
+        <div className="kotak-pratinjau">
+          {!pratinjau ? (
+            <div className="pratinjau-kosong">
+              <svg viewBox="0 0 24 24" aria-hidden="true" fill="none"
+                   stroke="currentColor" strokeWidth="1.5"
+                   strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14 3v5h5" />
+                <path d="M19 9v10a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1
+                         2-2h6z" />
+              </svg>
+              <b>{k.pratinjauKosong}</b>
+            </div>
+          ) : pratinjau.jenis.startsWith("image/") ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={pratinjau.url} alt={pratinjau.nama} />
+          ) : pratinjau.jenis === "application/pdf" ? (
+            <iframe src={pratinjau.url} title={pratinjau.nama} />
+          ) : (
+            <div className="pratinjau-kosong">
+              <span>{k.pratinjauTakBisa}</span>
+              <a href={pratinjau.url} target="_blank" rel="noreferrer">
+                {k.pratinjauBuka}
+              </a>
+            </div>
+          )}
+          {pratinjau && (
+            <div className="nama-pratinjau" title={pratinjau.nama}>
+              {pratinjau.nama}
+            </div>
+          )}
+        </div>
+        </div>
         {kemajuan && <p className="hint" style={{ textAlign: "left" }}>
           {kemajuan}
         </p>}
