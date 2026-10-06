@@ -25,7 +25,7 @@
  * tidak di layar lain.
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useBahasa, useKata } from "../bahasa";
 import { Kerangka, MemeriksaSesi } from "../kerangka";
@@ -212,8 +212,12 @@ const KATA = {
     thPengirim: "Divisi Pengirim", thPenerimaDiv: "Divisi Penerima",
     thDistribusi: "Tanggal Distribusi", thDiterima: "Tanggal Penerima",
     thKategori: "Kategori", thPenerima: "Penerima",
-    thPengaju: "Diajukan Oleh", thBruto: "Jumlah Komisi",
-    thPpn: "PPN", thPph: "PPh", thBersih: "Komisi Yang Dibayarkan",
+    // "Fee", bukan "Komisi": kolom ini memuat keempat jenis — Closing Fee,
+    // Cash Reward, Continuity Reward, Komisi — dan Overriding. Menyebut
+    // seluruhnya "Komisi" menamai kelompoknya dengan nama salah satu
+    // anggotanya, dan baris Closing Fee lalu terbaca seolah salah kolom.
+    thPengaju: "Diajukan Oleh", thBruto: "Jumlah Fee",
+    thPpn: "PPN", thPph: "PPh", thBersih: "Fee Yang Dibayarkan",
     thTglBayar: "Tanggal Pembayaran",
     thStatus: "Status", thDokumen: "Tindakan",
     katInhouse: "Sales Inhouse", katAgent: "Agent",
@@ -369,9 +373,9 @@ const KATA = {
     thDistribusi: "Distributed on", thDiterima: "Received on",
     thKategori: "Category", thPengaju: "Submitted by",
     thPpn: "VAT", katInhouse: "In-house sales", katAgent: "Agent",
-    thPenerima: "Recipient", thBruto: "Commission amount",
+    thPenerima: "Recipient", thBruto: "Fee amount",
     thPph: "Withholding",
-    thBersih: "Commission paid", thTglBayar: "Payment date",
+    thBersih: "Fee paid", thTglBayar: "Payment date",
     thStatus: "Status", thDokumen: "Action",
     pratinjau: "Review Document",
     pratinjauTertutup:
@@ -679,6 +683,38 @@ export default function PersetujuanPage() {
    * menanggung ruang yang hanya dibutuhkan satu sel.
    */
   const [lihatTautan, setLihatTautan] = useState<string | null>(null);
+  /**
+   * Kotak tabel setinggi sisa layar, diukur bukan ditebak.
+   *
+   * Tabelnya digulir di dalam kotaknya sendiri — itu yang membuat menggulir ke
+   * bawah tidak menggerakkan seluruh halaman, dan yang menaruh penggeser
+   * mendatarnya di tepi bawah kotak alih-alih di ujung bawah tabel. Tetapi
+   * batas tingginya tidak dapat ditulis sebagai angka tetap di CSS: yang ada
+   * di atas kotak ini — judul panel, kotak cari, deretan lencana — berubah
+   * tingginya mengikuti isinya dan lebar layarnya, dan satu angka yang
+   * dipatok akan menyisakan ruang kosong pada satu keadaan atau mendorong
+   * tepi bawah kotak keluar layar pada keadaan lain. Yang terdorong keluar
+   * justru penggeser mendatarnya — persis yang hendak didekatkan.
+   *
+   * Jadi diukur dari letak kotaknya sendiri terhadap dokumen (bukan terhadap
+   * layar): jarak itu tidak berubah saat halamannya digulir, sehingga
+   * tingginya tidak pernah tumbuh-menyusut mengejar gulirannya sendiri.
+   */
+  const kotakTabel = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const ukur = () => {
+      const el = kotakTabel.current;
+      if (!el) return;
+      const atas = el.getBoundingClientRect().top + window.scrollY;
+      const sisa = window.innerHeight - atas - 16;
+      // Di bawah 320px kotaknya terlalu pendek untuk dibaca; pada layar
+      // sependek itu lebih baik halamannya yang digulir.
+      el.style.maxHeight = `${Math.max(320, Math.round(sisa))}px`;
+    };
+    ukur();
+    window.addEventListener("resize", ukur);
+    return () => window.removeEventListener("resize", ukur);
+  });
 
   const muat = useCallback(async () => {
     setBusy(true);
@@ -1561,7 +1597,7 @@ export default function PersetujuanPage() {
           </span>
         </h2>
 
-        <div className="tscroll persetujuan">
+        <div className="tscroll persetujuan" ref={kotakTabel}>
           <table className="tabel-penjualan"><tbody>
             <tr>
               <th className="sel-no">{k.thNo}</th>
@@ -1664,7 +1700,7 @@ export default function PersetujuanPage() {
                 </td>
                 {/* Beberapa jenis fee yang diajukan bersama atas satu unit
                     berdiri sebagai poin, masing-masing dengan nilainya —
-                    jumlah seluruhnya tetap terbaca di kolom Jumlah Komisi,
+                    jumlah seluruhnya tetap terbaca di kolom Jumlah Fee,
                     tetapi yang memeriksanya perlu tahu angka itu tersusun
                     dari apa saja. */}
                 <td>
