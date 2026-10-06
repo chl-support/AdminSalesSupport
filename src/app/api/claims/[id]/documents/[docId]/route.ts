@@ -17,7 +17,8 @@
  * content-type keliru, peramban tetap tidak menjalankan apa pun darinya.
  */
 
-import { handler, currentUser, body, requireRole } from "@/lib/api";
+import { handler, currentUser, body, jagaBukaDokumen, requireRole }
+  from "@/lib/api";
 import { audit, one } from "@/lib/db";
 import { BATAS_TITIPAN, JENIS_DITERIMA, gantiLampiran } from "@/lib/lampiran";
 import { rakitUnggah } from "@/lib/memo";
@@ -25,7 +26,7 @@ import { WorkflowError, getClaim } from "@/lib/workflow";
 
 export const GET = handler(async (req, { params }) => {
   const { id, docId } = await params;
-  await currentUser(req);
+  await jagaBukaDokumen(req, await getClaim(id));
   const doc = await one(
     `SELECT file_name, content_type, content FROM claim_documents
       WHERE id=$1 AND claim_id=$2`, [docId, id]);

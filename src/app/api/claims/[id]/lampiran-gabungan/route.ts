@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 
-import { handler, currentUser } from "@/lib/api";
+import { handler, jagaBukaDokumen } from "@/lib/api";
 import { query } from "@/lib/db";
 import { getClaim, WorkflowError } from "@/lib/workflow";
 
@@ -50,8 +50,7 @@ function citraWajar(isi: Uint8Array, jenis: string): boolean {
 
 export const GET = handler(async (req, { params }) => {
   const { id } = await params;
-  await currentUser(req);
-  await getClaim(id);
+  await jagaBukaDokumen(req, await getClaim(id));
 
   const ids = (new URL(req.url).searchParams.get("ids") ?? "")
     .split(",").map((x) => x.trim()).filter(Boolean);

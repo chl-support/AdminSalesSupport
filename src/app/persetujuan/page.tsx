@@ -30,9 +30,9 @@ import { useCallback, useEffect, useState } from "react";
 import { useBahasa, useKata } from "../bahasa";
 import { Kerangka, MemeriksaSesi } from "../kerangka";
 import { useSesi } from "../session";
-import { namaJenis } from "../klaim/jenis";
+import { JENIS, namaJenis } from "../klaim/jenis";
 import { namaKategori } from "@/lib/kategori";
-import { TAHAP, bolehGerak, tahapDari } from "@/lib/tahap";
+import { TAHAP, bolehBukaDokumen, bolehGerak, tahapDari } from "@/lib/tahap";
 import { LANGKAH, keadaanLangkah, sebutanLangkah, warnaLangkah }
   from "@/lib/langkah";
 // Pemecah berkas yang sudah terbukti pada memo. Mekanismenya tidak
@@ -42,6 +42,7 @@ import { LANGKAH, keadaanLangkah, sebutanLangkah, warnaLangkah }
 import { BATAS_FULL_SIGN, periksaUkuran, perluDipecah, titipBerkas }
   from "../memo/kirim";
 import { PilihBerkas } from "../pilih-berkas";
+import { KodeQr } from "../kode-qr";
 
 const rp = (n?: number | null) => `Rp ${(n ?? 0).toLocaleString("id-ID")}`;
 const tgl = (v?: string | null) => (v ? String(v).slice(0, 10) : "—");
@@ -217,6 +218,9 @@ const KATA = {
     thStatus: "Status", thDokumen: "Tindakan",
     katInhouse: "Sales Inhouse", katAgent: "Agent",
     pratinjau: "Preview Dokumen",
+    pratinjauTertutup:
+      "Belum dikirim ke Pajak — dokumennya terbuka sendiri begitu Admin " +
+      "Sales meneruskannya ke verifikasi pajak.",
     kosong: "Belum ada pengajuan pada project ini.",
     memuat: "Memuat…",
     kabarJudul: "Dokumen sudah dikirim ke tim pajak",
@@ -232,6 +236,9 @@ const KATA = {
     waBukaWa: "Buka WhatsApp", waSalin: "Salin tautan",
     waTersalin: "Tautan tersalin.",
     waKode: "Kode verifikasi:",
+    waQr: "Pindai untuk membuka tautan",
+    waQrGagal:
+      "Kode QR tidak dapat dibuat di peramban ini. Pakai alamat tautan di atas.",
     waKodeCatatan: "Sampaikan kode lewat jalur terpisah dari tautannya.",
     waGagal: "Tautan tidak dapat diterbitkan",
     waJudul: "Tautan tanda tangan untuk Sales/Agent",
@@ -367,6 +374,9 @@ const KATA = {
     thBersih: "Commission paid", thTglBayar: "Payment date",
     thStatus: "Status", thDokumen: "Action",
     pratinjau: "Review Document",
+    pratinjauTertutup:
+      "Not sent to Tax yet — it opens by itself once Admin Sales forwards it " +
+      "to tax verification.",
     kosong: "No submissions on this project yet.",
     memuat: "Loading…",
     kabarJudul: "Sent to the tax team",
@@ -382,6 +392,9 @@ const KATA = {
     waBukaWa: "Open WhatsApp", waSalin: "Copy the link",
     waTersalin: "Link copied.",
     waKode: "Verification code:",
+    waQr: "Scan to open the link",
+    waQrGagal:
+      "The QR code could not be drawn in this browser. Use the link address above.",
     waKodeCatatan: "Give the code through a channel separate from the link.",
     waGagal: "The link could not be issued",
     waJudul: "Signature link for the Sales/Agent",
@@ -1577,9 +1590,63 @@ export default function PersetujuanPage() {
               // seluruh kelompoknya: tanggal pengajuan, jenis, penerima,
               // pengaju, dan keadaannya.
               const c = g[0];
-              const banyak = g.length > 1;
               const jml = (medan: string) =>
                 g.reduce((t, x) => t + Number(x[medan] ?? 0), 0);
+              /**
+               * Satu pengajuan dapat membentang ke beberapa unit ATAU ke
+               * beberapa jenis fee — tidak pernah keduanya sekaligus, sebab
+               * penandanya memang dipisah di layar Pengajuan Fee.
+               *
+               * Overriding atas tiga unit: satu jenis, tiga unit. Closing Fee
+               * bersama Cash Reward dan Komisi atas satu unit: satu unit, tiga
+               * jenis. Yang berulang itulah yang ditulis sebagai poin; yang
+               * tunggal tetap ditulis sekali, karena mengulang nama unit yang
+               * sama tiga kali bukan keterangan, hanya kebisingan.
+               */
+              const unitUnik = [...new Set(
+                g.map((x) => x.unit?.code).filter(Boolean))] as string[];
+              /**
+               * Nilai tiap jenis, bukan hanya namanya.
+               *
+               * Angkanya berdiri di kolom angkanya masing-masing — Jumlah
+               * Komisi, PPN, PPh, dan yang dibayarkan — berbaris sejajar
+               * dengan poin jenisnya. Menaruh angka di kolom Jenis Pengajuan
+               * berarti satu kolom memuat dua hal, dan yang menjumlahkan ke
+               * bawah harus memindahkan matanya ke kolom yang berbeda-beda.
+               *
+               * Urutannya mengikuti urutan jenis pada layar Pengajuan Fee,
+               * bukan urutan jawaban server: baris yang sama harus tersusun
+               * sama tiap kali dimuat, sebab keempat kolom angkanya dibaca
+               * sebaris demi sebaris.
+               */
+              const URUT = JENIS.map((x) => x.slug) as string[];
+              const perJenis: {
+                jenis: any; gross: number; vat: number; pph: number; net: number;
+              }[] = [];
+              for (const x of g) {
+                const ada = perJenis.find((y) => y.jenis === x.claim_type);
+                const n = {
+                  gross: Number(x.gross_amount ?? 0), vat: Number(x.vat ?? 0),
+                  pph: Number(x.withholding_tax ?? 0),
+                  net: Number(x.net_amount ?? 0),
+                };
+                if (ada) {
+                  ada.gross += n.gross; ada.vat += n.vat;
+                  ada.pph += n.pph; ada.net += n.net;
+                } else perJenis.push({ jenis: x.claim_type, ...n });
+              }
+              perJenis.sort((a, b) =>
+                URUT.indexOf(a.jenis) - URUT.indexOf(b.jenis));
+              /** Kolom angka yang ikut berpoin, sejajar dengan jenisnya. */
+              const kolomNilai = (ambil: (j: typeof perJenis[0]) => number,
+                                  total: number, tebal = false) =>
+                (perJenis.length > 1 ? (
+                  <ul className="unit-grup nilai-grup">
+                    {perJenis.map((j) => (
+                      <li key={j.jenis}>{rp(ambil(j))}</li>
+                    ))}
+                  </ul>
+                ) : tebal ? <b>{rp(total)}</b> : rp(total));
               return (
               <tr key={c.batch_id ? `b:${c.batch_id}` : c.id}>
                 <td className="sel-no">{i + 1}</td>
@@ -1589,15 +1656,26 @@ export default function PersetujuanPage() {
                     formulir pratinjau, sehingga dua pengajuan sejenis untuk
                     penerima yang sama tidak dapat dibedakan dari tabel. */}
                 <td className="sel-unit">
-                  {banyak ? (
+                  {unitUnik.length > 1 ? (
                     <ul className="unit-grup">
-                      {g.map((x) => (
-                        <li key={x.id}>{x.unit?.code ?? "—"}</li>
+                      {unitUnik.map((kode) => <li key={kode}>{kode}</li>)}
+                    </ul>
+                  ) : (unitUnik[0] ?? "—")}
+                </td>
+                {/* Beberapa jenis fee yang diajukan bersama atas satu unit
+                    berdiri sebagai poin, masing-masing dengan nilainya —
+                    jumlah seluruhnya tetap terbaca di kolom Jumlah Komisi,
+                    tetapi yang memeriksanya perlu tahu angka itu tersusun
+                    dari apa saja. */}
+                <td>
+                  {perJenis.length > 1 ? (
+                    <ul className="unit-grup">
+                      {perJenis.map((j) => (
+                        <li key={j.jenis}>{namaJenis(j.jenis, bahasa)}</li>
                       ))}
                     </ul>
-                  ) : (c.unit?.code ?? "—")}
+                  ) : namaJenis(c.claim_type, bahasa)}
                 </td>
-                <td>{namaJenis(c.claim_type, bahasa)}</td>
                 {/* Nomor Internal Office Memo. Terbit di luar sistem ini, jadi
                     diisi tangan di sini — dan hanya di sini, sejak layar
                     Sirkulasi Dokumen dibuang. Yang tidak berhak mengisinya
@@ -1606,10 +1684,12 @@ export default function PersetujuanPage() {
                 <td>{kategori(c, k, bahasa) ?? "—"}</td>
                 <td className="sel-penerima">{c.marketing?.full_name ?? "—"}</td>
                 <td>{pengaju(c)}</td>
-                <td className="n">{rp(jml("gross_amount"))}</td>
-                <td className="n">{rp(jml("vat"))}</td>
-                <td className="n">{rp(jml("withholding_tax"))}</td>
-                <td className="n"><b>{rp(jml("net_amount"))}</b></td>
+                <td className="n">{kolomNilai((j) => j.gross, jml("gross_amount"))}</td>
+                <td className="n">{kolomNilai((j) => j.vat, jml("vat"))}</td>
+                <td className="n">{kolomNilai((j) => j.pph, jml("withholding_tax"))}</td>
+                <td className="n">
+                  {kolomNilai((j) => j.net, jml("net_amount"), true)}
+                </td>
                 {/* Tanggal uang keluar menurut bukti bank, bukan tanggal
                     klaimnya disetujui: ia tersimpan di settlements, sebab satu
                     transfer dapat melunasi beberapa klaim sekaligus. Kosong
@@ -1756,10 +1836,28 @@ export default function PersetujuanPage() {
                     diperiksa dan dicetak, dan mencetaknya dari dalam layar ini
                     berarti ikut mencetak menu dan seluruh tabelnya. */}
                 <td className="sel-tindakan">
-                  <button onClick={() => window.open(
-                            `/klaim/pratinjau?ids=${c.id}`, "_blank")}>
+                  {/* Pajak baru dapat membukanya sesudah dokumennya dikirim
+                      kepadanya. Aturannya satu, di lib/tahap, dan ditegakkan
+                      juga oleh route handler-nya — tombol yang mati di sini
+                      bukan pagar, sebab alamatnya dapat diketik langsung.
+                      Yang mati disebutkan sebabnya: tombol mati tanpa
+                      keterangan terbaca sebagai layar yang rusak. */}
+                  <button
+                    disabled={!bolehBukaDokumen(sesi.role, c.status)}
+                    title={bolehBukaDokumen(sesi.role, c.status)
+                             ? undefined : k.pratinjauTertutup}
+                    /* Seluruh formulir sepengajuan dibuka sekaligus: yang
+                       diajukan bersama juga diperiksa dan dicetak bersama,
+                       dan membukanya satu per satu berarti tiga jendela untuk
+                       satu pekerjaan. */
+                    onClick={() => window.open(
+                            `/klaim/pratinjau?ids=${g.map((x) => x.id).join(",")}`,
+                            "_blank")}>
                     {k.pratinjau}
                   </button>
+                  {!bolehBukaDokumen(sesi.role, c.status) && (
+                    <div className="sebab-tindakan">{k.pratinjauTertutup}</div>
+                  )}
 
                   {/* Pengiriman tautan ke Sales/Agent, hanya untuk Admin Sales
                       — merekalah yang berhubungan dengan Sales/Agent, dan
@@ -2344,6 +2442,13 @@ export default function PersetujuanPage() {
                   setKabar(k.waTersalin);
                 }}>{k.waSalin}</button>
               </div>
+
+              {/* QR berdiri tepat di atas kode verifikasi: ia jalan menuju
+                  tautannya, dan kode verifikasi adalah hal lain yang sengaja
+                  disampaikan lewat jalur terpisah. Menaruhnya di bawah kode
+                  membuat keduanya terbaca sebagai satu hal. */}
+              <KodeQr nilai={alamat} keterangan={k.waQr}
+                      gagalTeks={k.waQrGagal} />
 
               <div style={{ fontSize: 12.5 }}>
                 {k.waKode} <b>{t.otp_demo}</b>

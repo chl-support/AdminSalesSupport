@@ -565,6 +565,36 @@ async function main() {
       "unit batal seharusnya tetap menahan");
   });
 
+  await check("Pajak tidak dapat membuka dokumen yang belum dikirim kepadanya",
+              async () => {
+    // Selama pengajuan masih disusun dan diperiksa Admin Sales, isinya belum
+    // tentu yang akan diverifikasi: nilainya masih dapat berubah, lampirannya
+    // masih dapat diganti, bahkan barisnya masih dapat dihapus karena salah
+    // input. Yang membukanya pada keadaan itu membaca angka yang belum
+    // diserahkan kepada siapa pun.
+    const { bolehBukaDokumen } = await import("../src/lib/tahap");
+
+    for (const st of ["draft", "submitted", "pending_admin_review"]) {
+      assert(!bolehBukaDokumen("finance_tax", st),
+             `Pajak seharusnya tertutup pada status ${st}`);
+    }
+
+    // Sejak diteruskan ke verifikasi pajak, dan seterusnya, terbuka sendiri.
+    for (const st of ["pending_tax_verification", "tax_verified", "signed",
+                      "ready_to_print", "approved", "paid", "completed",
+                      "rejected"]) {
+      assert(bolehBukaDokumen("finance_tax", st),
+             `Pajak seharusnya terbuka pada status ${st}`);
+    }
+
+    // Yang menyusun dan yang menaungi verifikasinya tetap melihat sejak awal.
+    for (const peran of ["admin_sales", "admin_system", "finance_manager",
+                         "head_finance", "management", "finance_payment"]) {
+      assert(bolehBukaDokumen(peran, "draft"),
+             `${peran} seharusnya tetap dapat membuka sejak awal`);
+    }
+  });
+
   await check("spesimen dapat diunggah Admin tanpa tautan pendaftaran",
               async () => {
     // Tautan menuntut ponsel yang menerima kode, kesediaan membukanya, dan

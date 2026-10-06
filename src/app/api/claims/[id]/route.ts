@@ -1,10 +1,14 @@
-import { handler, body, claimView, projectAktif,
+import { handler, body, claimView, jagaBukaDokumen, projectAktif,
          requireRole } from "@/lib/api";
 import { getClaim, hapusKlaim } from "@/lib/workflow";
 
-export const GET = handler(async (_req, { params }) => {
+export const GET = handler(async (req, { params }) => {
   const { id } = await params;
-  return claimView(await getClaim(id));
+  const klaim = await getClaim(id);
+  // Pajak baru boleh membukanya sesudah dokumennya dikirim kepadanya. Aturan
+  // dan alasannya ada di lib/api; di sini cukup pagarnya.
+  await jagaBukaDokumen(req, klaim);
+  return claimView(klaim);
 });
 
 /**
