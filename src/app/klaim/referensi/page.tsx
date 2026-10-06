@@ -654,23 +654,18 @@ export default function ReferensiPengajuanPage() {
                  e.preventDefault(); setSeret(false);
                  void terima([...e.dataTransfer.files]);
                }}>
-          {/* Lambang berkas dengan panah naik. Digambar sebagai SVG sebaris,
-              bukan emoji: emoji dilukis tiap sistem dengan gayanya
-              sendiri-sendiri, dan yang di sini harus mengikuti warna kotaknya
-              saat kotaknya disentuh. */}
-          <svg className="ikon-unggah" viewBox="0 0 24 24" aria-hidden="true"
-               fill="none" stroke="currentColor" strokeWidth="1.6"
-               strokeLinecap="round" strokeLinejoin="round">
-            <path d="M14 3v5h5" />
-            <path d="M19 12V9l-6-6H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h5" />
-            <path d="M18 22v-7" /><path d="m15 18 3-3 3 3" />
-          </svg>
-          <b>{k.seret}</b>
-          {/* Tombol pratinjau. Di dalam <label>, jadi kliknya harus
-              dihentikan dua kali: label meneruskan klik apa pun di dalamnya
-              ke input berkasnya, dan tanpa itu menekan tombol ini justru
-              membuka jendela pemilih berkas. */}
-          <button type="button" className="tombol-pratinjau"
+          {/* Tombol pratinjau, berdiri paling kiri — sebelum lambang unggah.
+              Keduanya memakai bentuk halaman yang sama dan hanya berbeda
+              pada apa yang menempel padanya: panah naik untuk mengirim,
+              kaca pembesar untuk melihat. Sepasang, bukan dua lambang yang
+              kebetulan bertetangga.
+
+              Di dalam <label>, jadi kliknya harus dihentikan dua kali:
+              label meneruskan klik apa pun di dalamnya ke input berkasnya,
+              dan tanpa itu menekan tombol ini justru membuka jendela
+              pemilih berkas. */}
+          <button type="button"
+                  className={`tombol-pratinjau${bukaPratinjau ? " nyala" : ""}`}
                   disabled={!pratinjau}
                   title={pratinjau ? (bukaPratinjau ? k.pratinjauTutup
                                                     : k.pratinjauLihat)
@@ -684,16 +679,26 @@ export default function ReferensiPengajuanPage() {
                     setBukaPratinjau((b) => !b);
                   }}>
             <svg viewBox="0 0 24 24" aria-hidden="true" fill="none"
-                 stroke="currentColor" strokeWidth="1.7"
+                 stroke="currentColor" strokeWidth="1.6"
                  strokeLinecap="round" strokeLinejoin="round">
-              <path d="M1.8 12S5.6 5.2 12 5.2 22.2 12 22.2 12 18.4 18.8 12
-                       18.8 1.8 12 1.8 12Z" />
-              <circle cx="12" cy="12" r="2.8" />
-              {/* Tertutup, matanya dicoret — satu lambang untuk dua keadaan,
-                  bukan dua lambang yang harus dihafalkan artinya. */}
-              {!bukaPratinjau && <path d="m3.5 3.5 17 17" />}
+              <path d="M14 3v5h5" />
+              <path d="M19 10.6V9l-6-6H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h3.6" />
+              <circle cx="17" cy="16.4" r="3.2" />
+              <path d="m19.5 18.9 2.2 2.2" />
             </svg>
           </button>
+          {/* Lambang berkas dengan panah naik. Digambar sebagai SVG sebaris,
+              bukan emoji: emoji dilukis tiap sistem dengan gayanya
+              sendiri-sendiri, dan yang di sini harus mengikuti warna kotaknya
+              saat kotaknya disentuh. */}
+          <svg className="ikon-unggah" viewBox="0 0 24 24" aria-hidden="true"
+               fill="none" stroke="currentColor" strokeWidth="1.6"
+               strokeLinecap="round" strokeLinejoin="round">
+            <path d="M14 3v5h5" />
+            <path d="M19 12V9l-6-6H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h5" />
+            <path d="M18 22v-7" /><path d="m15 18 3-3 3 3" />
+          </svg>
+          <b>{k.seret}</b>
           {/* Kalimat "seret dan lepaskan…" sengaja tidak ada: kotak bergaris
               putus-putus yang menyala saat berkas dilewatkan di atasnya sudah
               menyatakan dirinya sendiri, dan tombolnya menyatakan sisanya. */}

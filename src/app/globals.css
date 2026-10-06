@@ -1500,12 +1500,19 @@ button.hapus-klaim:hover:not(:disabled) {
    sebagai kotak kedua di dalam kotak pertama. Yang membedakannya adalah
    latar yang muncul saat disentuh. */
 .tombol-pratinjau {
-  flex: none; display: inline-flex; margin-left: 2px; padding: 4px;
+  flex: none; display: inline-flex; margin: 0 -3px 0 0; padding: 3px;
   border: 0; background: none; color: var(--note); cursor: pointer;
   border-radius: var(--lengkung);
 }
-.tombol-pratinjau svg { width: 17px; height: 17px; }
+.tombol-pratinjau svg { width: 18px; height: 18px; }
 .tombol-pratinjau:hover:not(:disabled) { background: #fff; }
+/* Terbuka, tombolnya tertekan: berlatar putih dengan garis tepi tipis.
+   Lambangnya sendiri tidak berubah — kaca pembesar yang dicoret atau
+   diganti bentuknya menuntut dihafalkan, sedangkan tombol yang tampak
+   tertekan sudah menyatakan keadaannya tanpa dipelajari. */
+.tombol-pratinjau.nyala {
+  background: #fff; box-shadow: inset 0 0 0 1px rgba(43, 76, 126, .35);
+}
 /* Selama belum ada yang dipratinjau ia tetap di tempatnya, memudar — bukan
    lenyap. Tombol yang muncul dan hilang membuat tulisan di sebelahnya
    bergeser tiap berkas masuk, dan yang bergeser sendiri terbaca sebagai
