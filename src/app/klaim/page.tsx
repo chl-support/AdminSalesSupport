@@ -662,6 +662,28 @@ export default function PengajuanFeePage() {
     const dibuat: string[] = [];
     const gagal: string[] = [];
     const berhasil: Jenis[] = [];
+    /**
+     * Satu penanda untuk beberapa jenis fee yang diajukan bersama atas satu
+     * unit — Closing Fee, Cash Reward, Komisi, Continuity Reward.
+     *
+     * Dengan itu layar Approval menyatukannya kembali menjadi satu baris:
+     * yang terjadi memang satu pengajuan, dan membacanya sebagai empat baris
+     * berturut-turut yang unit, penerima, dan tanggalnya sama persis membuat
+     * yang memeriksanya mengira ada empat pekerjaan.
+     *
+     * Overriding punya penandanya sendiri, di dalam gelung: penerimanya
+     * tingkat di atas yang menjual, jadi menyatukannya dengan jenis lain akan
+     * menaruh satu nama pada baris yang sebenarnya membayar dua orang.
+     *
+     * Disatukan hanya bila penerimanya memang satu orang. Dialog pengajuan
+     * membolehkan tiap jenis memilih penerima sendiri, dan baris gabungan
+     * hanya memuat satu nama — nama yang salah bagi jenis yang lain.
+     */
+    const lainnya = jenisTerpilih.filter((x) => x !== "overriding");
+    const satuPenerima = lainnya.length > 1 &&
+      lainnya.every((x) => penerima[x] && penerima[x] === penerima[lainnya[0]]);
+    const penandaLain = satuPenerima && typeof crypto !== "undefined"
+      ? crypto.randomUUID() : null;
     /** Unit yang Overriding-nya berhasil diajukan; centangnya dilepas. */
     const orBerhasil: string[] = [];
     try {
@@ -697,8 +719,10 @@ export default function PengajuanFeePage() {
         // Satu penanda untuk seluruh unit yang diajukan bersama. Dengan itu
         // layar Approval menyatukannya kembali menjadi satu baris keputusan,
         // sementara nilai, PPN dan PPh tetap dihitung per unit.
-        const penanda = sasaran.length > 1 && typeof crypto !== "undefined"
-          ? crypto.randomUUID() : null;
+        const penanda = slug === "overriding"
+          ? (sasaran.length > 1 && typeof crypto !== "undefined"
+             ? crypto.randomUUID() : null)
+          : penandaLain;
         for (const unit of sasaran) {
         const res = await fetch("/api/claims", {
           method: "POST", headers: { "Content-Type": "application/json" },
