@@ -238,6 +238,19 @@ const KATA = {
     waTanpaHp: "No. HP penerima belum tercatat",
     waTerbit: (hp: string) => `Tautan terbit untuk ${hp}.`,
     waBukaWa: "Buka WhatsApp", waSalin: "Salin tautan",
+    waEmail: "Kirim Email",
+    waTanpaEmail:
+      "Surel belum terisi pada Data Marketing, jadi tautannya hanya dapat " +
+      "dikirim lewat WhatsApp.",
+    waHpKosong:
+      "Nomor telepon belum terisi pada Data Marketing, jadi tautannya hanya " +
+      "dapat dikirim lewat surel.",
+    waUnduhQr: "Unduh QR",
+    waLampirQr:
+      "QR tidak dapat ikut terkirim sendiri lewat WhatsApp maupun surel — " +
+      "unduh gambarnya lalu lampirkan, bila memang mau disertakan. Tautannya " +
+      "sendiri sudah tertulis di dalam pesannya.",
+    waSurelPerihal: (no: string) => `Tanda tangan dokumen ${no}`,
     waTersalin: "Tautan tersalin.",
     waKode: "Kode verifikasi:",
     waQr: "Pindai untuk membuka tautan",
@@ -394,6 +407,17 @@ const KATA = {
     waTanpaHp: "The recipient has no phone number on record",
     waTerbit: (hp: string) => `Link issued for ${hp}.`,
     waBukaWa: "Open WhatsApp", waSalin: "Copy the link",
+    waEmail: "Send email",
+    waTanpaEmail:
+      "No email on Data Marketing, so the link can only go by WhatsApp.",
+    waHpKosong:
+      "No phone number on Data Marketing, so the link can only go by email.",
+    waUnduhQr: "Download the QR",
+    waLampirQr:
+      "The QR cannot travel by itself through WhatsApp or email — download " +
+      "the image and attach it if you want it included. The link itself is " +
+      "already in the message.",
+    waSurelPerihal: (no: string) => `Document signing ${no}`,
     waTersalin: "Link copied.",
     waKode: "Verification code:",
     waQr: "Scan to open the link",
@@ -2468,23 +2492,60 @@ export default function PersetujuanPage() {
               <div className="lbl">{k.waAlamat}</div>
               <div className="alamat-tautan">{alamat}</div>
 
+              {/* Dua jalan mengirimkannya, keduanya mengambil tujuannya dari
+                  Data Marketing: nomor WhatsApp dan surel orang yang sama.
+                  Pesannya disusun di sini — sama untuk kedua jalan — supaya
+                  yang diterima agent tidak bergantung pada lewat mana ia
+                  dikirim.
+
+                  Yang tidak punya tujuannya tidak ditawarkan: tombol yang
+                  membuka percakapan ke nomor kosong hanya membuang satu
+                  ketukan dan satu jendela, lalu meninggalkan orangnya menebak
+                  apa yang salah. Sebabnya ditulis di bawahnya. */}
               <div className="row" style={{ margin: "10px 0" }}>
-                <a className="tombol-klaim kecil"
-                   href={`https://wa.me/${nomorWa(c?.marketing?.phone)}` +
-                         `?text=${encodeURIComponent(`${t.message}\n${alamat}`)}`}
-                   target="_blank" rel="noreferrer">{k.waBukaWa}</a>
+                {nomorWa(c?.marketing?.phone) && (
+                  <a className="tombol-klaim kecil"
+                     href={`https://wa.me/${nomorWa(c?.marketing?.phone)}` +
+                           `?text=${encodeURIComponent(`${t.message}\n${alamat}`)}`}
+                     target="_blank" rel="noreferrer">{k.waBukaWa}</a>
+                )}
+                {c?.marketing?.email && (
+                  <a className="tombol-klaim kecil"
+                     href={`mailto:${encodeURIComponent(c.marketing.email)}` +
+                           `?subject=${encodeURIComponent(
+                             k.waSurelPerihal(c?.claim_number ?? ""))}` +
+                           `&body=${encodeURIComponent(
+                             `${t.message}\n\n${alamat}\n\n${k.waKodeCatatan}`)}`}>
+                    {k.waEmail}
+                  </a>
+                )}
                 <button onClick={() => {
                   navigator.clipboard?.writeText(alamat);
                   setKabar(k.waTersalin);
                 }}>{k.waSalin}</button>
               </div>
 
+              {!c?.marketing?.email && (
+                <p className="hint" style={{ textAlign: "left", margin: "0 0 6px" }}>
+                  {k.waTanpaEmail}
+                </p>
+              )}
+              {!nomorWa(c?.marketing?.phone) && (
+                <p className="hint" style={{ textAlign: "left", margin: "0 0 6px" }}>
+                  {k.waHpKosong}
+                </p>
+              )}
+
               {/* QR berdiri tepat di atas kode verifikasi: ia jalan menuju
                   tautannya, dan kode verifikasi adalah hal lain yang sengaja
                   disampaikan lewat jalur terpisah. Menaruhnya di bawah kode
                   membuat keduanya terbaca sebagai satu hal. */}
               <KodeQr nilai={alamat} keterangan={k.waQr}
-                      gagalTeks={k.waQrGagal} />
+                      gagalTeks={k.waQrGagal} unduhTeks={k.waUnduhQr}
+                      unduhNama={`qr-${c?.claim_number ?? "tautan"}.png`} />
+              <p className="hint" style={{ textAlign: "left", margin: "0 0 8px" }}>
+                {k.waLampirQr}
+              </p>
 
               <div style={{ fontSize: 12.5 }}>
                 {k.waKode} <b>{t.otp_demo}</b>

@@ -2678,6 +2678,9 @@ td.sel-tindakan > a.tautan-klaim:last-child { margin-bottom: 0; }
 }
 .bingkai-qr img { display: block; image-rendering: pixelated; }
 .ket-qr { font-size: 11.5px; color: var(--mut); }
+/* Unduh QR: tautan, bukan tombol — ia langkah tambahan bagi yang memang mau
+   melampirkan gambarnya, bukan jalan utama mengirim tautannya. */
+a.unduh-qr { color: var(--note); text-decoration: underline; }
 
 /* Kolom No. HP dan Email pada layar Spesimen: selebar isinya, tidak dipatahkan
    di tengah. Nomor atau alamat surel yang jatuh menjadi dua baris terbaca

@@ -23,11 +23,15 @@
 
 import { useEffect, useState } from "react";
 
-export function KodeQr({ nilai, ukuran = 150, keterangan, gagalTeks }: {
+export function KodeQr({ nilai, ukuran = 150, keterangan, gagalTeks,
+                        unduhNama, unduhTeks }: {
   nilai: string;
   ukuran?: number;
   keterangan?: string;
   gagalTeks?: string;
+  /** Nama berkas unduhan; tanpa ini tautan unduhnya tidak muncul. */
+  unduhNama?: string;
+  unduhTeks?: string;
 }) {
   const [png, setPng] = useState<string | null>(null);
   const [gagal, setGagal] = useState(false);
@@ -72,6 +76,15 @@ export function KodeQr({ nilai, ukuran = 150, keterangan, gagalTeks }: {
         )}
       </div>
       {keterangan && <div className="ket-qr">{keterangan}</div>}
+      {/* QR tidak dapat ditempelkan ke WhatsApp lewat tautan wa.me, dan tidak
+          dapat disisipkan ke badan surel lewat mailto. Yang dapat dilakukan:
+          mengunduhnya sebagai berkas, lalu melampirkannya sendiri pada
+          percakapan atau surel itu. */}
+      {png && unduhNama && (
+        <a className="ket-qr unduh-qr" href={png} download={unduhNama}>
+          {unduhTeks ?? "Unduh QR"}
+        </a>
+      )}
     </div>
   );
 }
