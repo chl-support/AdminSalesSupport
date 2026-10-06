@@ -1477,6 +1477,14 @@ button.hapus-klaim:hover:not(:disabled) {
 /* Di dalam pasangan itu kotak unggahnya menjadi tinggi, dan isinya berdiri
    di tengah — menempel di atas, ia terbaca sebagai kotak yang gagal terisi. */
 .seret-dua.dua .kotak-seret { justify-content: center; }
+/* Sendirian, isinya berbaris menyamping, bukan bertumpuk. Bertumpuk, tiga
+   baris pendek di tengah bidang selebar panel meninggalkan ruang kosong di
+   kiri dan kanannya lebih luas daripada isinya sendiri — dan ruang kosong
+   seluas itu terbaca sebagai kotak yang menunggu diisi sesuatu yang lain,
+   bukan sebagai kotak unggah. */
+.seret-dua:not(.dua) .kotak-seret {
+  flex-direction: row; justify-content: center; gap: 12px; padding: 13px 16px;
+}
 
 .kotak-seret {
   display: flex; flex-direction: column; align-items: center; gap: 5px;
