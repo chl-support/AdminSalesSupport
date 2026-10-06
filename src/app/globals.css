@@ -1092,11 +1092,14 @@ ul.cetak-ceklis .kotak { border: 1px solid var(--ink); width: 14px; height: 14px
    terjepit di sampingnya. */
 .tindakan-utama > :not(button) { flex-basis: 100%; }
 
-.hapus-baris { margin-top: 10px; padding-top: 8px;
-               border-top: 1px solid var(--line); }
-.hapus-baris button.tautan { color: var(--mut); font-weight: 500;
-                             font-size: 11.5px; }
-.hapus-baris button.tautan:hover { color: var(--stop); }
+/* Hapus berdiri sebaris dengan tindakan lain, tetapi tidak menarik mata
+   seperti mereka: ia satu-satunya di kolom ini yang tidak dapat dibatalkan.
+   Tepinya pudar dan tulisannya kelabu sampai disentuh, lalu keduanya menjadi
+   merah — cukup untuk dikenali, tidak cukup untuk ditekan sambil lalu. */
+button.hapus-marketing { color: var(--mut); border-color: var(--line); }
+button.hapus-marketing:hover:not(:disabled) {
+  color: var(--stop); border-color: var(--stop);
+}
 
 /* Tombol hapus pada kolom Tindakan. Sengaja tidak semenonjol tombol di
    sebelahnya: ia satu-satunya tindakan di kolom itu yang tidak dapat

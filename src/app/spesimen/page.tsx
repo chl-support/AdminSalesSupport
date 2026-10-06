@@ -752,7 +752,7 @@ export default function SpesimenPage() {
                         Pada 250px keduanya tidak muat sebaris dan yang kedua
                         turun sendiri — sejajar yang dimaksud jadi tidak pernah
                         terjadi. */}
-                    <th style={{ width: 400 }}>{k.thTindakan}</th>
+                    <th style={{ width: 560 }}>{k.thTindakan}</th>
                   </tr>
 
                   {terlihat.map((b) => {
@@ -983,17 +983,6 @@ export default function SpesimenPage() {
                           </>
                         )}
 
-                        {/* Hapus berdiri terpisah di bawah, dipisahkan garis,
-                            bukan berjajar dengan tindakan lain: yang lain
-                            menggerakkan pendaftaran, yang ini menghilangkan
-                            barisnya, dan keduanya tidak boleh berjajar dalam
-                            satu baris tombol yang ditekan cepat-cepat.
-
-                            Tulisannya menyebut apa yang dihapus. "Hapus"
-                            saja, berdiri tepat di bawah "Kirim tautan
-                            pendaftaran", terbaca sebagai penghapus tautan itu
-                            — padahal yang hilang adalah orangnya dari daftar
-                            ini. */}
                         {/* Tidak ditawarkan selama ada set yang menunggu
                             diperiksa: dua set menunggu untuk satu orang berarti
                             putusan atas yang satu diam-diam menimpa yang lain.
@@ -1008,13 +997,22 @@ export default function SpesimenPage() {
                             {k.unggahManual}
                           </button>
                         )}
-                        </div>
 
-                        <div className="hapus-baris">
-                          <button className="tautan" disabled={busy}
-                                  onClick={() => setHapus(b)}>
-                            {k.hapus}
-                          </button>
+                        {/* Hapus ikut sebaris, tetapi tetap dibedakan: ia
+                            satu-satunya tindakan di kolom ini yang tidak dapat
+                            dibatalkan. Yang membedakannya warna — pudar sampai
+                            disentuh, lalu merah — bukan lagi tempatnya. Yang
+                            menahan salah tekan tetap dialog "Hapus <nama>?"
+                            yang harus dijawab, bukan jarak di layar.
+
+                            Tulisannya menyebut apa yang dihapus. "Hapus" saja,
+                            berdiri di samping "Kirim tautan pendaftaran",
+                            terbaca sebagai penghapus tautan itu — padahal yang
+                            hilang adalah orangnya dari daftar ini. */}
+                        <button className="hapus-marketing" disabled={busy}
+                                onClick={() => setHapus(b)}>
+                          {k.hapus}
+                        </button>
                         </div>
                       </td>
                     </tr>
