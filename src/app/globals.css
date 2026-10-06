@@ -149,6 +149,11 @@ td.n { text-align: right; font-variant-numeric: tabular-nums; color: var(--ink);
    lain, bukan nada baru. */
 .lbl { font-size: 10.5px; font-weight: 700; color: var(--sub);
        margin-bottom: 3px; }
+/* Baris kedua di bawah judul kotak isian: keterangan, bukan judul. Miring
+   dan tidak tebal, supaya kedua baris tidak sama kuatnya dan yang dibaca
+   lebih dahulu tetap judulnya. */
+.lbl .lbl-rinci { display: block; font-weight: 400; font-style: italic;
+                  color: var(--mut); }
 .sp { margin-bottom: 18px; }
 a { color: var(--note); }
 code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11.5px; }
@@ -199,6 +204,11 @@ textarea.reason { width: 100%; min-height: 80px; font-size: 13.5px; }
   display: grid; gap: 10px;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
 }
+/* Kendalinya didorong ke dasar petaknya, sehingga seluruh kotak berdiri pada
+   satu garis walaupun judul di atasnya berbeda jumlah barisnya. Tanpa ini,
+   judul dua baris menurunkan kotaknya sendiri saja dan barisannya patah. */
+.filters > div { display: flex; flex-direction: column; }
+.filters > div > :last-child { margin-top: auto; }
 .filters input, .filters select { width: 100%; }
 /* Tabel entri punya enam kolom: di layar sempit ia digulir sendiri, bukan
    memaksa seluruh halaman menggulir menyamping. */

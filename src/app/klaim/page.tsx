@@ -109,12 +109,13 @@ const KATA = {
     telahDiproses: (n: number) => `${n} Telah Diproses`,
     belumKriteria: (n: number) => `${n} Belum Memenuhi Kriteria`,
     galatBaca: "Data penjualan tidak dapat dibaca",
-    cari: "Cari (Unit, Konsumen, Sales)",
+    cari: "Cari Data",
+    cariKolom: "Unit • Konsumen • Sales",
     // Contohnya diambil dari unit pertama project ini, bukan kode tetap.
     // "mis. BIOBA2" pada project Naraya menyuruh orang mencari kode yang tidak
     // akan pernah ada di sana.
     contohCari: (kode: string) => `mis. ${kode}`,
-    tampilkan: "Tampilkan",
+    tampilkan: "Tampilkan Data",
     semuaPenjualan: "semua penjualan",
     yangBisa: "yang ada fee dapat diklaim",
     yangSudah: "yang sudah ada klaimnya",
@@ -212,9 +213,10 @@ const KATA = {
     telahDiproses: (n: number) => `${n} Processed`,
     belumKriteria: (n: number) => `${n} Not Yet Eligible`,
     galatBaca: "Sales data could not be read",
-    cari: "Search (Unit, Customer, Sales)",
+    cari: "Search Data",
+    cariKolom: "Unit • Customer • Sales",
     contohCari: (kode: string) => `e.g. ${kode}`,
-    tampilkan: "Show",
+    tampilkan: "Show Data",
     semuaPenjualan: "all sales",
     yangBisa: "with a claimable fee",
     yangSudah: "with an existing claim",
@@ -890,7 +892,12 @@ export default function PengajuanFeePage() {
       <div className="panel sp">
         <div className="filters">
           <div>
-            <div className="lbl">{k.cari}</div>
+            {/* Nama kolom yang dicari berdiri sebagai baris kedua, miring:
+                ia keterangan atas judulnya, bukan bagian dari judulnya. */}
+            <div className="lbl">
+              {k.cari}
+              <span className="lbl-rinci">{k.cariKolom}</span>
+            </div>
             <input value={cari}
                    placeholder={contoh ? k.contohCari(contoh) : ""}
                    onChange={(e) => setCari(e.target.value)} />
