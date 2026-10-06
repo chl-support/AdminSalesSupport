@@ -678,25 +678,43 @@ export default function ReferensiPengajuanPage() {
                     e.preventDefault(); e.stopPropagation();
                     setBukaPratinjau((b) => !b);
                   }}>
-            {/* Map terbuka dengan selembar dokumen keluar dari dalamnya —
-                bentuk yang sama dengan contoh yang diberikan, digambar
-                ulang sebagai garis supaya ia sewarna dengan lambang di
-                sebelahnya dan ikut menua saat kotaknya disentuh.
+            {/* Dua map, satu bentuk. Keduanya memakai tutup depan yang
+                sama persis — yang berbeda hanya ada tidaknya dokumen di
+                dalamnya, dan itulah yang menyatakan apa yang akan terjadi
+                bila tombolnya ditekan: map berisi dokumen mengeluarkannya
+                untuk dilihat, map kosong menyimpannya kembali.
 
-                Alas lembarnya sengaja tidak digambar: yang tidak tergambar
+                Digambar sebagai garis, bukan disalin dari contohnya yang
+                berisi warna: seluruh lambang di layar ini mengikuti warna
+                kotak tempatnya berdiri, termasuk saat kotaknya menua ketika
+                berkas diseret melewatinya.
+
+                Alas lembarnya sengaja tidak digambar. Yang tidak tergambar
                 itulah yang membuatnya terbaca sebagai berada DI DALAM map,
                 bukan di depannya. */}
             <svg viewBox="0 0 24 24" aria-hidden="true" fill="none"
                  stroke="currentColor" strokeWidth="1.6"
                  strokeLinecap="round" strokeLinejoin="round">
-              <path d="M9.3 12.8V2.8a1.2 1.2 0 0 1 1.2-1.2h5.3L18.9 4.3v8.5" />
-              <path d="M15.8 1.6v1.9a1 1 0 0 0 1 1h2.1" />
-              {/* Dua garis tulisan, bukan tiga seperti pada contoh:
-                  pada ukuran 19px, tiga garis berjarak 1,5px saling
-                  berdempetan menjadi satu bidang kelabu. */}
-              <path d="M11.7 5.9h3.1" /><path d="M11.7 9h5" />
-              <path d="M3 20.4V8.5A1.2 1.2 0 0 1 4.2 7.3h2.6a1 1 0 0 1
-                       .82.43l.75 1.07" />
+              {bukaPratinjau ? (
+                // Terbuka — yang ditawarkan menutupnya: map kosong.
+                <path d="M3 20.4V8.5A1.2 1.2 0 0 1 4.2 7.3h4.6a1 1 0 0 1
+                         .82.43l.75 1.07h7.03a1.2 1.2 0 0 1 1.2 1.2v2.4" />
+              ) : (
+                <>
+                  <path d="M9.3 12.8V2.8a1.2 1.2 0 0 1 1.2-1.2h5.3L18.9
+                           4.3v8.5" />
+                  <path d="M15.8 1.6v1.9a1 1 0 0 0 1 1h2.1" />
+                  {/* Dua garis tulisan, bukan tiga seperti pada contoh:
+                      pada ukuran 19px, tiga garis berjarak 1,5px saling
+                      berdempetan menjadi satu bidang kelabu. */}
+                  <path d="M11.7 5.9h3.1" /><path d="M11.7 9h5" />
+                  <path d="M3 20.4V8.5A1.2 1.2 0 0 1 4.2 7.3h2.6a1 1 0 0 1
+                           .82.43l.75 1.07" />
+                </>
+              )}
+              {/* Tutup depannya satu-satunya bagian yang tidak pernah
+                  berubah — di situlah kedua keadaan dikenali sebagai satu
+                  tombol yang sama, bukan dua tombol yang bergantian. */}
               <path d="M3 20.4 5.5 12.8h16L19 20.4H3Z" />
             </svg>
           </button>
