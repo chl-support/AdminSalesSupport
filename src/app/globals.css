@@ -2435,12 +2435,12 @@ td.sel-tindakan > a.tautan-klaim:last-child { margin-bottom: 0; }
 .unit-grup li { white-space: nowrap; }
 .unit-grup li::before { content: "· "; color: var(--mut); }
 
-/* Nilai tiap jenis fee pada baris gabungan. Rata kanan di ujung poinnya,
-   sejajar satu sama lain, supaya ketiga angka terbaca sebagai kolom kecil —
-   angka yang berdiri di belakang tulisan dengan jarak berbeda-beda menuntut
-   mata mencarinya satu per satu. */
-.unit-grup li { display: flex; justify-content: space-between; gap: 10px; }
-.unit-grup .nilai-jenis { white-space: nowrap; font-variant-numeric: tabular-nums; }
+/* Kolom angka yang berpoin: tiap angka sebaris dengan jenisnya di kolom Jenis
+   Pengajuan. Titik pembuka dibuang — di kolom angka ia bukan penanda butir
+   melainkan noda di depan rupiah — dan angkanya rata kanan dengan lebar digit
+   yang sama, supaya ketiganya dapat dijumlahkan dengan mata. */
+.nilai-grup li { text-align: right; font-variant-numeric: tabular-nums; }
+.nilai-grup li::before { content: none; }
 
 /* Kepala panel Laporan: judul di kiri, tombol unduh di kanan, pada satu pita.
    Sebelumnya judul, satu paragraf keterangan, dan tombolnya bertumpuk ke bawah

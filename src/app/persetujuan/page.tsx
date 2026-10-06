@@ -30,7 +30,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useBahasa, useKata } from "../bahasa";
 import { Kerangka, MemeriksaSesi } from "../kerangka";
 import { useSesi } from "../session";
-import { namaJenis } from "../klaim/jenis";
+import { JENIS, namaJenis } from "../klaim/jenis";
 import { namaKategori } from "@/lib/kategori";
 import { TAHAP, bolehBukaDokumen, bolehGerak, tahapDari } from "@/lib/tahap";
 import { LANGKAH, keadaanLangkah, sebutanLangkah, warnaLangkah }
@@ -1598,13 +1598,48 @@ export default function PersetujuanPage() {
                */
               const unitUnik = [...new Set(
                 g.map((x) => x.unit?.code).filter(Boolean))] as string[];
-              const perJenis: { jenis: any; nilai: number }[] = [];
+              /**
+               * Nilai tiap jenis, bukan hanya namanya.
+               *
+               * Angkanya berdiri di kolom angkanya masing-masing — Jumlah
+               * Komisi, PPN, PPh, dan yang dibayarkan — berbaris sejajar
+               * dengan poin jenisnya. Menaruh angka di kolom Jenis Pengajuan
+               * berarti satu kolom memuat dua hal, dan yang menjumlahkan ke
+               * bawah harus memindahkan matanya ke kolom yang berbeda-beda.
+               *
+               * Urutannya mengikuti urutan jenis pada layar Pengajuan Fee,
+               * bukan urutan jawaban server: baris yang sama harus tersusun
+               * sama tiap kali dimuat, sebab keempat kolom angkanya dibaca
+               * sebaris demi sebaris.
+               */
+              const URUT = JENIS.map((x) => x.slug) as string[];
+              const perJenis: {
+                jenis: any; gross: number; vat: number; pph: number; net: number;
+              }[] = [];
               for (const x of g) {
                 const ada = perJenis.find((y) => y.jenis === x.claim_type);
-                if (ada) ada.nilai += Number(x.gross_amount ?? 0);
-                else perJenis.push({ jenis: x.claim_type,
-                                     nilai: Number(x.gross_amount ?? 0) });
+                const n = {
+                  gross: Number(x.gross_amount ?? 0), vat: Number(x.vat ?? 0),
+                  pph: Number(x.withholding_tax ?? 0),
+                  net: Number(x.net_amount ?? 0),
+                };
+                if (ada) {
+                  ada.gross += n.gross; ada.vat += n.vat;
+                  ada.pph += n.pph; ada.net += n.net;
+                } else perJenis.push({ jenis: x.claim_type, ...n });
               }
+              perJenis.sort((a, b) =>
+                URUT.indexOf(a.jenis) - URUT.indexOf(b.jenis));
+              /** Kolom angka yang ikut berpoin, sejajar dengan jenisnya. */
+              const kolomNilai = (ambil: (j: typeof perJenis[0]) => number,
+                                  total: number, tebal = false) =>
+                (perJenis.length > 1 ? (
+                  <ul className="unit-grup nilai-grup">
+                    {perJenis.map((j) => (
+                      <li key={j.jenis}>{rp(ambil(j))}</li>
+                    ))}
+                  </ul>
+                ) : tebal ? <b>{rp(total)}</b> : rp(total));
               return (
               <tr key={c.batch_id ? `b:${c.batch_id}` : c.id}>
                 <td className="sel-no">{i + 1}</td>
@@ -1629,10 +1664,7 @@ export default function PersetujuanPage() {
                   {perJenis.length > 1 ? (
                     <ul className="unit-grup">
                       {perJenis.map((j) => (
-                        <li key={j.jenis}>
-                          {namaJenis(j.jenis, bahasa)}
-                          <span className="nilai-jenis">{rp(j.nilai)}</span>
-                        </li>
+                        <li key={j.jenis}>{namaJenis(j.jenis, bahasa)}</li>
                       ))}
                     </ul>
                   ) : namaJenis(c.claim_type, bahasa)}
@@ -1645,10 +1677,12 @@ export default function PersetujuanPage() {
                 <td>{kategori(c, k, bahasa) ?? "—"}</td>
                 <td className="sel-penerima">{c.marketing?.full_name ?? "—"}</td>
                 <td>{pengaju(c)}</td>
-                <td className="n">{rp(jml("gross_amount"))}</td>
-                <td className="n">{rp(jml("vat"))}</td>
-                <td className="n">{rp(jml("withholding_tax"))}</td>
-                <td className="n"><b>{rp(jml("net_amount"))}</b></td>
+                <td className="n">{kolomNilai((j) => j.gross, jml("gross_amount"))}</td>
+                <td className="n">{kolomNilai((j) => j.vat, jml("vat"))}</td>
+                <td className="n">{kolomNilai((j) => j.pph, jml("withholding_tax"))}</td>
+                <td className="n">
+                  {kolomNilai((j) => j.net, jml("net_amount"), true)}
+                </td>
                 {/* Tanggal uang keluar menurut bukti bank, bukan tanggal
                     klaimnya disetujui: ia tersimpan di settlements, sebab satu
                     transfer dapat melunasi beberapa klaim sekaligus. Kosong
