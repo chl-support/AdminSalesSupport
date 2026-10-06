@@ -37,10 +37,6 @@ type Baris = {
   sesi_otp: string | null; sesi_otp_terverifikasi: boolean | null;
 };
 
-const PILL: Record<string, string> = {
-  active: "ok", pending_review: "warn", rejected: "stop",
-};
-
 const KATA = {
   id: {
     judul: "Spesimen Tanda Tangan",
@@ -73,8 +69,9 @@ const KATA = {
     muatUlang: "Muat ulang",
     mintaRevisiLama: (n: number) => `Minta revisi ${n} spesimen lama`,
     thMarketing: "Marketing", thStatus: "Status",
-    thJangkar: "Jangkar KTP", thPendaftaran: "Pendaftaran berjalan",
+    thJangkar: "Jangkar KTP",
     thTindakan: "Tindakan",
+    belumTerdaftar: "belum terdaftar", ditolak: "ditolak",
     ubahNomor: "Ubah nomor telepon", tanpaNomor: "tanpa nomor telepon",
     phNomor: "08xxxxxxxxxx", simpan: "Simpan", batal: "Batal",
     ubahKategori: "Ubah kategori penerima fee",
@@ -245,8 +242,9 @@ const KATA = {
     muatUlang: "Reload",
     mintaRevisiLama: (n: number) => `Request revision of ${n} old specimens`,
     thMarketing: "Marketing", thStatus: "Status",
-    thJangkar: "ID card anchor", thPendaftaran: "Registration in progress",
+    thJangkar: "ID card anchor",
     thTindakan: "Action",
+    belumTerdaftar: "not registered", ditolak: "rejected",
     ubahNomor: "Change phone number", tanpaNomor: "no phone number",
     phNomor: "08xxxxxxxxxx", simpan: "Save", batal: "Cancel",
     ubahKategori: "Change fee recipient category",
@@ -742,10 +740,19 @@ export default function SpesimenPage() {
                 <tbody>
                   <tr>
                     <th>{k.thMarketing}</th>
-                    <th>{k.thStatus}</th>
                     <th>{k.thJangkar}</th>
-                    <th>{k.thPendaftaran}</th>
-                    <th style={{ width: 250 }}>{k.thTindakan}</th>
+                    {/* Satu kolom keadaan, bukan dua. Sebelumnya pil mentah
+                        basis data (draft / active / pending_review) berdiri di
+                        kolom sendiri, sementara keadaan yang sama ditulis
+                        dengan kata-kata di kolom lain — dan lencana "sudah
+                        terdaftar" bahkan ikut duduk di kolom Tindakan, di
+                        samping tombolnya. Tiga tempat untuk satu hal. */}
+                    <th>{k.thStatus}</th>
+                    {/* Lebarnya memuat kedua tombol pendaftaran berdampingan.
+                        Pada 250px keduanya tidak muat sebaris dan yang kedua
+                        turun sendiri — sejajar yang dimaksud jadi tidak pernah
+                        terjadi. */}
+                    <th style={{ width: 400 }}>{k.thTindakan}</th>
                   </tr>
 
                   {terlihat.map((b) => {
@@ -808,11 +815,6 @@ export default function SpesimenPage() {
                         )}
                       </td>
                       <td>
-                        <span className={`pill ${PILL[b.status] ?? ""}`}>
-                          {b.status}
-                        </span>
-                      </td>
-                      <td>
                         {b.punya_ktp ? (
                           <>
                             <span className="pill ok">{k.ada}</span><br />
@@ -824,24 +826,47 @@ export default function SpesimenPage() {
                           </>
                         ) : <span style={{ color: "var(--mut)" }}>—</span>}
                       </td>
+                      {/* Kolom Status: keadaan pendaftaran orang ini, satu
+                          lencana, dibaca dari yang paling mendesak ke yang
+                          paling tenang — ada set menunggu diperiksa, ada
+                          tautan hidup, sudah terdaftar, ditolak, atau belum
+                          terdaftar sama sekali. */}
                       <td>
                         {b.sesi_state === "submitted" ? (
                           <>
                             <span className="pill warn">{k.menungguDiperiksa}</span><br />
                             <span style={{ fontSize: 11 }}>{k.ttdPadaKtp}</span>
                           </>
-                        ) : ["sent", "opened", "capturing"].includes(b.sesi_state ?? "") ? (
+                        ) : ["sent", "opened", "capturing"].includes(b.sesi_state ?? "")
+                             && !kedaluwarsa ? (
                           <>
                             <span className="pill">{k.tautanTerbuka}</span><br />
                             <span style={{ fontSize: 11 }}>
                               {b.sesi_ktp_at ? k.ktpDiunggah : k.ktpBelum}
                             </span>
                           </>
+                        ) : b.spesimen > 0 ? (
+                          /* Pindah dari kolom Tindakan. Lencana keadaan yang
+                             duduk di samping tombol terbaca sebagai bagian dari
+                             tombolnya; ia keterangan, bukan tindakan. */
+                          <span className="pill ok">{k.sudahTerdaftar}</span>
+                        ) : b.status === "rejected" ? (
+                          /* Yang ditolak tidak boleh terbaca sama dengan yang
+                             belum pernah mendaftar: yang satu menunggu
+                             pendaftaran ulang, yang lain belum mulai. */
+                          <span className="pill stop">{k.ditolak}</span>
                         ) : (
-                          <span style={{ color: "var(--mut)" }}>—</span>
+                          <span className="pill">{k.belumTerdaftar}</span>
                         )}
                       </td>
                       <td>
+                        {/* Dua jalan menuju pendaftaran berdiri berdampingan:
+                            tautan yang dikirim ke orangnya, dan berkas yang
+                            sudah dipegang Admin. Keduanya tombol yang setara,
+                            jadi keduanya duduk pada baris yang sama — yang
+                            berdiri sendiri di bawah garis terbaca sebagai
+                            tindakan lain jenis, padahal hasilnya sama. */}
+                        <div className="tindakan-utama">
                         {b.sesi_state === "submitted" ? (
                           <button disabled={busy}
                                   onClick={() => void bukaSet(b.sesi_set_id!)}>
@@ -923,21 +948,14 @@ export default function SpesimenPage() {
                               </div>
                             </>
                           ) : (
-                            /* Lencana keadaan dan tombolnya berdampingan dalam
-                               satu baris yang meregangkan keduanya setinggi
-                               yang tertinggi. Sebelumnya lencana kecil
-                               berukuran pil duduk di atas tombol berukuran
-                               penuh, dua kotak dengan tinggi, ukuran huruf dan
-                               tepi yang berbeda-beda — dan kolomnya terbaca
-                               sebagai dua hal yang tidak berhubungan, padahal
-                               keduanya menyebut satu spesimen yang sama. */
-                            <div className="pasangan-status">
-                              <span className="pill ok">{k.sudahTerdaftar}</span>
-                              <button
-                                onClick={() => { setRevisi(b.id); setAlasanRevisi(""); }}>
-                                {k.mintaRevisi}
-                              </button>
-                            </div>
+                            /* Tinggal tombolnya. Lencana "sudah terdaftar" yang
+                               dulu berdampingan di sini pindah ke kolom Status:
+                               keadaan dibaca di kolom keadaan, dan kolom ini
+                               hanya memuat yang dapat ditekan. */
+                            <button
+                              onClick={() => { setRevisi(b.id); setAlasanRevisi(""); }}>
+                              {k.mintaRevisi}
+                            </button>
                           )
                         ) : !b.phone ? (
                           /* Tanpa nomor, kode verifikasi tidak punya tujuan.
@@ -976,25 +994,21 @@ export default function SpesimenPage() {
                             pendaftaran", terbaca sebagai penghapus tautan itu
                             — padahal yang hilang adalah orangnya dari daftar
                             ini. */}
-                        {/* Unggah manual berdiri di antara keduanya: ia
-                            menggerakkan pendaftaran seperti tautan di atasnya,
-                            tetapi lewat jalan lain — berkas yang sudah dipegang
-                            Admin. Tidak ditawarkan selama ada set yang menunggu
+                        {/* Tidak ditawarkan selama ada set yang menunggu
                             diperiksa: dua set menunggu untuk satu orang berarti
                             putusan atas yang satu diam-diam menimpa yang lain.
                             Yang perlu dilakukan lebih dulu adalah memutuskan
                             yang sudah masuk. */}
                         {b.sesi_state !== "submitted" && (
-                          <div className="unggah-baris">
-                            <button className="tautan" disabled={busy}
-                                    onClick={() => {
-                                      setUnggah(b); setAlasanUnggah("");
-                                      setSiapUnggah(false);
-                                    }}>
-                              {k.unggahManual}
-                            </button>
-                          </div>
+                          <button disabled={busy}
+                                  onClick={() => {
+                                    setUnggah(b); setAlasanUnggah("");
+                                    setSiapUnggah(false);
+                                  }}>
+                            {k.unggahManual}
+                          </button>
                         )}
+                        </div>
 
                         <div className="hapus-baris">
                           <button className="tautan" disabled={busy}
@@ -1009,7 +1023,7 @@ export default function SpesimenPage() {
 
                   {!terlihat.length && (
                     <tr>
-                      <td colSpan={5} style={{ color: "var(--mut)" }}>
+                      <td colSpan={4} style={{ color: "var(--mut)" }}>
                         {k.takAdaMarketing}
                       </td>
                     </tr>
