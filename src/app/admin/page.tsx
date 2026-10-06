@@ -18,6 +18,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useBahasa, useKata } from "../bahasa";
 import { Kerangka, MemeriksaSesi } from "../kerangka";
 import { labelPeran, useSesi } from "../session";
+import { PilihBerkas } from "../pilih-berkas";
 
 const rp = (n?: number | null) => `Rp ${(n ?? 0).toLocaleString("id-ID")}`;
 
@@ -801,12 +802,12 @@ export default function AdminPage() {
               <p className="hint" style={{ textAlign: "left", marginTop: 0 }}>
                 {k.imporCatatan}
               </p>
-              <input type="file" accept=".xls,.tsv,.txt,.csv"
-                     style={{ width: "100%" }}
-                     onChange={(e) => {
-                       setBerkas(e.target.files?.[0] ?? null);
-                       setPratinjau(null); setTertulis(null); setGalatImpor(null);
-                     }} />
+              <PilihBerkas accept=".xls,.tsv,.txt,.csv"
+                           style={{ width: "100%" }}
+                           onChange={(e) => {
+                             setBerkas(e.target.files?.[0] ?? null);
+                             setPratinjau(null); setTertulis(null); setGalatImpor(null);
+                           }} />
               <div className="row" style={{ marginTop: 12, marginBottom: 0 }}>
                 <button disabled={!berkas || sibukImpor}
                         onClick={() => void kirimBerkas(true)}>
@@ -887,13 +888,13 @@ export default function AdminPage() {
               <p className="hint" style={{ textAlign: "left", marginTop: 0 }}>
                 {k.terimaCatatanA}<b>{k.sdBulanIni}</b>{k.terimaCatatanB}
               </p>
-              <input type="file" accept=".xls,.tsv,.txt,.csv"
-                     style={{ width: "100%" }}
-                     onChange={(e) => {
-                       setBerkasTerima(e.target.files?.[0] ?? null);
-                       setPratinjauTerima(null); setTertulisTerima(null);
-                       setGalatTerima(null);
-                     }} />
+              <PilihBerkas accept=".xls,.tsv,.txt,.csv"
+                           style={{ width: "100%" }}
+                           onChange={(e) => {
+                             setBerkasTerima(e.target.files?.[0] ?? null);
+                             setPratinjauTerima(null); setTertulisTerima(null);
+                             setGalatTerima(null);
+                           }} />
               <div className="row" style={{ marginTop: 12, marginBottom: 0 }}>
                 <button disabled={!berkasTerima || sibukTerima}
                         onClick={() => void kirimPenerimaan(true)}>
@@ -969,13 +970,13 @@ export default function AdminPage() {
               <p className="hint" style={{ textAlign: "left", marginTop: 0 }}>
                 {k.agenCatatanA}<b>{k.nomorWaTebal}</b>{k.agenCatatanB}
               </p>
-              <input type="file" accept=".xls,.tsv,.txt,.csv"
-                     style={{ width: "100%" }}
-                     onChange={(e) => {
-                       setBerkasAgen(e.target.files?.[0] ?? null);
-                       setPratinjauAgen(null); setTertulisAgen(null);
-                       setGalatAgen(null);
-                     }} />
+              <PilihBerkas accept=".xls,.tsv,.txt,.csv"
+                           style={{ width: "100%" }}
+                           onChange={(e) => {
+                             setBerkasAgen(e.target.files?.[0] ?? null);
+                             setPratinjauAgen(null); setTertulisAgen(null);
+                             setGalatAgen(null);
+                           }} />
               <div className="row" style={{ marginTop: 12, marginBottom: 0 }}>
                 <button disabled={!berkasAgen || sibukAgen}
                         onClick={() => void kirimAgen(true)}>

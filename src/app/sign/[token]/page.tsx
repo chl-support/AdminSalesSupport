@@ -24,6 +24,7 @@ import { useParams } from "next/navigation";
 import { FormPengajuan } from "../../klaim/form-pengajuan";
 import { RekapOverriding } from "../../klaim/rekap-overriding";
 import { KanvasTtd, usePadTtd } from "../../ttd-pad";
+import { PilihBerkas } from "../../pilih-berkas";
 
 const rp = (n?: number | null) => `Rp ${(n ?? 0).toLocaleString("id-ID")}`;
 const kb = (n?: number | null) => `${Math.max(1, Math.round((n ?? 0) / 1024))} KB`;
@@ -344,14 +345,14 @@ export default function SignPage() {
                     </li>
                   )) : <li className="kosong">Belum ada berkas.</li>}
                 </ul>
-                <input type="file" disabled={busy}
-                       accept=".pdf,.jpg,.jpeg,.png,.webp,.heic,application/pdf,image/*"
-                       onChange={(e) => {
-                         const f = e.target.files?.[0];
-                         e.target.value = "";
-                         if (f) unggah(b.item, f);
-                       }}
-                       style={{ width: "100%", marginTop: 6, fontSize: 12.5 }} />
+                <PilihBerkas disabled={busy}
+                             accept=".pdf,.jpg,.jpeg,.png,.webp,.heic,application/pdf,image/*"
+                             onChange={(e) => {
+                               const f = e.target.files?.[0];
+                               e.target.value = "";
+                               if (f) unggah(b.item, f);
+                             }}
+                             style={{ width: "100%", marginTop: 6, fontSize: 12.5 }} />
               </div>
             );
           })}

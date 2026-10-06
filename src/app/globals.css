@@ -2463,3 +2463,23 @@ td.sel-tindakan > a.tautan-klaim:last-child { margin-bottom: 0; }
 /* TOTAL menempel di kaki wadah gulirnya: ia merangkum seluruh tabel, jadi
    tempatnya di bawah — sebagaimana pada berkas unduhannya. */
 .tabel-laporan tr.total-laporan { position: sticky; bottom: 0; z-index: 5; }
+
+/* Pemilih berkas berbahasa Indonesia (komponen PilihBerkas).
+   Tombolnya adalah <label>, dan nama berkasnya berdiri di sebelahnya —
+   menggantikan "Choose file" dan "No file chosen" bawaan peramban, yang
+   tidak dapat diganti dari halaman. */
+.pilih-berkas { display: flex; align-items: center; gap: 9px; min-width: 0; }
+.pilih-berkas .tombol-berkas { flex: none; border-radius: var(--lengkung); }
+.pilih-berkas .nama-berkas {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 12px; color: var(--mut);
+}
+.pilih-berkas .tombol-berkas:focus-within {
+  outline: 2px solid var(--emas-tua); outline-offset: 1px;
+}
+/* Saat input-nya dimatikan, labelnya tidak lagi menerima klik — bentuknya
+   harus ikut menyatakannya, sebab label tidak memiliki keadaan disabled. */
+.pilih-berkas:has(input:disabled) .tombol-berkas {
+  color: var(--mut); border-color: var(--line); background: var(--fill);
+  cursor: default;
+}

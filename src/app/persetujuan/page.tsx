@@ -41,6 +41,7 @@ import { LANGKAH, keadaanLangkah, sebutanLangkah, warnaLangkah }
 // akan berbeda perilaku begitu salah satunya diperbaiki.
 import { BATAS_FULL_SIGN, periksaUkuran, perluDipecah, titipBerkas }
   from "../memo/kirim";
+import { PilihBerkas } from "../pilih-berkas";
 
 const rp = (n?: number | null) => `Rp ${(n ?? 0).toLocaleString("id-ID")}`;
 const tgl = (v?: string | null) => (v ? String(v).slice(0, 10) : "—");
@@ -1921,9 +1922,9 @@ export default function PersetujuanPage() {
               </p>
 
               <div className="lbl">{k.fsBerkas}</div>
-              <input type="file" style={{ width: "100%" }}
-                     accept=".pdf,.jpg,.jpeg,.png,.webp"
-                     onChange={(e) => setFsBerkas(e.target.files?.[0] ?? null)} />
+              <PilihBerkas style={{ width: "100%" }}
+                           accept=".pdf,.jpg,.jpeg,.png,.webp"
+                           onChange={(e) => setFsBerkas(e.target.files?.[0] ?? null)} />
               <p className="catatan-sunting">{k.fsCatatan}</p>
 
               <div className="row" style={{ marginTop: 10, marginBottom: 0 }}>
@@ -2290,9 +2291,9 @@ export default function PersetujuanPage() {
                      onChange={(e) => setByrTgl(e.target.value)} />
 
               <div className="lbl" style={{ marginTop: 10 }}>{k.byrBukti}</div>
-              <input type="file" style={{ width: "100%" }}
-                     accept=".pdf,.jpg,.jpeg,.png,.webp"
-                     onChange={(e) => setByrBukti(e.target.files?.[0] ?? null)} />
+              <PilihBerkas style={{ width: "100%" }}
+                           accept=".pdf,.jpg,.jpeg,.png,.webp"
+                           onChange={(e) => setByrBukti(e.target.files?.[0] ?? null)} />
 
               <div className="lbl" style={{ marginTop: 10 }}>{k.byrAlasan}</div>
               <input value={byrAlasan} style={{ width: "100%" }}

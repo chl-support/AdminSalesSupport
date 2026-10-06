@@ -21,6 +21,7 @@
 
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState }
   from "react";
+import { PilihBerkas } from "./pilih-berkas";
 
 /** Batas ukuran foto KTP. Sama dengan batas pada server (lib/spesimen). */
 export const BATAS_KTP = 3 * 1024 * 1024;
@@ -362,13 +363,13 @@ export const PenandaKtp = forwardRef<PenandaKtpRef, {
           sesudahnya: sesudah dipilih, fotonya sudah terlanjur diambil. */}
       {!ktpUrl && children}
 
-      <input type="file" accept="image/*" capture="environment"
-             disabled={busy} style={{ width: "100%", fontSize: 12.5 }}
-             onChange={(e) => {
-               const f = e.target.files?.[0];
-               e.target.value = "";
-               if (f) pilihKtp(f);
-             }} />
+      <PilihBerkas accept="image/*" capture="environment"
+                   disabled={busy} style={{ width: "100%", fontSize: 12.5 }}
+                   onChange={(e) => {
+                     const f = e.target.files?.[0];
+                     e.target.value = "";
+                     if (f) pilihKtp(f);
+                   }} />
 
       {ktpUrl && (
         <>

@@ -14,6 +14,7 @@
  */
 
 import { CATATAN, DOKUMEN, JUDUL_HITUNG, KOP, type Jenis } from "./jenis";
+import { PilihBerkas } from "../pilih-berkas";
 
 /**
  * Rupiah seperti tertulis pada formulir aslinya: "Rp. 3.422.000.000,-".
@@ -243,9 +244,9 @@ export function FormPengajuan(
                     Tidak ikut tercetak — pada kertas ia hanya kotak kosong. */}
                 {onBerkas && (
                   <span className="lampir-pilih jangan-cetak">
-                    <input type="file" accept=".pdf,image/*"
-                           onChange={(e) => onBerkas(
-                             d, e.target.files?.[0] ?? null)} />
+                    <PilihBerkas accept=".pdf,image/*" tanpaNama
+                                 onChange={(e) => onBerkas(
+                                   d, e.target.files?.[0] ?? null)} />
                     {berkas?.[d] && <b>{berkas[d]}</b>}
                   </span>
                 )}

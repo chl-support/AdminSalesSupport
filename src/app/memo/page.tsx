@@ -25,6 +25,7 @@ import { pasangBerkas, periksaUkuran, perluDipecah, titipBerkas }
   from "./kirim";
 import { Kerangka, MemeriksaSesi } from "../kerangka";
 import { useSesi } from "../session";
+import { PilihBerkas } from "../pilih-berkas";
 
 const KATA = {
   id: {
@@ -691,19 +692,19 @@ export default function MemoPage() {
           {/* Memilih berkas sekaligus membacanya: kolom di atas terisi sendiri
               sejauh yang dapat dibaca, dan yang tidak terbaca tetap kosong
               menunggu diketik. */}
-          <input type="file" style={{ width: "100%" }}
-                 accept=".pdf,.jpg,.jpeg,.png,.webp,.xls,.xlsx,.doc,.docx"
-                 onChange={(e) => {
-                   const f = e.target.files?.[0] ?? null;
-                   // Titipan berkas sebelumnya tidak berlaku bagi berkas
-                   // baru; dibiarkan, memo yang tersimpan adalah berkas lama.
-                   setBerkas(f); setTitipan(null);
-                   // Berkas yang pasti ditolak server tidak perlu dikirim
-                   // dulu untuk diketahui terlalu besar.
-                   const besar = f && periksaUkuran(f);
-                   if (besar) { setGalat(besar); setBerkas(null); return; }
-                   if (f) void bacaBerkas(f);
-                 }} />
+          <PilihBerkas style={{ width: "100%" }}
+                       accept=".pdf,.jpg,.jpeg,.png,.webp,.xls,.xlsx,.doc,.docx"
+                       onChange={(e) => {
+                         const f = e.target.files?.[0] ?? null;
+                         // Titipan berkas sebelumnya tidak berlaku bagi berkas
+                         // baru; dibiarkan, memo yang tersimpan adalah berkas lama.
+                         setBerkas(f); setTitipan(null);
+                         // Berkas yang pasti ditolak server tidak perlu dikirim
+                         // dulu untuk diketahui terlalu besar.
+                         const besar = f && periksaUkuran(f);
+                         if (besar) { setGalat(besar); setBerkas(null); return; }
+                         if (f) void bacaBerkas(f);
+                       }} />
 
           <div className="row" style={{ marginTop: 12, marginBottom: 0 }}>
             <button className="pri" disabled={!berkas || busy || membaca}
@@ -897,10 +898,10 @@ export default function MemoPage() {
                       </div>
                       <div>
                         <div className="lbl">{k.fLampiran}</div>
-                        <input type="file"
-                               accept=".pdf,.jpg,.jpeg,.png,.webp,.xls,.xlsx,.doc,.docx"
-                               onChange={(e) =>
-                                 setLBerkas(e.target.files?.[0] ?? null)} />
+                        <PilihBerkas
+                                     accept=".pdf,.jpg,.jpeg,.png,.webp,.xls,.xlsx,.doc,.docx"
+                                     onChange={(e) =>
+                                       setLBerkas(e.target.files?.[0] ?? null)} />
                       </div>
                       <button className="pri" disabled={!lBerkas || busy}
                               onClick={() => void lampirkan(m.id)}>
