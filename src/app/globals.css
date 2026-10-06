@@ -1381,8 +1381,8 @@ button.hapus-klaim:hover:not(:disabled) {
    biru baru yang dibawa dari luar: satu warna tambahan yang hanya dipakai di
    satu kotak akan terbaca sebagai bagian dari sistem lain. */
 .kotak-seret {
-  display: flex; flex-direction: column; align-items: center; gap: 7px;
-  padding: 18px 16px; text-align: center; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; gap: 5px;
+  padding: 11px 14px; text-align: center; cursor: pointer;
   /* Nyaris putih dengan semburat biru, bukan --notebg yang pekat: kotak ini
      bidang terbesar di kepala layar, dan warna yang cukup untuk sebuah banner
      setinggi dua baris menjadi terlalu berat bila dipakai selebar ini. */
@@ -1396,15 +1396,15 @@ button.hapus-klaim:hover:not(:disabled) {
 .kotak-seret:hover, .kotak-seret.aktif {
   border-color: var(--note); background: var(--notebg);
 }
-.kotak-seret .ikon-unggah { width: 24px; height: 24px; color: var(--note); }
-.kotak-seret b { font-size: 13.5px; }
+.kotak-seret .ikon-unggah { width: 19px; height: 19px; color: var(--note); }
+.kotak-seret b { font-size: 12.5px; }
 .kotak-seret span { font-size: 12.5px; color: var(--sub); }
 .kotak-seret .tombol-berkas.pri {
-  display: inline-flex; align-items: center; gap: 6px; margin-top: 1px;
-  padding: 5px 13px; border: 1px solid var(--note); border-radius: var(--lengkung);
-  background: var(--note); color: #fff; font-size: 13px; font-weight: 650;
+  display: inline-flex; align-items: center; gap: 5px; margin-top: 1px;
+  padding: 4px 11px; border: 1px solid var(--note); border-radius: var(--lengkung);
+  background: var(--note); color: #fff; font-size: 12px; font-weight: 650;
 }
-.kotak-seret .tombol-berkas.pri svg { width: 13px; height: 13px; }
+.kotak-seret .tombol-berkas.pri svg { width: 12px; height: 12px; }
 .kotak-seret:hover .tombol-berkas.pri { background: #24406B; border-color: #24406B; }
 /* Tabel ringkasan memo: judul kolomnya rata tengah, nomornya pun. */
 .tabel-rujukan th { text-align: center; vertical-align: middle; }
