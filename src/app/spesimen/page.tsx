@@ -110,6 +110,7 @@ const KATA = {
       "Nomor telepon belum terisi. Isi nomornya pada kolom Marketing lebih dulu.",
     kirimTautan: "Kirim tautan pendaftaran",
     unggahManual: "Unggah spesimen manual",
+    menuTindakan: "Daftarkan spesimen…",
     unggahJudul: (nama: string) => `Unggah spesimen — ${nama}`,
     unggahBanner: "Untuk berkas yang sudah Anda pegang",
     unggahBannerIsi:
@@ -282,6 +283,7 @@ const KATA = {
       "The phone number is empty. Fill it in under the Marketing column first.",
     kirimTautan: "Send registration link",
     unggahManual: "Upload specimen manually",
+    menuTindakan: "Register specimen…",
     unggahJudul: (nama: string) => `Upload specimen — ${nama}`,
     unggahBanner: "For a file you already hold",
     unggahBannerIsi:
@@ -752,7 +754,7 @@ export default function SpesimenPage() {
                         Pada 250px keduanya tidak muat sebaris dan yang kedua
                         turun sendiri — sejajar yang dimaksud jadi tidak pernah
                         terjadi. */}
-                    <th style={{ width: 560 }}>{k.thTindakan}</th>
+                    <th style={{ width: 330 }}>{k.thTindakan}</th>
                   </tr>
 
                   {terlihat.map((b) => {
@@ -860,160 +862,171 @@ export default function SpesimenPage() {
                         )}
                       </td>
                       <td>
-                        {/* Dua jalan menuju pendaftaran berdiri berdampingan:
-                            tautan yang dikirim ke orangnya, dan berkas yang
-                            sudah dipegang Admin. Keduanya tombol yang setara,
-                            jadi keduanya duduk pada baris yang sama — yang
-                            berdiri sendiri di bawah garis terbaca sebagai
-                            tindakan lain jenis, padahal hasilnya sama. */}
-                        <div className="tindakan-utama">
-                        {b.sesi_state === "submitted" ? (
-                          <button disabled={busy}
-                                  onClick={() => void bukaSet(b.sesi_set_id!)}>
-                            {lihat === b.sesi_set_id ? k.tutup : k.periksaTtd}
-                          </button>
-                        ) : ["sent", "opened", "capturing"].includes(b.sesi_state ?? "")
-                             && !kedaluwarsa ? (
-                          /* Tautannya tetap terlihat selama masih hidup.
-                             Sebelumnya di sini hanya tertulis "sudah dikirim
-                             dan masih berlaku": yang perlu mengirim ulang
-                             karena orangnya belum juga membuka tidak punya
-                             apa-apa untuk dikirim, dan satu-satunya jalan
-                             adalah menerbitkan tautan baru — yang justru
-                             mematikan tautan yang sudah telanjur dikirim.
+                        {/* Satu menu pilihan, bukan deretan tombol.
+                            Pendaftaran spesimen punya dua jalan — tautan yang
+                            dikirim kepada orangnya dan berkas yang sudah
+                            dipegang Admin — dan keduanya sebagai tombol
+                            membuat kolom ini terbaca sebagai papan tombol:
+                            dua sampai tiga kotak gelap pada tiap baris,
+                            berulang sepanjang daftar, dan mata tidak lagi
+                            menemukan baris mana yang perlu dikerjakan.
 
-                             Kodenya ikut selama belum dipakai. Ia memang sudah
-                             pernah tampil di halaman ini saat diterbitkan, dan
-                             yang melihatnya tetap hanya Admin Sales dan Admin
-                             IT; yang berubah adalah ia tidak lagi hilang
-                             begitu halamannya dimuat ulang. */
-                          <div className="tautan-hidup">
-                            <div className="lbl">{k.tautanAlamat}</div>
-                            <div className="alamat-tautan">
-                              {`${asal}/daftar-ttd/${b.sesi_token}`}
-                            </div>
-                            {b.sesi_otp && !b.sesi_otp_terverifikasi ? (
-                              <div className="kode-tautan">
-                                {k.tautanKode} <b>{b.sesi_otp}</b>
-                              </div>
-                            ) : (
-                              <div className="kode-tautan pudar">
-                                {k.tautanSudahDiverifikasi}
-                              </div>
-                            )}
-                            {b.expires_at && (
-                              <div className="kode-tautan pudar">
-                                {k.tautanSampai(
-                                  String(b.expires_at).slice(0, 16).replace("T", " "))}
-                              </div>
-                            )}
-                            <div className="row" style={{ margin: "6px 0 0" }}>
-                              <button onClick={() => {
-                                navigator.clipboard?.writeText(
-                                  `${asal}/daftar-ttd/${b.sesi_token}`);
-                                setKabar({ kind: "ok",
-                                           html: `<b>${k.tautanTersalin}</b>` });
-                              }}>{k.tautanSalin}</button>
-                              {b.phone && (
-                                <a className="tombol-berkas"
-                                   href={`https://wa.me/${b.phone}?text=${
-                                     encodeURIComponent(
-                                       `${asal}/daftar-ttd/${b.sesi_token}`)}`}
-                                   target="_blank" rel="noreferrer">
-                                  {k.tautanWa}
-                                </a>
+                            Jalan mana yang tersedia berbeda per baris, dan
+                            daftarnya disusun di sini supaya menunya tidak
+                            pernah menawarkan yang pasti ditolak: tanpa nomor
+                            telepon tidak ada tautan yang dapat dikirim, dan
+                            selama tautannya masih hidup menerbitkan yang baru
+                            justru mematikan yang telanjur dikirim. */}
+                        {(() => {
+                          const hidup = ["sent", "opened", "capturing"]
+                            .includes(b.sesi_state ?? "") && !kedaluwarsa;
+                          const pilihan: { nilai: string; label: string }[] = [];
+                          if (b.sesi_state !== "submitted" && !hidup && b.phone) {
+                            pilihan.push({ nilai: "tautan",
+                              label: b.spesimen > 0 ? k.mintaRevisi
+                                                    : k.kirimTautan });
+                          }
+                          if (b.sesi_state !== "submitted") {
+                            pilihan.push({ nilai: "unggah", label: k.unggahManual });
+                          }
+                          const jalankan = (nilai: string) => {
+                            if (nilai === "unggah") {
+                              setUnggah(b); setAlasanUnggah(""); setSiapUnggah(false);
+                            } else if (nilai === "tautan") {
+                              // Yang sudah punya spesimen tidak langsung
+                              // diterbitkan tautannya: alasannya wajib lebih
+                              // dulu, sama seperti sebelum menu ini ada.
+                              if (b.spesimen > 0) { setRevisi(b.id); setAlasanRevisi(""); }
+                              else void kirimTautan(b);
+                            }
+                          };
+                          return (
+                            <div className="tindakan-utama">
+                              {/* Yang menunggu diperiksa tidak punya pilihan
+                                  apa pun: yang perlu dilakukan adalah
+                                  memutuskan set yang sudah masuk. */}
+                              {b.sesi_state === "submitted" && (
+                                <button disabled={busy}
+                                        onClick={() => void bukaSet(b.sesi_set_id!)}>
+                                  {lihat === b.sesi_set_id ? k.tutup : k.periksaTtd}
+                                </button>
+                              )}
+
+                              {/* Tautan yang masih hidup tetap terlihat utuh —
+                                  alamat, kode, dan tombol menyalinnya — karena
+                                  yang perlu mengirim ulang tidak punya apa-apa
+                                  untuk dikirim tanpa itu. */}
+                              {hidup && (
+                                <div className="tautan-hidup">
+                                  <div className="lbl">{k.tautanAlamat}</div>
+                                  <div className="alamat-tautan">
+                                    {`${asal}/daftar-ttd/${b.sesi_token}`}
+                                  </div>
+                                  {b.sesi_otp && !b.sesi_otp_terverifikasi ? (
+                                    <div className="kode-tautan">
+                                      {k.tautanKode} <b>{b.sesi_otp}</b>
+                                    </div>
+                                  ) : (
+                                    <div className="kode-tautan pudar">
+                                      {k.tautanSudahDiverifikasi}
+                                    </div>
+                                  )}
+                                  {b.expires_at && (
+                                    <div className="kode-tautan pudar">
+                                      {k.tautanSampai(String(b.expires_at)
+                                        .slice(0, 16).replace("T", " "))}
+                                    </div>
+                                  )}
+                                  <div className="row" style={{ margin: "6px 0 0" }}>
+                                    <button onClick={() => {
+                                      navigator.clipboard?.writeText(
+                                        `${asal}/daftar-ttd/${b.sesi_token}`);
+                                      setKabar({ kind: "ok",
+                                                 html: `<b>${k.tautanTersalin}</b>` });
+                                    }}>{k.tautanSalin}</button>
+                                    {b.phone && (
+                                      <a className="tombol-berkas"
+                                         href={`https://wa.me/${b.phone}?text=${
+                                           encodeURIComponent(
+                                             `${asal}/daftar-ttd/${b.sesi_token}`)}`}
+                                         target="_blank" rel="noreferrer">
+                                        {k.tautanWa}
+                                      </a>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Alasan revisi diketik di tempat, sebelum
+                                  tautannya terbit. */}
+                              {revisi === b.id ? (
+                                <>
+                                  <textarea value={alasanRevisi} autoFocus
+                                            placeholder={k.phAlasanRevisi}
+                                            style={{ width: "100%", minHeight: 56 }}
+                                            onChange={(e) =>
+                                              setAlasanRevisi(e.target.value)} />
+                                  <div className="row"
+                                       style={{ marginTop: 6, marginBottom: 0 }}>
+                                    <button className="pri"
+                                            disabled={busy
+                                              || alasanRevisi.trim().length < 10}
+                                            onClick={() =>
+                                              void kirimTautan(b, { revisi: true })}>
+                                      {k.terbitkanRevisi}
+                                    </button>
+                                    <button onClick={() => {
+                                      setRevisi(null); setAlasanRevisi("");
+                                    }}>{k.batal}</button>
+                                  </div>
+                                </>
+                              ) : pilihan.length > 0 && (
+                                /* Nilainya selalu dikosongkan kembali: menu ini
+                                   memilih tindakan, bukan menyimpan keadaan.
+                                   Yang tertinggal terpilih sesudah dijalankan
+                                   akan terbaca sebagai sesuatu yang sedang
+                                   berlaku pada baris itu. */
+                                <select className="menu-tindakan" value=""
+                                        disabled={busy} title={k.menuTindakan}
+                                        onChange={(e) => {
+                                          const v = e.target.value;
+                                          e.target.value = "";
+                                          if (v) jalankan(v);
+                                        }}>
+                                  <option value="">{k.menuTindakan}</option>
+                                  {pilihan.map((o) => (
+                                    <option key={o.nilai} value={o.nilai}>
+                                      {o.label}
+                                    </option>
+                                  ))}
+                                </select>
+                              )}
+
+                              {/* Hapus tetap tombol tersendiri: ia bukan jalan
+                                  menuju pendaftaran, dan satu-satunya tindakan
+                                  di kolom ini yang tidak dapat dibatalkan.
+                                  Dibedakan warnanya — pudar sampai disentuh,
+                                  lalu merah. Yang menahan salah tekan tetap
+                                  dialog "Hapus <nama>?" yang harus dijawab. */}
+                              <button className="hapus-marketing" disabled={busy}
+                                      onClick={() => setHapus(b)}>
+                                {k.hapus}
+                              </button>
+
+                              {/* Sebab yang membuat menunya tidak menawarkan
+                                  tautan, ditulis apa adanya. Pilihan yang
+                                  hilang tanpa keterangan terbaca sebagai layar
+                                  yang rusak. */}
+                              {!b.phone && b.sesi_state !== "submitted" && (
+                                <div className="sebab-tindakan">{k.nomorKosong}</div>
+                              )}
+                              {kedaluwarsa && !hidup && b.sesi_state !== "submitted"
+                                && b.phone && (
+                                <div className="sebab-tindakan">{k.tautanHabis}</div>
                               )}
                             </div>
-                          </div>
-                        ) : b.spesimen > 0 ? (
-                          /* Sudah punya spesimen: tautannya tidak muncul lagi.
-                             Spesimen adalah pembanding pembayaran orang ini —
-                             menerbitkan tautan baru sekali klik berarti ia dapat
-                             menggantinya sendiri tanpa jejak alasan. */
-                          revisi === b.id ? (
-                            <>
-                              <textarea value={alasanRevisi} autoFocus
-                                        placeholder={k.phAlasanRevisi}
-                                        style={{ width: "100%", minHeight: 56 }}
-                                        onChange={(e) => setAlasanRevisi(e.target.value)} />
-                              <div className="row" style={{ marginTop: 6, marginBottom: 0 }}>
-                                <button className="pri"
-                                        disabled={busy || alasanRevisi.trim().length < 10}
-                                        onClick={() => void kirimTautan(b, { revisi: true })}>
-                                  {k.terbitkanRevisi}
-                                </button>
-                                <button onClick={() => { setRevisi(null); setAlasanRevisi(""); }}>
-                                  {k.batal}
-                                </button>
-                              </div>
-                            </>
-                          ) : (
-                            /* Tinggal tombolnya. Lencana "sudah terdaftar" yang
-                               dulu berdampingan di sini pindah ke kolom Status:
-                               keadaan dibaca di kolom keadaan, dan kolom ini
-                               hanya memuat yang dapat ditekan. */
-                            <button
-                              onClick={() => { setRevisi(b.id); setAlasanRevisi(""); }}>
-                              {k.mintaRevisi}
-                            </button>
-                          )
-                        ) : !b.phone ? (
-                          /* Tanpa nomor, kode verifikasi tidak punya tujuan.
-                             Sebelumnya tombolnya hanya dimatikan tanpa sebab
-                             yang terbaca, sehingga barisnya tampak rusak. */
-                          <span style={{ fontSize: 11.5, color: "var(--mut)" }}>
-                            {k.nomorKosong}
-                          </span>
-                        ) : (
-                          <>
-                            {/* Yang tautannya baru saja mati perlu tahu
-                                sebabnya: tombol yang sama muncul kembali tanpa
-                                keterangan terbaca seperti tautan yang tadi
-                                tidak pernah terkirim. */}
-                            {kedaluwarsa && (
-                              <div style={{ fontSize: 11.5, color: "var(--mut)",
-                                            marginBottom: 6 }}>
-                                {k.tautanHabis}
-                              </div>
-                            )}
-                            <button className="pri" disabled={busy}
-                                    onClick={() => void kirimTautan(b)}>
-                              {k.kirimTautan}
-                            </button>
-                          </>
-                        )}
-
-                        {/* Tidak ditawarkan selama ada set yang menunggu
-                            diperiksa: dua set menunggu untuk satu orang berarti
-                            putusan atas yang satu diam-diam menimpa yang lain.
-                            Yang perlu dilakukan lebih dulu adalah memutuskan
-                            yang sudah masuk. */}
-                        {b.sesi_state !== "submitted" && (
-                          <button disabled={busy}
-                                  onClick={() => {
-                                    setUnggah(b); setAlasanUnggah("");
-                                    setSiapUnggah(false);
-                                  }}>
-                            {k.unggahManual}
-                          </button>
-                        )}
-
-                        {/* Hapus ikut sebaris, tetapi tetap dibedakan: ia
-                            satu-satunya tindakan di kolom ini yang tidak dapat
-                            dibatalkan. Yang membedakannya warna — pudar sampai
-                            disentuh, lalu merah — bukan lagi tempatnya. Yang
-                            menahan salah tekan tetap dialog "Hapus <nama>?"
-                            yang harus dijawab, bukan jarak di layar.
-
-                            Tulisannya menyebut apa yang dihapus. "Hapus" saja,
-                            berdiri di samping "Kirim tautan pendaftaran",
-                            terbaca sebagai penghapus tautan itu — padahal yang
-                            hilang adalah orangnya dari daftar ini. */}
-                        <button className="hapus-marketing" disabled={busy}
-                                onClick={() => setHapus(b)}>
-                          {k.hapus}
-                        </button>
-                        </div>
+                          );
+                        })()}
                       </td>
                     </tr>
                   );
