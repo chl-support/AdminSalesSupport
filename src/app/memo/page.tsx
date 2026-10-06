@@ -31,7 +31,7 @@ const KATA = {
   id: {
     judul: "Memo Approval",
     galat: "Tidak dapat dikerjakan",
-    unggahJudul: "UNGGAH MEMO",
+    unggahJudul: "REFERENSI MEMO",
     fJudul: "Judul", cJudul: "mis. Skema Komisi Triwulan I",
     fNomor: "Nomor memo", cNomor: "mis. 002/SBL-BD/SM/XI/2025",
     fDari: "Berlaku dari", fSampai: "Berlaku sampai",
@@ -103,7 +103,7 @@ const KATA = {
   en: {
     judul: "Approval Memo",
     galat: "Could not be completed",
-    unggahJudul: "UPLOAD MEMO",
+    unggahJudul: "MEMO REFERENCE",
     fJudul: "Title", cJudul: "e.g. Commission Scheme Q1",
     fNomor: "Memo number", cNomor: "e.g. 002/SBL-BD/SM/XI/2025",
     fDari: "Valid from", fSampai: "Valid until",
