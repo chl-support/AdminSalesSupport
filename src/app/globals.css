@@ -1504,7 +1504,7 @@ button.hapus-klaim:hover:not(:disabled) {
   border: 0; background: none; color: var(--note); cursor: pointer;
   border-radius: var(--lengkung);
 }
-.tombol-pratinjau svg { width: 18px; height: 18px; }
+.tombol-pratinjau svg { width: 19px; height: 19px; }
 .tombol-pratinjau:hover:not(:disabled) { background: #fff; }
 /* Terbuka, tombolnya tertekan: berlatar putih dengan garis tepi tipis.
    Lambangnya sendiri tidak berubah — kaca pembesar yang dicoret atau
