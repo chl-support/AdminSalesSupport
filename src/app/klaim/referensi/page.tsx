@@ -56,7 +56,6 @@ const KATA = {
     unggahJudul: "Lampirkan Memo",
     seret: "Unggah Referensi Memo",
     pilih: "Pilih File",
-    jenisBerkas: "PDF, Word, Excel, atau gambar · Maks. 10 MB per file",
     membaca: (n: string) => `Membaca ${n}…`,
     ocrSiap: "Menyiapkan pembaca tulisan…",
     ocrGambar: (h: number, d: number) => `Menggambar halaman ${h} dari ${d}…`,
@@ -147,7 +146,6 @@ const KATA = {
     unggahJudul: "Attach memo",
     seret: "Upload memo reference",
     pilih: "Choose files",
-    jenisBerkas: "PDF, Word, Excel or image · 10 MB per file at most",
     membaca: (n: string) => `Reading ${n}…`,
     ocrSiap: "Preparing the text reader…",
     ocrGambar: (h: number, d: number) => `Rendering page ${h} of ${d}…`,
@@ -639,15 +637,6 @@ export default function ReferensiPengajuanPage() {
                    e.target.value = "";
                    void terima(daftar);
                  }} />
-          <span className="meta">
-            <svg viewBox="0 0 24 24" aria-hidden="true" fill="none"
-                 stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"
-                 strokeLinejoin="round">
-              <path d="M14 3v5h5" />
-              <path d="M19 9v10a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6z" />
-            </svg>
-            {k.jenisBerkas}
-          </span>
         </label>
         {kemajuan && <p className="hint" style={{ textAlign: "left" }}>
           {kemajuan}

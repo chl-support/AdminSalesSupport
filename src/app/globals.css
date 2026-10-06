@@ -1416,14 +1416,6 @@ button.hapus-klaim:hover:not(:disabled) {
 }
 .kotak-seret .tombol-berkas.pri svg { width: 13px; height: 13px; }
 .kotak-seret:hover .tombol-berkas.pri { background: #24406B; border-color: #24406B; }
-/* Baris jenis berkas: lambangnya sejajar tengah dengan tulisannya, bukan
-   duduk di garis dasar huruf. */
-.kotak-seret .meta {
-  display: inline-flex; align-items: center; gap: 6px;
-  font-size: 11.5px; color: var(--mut);
-}
-.kotak-seret .meta svg { width: 13px; height: 13px; flex: none; }
-
 /* Tabel ringkasan memo: judul kolomnya rata tengah, nomornya pun. */
 .tabel-rujukan th { text-align: center; vertical-align: middle; }
 .tabel-rujukan td:first-child { text-align: center; }
