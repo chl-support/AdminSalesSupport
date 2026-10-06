@@ -105,9 +105,9 @@ const KODE_UNIT = ["unit_cancelled", "unit_moved", "unit_management"];
 const KATA = {
   id: {
     judul: "Pengajuan Fee",
-    dapatDiklaim: (n: number) => `${n} dapat diklaim`,
-    penjualan: (n: number) => `${n} penjualan`,
-    sejakKapan: "penjualan sejak Januari 2026",
+    siapDiajukan: (n: number) => `${n} Siap Diajukan`,
+    telahDiproses: (n: number) => `${n} Telah Diproses`,
+    belumKriteria: (n: number) => `${n} Belum Memenuhi Kriteria`,
     galatBaca: "Data penjualan tidak dapat dibaca",
     cari: "Cari (Unit, Konsumen, Sales)",
     // Contohnya diambil dari unit pertama project ini, bukan kode tetap.
@@ -208,9 +208,9 @@ const KATA = {
   },
   en: {
     judul: "Fee Submission",
-    dapatDiklaim: (n: number) => `${n} claimable`,
-    penjualan: (n: number) => `${n} sales`,
-    sejakKapan: "sales from January 2026 onwards",
+    siapDiajukan: (n: number) => `${n} Ready to Submit`,
+    telahDiproses: (n: number) => `${n} Processed`,
+    belumKriteria: (n: number) => `${n} Not Yet Eligible`,
     galatBaca: "Sales data could not be read",
     cari: "Search (Unit, Customer, Sales)",
     contohCari: (kode: string) => `e.g. ${kode}`,
@@ -852,11 +852,18 @@ export default function PengajuanFeePage() {
     return a.code.localeCompare(b.code);
   });
 
-  // Dihitung per pasangan unit–jenis, bukan per unit: satu unit dapat memenuhi
-  // syarat Closing Fee tetapi belum Overriding, dan menghitungnya sebagai satu
-  // akan menyebut lebih sedikit pekerjaan daripada yang sebenarnya menunggu.
-  const bisa = units.reduce(
-    (n, u) => n + JENIS.filter((j) => u.fees[j.slug]?.claimable).length, 0);
+  // Ketiganya dihitung per unit dengan ukuran yang sama persis dengan pilihan
+  // pada "Tampilkan" — angka di sebelah sebuah sebutan karena itu sama dengan
+  // banyaknya baris yang muncul bila saringan itu dipilih. Angka ringkasan
+  // yang dihitung dengan ukuran lain dari saringannya membuat orang mengira
+  // ada baris yang hilang.
+  //
+  // Ketiganya tidak harus berjumlah sebanyak seluruh penjualan: satu unit
+  // dapat sudah punya klaim Closing Fee sekaligus Overriding yang baru siap
+  // diajukan, dan unit itu benar terhitung pada dua sebutan sekaligus.
+  const siap = units.filter(adaBisa).length;
+  const diproses = units.filter(adaKlaim).length;
+  const belum = units.filter((u) => !adaKlaim(u) && !adaBisa(u)).length;
 
   return (
     <Kerangka sesi={sesi} lebar judul={
@@ -865,14 +872,12 @@ export default function PengajuanFeePage() {
       </div>
     }>
 
-      <div className="row sp">
-        <span className="pill">{k.dapatDiklaim(bisa)}</span>
-        <span className="pill">{k.penjualan(units.length)}</span>
-        {/* Penjualan sebelum Januari 2026 tidak ditampilkan di layar ini.
-            Disebutkan di sini supaya yang mencari unit lama tahu ia memang
-            disembunyikan, bukan hilang — datanya tetap utuh di Data Penjualan
-            dan Laporan. */}
-        <span className="pill">{k.sejakKapan}</span>
+      {/* Di tepi kanan: ketiganya adalah keadaan pekerjaan, bukan judul
+          halaman, dan di kiri ia terbaca sebagai keterangan judul. */}
+      <div className="row sp kanan">
+        <span className="pill">{k.siapDiajukan(siap)}</span>
+        <span className="pill">{k.telahDiproses(diproses)}</span>
+        <span className="pill">{k.belumKriteria(belum)}</span>
       </div>
 
       {galat && (

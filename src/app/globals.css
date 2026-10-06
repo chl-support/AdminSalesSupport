@@ -138,6 +138,10 @@ td.n { text-align: right; font-variant-numeric: tabular-nums; color: var(--ink);
 .banner.stop { background: var(--stopbg); border-color: var(--stop); color: var(--stop); }
 
 .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
+/* Baris yang isinya didorong ke tepi kanan. Dipakai bagi lencana
+   ringkasan: ia keadaan pekerjaan, bukan keterangan judul, dan di
+   tepi kiri ia terbaca sebagai keterangan judul. */
+.row.kanan { justify-content: flex-end; }
 /* Judul di atas kotak isian. Tebal, dan nadanya dituakan bersamaan:
    pada ukuran 10,5px, huruf tebal berwarna abu-abu muda tidak terbaca
    sebagai tebal melainkan sebagai kabur — beratnya hilang sebelum
