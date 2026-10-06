@@ -1485,27 +1485,23 @@ button.hapus-klaim:hover:not(:disabled) {
    Dibentangkan, kotaknya terbaca sebagai satu bilah yang memang penuh. */
 .seret-dua:not(.dua) .kotak-seret {
   flex-direction: row; align-items: center; justify-content: flex-start;
-  gap: 13px; padding: 14px 16px; text-align: left;
+  gap: 9px; padding: 7px 8px 7px 12px; text-align: left;
 }
-/* Lambangnya duduk di dalam bulatan berwarna, bukan menggantung sendirian.
-   Lambang setinggi 19px di sebelah tulisan setinggi 13px nyaris tidak
-   terlihat; bulatannya memberinya bobot tanpa membesarkan gambarnya. */
+/* Lambangnya berdiri polos di sebelah tulisannya — tanpa bulatan. Bilah
+   setinggi 42px tidak menyisakan ruang bagi bulatan berdiameter 38px, dan
+   bulatan yang dipaksakan masuk ke sana menempel ke tepi atas dan bawahnya. */
 .seret-dua:not(.dua) .kotak-seret .ikon-unggah {
-  flex: none; width: 20px; height: 20px; padding: 9px; box-sizing: content-box;
-  border-radius: 50%; background: var(--notebg); color: var(--note);
+  flex: none; width: 18px; height: 18px; padding: 0; background: none;
 }
-.seret-dua:not(.dua) .kotak-seret b { font-size: 13.5px; color: var(--ink); }
+.seret-dua:not(.dua) .kotak-seret b { font-size: 12.5px; color: var(--ink); }
 /* Tombolnya didorong ke tepi kanan — di sanalah ia menutup bilahnya, dan
    jarak antara tulisan dan tombol menjadi ruang yang bekerja, bukan ruang
    yang tersisa. */
 .seret-dua:not(.dua) .kotak-seret .tombol-berkas.pri {
-  margin: 0 0 0 auto; padding: 7px 15px; font-size: 12.5px;
+  margin: 0 0 0 auto; padding: 5px 12px; font-size: 12px;
 }
 .seret-dua:not(.dua) .kotak-seret .tombol-berkas.pri svg {
-  width: 14px; height: 14px;
-}
-.seret-dua:not(.dua) .kotak-seret:hover .ikon-unggah {
-  background: #fff;
+  width: 13px; height: 13px;
 }
 
 .kotak-seret {
