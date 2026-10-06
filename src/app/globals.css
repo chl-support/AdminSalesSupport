@@ -1494,6 +1494,25 @@ button.hapus-klaim:hover:not(:disabled) {
   flex: none; width: 18px; height: 18px; padding: 0; background: none;
 }
 .seret-dua:not(.dua) .kotak-seret b { font-size: 12.5px; color: var(--ink); }
+/* Tombol pratinjau, duduk di dalam bilah unggah di sebelah tulisannya.
+   Tanpa bingkai maupun latar: di dalam kotak bergaris putus-putus yang
+   sudah menjadi satu sasaran klik raksasa, tombol berbingkai terbaca
+   sebagai kotak kedua di dalam kotak pertama. Yang membedakannya adalah
+   latar yang muncul saat disentuh. */
+.tombol-pratinjau {
+  flex: none; display: inline-flex; margin-left: 2px; padding: 4px;
+  border: 0; background: none; color: var(--note); cursor: pointer;
+  border-radius: var(--lengkung);
+}
+.tombol-pratinjau svg { width: 17px; height: 17px; }
+.tombol-pratinjau:hover:not(:disabled) { background: #fff; }
+/* Selama belum ada yang dipratinjau ia tetap di tempatnya, memudar — bukan
+   lenyap. Tombol yang muncul dan hilang membuat tulisan di sebelahnya
+   bergeser tiap berkas masuk, dan yang bergeser sendiri terbaca sebagai
+   layar yang tidak tenang. */
+.tombol-pratinjau:disabled {
+  color: var(--mut); opacity: .45; cursor: default;
+}
 /* Tombolnya didorong ke tepi kanan — di sanalah ia menutup bilahnya, dan
    jarak antara tulisan dan tombol menjadi ruang yang bekerja, bukan ruang
    yang tersisa. */

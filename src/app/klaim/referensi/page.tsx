@@ -57,6 +57,8 @@ const KATA = {
     seret: "Unggah Referensi Memo",
     pilih: "Pilih File",
     pratinjauTutup: "Tutup pratinjau",
+    pratinjauLihat: "Lihat pratinjau dokumen",
+    pratinjauBelumAda: "Belum ada dokumen untuk dipratinjau",
     pratinjauTakBisa: "Berkas ini tidak dapat ditampilkan di layar.",
     pratinjauBuka: "Buka di tab baru",
     membaca: (n: string) => `Membaca ${n}…`,
@@ -150,6 +152,8 @@ const KATA = {
     seret: "Upload memo reference",
     pilih: "Choose files",
     pratinjauTutup: "Close preview",
+    pratinjauLihat: "Show document preview",
+    pratinjauBelumAda: "No document to preview yet",
     pratinjauTakBisa: "This file cannot be displayed on screen.",
     pratinjauBuka: "Open in a new tab",
     membaca: (n: string) => `Reading ${n}…`,
@@ -324,6 +328,14 @@ export default function ReferensiPengajuanPage() {
    */
   const [pratinjau, setPratinjau] = useState<
     { nama: string; jenis: string; url: string } | null>(null);
+  /**
+   * Terbuka atau tertutupnya kotak pratinjau — terpisah dari berkasnya.
+   *
+   * Dijadikan satu, menutup pratinjau berarti membuang berkasnya, dan
+   * membukanya kembali menjadi mustahil tanpa mengunggah ulang. Yang ditutup
+   * adalah tampilannya; berkasnya tetap ada, menunggu dilihat lagi.
+   */
+  const [bukaPratinjau, setBukaPratinjau] = useState(false);
 
   // Pembersihnya berjalan dengan nilai yang lama — jadi tiap berkas baru
   // mencabut URL pendahulunya, dan yang terakhir dicabut saat layarnya
@@ -440,6 +452,7 @@ export default function ReferensiPengajuanPage() {
     const dilihat = daftar[0];
     setPratinjau({ nama: dilihat.name, jenis: dilihat.type,
                    url: URL.createObjectURL(dilihat) });
+    setBukaPratinjau(true);
     setBusy(true); setGalat(null); setKabar(null);
     let tersimpan = 0, barisBaru = 0;
     const gagal: string[] = [];
@@ -631,7 +644,7 @@ export default function ReferensiPengajuanPage() {
             memperlihatkan apa yang baru saja masuk. Berdampingan, bukan
             bertumpuk — yang menyeret berkas kedua perlu melihat kotak
             unggahnya dan hasil seretan pertamanya pada saat yang sama. */}
-        <div className={`seret-dua${pratinjau ? " dua" : ""}`}>
+        <div className={`seret-dua${pratinjau && bukaPratinjau ? " dua" : ""}`}>
         {/* Seret-dan-lepas, dan tetap ada tombolnya: yang memakai papan ketik
             atau pembaca layar tidak dapat menyeret apa pun. */}
         <label className={`kotak-seret${seret ? " aktif" : ""}`}
@@ -653,6 +666,34 @@ export default function ReferensiPengajuanPage() {
             <path d="M18 22v-7" /><path d="m15 18 3-3 3 3" />
           </svg>
           <b>{k.seret}</b>
+          {/* Tombol pratinjau. Di dalam <label>, jadi kliknya harus
+              dihentikan dua kali: label meneruskan klik apa pun di dalamnya
+              ke input berkasnya, dan tanpa itu menekan tombol ini justru
+              membuka jendela pemilih berkas. */}
+          <button type="button" className="tombol-pratinjau"
+                  disabled={!pratinjau}
+                  title={pratinjau ? (bukaPratinjau ? k.pratinjauTutup
+                                                    : k.pratinjauLihat)
+                                   : k.pratinjauBelumAda}
+                  aria-label={pratinjau ? (bukaPratinjau ? k.pratinjauTutup
+                                                         : k.pratinjauLihat)
+                                        : k.pratinjauBelumAda}
+                  aria-pressed={bukaPratinjau}
+                  onClick={(e) => {
+                    e.preventDefault(); e.stopPropagation();
+                    setBukaPratinjau((b) => !b);
+                  }}>
+            <svg viewBox="0 0 24 24" aria-hidden="true" fill="none"
+                 stroke="currentColor" strokeWidth="1.7"
+                 strokeLinecap="round" strokeLinejoin="round">
+              <path d="M1.8 12S5.6 5.2 12 5.2 22.2 12 22.2 12 18.4 18.8 12
+                       18.8 1.8 12 1.8 12Z" />
+              <circle cx="12" cy="12" r="2.8" />
+              {/* Tertutup, matanya dicoret — satu lambang untuk dua keadaan,
+                  bukan dua lambang yang harus dihafalkan artinya. */}
+              {!bukaPratinjau && <path d="m3.5 3.5 17 17" />}
+            </svg>
+          </button>
           {/* Kalimat "seret dan lepaskan…" sengaja tidak ada: kotak bergaris
               putus-putus yang menyala saat berkas dilewatkan di atasnya sudah
               menyatakan dirinya sendiri, dan tombolnya menyatakan sisanya. */}
@@ -685,7 +726,7 @@ export default function ReferensiPengajuanPage() {
             pembaca bawaan peramban, dan Excel maupun Word tidak dapat
             dilukis peramban mana pun — yang ditawarkan di sana karena itu
             jalan membukanya, bukan kotak kosong tanpa penjelasan. */}
-        {pratinjau && (
+        {pratinjau && bukaPratinjau && (
           <div className="kotak-pratinjau">
             {pratinjau.jenis.startsWith("image/") ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -702,12 +743,11 @@ export default function ReferensiPengajuanPage() {
             )}
             <div className="nama-pratinjau">
               <span title={pratinjau.nama}>{pratinjau.nama}</span>
-              {/* Menutupnya sekaligus mencabut URL obyeknya, lewat pembersih
-                  useEffect di atas — jadi yang menutup pratinjau juga
-                  melepaskan isi berkasnya dari memori. */}
+              {/* Yang ditutup tampilannya, bukan berkasnya: tombol mata di
+                  bilah unggah membukanya kembali tanpa mengunggah ulang. */}
               <button type="button" className="tutup-pratinjau"
                       title={k.pratinjauTutup} aria-label={k.pratinjauTutup}
-                      onClick={() => setPratinjau(null)}>
+                      onClick={() => setBukaPratinjau(false)}>
                 <svg viewBox="0 0 24 24" aria-hidden="true" fill="none"
                      stroke="currentColor" strokeWidth="2"
                      strokeLinecap="round">
