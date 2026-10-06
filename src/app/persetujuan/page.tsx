@@ -212,8 +212,12 @@ const KATA = {
     thPengirim: "Divisi Pengirim", thPenerimaDiv: "Divisi Penerima",
     thDistribusi: "Tanggal Distribusi", thDiterima: "Tanggal Penerima",
     thKategori: "Kategori", thPenerima: "Penerima",
-    thPengaju: "Diajukan Oleh", thBruto: "Jumlah Komisi",
-    thPpn: "PPN", thPph: "PPh", thBersih: "Komisi Yang Dibayarkan",
+    // "Fee", bukan "Komisi": kolom ini memuat keempat jenis — Closing Fee,
+    // Cash Reward, Continuity Reward, Komisi — dan Overriding. Menyebut
+    // seluruhnya "Komisi" menamai kelompoknya dengan nama salah satu
+    // anggotanya, dan baris Closing Fee lalu terbaca seolah salah kolom.
+    thPengaju: "Diajukan Oleh", thBruto: "Jumlah Fee",
+    thPpn: "PPN", thPph: "PPh", thBersih: "Fee Yang Dibayarkan",
     thTglBayar: "Tanggal Pembayaran",
     thStatus: "Status", thDokumen: "Tindakan",
     katInhouse: "Sales Inhouse", katAgent: "Agent",
@@ -369,9 +373,9 @@ const KATA = {
     thDistribusi: "Distributed on", thDiterima: "Received on",
     thKategori: "Category", thPengaju: "Submitted by",
     thPpn: "VAT", katInhouse: "In-house sales", katAgent: "Agent",
-    thPenerima: "Recipient", thBruto: "Commission amount",
+    thPenerima: "Recipient", thBruto: "Fee amount",
     thPph: "Withholding",
-    thBersih: "Commission paid", thTglBayar: "Payment date",
+    thBersih: "Fee paid", thTglBayar: "Payment date",
     thStatus: "Status", thDokumen: "Action",
     pratinjau: "Review Document",
     pratinjauTertutup:
@@ -1664,7 +1668,7 @@ export default function PersetujuanPage() {
                 </td>
                 {/* Beberapa jenis fee yang diajukan bersama atas satu unit
                     berdiri sebagai poin, masing-masing dengan nilainya —
-                    jumlah seluruhnya tetap terbaca di kolom Jumlah Komisi,
+                    jumlah seluruhnya tetap terbaca di kolom Jumlah Fee,
                     tetapi yang memeriksanya perlu tahu angka itu tersusun
                     dari apa saja. */}
                 <td>

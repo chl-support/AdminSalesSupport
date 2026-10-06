@@ -104,10 +104,10 @@ export const GET = handler(async (req) => {
     ["Diajukan Oleh", 28, (c) => c.diajukan_oleh_nama
         ? `${c.diajukan_oleh_nama} (${c.diajukan_oleh})`
         : (c.diajukan_oleh ?? "")],
-    ["Jumlah Komisi", 18, (c) => Number(c.gross_amount ?? 0)],
+    ["Jumlah Fee", 18, (c) => Number(c.gross_amount ?? 0)],
     ["PPN", 16, (c) => Number(c.vat ?? 0)],
     ["PPh", 16, (c) => Number(c.withholding_tax ?? 0)],
-    ["Komisi Yang Dibayarkan", 22, (c) => Number(c.net_amount ?? 0)],
+    ["Fee Yang Dibayarkan", 22, (c) => Number(c.net_amount ?? 0)],
     // Tanggal uang keluar menurut bukti bank, bukan tanggal persetujuannya.
     // Kosong selama belum ada pelunasan yang tercatat: pada lembar kerja,
     // sel kosong lebih berguna daripada tanda pisah yang dipakai di layar —
@@ -156,8 +156,8 @@ export const GET = handler(async (req) => {
    * Tidak ada yang gagal, tidak ada yang memberi tahu.
    */
   const kolomUang = KOLOM
-    .map(([judul], i) => ["Jumlah Komisi", "PPN", "PPh",
-                          "Komisi Yang Dibayarkan"].includes(judul) ? i + 1 : 0)
+    .map(([judul], i) => ["Jumlah Fee", "PPN", "PPh",
+                          "Fee Yang Dibayarkan"].includes(judul) ? i + 1 : 0)
     .filter((n) => n > 0);
 
   const wb = new ExcelJS.Workbook();
