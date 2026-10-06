@@ -1477,13 +1477,35 @@ button.hapus-klaim:hover:not(:disabled) {
 /* Di dalam pasangan itu kotak unggahnya menjadi tinggi, dan isinya berdiri
    di tengah — menempel di atas, ia terbaca sebagai kotak yang gagal terisi. */
 .seret-dua.dua .kotak-seret { justify-content: center; }
-/* Sendirian, isinya berbaris menyamping, bukan bertumpuk. Bertumpuk, tiga
-   baris pendek di tengah bidang selebar panel meninggalkan ruang kosong di
-   kiri dan kanannya lebih luas daripada isinya sendiri — dan ruang kosong
-   seluas itu terbaca sebagai kotak yang menunggu diisi sesuatu yang lain,
-   bukan sebagai kotak unggah. */
+/* Sendirian, isinya berbaris menyamping dan MENGISI lebarnya: lambang dan
+   tulisan menempel di tepi kiri, tombol di tepi kanan. Dikumpulkan di
+   tengah — entah bertumpuk atau sebaris — isinya meninggalkan ruang kosong
+   di kiri dan kanannya lebih luas daripada dirinya sendiri, dan ruang
+   sekosong itu terbaca sebagai kotak yang menunggu diisi sesuatu yang lain.
+   Dibentangkan, kotaknya terbaca sebagai satu bilah yang memang penuh. */
 .seret-dua:not(.dua) .kotak-seret {
-  flex-direction: row; justify-content: center; gap: 12px; padding: 13px 16px;
+  flex-direction: row; align-items: center; justify-content: flex-start;
+  gap: 13px; padding: 14px 16px; text-align: left;
+}
+/* Lambangnya duduk di dalam bulatan berwarna, bukan menggantung sendirian.
+   Lambang setinggi 19px di sebelah tulisan setinggi 13px nyaris tidak
+   terlihat; bulatannya memberinya bobot tanpa membesarkan gambarnya. */
+.seret-dua:not(.dua) .kotak-seret .ikon-unggah {
+  flex: none; width: 20px; height: 20px; padding: 9px; box-sizing: content-box;
+  border-radius: 50%; background: var(--notebg); color: var(--note);
+}
+.seret-dua:not(.dua) .kotak-seret b { font-size: 13.5px; color: var(--ink); }
+/* Tombolnya didorong ke tepi kanan — di sanalah ia menutup bilahnya, dan
+   jarak antara tulisan dan tombol menjadi ruang yang bekerja, bukan ruang
+   yang tersisa. */
+.seret-dua:not(.dua) .kotak-seret .tombol-berkas.pri {
+  margin: 0 0 0 auto; padding: 7px 15px; font-size: 12.5px;
+}
+.seret-dua:not(.dua) .kotak-seret .tombol-berkas.pri svg {
+  width: 14px; height: 14px;
+}
+.seret-dua:not(.dua) .kotak-seret:hover .ikon-unggah {
+  background: #fff;
 }
 
 .kotak-seret {
