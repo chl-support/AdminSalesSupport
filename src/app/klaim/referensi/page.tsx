@@ -678,13 +678,18 @@ export default function ReferensiPengajuanPage() {
                     e.preventDefault(); e.stopPropagation();
                     setBukaPratinjau((b) => !b);
                   }}>
+            {/* Lembar yang berdiri di dalam map terbuka — bentuk yang
+                sama dengan contoh yang diberikan, digambar ulang sebagai
+                garis supaya ia sewarna dengan lambang di sebelahnya dan
+                ikut menua saat kotaknya disentuh. Alas lembarnya sengaja
+                tidak digambar: yang tidak tergambar itulah yang membuatnya
+                terbaca sebagai berada DI DALAM map, bukan di depannya. */}
             <svg viewBox="0 0 24 24" aria-hidden="true" fill="none"
                  stroke="currentColor" strokeWidth="1.6"
                  strokeLinecap="round" strokeLinejoin="round">
-              <path d="M14 3v5h5" />
-              <path d="M19 10.6V9l-6-6H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h3.6" />
-              <circle cx="17" cy="16.4" r="3.2" />
-              <path d="m19.5 18.9 2.2 2.2" />
+              <path d="M8.5 11.5V4.2A1.7 1.7 0 0 1 10.2 2.5H13L16 5.5v6" />
+              <path d="M13 2.5v2a1 1 0 0 0 1 1h2" />
+              <path d="M3.8 11.5v8.2h16.4v-8.2" />
             </svg>
           </button>
           {/* Lambang berkas dengan panah naik. Digambar sebagai SVG sebaris,
