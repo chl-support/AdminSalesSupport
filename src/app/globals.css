@@ -138,9 +138,12 @@ td.n { text-align: right; font-variant-numeric: tabular-nums; color: var(--ink);
 .banner.stop { background: var(--stopbg); border-color: var(--stop); color: var(--stop); }
 
 .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
-/* Label kolom isian. Tebal, supaya pada layar yang penuh kotak isian
-   nama kolomnya terbaca lebih dahulu daripada isinya. */
-.lbl { font-size: 10.5px; font-weight: 600; color: var(--mut);
+/* Judul di atas kotak isian. Tebal, dan nadanya dituakan bersamaan:
+   pada ukuran 10,5px, huruf tebal berwarna abu-abu muda tidak terbaca
+   sebagai tebal melainkan sebagai kabur — beratnya hilang sebelum
+   sampai ke mata. Nadanya --sub, sama dengan label tebal di layar
+   lain, bukan nada baru. */
+.lbl { font-size: 10.5px; font-weight: 700; color: var(--sub);
        margin-bottom: 3px; }
 .sp { margin-bottom: 18px; }
 a { color: var(--note); }
