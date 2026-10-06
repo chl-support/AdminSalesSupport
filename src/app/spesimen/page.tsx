@@ -748,7 +748,11 @@ export default function SpesimenPage() {
                         terdaftar" bahkan ikut duduk di kolom Tindakan, di
                         samping tombolnya. Tiga tempat untuk satu hal. */}
                     <th>{k.thStatus}</th>
-                    <th style={{ width: 250 }}>{k.thTindakan}</th>
+                    {/* Lebarnya memuat kedua tombol pendaftaran berdampingan.
+                        Pada 250px keduanya tidak muat sebaris dan yang kedua
+                        turun sendiri — sejajar yang dimaksud jadi tidak pernah
+                        terjadi. */}
+                    <th style={{ width: 400 }}>{k.thTindakan}</th>
                   </tr>
 
                   {terlihat.map((b) => {
@@ -856,6 +860,13 @@ export default function SpesimenPage() {
                         )}
                       </td>
                       <td>
+                        {/* Dua jalan menuju pendaftaran berdiri berdampingan:
+                            tautan yang dikirim ke orangnya, dan berkas yang
+                            sudah dipegang Admin. Keduanya tombol yang setara,
+                            jadi keduanya duduk pada baris yang sama — yang
+                            berdiri sendiri di bawah garis terbaca sebagai
+                            tindakan lain jenis, padahal hasilnya sama. */}
+                        <div className="tindakan-utama">
                         {b.sesi_state === "submitted" ? (
                           <button disabled={busy}
                                   onClick={() => void bukaSet(b.sesi_set_id!)}>
@@ -983,25 +994,21 @@ export default function SpesimenPage() {
                             pendaftaran", terbaca sebagai penghapus tautan itu
                             — padahal yang hilang adalah orangnya dari daftar
                             ini. */}
-                        {/* Unggah manual berdiri di antara keduanya: ia
-                            menggerakkan pendaftaran seperti tautan di atasnya,
-                            tetapi lewat jalan lain — berkas yang sudah dipegang
-                            Admin. Tidak ditawarkan selama ada set yang menunggu
+                        {/* Tidak ditawarkan selama ada set yang menunggu
                             diperiksa: dua set menunggu untuk satu orang berarti
                             putusan atas yang satu diam-diam menimpa yang lain.
                             Yang perlu dilakukan lebih dulu adalah memutuskan
                             yang sudah masuk. */}
                         {b.sesi_state !== "submitted" && (
-                          <div className="unggah-baris">
-                            <button className="tautan" disabled={busy}
-                                    onClick={() => {
-                                      setUnggah(b); setAlasanUnggah("");
-                                      setSiapUnggah(false);
-                                    }}>
-                              {k.unggahManual}
-                            </button>
-                          </div>
+                          <button disabled={busy}
+                                  onClick={() => {
+                                    setUnggah(b); setAlasanUnggah("");
+                                    setSiapUnggah(false);
+                                  }}>
+                            {k.unggahManual}
+                          </button>
                         )}
+                        </div>
 
                         <div className="hapus-baris">
                           <button className="tautan" disabled={busy}

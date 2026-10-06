@@ -1078,13 +1078,19 @@ ul.cetak-ceklis .kotak { border: 1px solid var(--ink); width: 14px; height: 14px
    tautan — bukan tombol yang berjajar dengan tindakan pendaftaran di atasnya.
    Yang menghilangkan baris tidak boleh setara bentuknya dengan yang
    menggerakkannya. */
-/* Unggah manual: jalan kedua menuju pendaftaran, jadi ia dipisahkan garis
-   dari tombol tautan di atasnya tetapi tetap berwarna seperti tindakan biasa —
-   bukan pudar seperti Hapus, yang satu-satunya tindakan tak terbatalkan di
-   kolom ini. */
-.unggah-baris { margin-top: 10px; padding-top: 8px;
-                border-top: 1px solid var(--line); }
-.unggah-baris button.tautan { font-weight: 500; font-size: 11.5px; }
+/* Kedua jalan menuju pendaftaran — tautan yang dikirim dan berkas yang
+   diunggah Admin — berdiri berdampingan pada satu baris. Dibungkus flex yang
+   boleh berganti baris: saat tautan hidupnya sedang tampil, bloknya memakai
+   selebar kolom dan tombol unggah turun sendiri ke bawahnya tanpa ada lebar
+   yang dipatok tangan. */
+.tindakan-utama {
+  display: flex; align-items: flex-start; flex-wrap: wrap; gap: 6px;
+}
+/* Hanya tombol yang boleh berbagi baris. Yang lain — blok tautan hidup,
+   kotak alasan revisi, keterangan "nomor telepon belum terisi" — memakai
+   selebar kolom, sehingga tombol unggah selalu jatuh ke bawahnya alih-alih
+   terjepit di sampingnya. */
+.tindakan-utama > :not(button) { flex-basis: 100%; }
 
 .hapus-baris { margin-top: 10px; padding-top: 8px;
                border-top: 1px solid var(--line); }
