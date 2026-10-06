@@ -2435,6 +2435,13 @@ td.sel-tindakan > a.tautan-klaim:last-child { margin-bottom: 0; }
 .unit-grup li { white-space: nowrap; }
 .unit-grup li::before { content: "· "; color: var(--mut); }
 
+/* Nilai tiap jenis fee pada baris gabungan. Rata kanan di ujung poinnya,
+   sejajar satu sama lain, supaya ketiga angka terbaca sebagai kolom kecil —
+   angka yang berdiri di belakang tulisan dengan jarak berbeda-beda menuntut
+   mata mencarinya satu per satu. */
+.unit-grup li { display: flex; justify-content: space-between; gap: 10px; }
+.unit-grup .nilai-jenis { white-space: nowrap; font-variant-numeric: tabular-nums; }
+
 /* Kepala panel Laporan: judul di kiri, tombol unduh di kanan, pada satu pita.
    Sebelumnya judul, satu paragraf keterangan, dan tombolnya bertumpuk ke bawah
    dan menyita hampir sepertiga layar — padahal yang dicari orang di layar ini

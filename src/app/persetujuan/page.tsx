@@ -1583,9 +1583,28 @@ export default function PersetujuanPage() {
               // seluruh kelompoknya: tanggal pengajuan, jenis, penerima,
               // pengaju, dan keadaannya.
               const c = g[0];
-              const banyak = g.length > 1;
               const jml = (medan: string) =>
                 g.reduce((t, x) => t + Number(x[medan] ?? 0), 0);
+              /**
+               * Satu pengajuan dapat membentang ke beberapa unit ATAU ke
+               * beberapa jenis fee — tidak pernah keduanya sekaligus, sebab
+               * penandanya memang dipisah di layar Pengajuan Fee.
+               *
+               * Overriding atas tiga unit: satu jenis, tiga unit. Closing Fee
+               * bersama Cash Reward dan Komisi atas satu unit: satu unit, tiga
+               * jenis. Yang berulang itulah yang ditulis sebagai poin; yang
+               * tunggal tetap ditulis sekali, karena mengulang nama unit yang
+               * sama tiga kali bukan keterangan, hanya kebisingan.
+               */
+              const unitUnik = [...new Set(
+                g.map((x) => x.unit?.code).filter(Boolean))] as string[];
+              const perJenis: { jenis: any; nilai: number }[] = [];
+              for (const x of g) {
+                const ada = perJenis.find((y) => y.jenis === x.claim_type);
+                if (ada) ada.nilai += Number(x.gross_amount ?? 0);
+                else perJenis.push({ jenis: x.claim_type,
+                                     nilai: Number(x.gross_amount ?? 0) });
+              }
               return (
               <tr key={c.batch_id ? `b:${c.batch_id}` : c.id}>
                 <td className="sel-no">{i + 1}</td>
@@ -1595,15 +1614,29 @@ export default function PersetujuanPage() {
                     formulir pratinjau, sehingga dua pengajuan sejenis untuk
                     penerima yang sama tidak dapat dibedakan dari tabel. */}
                 <td className="sel-unit">
-                  {banyak ? (
+                  {unitUnik.length > 1 ? (
                     <ul className="unit-grup">
-                      {g.map((x) => (
-                        <li key={x.id}>{x.unit?.code ?? "—"}</li>
+                      {unitUnik.map((kode) => <li key={kode}>{kode}</li>)}
+                    </ul>
+                  ) : (unitUnik[0] ?? "—")}
+                </td>
+                {/* Beberapa jenis fee yang diajukan bersama atas satu unit
+                    berdiri sebagai poin, masing-masing dengan nilainya —
+                    jumlah seluruhnya tetap terbaca di kolom Jumlah Komisi,
+                    tetapi yang memeriksanya perlu tahu angka itu tersusun
+                    dari apa saja. */}
+                <td>
+                  {perJenis.length > 1 ? (
+                    <ul className="unit-grup">
+                      {perJenis.map((j) => (
+                        <li key={j.jenis}>
+                          {namaJenis(j.jenis, bahasa)}
+                          <span className="nilai-jenis">{rp(j.nilai)}</span>
+                        </li>
                       ))}
                     </ul>
-                  ) : (c.unit?.code ?? "—")}
+                  ) : namaJenis(c.claim_type, bahasa)}
                 </td>
-                <td>{namaJenis(c.claim_type, bahasa)}</td>
                 {/* Nomor Internal Office Memo. Terbit di luar sistem ini, jadi
                     diisi tangan di sini — dan hanya di sini, sejak layar
                     Sirkulasi Dokumen dibuang. Yang tidak berhak mengisinya
@@ -1772,8 +1805,13 @@ export default function PersetujuanPage() {
                     disabled={!bolehBukaDokumen(sesi.role, c.status)}
                     title={bolehBukaDokumen(sesi.role, c.status)
                              ? undefined : k.pratinjauTertutup}
+                    /* Seluruh formulir sepengajuan dibuka sekaligus: yang
+                       diajukan bersama juga diperiksa dan dicetak bersama,
+                       dan membukanya satu per satu berarti tiga jendela untuk
+                       satu pekerjaan. */
                     onClick={() => window.open(
-                            `/klaim/pratinjau?ids=${c.id}`, "_blank")}>
+                            `/klaim/pratinjau?ids=${g.map((x) => x.id).join(",")}`,
+                            "_blank")}>
                     {k.pratinjau}
                   </button>
                   {!bolehBukaDokumen(sesi.role, c.status) && (
