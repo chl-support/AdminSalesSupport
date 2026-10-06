@@ -1486,7 +1486,10 @@ button.hapus-klaim:hover:not(:disabled) {
 /* Tabel ringkasan memo: judul kolomnya rata tengah, nomornya pun. */
 .tabel-rujukan th { text-align: center; vertical-align: middle; }
 .tabel-rujukan td:first-child { text-align: center; }
-.tscroll > .tabel-rujukan { min-width: 1180px; }
+/* Dinaikkan bersamaan dengan pelebaran No. Memo, Tanggal, dan Periode
+   Program: pada lebar yang lama, ruang yang mereka ambil diambil dari
+   Perihal, dan Perihal-lah yang gantian pecah menjadi tiga baris. */
+.tscroll > .tabel-rujukan { min-width: 1320px; }
 
 /* "Cut Off Penjualan As Of" pada formulir Overriding: dua tanggal
    berdampingan, masing-masing dengan sebutannya di sebelah kiri. Bertumpuk

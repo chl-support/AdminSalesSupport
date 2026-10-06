@@ -728,10 +728,16 @@ export default function ReferensiPengajuanPage() {
           <table className="tabel-rujukan"><tbody>
             <tr>
               <th style={{ width: 40 }}>{k.kNo}</th>
-              <th>{k.kNoMemo}</th>
-              <th>{k.kTanggal}</th>
+              {/* Tiga kolom ini diberi lebarnya sendiri. Dibiarkan menghitung
+                  sendiri, peramban memberi ruang menurut kata terpanjang —
+                  dan nomor memo, tanggal, maupun periode program tidak punya
+                  kata panjang, hanya banyak kata pendek, sehingga ketiganya
+                  dipersempit sampai pecah tiga baris sementara Perihal
+                  mendapat sisanya. */}
+              <th style={{ width: 182 }}>{k.kNoMemo}</th>
+              <th style={{ width: 112 }}>{k.kTanggal}</th>
               <th>{k.kPerihal}</th>
-              <th>{k.kPeriode}</th>
+              <th style={{ width: 205 }}>{k.kPeriode}</th>
               <th>{k.kSkema}</th>
               <th>{k.kKategori}</th>
               <th>{k.kNilai}</th>
