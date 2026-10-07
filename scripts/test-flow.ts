@@ -16,7 +16,7 @@ import { WorkflowError } from "../src/lib/workflow";
 import { applyRate, ratio, rupiahWords, terbilang } from "../src/lib/money";
 import { collect, preview } from "../src/lib/report";
 import { KATEGORI_JENIS, kategoriAwal } from "../src/lib/kategori";
-import { hapusMarketing, putuskanSet, tambahMarketing, ubahEmail,
+import { hapusMarketing, tambahMarketing, ubahEmail,
          unggahManual } from "../src/lib/spesimen";
 import { rekapOverriding } from "../src/lib/overriding";
 import { penandatanganRekap } from "../src/lib/penandatangan";
@@ -653,21 +653,26 @@ async function main() {
       image_base64: png, signature_png: png, projectId: p!.id });
     assert(!hasil.mengganti, "yang pertama bukan penggantian");
 
-    // Hasilnya menunggu pemeriksaan — mengunggah bukan menyetujui.
-    const stt = await one<{ status: string }>(
-      "SELECT status FROM marketings WHERE id=$1", [orang.id]);
-    assert(stt!.status === "pending_review", stt!.status);
+    // Langsung berlaku: tidak ada antrean pemeriksaan untuk jalur ini, sebab
+    // yang mengunggah dan yang memeriksa sama-sama tim Admin.
+    const aktif = await one<{ status: string; jangkar: string | null }>(
+      `SELECT status, reference_signature_png AS jangkar
+         FROM marketings WHERE id=$1`, [orang.id]);
+    assert(aktif!.status === "active", aktif!.status);
+    assert(Boolean(aktif!.jangkar), "potongan tanda tangannya menjadi jangkar");
+
     const sesi = await one<{ state: string; ada: boolean; issued_by: string }>(
       `SELECT state, (ktp_image IS NOT NULL) AS ada, issued_by
          FROM enrollment_sessions WHERE set_id=$1`, [hasil.set_id]);
-    assert(sesi!.state === "submitted", sesi!.state);
-    assert(sesi!.ada, "foto KTP utuh disimpan sampai putusannya diambil");
+    assert(sesi!.state === "approved", sesi!.state);
+    // Foto KTP utuhnya tidak tertinggal: ia hanya diperlukan selama ada yang
+    // memeriksa, dan pada jalur ini tidak ada.
+    assert(!sesi!.ada, "foto KTP utuh dihapus begitu set ini berlaku");
     // Jejaknya menyebut siapa yang mengunggah, bukan orang yang didaftarkan:
     // persetujuan pada jalur ini datang dari Admin, dan itu ditulis apa adanya.
     assert(sesi!.issued_by === "admin", sesi!.issued_by);
 
-    // Tokennya tidak dapat dibuka sebagai tautan pendaftaran: sesinya lahir
-    // dalam keadaan 'submitted', jadi bukaSesi menolaknya.
+    // Tokennya tidak dapat dibuka sebagai tautan pendaftaran.
     const tok = await one<{ token: string }>(
       "SELECT token FROM enrollment_sessions WHERE set_id=$1", [hasil.set_id]);
     const { bukaSesi } = await import("../src/lib/spesimen");
@@ -675,18 +680,6 @@ async function main() {
     try { await bukaSesi(tok!.token); } catch (e: any) { tertutup = e; }
     assert(tertutup?.code === "session_closed",
            `tautannya seharusnya tertutup, bukan ${tertutup?.code}`);
-
-    // Disetujui: spesimennya menjadi jangkar, dan foto KTP utuhnya dihapus.
-    await putuskanSet(orang.id, hasil.set_id, "approve", "admin");
-    const aktif = await one<{ status: string; jangkar: string | null }>(
-      `SELECT status, reference_signature_png AS jangkar
-         FROM marketings WHERE id=$1`, [orang.id]);
-    assert(aktif!.status === "active", aktif!.status);
-    assert(Boolean(aktif!.jangkar), "potongan tanda tangannya menjadi jangkar");
-    const sesudah = await one<{ ada: boolean }>(
-      "SELECT (ktp_image IS NOT NULL) AS ada FROM enrollment_sessions WHERE set_id=$1",
-      [hasil.set_id]);
-    assert(!sesudah!.ada, "foto KTP utuh dihapus begitu diputus");
 
     // Mengganti yang sudah berlaku tetap menuntut alasan tertulis — lubang
     // yang sama besarnya lewat jalan mana pun.
