@@ -16,8 +16,8 @@ import { WorkflowError } from "../src/lib/workflow";
 import { applyRate, ratio, rupiahWords, terbilang } from "../src/lib/money";
 import { collect, preview } from "../src/lib/report";
 import { KATEGORI_JENIS, kategoriAwal } from "../src/lib/kategori";
-import { hapusMarketing, putuskanSet, tambahMarketing, unggahManual }
-  from "../src/lib/spesimen";
+import { hapusMarketing, putuskanSet, tambahMarketing, ubahEmail,
+         unggahManual } from "../src/lib/spesimen";
 import { rekapOverriding } from "../src/lib/overriding";
 import { penandatanganRekap } from "../src/lib/penandatangan";
 import { skemaXlsx } from "../src/lib/memo-xlsx";
@@ -593,6 +593,43 @@ async function main() {
       assert(bolehBukaDokumen(peran, "draft"),
              `${peran} seharusnya tetap dapat membuka sejak awal`);
     }
+  });
+
+  await check("surel marketing dapat diperbaiki, dan boleh dikosongkan",
+              async () => {
+    // Sejak tautan tanda tangan dapat dikirim lewat surel, alamat ini tujuan
+    // kiriman — dan data yang masuk dari berkas penjualan kerap tidak
+    // memuatnya. Tanpa jalan memperbaikinya, satu-satunya jalur yang tersisa
+    // bagi orang itu adalah WhatsApp.
+    const p = await one<{ id: string }>(
+      "SELECT id FROM projects ORDER BY created_at LIMIT 1");
+    const orang = await tambahMarketing({
+      nama: "Sari Surel", kategori: "markom", telepon: "0813-9999-0002",
+    }, "admin", p!.id);
+
+    const isi = await ubahEmail(orang.id, "  Sari@Contoh.COM ", "admin", p!.id);
+    // Dibakukan: huruf kecil dan tanpa spasi di tepinya. Alamat yang sama
+    // tertulis dua cara adalah dua alamat bagi yang mencarinya.
+    assert(isi.email === "sari@contoh.com", String(isi.email));
+    assert(isi.changed, "perubahannya tercatat sebagai perubahan");
+
+    // Yang sama persis tidak dicatat dua kali.
+    const lagi = await ubahEmail(orang.id, "sari@contoh.com", "admin", p!.id);
+    assert(!lagi.changed, "alamat yang sama bukan perubahan");
+
+    // Boleh dikosongkan — tidak setiap agent punya surel, dan memaksa
+    // mengisinya hanya melahirkan alamat karangan.
+    const kosong = await ubahEmail(orang.id, "", "admin", p!.id);
+    assert(kosong.email === null, String(kosong.email));
+
+    // Yang bentuknya bukan alamat ditolak, bukan disimpan apa adanya.
+    let tertolak: any = null;
+    try { await ubahEmail(orang.id, "bukan alamat", "admin", p!.id); }
+    catch (e: any) { tertolak = e; }
+    assert(tertolak?.code === "email_invalid",
+           `seharusnya email_invalid, bukan ${tertolak?.code}`);
+
+    await hapusMarketing(orang.id, "admin", p!.id);
   });
 
   await check("spesimen dapat diunggah Admin tanpa tautan pendaftaran",
