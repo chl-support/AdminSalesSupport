@@ -2128,12 +2128,14 @@ td.sel-keadaan .menunggu.stop { color: var(--stop); }
                  line-height: 1.6; color: var(--sub); }
 .langkah-agent li { margin-bottom: 6px; }
 
-/* Alamat tautan tanda tangan di dalam pop-upnya. Dibiarkan patah di mana saja:
-   ia bukan kalimat, dan yang tidak boleh terjadi adalah pop-upnya melebar
-   sampai keluar layar ponsel. */
+/* Kata sambutan beserta tautannya di dalam pop-upnya. Barisnya dijaga persis
+   seperti ditulis (pre-wrap) — ia surat, bukan satu baris alamat, dan baris
+   kosong di antara paragrafnya memang bagian dari suratnya. Tautan panjang di
+   baris terakhir tetap boleh patah di mana saja: yang tidak boleh terjadi
+   adalah pop-upnya melebar sampai keluar layar ponsel. */
 .alamat-tautan { border: 1px solid var(--line); background: #FBFBFA;
                  padding: 7px 9px; font-size: 11.5px; line-height: 1.5;
-                 overflow-wrap: anywhere; }
+                 white-space: pre-wrap; overflow-wrap: anywhere; }
 
 
 /* Daftar pilihan pada dialog cetak. */
