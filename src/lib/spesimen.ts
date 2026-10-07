@@ -673,6 +673,50 @@ export async function ubahNomor(
 }
 
 /**
+ * Perbaiki alamat surel marketing.
+ *
+ * Sejak tautan tanda tangan dapat dikirim lewat surel, alamat ini bukan lagi
+ * keterangan yang enak dibaca melainkan tujuan kiriman. Data yang masuk dari
+ * berkas penjualan kerap tidak memuatnya, dan sebelum ini satu-satunya jalan
+ * mengisinya adalah lewat baris yang dibuat dari nol — yang tidak dapat
+ * dilakukan atas orang yang sudah ada.
+ *
+ * Boleh dikosongkan, berbeda dengan nomor telepon: tidak setiap agent punya
+ * surel, dan memaksa mengisinya akan melahirkan alamat karangan. Yang kosong
+ * disimpan sebagai NULL, dan layar yang mengirim tautan menuliskan sebabnya
+ * alih-alih menawarkan tombol yang pasti gagal.
+ *
+ * Bentuknya diperiksa seadanya — ada @, ada titik sesudahnya, tanpa spasi.
+ * Pemeriksaan yang lebih ketat daripada ini menolak alamat yang sah lebih
+ * sering daripada menangkap yang keliru, dan yang benar-benar membuktikan
+ * sebuah alamat hidup hanyalah surel yang sampai.
+ */
+export async function ubahEmail(
+  marketingId: string, email: string, aktor: string, projectId?: string,
+) {
+  const mkt = await one<{ full_name: string; email: string | null }>(
+    "SELECT full_name, email FROM marketings WHERE id=$1 " +
+    "AND ($2::uuid IS NULL OR project_id=$2)", [marketingId, projectId ?? null]);
+  if (!mkt) throw new WorkflowError("Marketing tidak ditemukan.", "not_found", 404);
+
+  const rapi = String(email ?? "").trim().toLowerCase();
+  if (rapi && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(rapi)) {
+    throw new WorkflowError(
+      "Alamat surel tidak dikenali. Tuliskan seperti nama@contoh.com, atau " +
+      "kosongkan bila memang belum ada.", "email_invalid", 422);
+  }
+  const nilai = rapi || null;
+  if (nilai === (mkt.email ?? null)) return { email: nilai, changed: false };
+
+  await query("UPDATE marketings SET email=$2 WHERE id=$1", [marketingId, nilai]);
+  await audit({
+    entityType: "marketing", entityId: marketingId, action: "email_changed",
+    actor: aktor, before: { email: mkt.email }, after: { email: nilai },
+  });
+  return { email: nilai, changed: true };
+}
+
+/**
  * Hapus satu baris Data Marketing.
  *
  * Untuk satu keadaan saja: salah input. Nama yang sama terketik dua kali —

@@ -197,6 +197,15 @@ const KATA = {
     kNomorTersimpanIsi: (nomor: string) =>
       `Tersimpan sebagai ${nomor}. Tautan pendaftaran kini dapat diterbitkan.`,
     kNomorGagal: "Nomor tidak dapat disimpan",
+    ubahEmail: "Ubah alamat surel",
+    phEmail: "nama@contoh.com",
+    kEmailTersimpan: (nama: string) => `Surel ${nama} tersimpan`,
+    kEmailTersimpanIsi: (email: string) => email
+      ? `Tersimpan sebagai ${email}. Tautan tanda tangan kini dapat dikirim ke ` +
+        "alamat itu."
+      : "Surelnya dikosongkan. Tautan tanda tangan hanya dapat dikirim lewat " +
+        "WhatsApp.",
+    kEmailGagal: "Surel tidak dapat disimpan",
     kKategoriTersimpan: (nama: string) => `Kategori ${nama} tersimpan`,
     kKategoriIsi: (kat: string) =>
       `Tersimpan sebagai ${kat}. Namanya kini muncul pada pemilih kategori ` +
@@ -371,6 +380,13 @@ const KATA = {
     kNomorTersimpanIsi: (nomor: string) =>
       `Saved as ${nomor}. The registration link can now be issued.`,
     kNomorGagal: "The number could not be saved",
+    ubahEmail: "Change the email address",
+    phEmail: "name@example.com",
+    kEmailTersimpan: (nama: string) => `${nama}'s email saved`,
+    kEmailTersimpanIsi: (email: string) => email
+      ? `Saved as ${email}. The signing link can now be sent there.`
+      : "The email was cleared. The signing link can only go by WhatsApp.",
+    kEmailGagal: "The email could not be saved",
     kKategoriTersimpan: (nama: string) => `${nama}'s category saved`,
     kKategoriIsi: (kat: string) =>
       `Saved as ${kat}. The name now appears under that category on the Fee ` +
@@ -413,6 +429,9 @@ export default function SpesimenPage() {
   // Pengisian nomor telepon: baris yang sedang disunting, beserta isiannya.
   const [nomor, setNomor] = useState<string | null>(null);
   const [nomorBaru, setNomorBaru] = useState("");
+  /** Surel yang sedang disunting, dan isian barunya. */
+  const [surel, setSurel] = useState<string | null>(null);
+  const [surelBaru, setSurelBaru] = useState("");
   // Penggantian massal: satu alasan untuk semua yang spesimennya dari
   // perekaman lama di layar.
   const [massal, setMassal] = useState(false);
@@ -537,6 +556,29 @@ export default function SpesimenPage() {
     } catch (e: any) {
       setKabar({ kind: "stop", html:
         `<b>${k.kNomorGagal}</b>${e.body?.detail ?? ""}` });
+    } finally { setBusy(false); }
+  };
+
+  /**
+   * Surel disunting di tempat ia tertulis, sebagaimana nomornya di sebelahnya.
+   *
+   * Boleh dikosongkan — tidak setiap agent punya surel, dan memaksa mengisinya
+   * hanya akan melahirkan alamat karangan. Yang kosong membuat tombol "Kirim
+   * Email" pada dialog tautan tidak ditawarkan, berikut sebabnya.
+   */
+  const simpanSurel = async (b: Baris) => {
+    setBusy(true); setKabar(null);
+    try {
+      const r = await api(`/marketings/${b.id}`, {
+        method: "PATCH", body: JSON.stringify({ email: surelBaru }) });
+      setKabar({ kind: "ok", html:
+        `<b>${k.kEmailTersimpan(b.full_name)}</b>${
+          k.kEmailTersimpanIsi(r.email ?? "")}` });
+      setSurel(null); setSurelBaru("");
+      await muat();
+    } catch (e: any) {
+      setKabar({ kind: "stop", html:
+        `<b>${k.kEmailGagal}</b>${e.body?.detail ?? ""}` });
     } finally { setBusy(false); }
   };
 
@@ -828,14 +870,33 @@ export default function SpesimenPage() {
                           </div>
                         )}
                       </td>
-                      {/* Surel dibaca saja di sini. Ia tidak dipakai jalur
-                          pendaftaran mana pun — kode verifikasi berjalan lewat
-                          nomor telepon — jadi menyediakan penyuntingnya di
-                          layar ini berarti satu tempat lagi yang dapat
-                          berbeda dari Data Marketing tanpa ada yang tahu. */}
+                      {/* Surel disunting di tempat ia tertulis, sama seperti
+                          nomornya. Sejak tautan tanda tangan dapat dikirim ke
+                          sana, alamat ini bukan lagi keterangan yang enak
+                          dibaca melainkan tujuan kiriman — dan data yang masuk
+                          dari berkas penjualan kerap tidak memuatnya. */}
                       <td className="sel-surel">
-                        {b.email || (
-                          <span style={{ color: "var(--mut)" }}>{k.tanpaEmail}</span>
+                        <button type="button" className="tautan"
+                                style={{ color: "inherit", fontWeight: 500 }}
+                                title={k.ubahEmail}
+                                onClick={() => {
+                                  setSurel(b.id); setSurelBaru(b.email ?? "");
+                                }}>
+                          {b.email || (
+                            <span style={{ color: "var(--mut)" }}>{k.tanpaEmail}</span>
+                          )}
+                        </button>
+                        {surel === b.id && (
+                          <div className="row" style={{ marginTop: 6, marginBottom: 0 }}>
+                            <input value={surelBaru} autoFocus inputMode="email"
+                                   placeholder={k.phEmail} style={{ width: 180 }}
+                                   onChange={(e) => setSurelBaru(e.target.value)} />
+                            <button className="pri" disabled={busy}
+                                    onClick={() => void simpanSurel(b)}>{k.simpan}</button>
+                            <button onClick={() => { setSurel(null); setSurelBaru(""); }}>
+                              {k.batal}
+                            </button>
+                          </div>
                         )}
                       </td>
                       <td>
