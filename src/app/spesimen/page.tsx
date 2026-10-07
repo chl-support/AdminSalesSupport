@@ -115,20 +115,18 @@ const KATA = {
     unggahManual: "Unggah spesimen manual",
     menuTindakan: "Daftarkan spesimen…",
     unggahJudul: (nama: string) => `Unggah spesimen — ${nama}`,
-    unggahBanner: "Untuk berkas yang sudah Anda pegang",
-    unggahBannerIsi:
-      "Dipakai saat fotonya diserahkan di luar sistem — lewat WhatsApp, surel, " +
-      "atau map pendaftaran — atau saat nomornya tidak lagi aktif sehingga " +
-      "tautan pendaftaran tidak sampai. Unggah foto KTP-nya, tandai tanda " +
-      "tangan yang tercetak, lalu kirim untuk diperiksa.",
+    unggahBelumPilih:
+      "Pilih foto KTP-nya lebih dulu, lalu tandai tanda tangan yang tercetak.",
     unggahPeriksa:
-      "Hasilnya tetap menunggu pemeriksaan, sama seperti pendaftaran mandiri. " +
-      "Mengunggah tidak sekaligus menyetujui.",
+      "Langsung berlaku begitu dikirim — tanpa menunggu diperiksa lagi, sebab " +
+      "yang mengunggah dan yang memeriksa sama-sama tim Admin. Periksa " +
+      "potongannya sekarang: sesudah ini ia menjadi pembanding tanda tangan " +
+      "orang tersebut.",
     unggahPdp:
       "Dengan mengunggah, Anda menyatakan memegang berkas ini atas " +
       "sepengetahuan yang bersangkutan. Pernyataan itu tercatat pada jejak " +
-      "audit beserta nama Anda. Foto KTP utuhnya dihapus begitu putusannya " +
-      "diambil — yang tersimpan hanya potongan tanda tangannya.",
+      "audit beserta nama Anda. Foto KTP utuhnya dihapus begitu set ini " +
+      "berlaku — yang tersimpan hanya potongan tanda tangannya.",
     unggahGanti: (nama: string) =>
       `${nama} sudah punya spesimen yang berlaku`,
     unggahGantiIsi:
@@ -136,11 +134,11 @@ const KATA = {
       "menuntut alasan tertulis — sama seperti meminta revisi lewat tautan.",
     unggahAlasan: "Alasan penggantian (minimal 10 karakter, tercatat)",
     phUnggahAlasan: "mis. KTP lama sudah diperbarui, fotonya dikirim via WhatsApp.",
-    unggahKirim: "Kirim untuk diperiksa", unggahMengirim: "Mengirim…",
-    kUnggahSelesai: (nama: string) => `Spesimen ${nama} terunggah`,
+    unggahKirim: "Simpan & berlakukan", unggahMengirim: "Menyimpan…",
+    kUnggahSelesai: (nama: string) => `Spesimen ${nama} berlaku`,
     kUnggahSelesaiIsi:
-      "Statusnya menjadi menunggu diperiksa. Buka \u201cPeriksa tanda " +
-      "tangan\u201d pada barisnya untuk memutuskan.",
+      "Statusnya menjadi sudah terdaftar, dan potongan tanda tangannya kini " +
+      "menjadi pembanding pada tiap klaimnya. Foto KTP utuhnya sudah dihapus.",
     kUnggahGagal: "Spesimen tidak dapat diunggah",
     takAdaMarketing: "Tidak ada marketing pada penyaringan ini.",
     massalJudul: "Minta revisi spesimen lama",
@@ -299,31 +297,28 @@ const KATA = {
     unggahManual: "Upload specimen manually",
     menuTindakan: "Register specimen…",
     unggahJudul: (nama: string) => `Upload specimen — ${nama}`,
-    unggahBanner: "For a file you already hold",
-    unggahBannerIsi:
-      "Use this when the photo arrived outside the system — WhatsApp, email, " +
-      "or a paper file — or when the phone number is no longer active so the " +
-      "registration link never arrives. Upload the ID card photo, mark the " +
-      "printed signature, then send it for review.",
+    unggahBelumPilih:
+      "Choose the ID card photo first, then mark the printed signature.",
     unggahPeriksa:
-      "The result still waits for review, exactly like self-registration. " +
-      "Uploading is not approving.",
+      "It takes effect as soon as you send it — no separate review, since the " +
+      "uploader and the reviewer are both the Admin team. Check the crop now: " +
+      "after this it becomes that person's signature reference.",
     unggahPdp:
       "By uploading, you state that you hold this file with the person's " +
       "knowledge. That statement is recorded in the audit trail under your " +
-      "name. The full ID photo is deleted once the decision is made — only " +
-      "the signature crop is kept.",
+      "name. The full ID photo is deleted as soon as this set takes effect — " +
+      "only the signature crop is kept.",
     unggahGanti: (nama: string) => `${nama} already has a valid specimen`,
     unggahGantiIsi:
       "A specimen is this person's payment reference, so replacing it needs a " +
       "written reason — the same as requesting a revision by link.",
     unggahAlasan: "Reason for the replacement (at least 10 characters, recorded)",
     phUnggahAlasan: "e.g. The ID card was renewed; the photo came via WhatsApp.",
-    unggahKirim: "Send for review", unggahMengirim: "Sending…",
-    kUnggahSelesai: (nama: string) => `${nama}'s specimen uploaded`,
+    unggahKirim: "Save & put in force", unggahMengirim: "Saving…",
+    kUnggahSelesai: (nama: string) => `${nama}'s specimen is in force`,
     kUnggahSelesaiIsi:
-      "Their status becomes pending review. Open \u201cCheck signature\u201d " +
-      "on their row to decide.",
+      "Their status becomes registered, and the signature crop is now the " +
+      "reference on every claim of theirs. The full ID photo has been deleted.",
     kUnggahGagal: "The specimen could not be uploaded",
     takAdaMarketing: "No marketing matches this filter.",
     massalJudul: "Request revision of old specimens",
@@ -523,7 +518,7 @@ export default function SpesimenPage() {
     const potongan = penanda.current?.potong() ?? null;
     if (!berkas || !potongan) {
       setKabar({ kind: "warn", html:
-        `<b>${k.kUnggahGagal}</b>${!berkas ? k.unggahBannerIsi : ""}` });
+        `<b>${k.kUnggahGagal}</b>${!berkas ? k.unggahBelumPilih : ""}` });
       return;
     }
     setBusy(true); setKabar(null);
@@ -1289,11 +1284,6 @@ export default function SpesimenPage() {
                 </div>
 
                 <div className="popup-isi">
-                  <div className="banner info">
-                    <b>{k.unggahBanner}</b>
-                    {k.unggahBannerIsi}
-                  </div>
-
                   {/* Yang sudah punya spesimen berlaku: alasannya wajib, dan
                       kotaknya berdiri sebelum berkasnya dipilih — supaya yang
                       menggantinya tahu syaratnya sebelum mengunggah, bukan
