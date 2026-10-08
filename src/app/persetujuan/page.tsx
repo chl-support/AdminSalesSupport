@@ -31,6 +31,7 @@ import { useBahasa, useKata } from "../bahasa";
 import { Kerangka, MemeriksaSesi } from "../kerangka";
 import { useSesi } from "../session";
 import { JENIS, namaJenis } from "../klaim/jenis";
+import { sapaanJam } from "@/lib/sapaan";
 import { namaKategori } from "@/lib/kategori";
 import { TAHAP, bolehBukaDokumen, bolehGerak, tahapDari } from "@/lib/tahap";
 import { LANGKAH, keadaanLangkah, sebutanLangkah, warnaLangkah }
@@ -237,7 +238,7 @@ const KATA = {
     waUlang: "Kirim ulang tautan",
     waTanpaHp: "No. HP penerima belum tercatat",
     waTerbit: (hp: string) => `Tautan terbit untuk ${hp}.`,
-    waBukaWa: "Buka WhatsApp", waSalin: "Salin tautan",
+    waBukaWa: "Buka WhatsApp", waSalin: "Salin pesan",
     waEmail: "Kirim Email",
     waTanpaEmail:
       "Surel belum terisi pada Data Marketing, jadi tautannya hanya dapat " +
@@ -251,7 +252,7 @@ const KATA = {
       "unduh gambarnya lalu lampirkan, bila memang mau disertakan. Tautannya " +
       "sendiri sudah tertulis di dalam pesannya.",
     waSurelPerihal: (no: string) => `Tanda tangan dokumen ${no}`,
-    waTersalin: "Tautan tersalin.",
+    waTersalin: "Pesan tersalin.",
     waKode: "Kode verifikasi:",
     waQr: "Pindai untuk membuka tautan",
     waQrGagal:
@@ -260,7 +261,25 @@ const KATA = {
     waGagal: "Tautan tidak dapat diterbitkan",
     waJudul: "Tautan tanda tangan untuk Sales/Agent",
     waLihat: "Lihat tautannya",
-    waAlamat: "Alamat tautan",
+    waAlamat: "Kata Sambutan",
+    /**
+     * Kata sambutan yang menyertai tautannya.
+     *
+     * Nama penerima dan nama project diisi dari pengajuannya sendiri, bukan
+     * diketik ulang tiap kali: yang diketik ulang akan salah pada pengajuan
+     * yang kesepuluh, dan yang menerimanya membaca namanya sendiri salah tulis
+     * pada surat yang memintanya menandatangani sesuatu.
+     */
+    waSambutan: (penerima: string, project: string, tautan: string,
+                 salam: string) =>
+      `Dear Bapak/Ibu. ${penerima}\n\n` +
+      `Selamat ${salam} Bapak/Ibu. ${penerima}\n` +
+      "Berikut terlampir Link untuk Form Pengajuan Fee yang perlu " +
+      `Bapak/Ibu. ${penerima} isi untuk kami dapat proses.\n` +
+      "Terima kasih.\n\n" +
+      "Salam Hangat,\n" +
+      `Admin ${project}\n\n` +
+      tautan,
     waTutup: "Tutup",
     ringkasTutup: "Ringkas kembali",
     ringkasBuka: "Tampilkan seluruh langkah",
@@ -406,7 +425,7 @@ const KATA = {
     waUlang: "Re-send the link",
     waTanpaHp: "The recipient has no phone number on record",
     waTerbit: (hp: string) => `Link issued for ${hp}.`,
-    waBukaWa: "Open WhatsApp", waSalin: "Copy the link",
+    waBukaWa: "Open WhatsApp", waSalin: "Copy the message",
     waEmail: "Send email",
     waTanpaEmail:
       "No email on Data Marketing, so the link can only go by WhatsApp.",
@@ -418,7 +437,7 @@ const KATA = {
       "the image and attach it if you want it included. The link itself is " +
       "already in the message.",
     waSurelPerihal: (no: string) => `Document signing ${no}`,
-    waTersalin: "Link copied.",
+    waTersalin: "The message has been copied.",
     waKode: "Verification code:",
     waQr: "Scan to open the link",
     waQrGagal:
@@ -427,7 +446,17 @@ const KATA = {
     waGagal: "The link could not be issued",
     waJudul: "Signature link for the Sales/Agent",
     waLihat: "Show the link",
-    waAlamat: "Link address",
+    waAlamat: "Greeting",
+    waSambutan: (penerima: string, project: string, tautan: string,
+                 salam: string) =>
+      `Dear Bapak/Ibu. ${penerima}\n\n` +
+      `Selamat ${salam} Bapak/Ibu. ${penerima}\n` +
+      "Berikut terlampir Link untuk Form Pengajuan Fee yang perlu " +
+      `Bapak/Ibu. ${penerima} isi untuk kami dapat proses.\n` +
+      "Terima kasih.\n\n" +
+      "Salam Hangat,\n" +
+      `Admin ${project}\n\n` +
+      tautan,
     waTutup: "Close",
     ringkasTutup: "Collapse again",
     ringkasBuka: "Show every step",
@@ -2475,6 +2504,13 @@ export default function PersetujuanPage() {
         const t = tautan[lihatTautan];
         const c = klaim.find((x) => x.id === lihatTautan);
         const alamat = `${window.location.origin}/sign/${t.token}`;
+        // Satu pesan untuk ketiga jalan — disalin, lewat WhatsApp, lewat
+        // surel — supaya yang diterima penerima tidak bergantung pada lewat
+        // mana ia dikirim.
+        const sambutan = k.waSambutan(
+          c?.marketing?.full_name ?? "Bapak/Ibu",
+          sesi.project_name ?? "", alamat,
+          sapaanJam(new Date().getHours()));
         return (
           <div className="tirai"
                onMouseDown={(e) => {
@@ -2489,8 +2525,13 @@ export default function PersetujuanPage() {
                 {k.waTerbit(t.masked_phone)}
               </p>
 
+              {/* Kata sambutan beserta tautannya di baris terakhir — satu
+                  pesan utuh, siap disalin atau dikirim apa adanya. Nama
+                  penerima dan nama project diisi dari pengajuannya sendiri.
+                  white-space: pre-wrap pada .alamat-tautan yang menjaga
+                  barisnya tetap seperti ditulis. */}
               <div className="lbl">{k.waAlamat}</div>
-              <div className="alamat-tautan">{alamat}</div>
+              <div className="alamat-tautan">{sambutan}</div>
 
               {/* Dua jalan mengirimkannya, keduanya mengambil tujuannya dari
                   Data Marketing: nomor WhatsApp dan surel orang yang sama.
@@ -2506,7 +2547,7 @@ export default function PersetujuanPage() {
                 {nomorWa(c?.marketing?.phone) && (
                   <a className="tombol-klaim kecil"
                      href={`https://wa.me/${nomorWa(c?.marketing?.phone)}` +
-                           `?text=${encodeURIComponent(`${t.message}\n${alamat}`)}`}
+                           `?text=${encodeURIComponent(sambutan)}`}
                      target="_blank" rel="noreferrer">{k.waBukaWa}</a>
                 )}
                 {c?.marketing?.email && (
@@ -2515,12 +2556,12 @@ export default function PersetujuanPage() {
                            `?subject=${encodeURIComponent(
                              k.waSurelPerihal(c?.claim_number ?? ""))}` +
                            `&body=${encodeURIComponent(
-                             `${t.message}\n\n${alamat}\n\n${k.waKodeCatatan}`)}`}>
+                             `${sambutan}\n\n${k.waKodeCatatan}`)}`}>
                     {k.waEmail}
                   </a>
                 )}
                 <button onClick={() => {
-                  navigator.clipboard?.writeText(alamat);
+                  navigator.clipboard?.writeText(sambutan);
                   setKabar(k.waTersalin);
                 }}>{k.waSalin}</button>
               </div>
