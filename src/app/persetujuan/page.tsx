@@ -31,6 +31,7 @@ import { useBahasa, useKata } from "../bahasa";
 import { Kerangka, MemeriksaSesi } from "../kerangka";
 import { useSesi } from "../session";
 import { JENIS, namaJenis } from "../klaim/jenis";
+import { sapaanJam } from "@/lib/sapaan";
 import { namaKategori } from "@/lib/kategori";
 import { TAHAP, bolehBukaDokumen, bolehGerak, tahapDari } from "@/lib/tahap";
 import { LANGKAH, keadaanLangkah, sebutanLangkah, warnaLangkah }
@@ -269,9 +270,10 @@ const KATA = {
      * yang kesepuluh, dan yang menerimanya membaca namanya sendiri salah tulis
      * pada surat yang memintanya menandatangani sesuatu.
      */
-    waSambutan: (penerima: string, project: string, tautan: string) =>
+    waSambutan: (penerima: string, project: string, tautan: string,
+                 salam: string) =>
       `Dear Bapak/Ibu. ${penerima}\n\n` +
-      `Selamat Pagi/Siang/Sore/Malam Bapak/Ibu. ${penerima}\n` +
+      `Selamat ${salam} Bapak/Ibu. ${penerima}\n` +
       "Berikut terlampir Link untuk Form Pengajuan Fee yang perlu " +
       `Bapak/Ibu. ${penerima} isi untuk kami dapat proses.\n` +
       "Terima kasih.\n\n" +
@@ -445,9 +447,10 @@ const KATA = {
     waJudul: "Signature link for the Sales/Agent",
     waLihat: "Show the link",
     waAlamat: "Greeting",
-    waSambutan: (penerima: string, project: string, tautan: string) =>
+    waSambutan: (penerima: string, project: string, tautan: string,
+                 salam: string) =>
       `Dear Bapak/Ibu. ${penerima}\n\n` +
-      `Selamat Pagi/Siang/Sore/Malam Bapak/Ibu. ${penerima}\n` +
+      `Selamat ${salam} Bapak/Ibu. ${penerima}\n` +
       "Berikut terlampir Link untuk Form Pengajuan Fee yang perlu " +
       `Bapak/Ibu. ${penerima} isi untuk kami dapat proses.\n` +
       "Terima kasih.\n\n" +
@@ -2506,7 +2509,8 @@ export default function PersetujuanPage() {
         // mana ia dikirim.
         const sambutan = k.waSambutan(
           c?.marketing?.full_name ?? "Bapak/Ibu",
-          sesi.project_name ?? "", alamat);
+          sesi.project_name ?? "", alamat,
+          sapaanJam(new Date().getHours()));
         return (
           <div className="tirai"
                onMouseDown={(e) => {

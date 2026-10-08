@@ -595,6 +595,29 @@ async function main() {
     }
   });
 
+  await check("sapaan kata sambutan mengikuti jam, termasuk di batasnya",
+              async () => {
+    // Batas jamnya justru bagian yang paling mudah bergeser satu jam tanpa ada
+    // yang menyadarinya — dan yang menyadarinya adalah penerima surat yang
+    // disapa "Selamat Pagi" pada pukul tiga sore.
+    const { sapaanJam } = await import("../src/lib/sapaan");
+    const harap: [number, string][] = [
+      [0, "Malam"], [4, "Malam"],
+      [5, "Pagi"], [7, "Pagi"], [10, "Pagi"],
+      [11, "Siang"], [14, "Siang"],
+      [15, "Sore"], [18, "Sore"],
+      [19, "Malam"], [23, "Malam"],
+    ];
+    for (const [jam, sapaan] of harap) {
+      assert(sapaanJam(jam) === sapaan,
+             `pukul ${jam} seharusnya ${sapaan}, bukan ${sapaanJam(jam)}`);
+    }
+    // Keempatnya terpakai; tidak ada jam yang jatuh ke luar keempatnya.
+    const semua = new Set(
+      Array.from({ length: 24 }, (_, j) => sapaanJam(j)));
+    assert(semua.size === 4, `seharusnya empat sapaan, bukan ${semua.size}`);
+  });
+
   await check("surel marketing dapat diperbaiki, dan boleh dikosongkan",
               async () => {
     // Sejak tautan tanda tangan dapat dikirim lewat surel, alamat ini tujuan
