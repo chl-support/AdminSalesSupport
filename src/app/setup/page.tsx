@@ -189,6 +189,14 @@ export default function SetupPage() {
   const [result, setResult] = useState<
     { cls: string; title: string; lines: string[] } | null
   >(null);
+  // Ganti sandi: jalur darurat untuk sandi yang lupa, terutama sysadmin —
+  // satu-satunya peran yang tidak punya siapa pun di atasnya untuk menolong.
+  const [sandiUser, setSandiUser] = useState("sysadmin");
+  const [sandiBaru, setSandiBaru] = useState("");
+  const [sandiBusy, setSandiBusy] = useState(false);
+  const [sandiHasil, setSandiHasil] = useState<
+    { cls: string; title: string; lines: string[] } | null
+  >(null);
 
   const loadStatus = useCallback(async () => {
     // Health dibaca lebih dulu dan tanpa syarat: ia satu-satunya sumber diagnosis
@@ -251,6 +259,44 @@ export default function SetupPage() {
       setBusy(false);
       void loadStatus();
     }
+  };
+
+  const gantiSandi = async () => {
+    if (!secret) {
+      setSandiHasil({ cls: "stop", title: "Rahasia belum diisi",
+                      lines: ["Isi SETUP_SECRET di kotak di atas lebih dulu."] });
+      return;
+    }
+    setSandiBusy(true);
+    setSandiHasil(null);
+    try {
+      const res = await fetch("/api/admin/setup/sandi", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-setup-secret": secret },
+        body: JSON.stringify({ username: sandiUser, password: sandiBaru }),
+      });
+      const b = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setSandiHasil({ cls: "ok", title: `Sandi ${b.username} diganti`,
+          lines: [`${b.full_name} (${b.role}).`,
+                  `${b.sessions_closed} sesi yang sedang berjalan diputus.`,
+                  b.lockout_cleared
+                    ? `Penguncian dibuka — ${b.lockout_cleared} percobaan gagal dihapus.`
+                    : "Akun tidak sedang terkunci.",
+                  b.reminder ?? ""].filter(Boolean) });
+        setSandiBaru("");
+      } else if (res.status === 401) {
+        setSandiHasil({ cls: "stop", title: "Rahasia tidak cocok",
+          lines: ["Nilainya harus sama persis dengan SETUP_SECRET di " +
+                  "Environment Variables."] });
+      } else {
+        setSandiHasil({ cls: "stop", title: "Sandi tidak terpasang",
+                        lines: [b.detail ?? `HTTP ${res.status}`] });
+      }
+    } catch (e: any) {
+      setSandiHasil({ cls: "stop", title: "Permintaan gagal",
+                      lines: [String(e?.message ?? e)] });
+    } finally { setSandiBusy(false); }
   };
 
   // Basis data tidak terjangkau: health menjawab selain "ok", atau tidak menjawab.
@@ -355,6 +401,46 @@ export default function SetupPage() {
         <button className="pri" onClick={run} disabled={busy}>
           {busy ? "Menjalankan…" : "Jalankan penyiapan"}
         </button>
+      </div>
+
+      {/* Sandi yang lupa — termasuk sysadmin, yang tidak dapat ditolong peran
+          lain. Jalur ini hidup hanya selama SETUP_SECRET terpasang, sama
+          seperti penyiapan di atasnya. */}
+      <div className="card">
+        <h2 style={{ margin: "0 0 10px", fontSize: 14 }}>Ganti sandi pengguna</h2>
+        <div className="banner warn">
+          <b>Untuk sandi yang lupa</b>
+          Sandi baru dipasang dan penguncian setelah lima percobaan gagal ikut
+          dibuka. Memakai SETUP_SECRET yang sama dengan di atas; selama
+          SETUP_SECRET masih terpasang, siapa pun yang mengetahui nilainya dapat
+          mengganti sandi siapa pun — hapus kembali sesudah selesai, lalu
+          Redeploy.
+        </div>
+
+        <div className="lbl">Username</div>
+        <input value={sandiUser} autoComplete="off"
+               style={{ width: "100%", fontSize: 14, textAlign: "left" }}
+               onChange={(e) => setSandiUser(e.target.value)}
+               placeholder="mis. sysadmin" />
+
+        <div className="lbl" style={{ marginTop: 10 }}>Sandi baru</div>
+        <input type="password" value={sandiBaru} autoComplete="new-password"
+               style={{ width: "100%", fontSize: 14, textAlign: "left",
+                        letterSpacing: "normal" }}
+               onChange={(e) => setSandiBaru(e.target.value)}
+               placeholder="minimal 10 karakter" />
+
+        <button className="pri" onClick={gantiSandi}
+                disabled={sandiBusy || sandiBaru.length < 10}>
+          {sandiBusy ? "Memasang…" : "Pasang sandi baru"}
+        </button>
+
+        {sandiHasil && (
+          <div className={`banner ${sandiHasil.cls}`} style={{ marginTop: 10 }}>
+            <b>{sandiHasil.title}</b>
+            {sandiHasil.lines.map((l, i) => <div key={i}>{l}</div>)}
+          </div>
+        )}
       </div>
 
       {result && (
