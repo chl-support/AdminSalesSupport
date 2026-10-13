@@ -270,13 +270,26 @@ export async function createClaim(params: {
     const prefix = { closing_fee: "CF", commission: "KMS", cash_reward: "CR",
                      continuity_reward: "CTR",
                      overriding: "OR" }[params.claimType];
-    const { count } = (await one<{ count: number }>(
-      "SELECT COUNT(*)::int AS count FROM claims WHERE claim_type=$1",
-      [params.claimType], c))!;
-    const number = `${prefix}-${new Date().getFullYear()}-${
-      String(count + 1).padStart(4, "0")}`;
-
-    try {
+    // Nomor klaim cuma label; ia tidak boleh menjadi patokan yang
+    // menghalangi pengajuan fee. Dulu nomornya dihitung dari COUNT(*), jadi
+    // begitu ada klaim yang dihapus (salah input) deretnya mundur dan
+    // menabrak nomor yang sudah ada — pengajuannya ikut gagal dengan galat
+    // claims_claim_number_key. Sekarang nomor diambil dari nomor tertinggi
+    // yang pernah terpakai, dikunci selama transaksi supaya dua pengajuan
+    // serentak tidak mengambil angka yang sama, dan kalau ternyata masih
+    // bentrok angkanya cukup dimajukan: pengajuannya tetap jalan.
+    await c.query("SELECT pg_advisory_xact_lock(hashtext($1))",
+                  [`claim_number:${params.claimType}`]);
+    const { tertinggi } = (await one<{ tertinggi: number }>(
+      `SELECT COALESCE(MAX(NULLIF(regexp_replace(claim_number, '^.*-', ''),
+                                  '')::int), 0)::int AS tertinggi
+         FROM claims
+        WHERE claim_type=$1
+          AND claim_number ~ ('^' || $2 || '-[0-9]{4}-[0-9]+$')`,
+      [params.claimType, prefix], c))!;
+    let urut = tertinggi;
+    let number = "";
+    const sisipkan = async () => {
       const claim = await one(
         `INSERT INTO claims (claim_number, claim_type, recipient_role, unit_id,
            marketing_id, bank_account_id, status, gross_amount, vat,
@@ -298,22 +311,39 @@ export async function createClaim(params: {
          // satu unit, dan bentuknya diperiksa supaya yang bukan UUID tidak
          // sampai ke basis data sebagai galat yang tidak terbaca.
          UUID.test(String(params.batchId ?? "")) ? params.batchId : null], c);
-
-      await audit({
-        entityType: "claim", entityId: claim!.id, action: "create",
-        actor: params.actor, after: { claim_number: number, net: r.net_amount },
-      }, c);
       return claim!;
-    } catch (err: any) {
-      // Ditegakkan UNIQUE INDEX parsial uniq_active_claim di basis data.
-      if (err?.code === "23505" && String(err.constraint).includes("uniq_active_claim")) {
-        throw new WorkflowError(
-          `Unit ini sudah memiliki klaim ${params.claimType} aktif untuk peran ` +
-          `${params.recipientRole}. Kombinasi peran lain tetap dapat diajukan.`,
-          "duplicate_claim",
-        );
+    };
+
+    for (let coba = 1; ; coba++) {
+      urut += 1;
+      number = `${prefix}-${new Date().getFullYear()}-${
+        String(urut).padStart(4, "0")}`;
+      await c.query("SAVEPOINT nomor_klaim");
+      try {
+        const claim = await sisipkan();
+        await c.query("RELEASE SAVEPOINT nomor_klaim");
+        await audit({
+          entityType: "claim", entityId: claim.id, action: "create",
+          actor: params.actor, after: { claim_number: number, net: r.net_amount },
+        }, c);
+        return claim;
+      } catch (err: any) {
+        await c.query("ROLLBACK TO SAVEPOINT nomor_klaim");
+        // Ditegakkan UNIQUE INDEX parsial uniq_active_claim di basis data.
+        if (err?.code === "23505" &&
+            String(err.constraint).includes("uniq_active_claim")) {
+          throw new WorkflowError(
+            `Unit ini sudah memiliki klaim ${params.claimType} aktif untuk peran ` +
+            `${params.recipientRole}. Kombinasi peran lain tetap dapat diajukan.`,
+            "duplicate_claim",
+          );
+        }
+        // Nomor sudah terpakai: maju satu, bukan menolak pengajuannya.
+        if (err?.code === "23505" &&
+            String(err.constraint ?? "").includes("claim_number") &&
+            coba <= 200) continue;
+        throw err;
       }
-      throw err;
     }
   });
 }
