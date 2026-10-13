@@ -206,6 +206,38 @@ async function main() {
              "indeks harus mencakup recipient_role");
     });
 
+  await check("PPh 23 dipotong 2% dan PPh 21 2,5%, untuk semua jenis fee",
+              async () => {
+    // Tarifnya duduk di tabel pajak, bukan di kode, jadi ia berlaku untuk
+    // semua jenis fee sekaligus: yang membedakan hanya atas nama siapa
+    // rekening tujuannya — badan usaha PPh 23, perorangan PPh 21.
+    const baris: any[] = await query(
+      `SELECT rate::float AS rate, has_skb FROM tax_rates
+        WHERE tax_type='pph23'`);
+    assert(baris.length > 0, "tarif PPh 23 tidak ada");
+    for (const b of baris)
+      assert(b.rate === 0.02, `PPh 23 seharusnya 2%, bukan ${b.rate * 100}%`);
+
+    const p21: any[] = await query(
+      "SELECT rate::float AS rate FROM tax_rates WHERE tax_type='pph21'");
+    assert(p21.length > 0, "tarif PPh 21 tidak ada");
+    for (const b of p21)
+      assert(b.rate === 0.025, `PPh 21 seharusnya 2,5%, bukan ${b.rate * 100}%`);
+
+    // Dan benar-benar terpakai pada perhitungannya, bukan hanya tersimpan.
+    const u: any = await one("SELECT * FROM units WHERE id=$1", [unit]);
+    const a: any = await one("SELECT * FROM marketings WHERE id=$1", [agentId]);
+    for (const jenis of ["commission", "continuity_reward"] as const) {
+      const r: any = await calc.calculate(
+        u, a, null, jenis as any, "agent" as any, null, undefined,
+        { holder_type: "company", holder_name: "Uji" });
+      assert(Number(r.snapshot.withholding_rate) === 0.02,
+             `${jenis}: tarif terpakai ${r.snapshot.withholding_rate}`);
+      assert(r.withholding_tax === Math.round(r.gross_amount * 0.02),
+             `${jenis}: PPh ${r.withholding_tax} tidak 2% dari ${r.gross_amount}`);
+    }
+  });
+
   await check("Closing Fee dan Cash Reward di-gross-up, jenis lain tidak",
               async () => {
     // Nominal pada IOM adalah yang harus DITERIMA orangnya: brutonya dibagi

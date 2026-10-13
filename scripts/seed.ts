@@ -212,15 +212,16 @@ const RATES: [string, string, string, string, boolean | null, string,
   //   Lampiran Overiding  95.765,77 /  3.830.630,63   = 2,5%  (PPh 23)
   //   Lampiran Overiding 132.601,35 /  5.304.054,05   = 2,5%  (PPh 23)
   //
-  // PPh 23 atas jasa umumnya 2%, jadi 2,5% di sini perlu dikonfirmasi Finance
-  // sebelum dipakai membayar. Yang jelas: angka inilah yang selama ini dipakai,
-  // dan memakai 2% akan membuat sistem tidak cocok dengan berkas yang sudah ada.
+  // Pertanyaan itu sudah dijawab Finance: PPh 23 dipotong 2%, PPh 21 tetap
+  // 2,5%. Berkas lama yang memotong 2,5% atas penerima badan usaha tidak
+  // ikut berubah — klaim menyimpan tarifnya sendiri pada snapshot, jadi yang
+  // sudah terbit tetap terbaca sebagaimana dulu dihitung.
   ["pph21", "0.025", "any", "individual", null, "any", null, "2020-01-01", null,
    "2,5% sesuai Form Pengajuan Komisi dan Cash Reward"],
-  ["pph23", "0.025", "any", "company", null, "any", null, "2020-01-01", null,
-   "2,5% sesuai lampiran Detail Perhitungan Overiding"],
-  ["pph23", "0.025", "any", "company", true, "any", null, "2020-01-01", null,
-   "Pakai SKB: (Komisi + PPN) - PPh 2,5%"],
+  ["pph23", "0.02", "any", "company", null, "any", null, "2020-01-01", null,
+   "2% atas jasa untuk penerima badan usaha"],
+  ["pph23", "0.02", "any", "company", true, "any", null, "2020-01-01", null,
+   "Pakai SKB: (Komisi + PPN) - PPh 2%"],
   ["pph21", "0.025", "any", "individual", null, "any", "sales_manager_inhouse",
    "2020-01-01", null, "Overriding Sales Manager dipotong PPh 21"],
 ];
