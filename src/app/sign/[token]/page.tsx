@@ -64,6 +64,7 @@ export default function SignPage() {
   const [dokumen, setDokumen] = useState<any[]>([]);
   const [unggahHint, setUnggahHint] = useState<string | null>(null);
   const [pratinjauTtd, setPratinjauTtd] = useState<string | null>(null);
+  const [tertutup, setTertutup] = useState(false);
 
   const pad = usePadTtd();
 
@@ -205,6 +206,21 @@ export default function SignPage() {
   };
 
   /**
+   * Tombol tutup, dengan jalan keluar bila peramban menolak.
+   *
+   * window.close() hanya berhasil pada jendela yang dibuka skrip, dan tautan
+   * ini biasanya dibuka dari WhatsApp — bukan jendela semacam itu. Tombol yang
+   * ditekan lalu tidak melakukan apa-apa lebih buruk daripada tidak ada
+   * tombolnya, jadi bila jendelanya masih terbuka sesudah dicoba, layarnya
+   * dikosongkan sendiri: yang tersisa satu kalimat bahwa halaman ini sudah
+   * selesai dan boleh ditinggalkan.
+   */
+  const tutupHalaman = () => {
+    try { window.close(); } catch { /* ditolak peramban */ }
+    setTimeout(() => { if (!window.closed) setTertutup(true); }, 300);
+  };
+
+  /**
    * Dikirim ke Admin atas kehendak yang menandatangani, bukan otomatis.
    *
    * Sesudah terkirim layarnya ditutup; window.close() hanya berhasil pada
@@ -263,6 +279,18 @@ export default function SignPage() {
   const urutan = LANGKAH.map((l) => l.key);
   const kini = step;
   const idx = urutan.indexOf(kini as Step);
+
+  if (tertutup) {
+    return (
+      <div className="wrap-narrow">
+        <section className="panel" style={{ marginTop: 40, textAlign: "center" }}>
+          <p style={{ margin: 0, color: "var(--sub)" }}>
+            Halaman ini sudah selesai. Silakan tutup tab ini.
+          </p>
+        </section>
+      </div>
+    );
+  }
 
   return (
     <div className="wrap-narrow">
@@ -493,6 +521,12 @@ export default function SignPage() {
               sudah selesai tampak seperti masih menunggu sesuatu. */}
           <div className={`banner ${done.kind}`}
                dangerouslySetInnerHTML={{ __html: done.html }} />
+          {!error && (
+            <button className="pri" onClick={tutupHalaman}
+                    style={{ width: "100%", marginTop: 12, padding: 13 }}>
+              Tutup halaman
+            </button>
+          )}
         </section>
       )}
     </div>
