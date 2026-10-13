@@ -40,13 +40,14 @@ const BERKAS = [
 const BATAS = 3 * 1024 * 1024;
 
 type Step = "loading" | "otp" | "review" | "berkas" | "sign"
-          | "dispute" | "done";
+          | "kirim" | "dispute" | "done";
 
 const LANGKAH: { key: Step; no: string; label: string }[] = [
   { key: "otp", no: "1", label: "Verifikasi" },
   { key: "review", no: "2", label: "Periksa formulir" },
   { key: "berkas", no: "3", label: "Unggah berkas" },
   { key: "sign", no: "4", label: "Tanda tangan" },
+  { key: "kirim", no: "5", label: "Kirim ke Admin" },
 ];
 
 export default function SignPage() {
@@ -80,6 +81,10 @@ export default function SignPage() {
       const d = await api(`/api/signing-sessions/${token}`);
       setCtx(d);
       setDokumen(d.claim?.documents ?? []);
+      // Sudah bertanda tangan tetapi belum dikirim — misalnya halaman yang
+      // dimuat ulang sesudah tanda tangan diterima: kembalikan ia ke tombol
+      // kirimnya, bukan ke awal.
+      if (d.menunggu_kirim) { setStep("kirim"); return; }
       setStep((s) =>
         s === "loading" || s === "otp" ? (d.otp_verified ? "review" : "otp") : s);
     } catch (e: any) {
@@ -167,12 +172,11 @@ export default function SignPage() {
       });
       if (r.outcome === "verified") {
         // Baru di sini goresannya menempel pada formulir — sesudah diterima.
+        // Tidak ada pita berskor dan tidak langsung terkirim: formulirnya
+        // ditampilkan utuh dengan tanda tangan menempel, dan yang
+        // menandatangani sendiri yang menekan kirim.
         setPratinjauTtd(imagePng);
-        setDone({ kind: "ok", html:
-          `<b>Tanda tangan terverifikasi — skor ${r.score}</b>
-           Tanda tangan Anda sudah menempel pada kolom Pemohon. Dokumen disegel
-           dan diteruskan ke pemeriksaan Admin Sales dan Finance.` });
-        setStep("done");
+        setStep("kirim");
       } else if (r.outcome === "retry") {
         setFeedback({ kind: "stop", html:
           `<b>Belum cocok — skor ${r.score}, ambang ${r.threshold}</b>
@@ -197,6 +201,29 @@ export default function SignPage() {
       setFeedback({ kind: "stop", html:
         `<b>Gagal mengirim</b>${e.body?.detail ?? "Coba ulangi."}` });
       setStep("sign");
+    } finally { setBusy(false); }
+  };
+
+  /**
+   * Dikirim ke Admin atas kehendak yang menandatangani, bukan otomatis.
+   *
+   * Sesudah terkirim layarnya ditutup; window.close() hanya berhasil pada
+   * jendela yang dibuka skrip, jadi pesan "sudah terkirim" tetap ditampilkan —
+   * ia yang dibaca orang ketika jendelanya tidak dapat ditutup sendiri.
+   */
+  const kirimKeAdmin = async () => {
+    setBusy(true);
+    try {
+      await api(`/api/signing-sessions/${token}/kirim`, { method: "POST" });
+      setDone({ kind: "ok", html:
+        `<b>Form sudah terkirim</b>
+         Formulir Anda sudah dikirim ke Admin Sales. Tidak ada lagi yang perlu
+         Anda kerjakan di halaman ini — silakan ditutup.` });
+      setStep("done");
+      setTimeout(() => { try { window.close(); } catch { /* tetap terbuka */ } }, 1200);
+    } catch (e: any) {
+      setFeedback({ kind: "stop", html:
+        `<b>Belum terkirim</b>${e.body?.detail ?? "Coba tekan sekali lagi."}` });
     } finally { setBusy(false); }
   };
 
@@ -410,6 +437,32 @@ export default function SignPage() {
         </section>
       )}
 
+      {step === "kirim" && claim && (
+        <section className="panel">
+          <div className="banner info">
+            <b>Periksa formulirnya sekali lagi</b>
+            Tanda tangan Anda sudah menempel pada kolom Pemohon. Formulir ini
+            baru sampai ke Admin Sales setelah Anda menekan tombol di bawah.
+          </div>
+
+          <div className="form-lihat">
+            {rekapOr ? <RekapOverriding rekap={rekapOr} />
+                     : <FormPengajuan klaim={{ ...claim, documents: dokumen }}
+                                      ttdPemohon={pratinjauTtd} />}
+          </div>
+
+          {feedback && (
+            <div className={`banner ${feedback.kind}`}
+                 dangerouslySetInnerHTML={{ __html: feedback.html }} />
+          )}
+
+          <button className="pri" onClick={() => void kirimKeAdmin()} disabled={busy}
+                  style={{ width: "100%", marginTop: 12, padding: 13 }}>
+            {busy ? "Mengirim…" : "Kirim form ke Admin"}
+          </button>
+        </section>
+      )}
+
       {step === "dispute" && (
         <section className="panel">
           <div className="banner info">
@@ -435,15 +488,11 @@ export default function SignPage() {
 
       {step === "done" && done && (
         <section className="panel">
+          {/* Hanya kalimatnya. Formulirnya sudah dibaca pada langkah
+              sebelumnya, dan menampilkannya lagi di sini membuat halaman yang
+              sudah selesai tampak seperti masih menunggu sesuatu. */}
           <div className={`banner ${done.kind}`}
                dangerouslySetInnerHTML={{ __html: done.html }} />
-          {done.kind === "ok" && claim && (
-            <div className="form-lihat" style={{ marginTop: 12 }}>
-              {rekapOr ? <RekapOverriding rekap={rekapOr} />
-                       : <FormPengajuan klaim={{ ...claim, documents: dokumen }}
-                                        ttdPemohon={pratinjauTtd} />}
-            </div>
-          )}
         </section>
       )}
     </div>

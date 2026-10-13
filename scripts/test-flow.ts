@@ -84,6 +84,8 @@ async function main() {
       token: link.token, imagePng: signaturePng(seedIndex, 0.06),
       strokes: strokes(seedIndex, 0.06), inputMethod: "stylus" });
     assert(r.outcome === "verified", `tanda tangan gagal: skor ${r.score}`);
+    // Agent yang mengirimnya ke Admin, bukan sistem — lihat kirimKeAdmin().
+    await wf.kirimKeAdmin(link.token);
     await wf.crosscheck(claimId, "admin_sales", "complete", "admin");
     await wf.crosscheck(claimId, "finance", "complete", "ratih");
     const pkg = await wf.printPackage(claimId, "admin");
@@ -417,6 +419,25 @@ async function main() {
     assert(Boolean(r.document_hash), "dokumen harus tersegel");
     assert(r.layers_used.includes("dynamic"), JSON.stringify(r.layers_used));
     docHash = r.document_hash!;
+  });
+
+  await check("formulir berhenti di tangan agent sampai ia menekan kirim",
+              async () => {
+    // Tanda tangan yang diterima menyegel dokumennya, tetapi TIDAK
+    // mengirimnya: yang menandatangani harus sempat memeriksa hasilnya dulu.
+    const sesudahTtd = await wf.getClaim(cid);
+    assert(sesudahTtd.status === "signed",
+           `sesudah tanda tangan seharusnya 'signed', bukan '${sesudahTtd.status}'`);
+
+    const kirim = await wf.kirimKeAdmin(token);
+    assert(kirim.sent && !kirim.already, JSON.stringify(kirim));
+    const sesudahKirim = await wf.getClaim(cid);
+    assert(sesudahKirim.status === "crosscheck_in_progress", sesudahKirim.status);
+
+    // Ketukan kedua pada tombol yang sama tidak boleh menjadi galat di layar
+    // orang luar.
+    const lagi = await wf.kirimKeAdmin(token);
+    assert(lagi.sent && lagi.already, JSON.stringify(lagi));
   });
 
   await check("GATE: dokumen bersegel tidak dapat dihitung ulang", async () => {
@@ -1158,6 +1179,7 @@ async function main() {
         token: link.token, imagePng: signaturePng(2, 0.06),
         strokes: strokes(2, 0.06), inputMethod: "stylus" });
       assert(r.outcome === "verified", `outcome ${r.outcome}, skor ${r.score}`);
+      await wf.kirimKeAdmin(link.token);
       await wf.crosscheck(id, "admin_sales", "complete", "admin");
       const after = await wf.financialFinding(id, "ratih",
         "Basis perhitungan keliru, PPN tidak seharusnya dikenakan.", ["vat"]);

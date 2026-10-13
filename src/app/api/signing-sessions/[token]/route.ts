@@ -1,11 +1,14 @@
 import { handler, claimView } from "@/lib/api";
 import { setting } from "@/lib/db";
 import { rekapOverriding } from "@/lib/overriding";
-import { getClaim, openSession } from "@/lib/workflow";
+import { getClaim, openSession, sesiMenungguKirim } from "@/lib/workflow";
 
 export const GET = handler(async (_req, { params }) => {
   const { token } = await params;
-  const s = await openSession(token);
+  // Sesi yang sudah bertanda tangan tetapi formulirnya belum dikirim tetap
+  // dapat dibuka: yang tersisa di sana satu tombol, Kirim form ke Admin.
+  const menunggu = await sesiMenungguKirim(token);
+  const s = menunggu ?? await openSession(token);
   const claim = await getClaim(s.claim_id);
   const maxAttempts = Number(await setting("signature_max_attempts"));
   // Overriding ditandatangani di atas Detail Perhitungan per periode, bukan
@@ -30,5 +33,6 @@ export const GET = handler(async (_req, { params }) => {
     attempts_remaining: Math.max(0, maxAttempts - s.attempts),
     expires_at: s.expires_at,
     otp_verified: s.otp_verified,
+    menunggu_kirim: Boolean(menunggu),
   };
 }, { publik: true });
