@@ -683,7 +683,11 @@ export async function submitSignature(params: {
       "UPDATE claims SET signed_at=now(), signature_score=$1 WHERE id=$2",
       [result.score, claim.id]);
     await transition(claim.id, "signed", "agent");
-    await transition(claim.id, "crosscheck_in_progress", "system");
+    // BERHENTI di "signed". Diteruskan ke Admin hanya oleh yang
+    // menandatangani, lewat tombolnya sendiri — lihat kirimKeAdmin(). Dulu
+    // kedua langkah ini terjadi sekaligus, sehingga formulir melesat ke Admin
+    // pada detik tanda tangannya diterima, sebelum yang menandatangani sempat
+    // melihat hasilnya menempel.
     return { outcome, score: result.score, threshold, attempt_number: attemptNo,
              attempts_remaining: 0, document_hash: hash, guidance: [],
              layers_used: result.layersUsed };
@@ -696,6 +700,64 @@ export async function submitSignature(params: {
            attempts_remaining: Math.max(0, maxAttempts - attemptNo),
            document_hash: null, guidance: result.guidance,
            layers_used: result.layersUsed };
+}
+
+/**
+ * Formulir yang sudah ditandatangani dikirim ke Admin — oleh agent, bukan
+ * oleh sistem.
+ *
+ * Tanda tangan yang diterima menyegel dokumennya dan menghentikan klaim di
+ * status "signed". Yang memindahkannya ke pemeriksaan Admin adalah tombol di
+ * layar tanda tangan, sesudah yang menandatangani melihat sendiri tanda
+ * tangannya menempel pada kolom Pemohon. Satu tombol itulah bedanya antara
+ * "sudah saya tanda tangani" dan "sudah saya periksa dan saya kirim".
+ *
+ * Dapat dipanggil dua kali tanpa akibat: ketukan kedua pada tombol yang sama,
+ * atau halaman yang dimuat ulang sesudah terkirim, tidak boleh berakhir
+ * sebagai galat di layar orang luar.
+ */
+/**
+ * Sesi yang tanda tangannya sudah diterima tetapi formulirnya belum dikirim.
+ *
+ * Bagi openSession() sesi semacam itu sudah tertutup, dan dulu memang tidak
+ * ada lagi yang perlu dikerjakan di sana. Sekarang ada satu: menekan kirim.
+ * Tanpa jalan ini, halaman yang dimuat ulang sesudah tanda tangan — ponsel
+ * yang terkunci, tautan yang dibuka lagi — menampilkan "Tautan tidak berlaku"
+ * sementara klaimnya tertinggal di 'signed' tanpa seorang pun dapat
+ * mengirimnya.
+ */
+export async function sesiMenungguKirim(token: string) {
+  const s = await one(
+    `SELECT s.* FROM signing_sessions s JOIN claims c ON c.id = s.claim_id
+      WHERE s.token=$1 AND s.state='verified' AND c.status='signed'`, [token]);
+  return s ?? null;
+}
+
+export async function kirimKeAdmin(token: string) {
+  // openSession() tidak dipakai di sini: sesi yang tanda tangannya sudah
+  // diterima bernilai 'verified', dan bagi openSession itu berarti tertutup.
+  // Justru sesi seperti itulah yang berhak menekan kirim — yang dijaga di
+  // bawah ini kebalikannya: sesi yang BELUM terverifikasi.
+  const s = await one("SELECT * FROM signing_sessions WHERE token=$1", [token]);
+  if (!s) throw new WorkflowError("Sesi tidak ditemukan.", "not_found", 404);
+  if (s.state !== "verified") {
+    throw new WorkflowError("Link sudah tidak berlaku.", "session_closed", 410);
+  }
+  const claim = await getClaim(s.claim_id);
+
+  if (claim.status === "crosscheck_in_progress") {
+    return { sent: true, already: true, status: claim.status };
+  }
+  if (claim.status !== "signed") {
+    throw new WorkflowError(
+      "Formulir ini belum ditandatangani, jadi belum dapat dikirim ke Admin.",
+      "belum_ditandatangani", 409);
+  }
+
+  await transition(claim.id, "crosscheck_in_progress", "agent");
+  await audit({ entityType: "claim", entityId: claim.id,
+                action: "sent_to_admin", actor: claim.marketing_id });
+  return { sent: true, already: false, status: "crosscheck_in_progress" };
 }
 
 export async function dispute(
