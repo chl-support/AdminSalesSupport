@@ -25,6 +25,7 @@ const rp = (n?: number | null) => `Rp ${(n ?? 0).toLocaleString("id-ID")}`;
 type Pengguna = {
   username: string; full_name: string; role: string; active: boolean;
   sesi_aktif: number; terakhir_masuk: string | null;
+  sandi_diganti: string | null;
 };
 
 type Hasil = {
@@ -167,6 +168,14 @@ const KATA = {
     akunJudul: "AKUN PENGGUNA",
     thUsername: "Username", thPeran: "Peran", thSesiAktif: "Sesi aktif",
     thTerakhirMasuk: "Terakhir masuk",
+    thSandiDiganti: "Sandi diganti",
+    sandiBawaan: "masih bawaan",
+    buatkanSandi: "Buatkan sandi acak",
+    salin: "Salin",
+    sandiSekali:
+      "Catat atau salin sekarang — sandi ini hanya dapat dibaca di sini. Yang " +
+      "tersimpan di basis data hanya hash-nya, dan hash tidak dapat " +
+      "dikembalikan menjadi sandi: bila hilang, pasang sandi baru lagi.",
     pengguna: "Pengguna", pilihPengguna: "— pilih pengguna —",
     sandiBaru: "Kata sandi baru (minimal 8 karakter)",
     gantiSandi: "Ganti sandi pengguna ini",
@@ -320,6 +329,14 @@ const KATA = {
     akunJudul: "USER ACCOUNTS",
     thUsername: "Username", thPeran: "Role", thSesiAktif: "Active sessions",
     thTerakhirMasuk: "Last sign-in",
+    thSandiDiganti: "Password changed",
+    sandiBawaan: "still the default",
+    buatkanSandi: "Generate a random password",
+    salin: "Copy",
+    sandiSekali:
+      "Write it down or copy it now — this password can only be read here. " +
+      "What the database stores is its hash, and a hash cannot be turned back " +
+      "into a password: if it is lost, set a new one.",
     pengguna: "User", pilihPengguna: "— pick a user —",
     sandiBaru: "New password (at least 8 characters)",
     gantiSandi: "Change this user's password",
@@ -386,6 +403,9 @@ export default function AdminPage() {
   const [galatNama, setGalatNama] = useState<string | null>(null);
   const [hasilSandi, setHasilSandi] = useState<string | null>(null);
   const [galatSandi, setGalatSandi] = useState<string | null>(null);
+  // Sandi yang baru saja dipasang, ditampilkan sekali untuk diserahkan kepada
+  // penggunanya. Hanya di state layar ini — tidak disimpan ke mana pun.
+  const [sandiDipasang, setSandiDipasang] = useState<string | null>(null);
 
   // ── Sandi sendiri ──
   // Kalibrasi ambang tanda tangan.
@@ -579,6 +599,26 @@ export default function AdminPage() {
     void muatPengguna();
   };
 
+  /**
+   * Sandi acak yang kuat, dibangkitkan di peramban Admin IT.
+   *
+   * Ada karena sandi yang dikarang sendiri di tempat cenderung seragam dan
+   * mudah ditebak — "sales2026" untuk semua orang — sementara yang dipakai di
+   * sini memberi akses ke angka pembayaran. Dibangkitkan dari
+   * crypto.getRandomValues, bukan Math.random yang dapat diramal.
+   */
+  const buatkanSandi = () => {
+    const huruf = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
+    const acak = new Uint32Array(14);
+    crypto.getRandomValues(acak);
+    // Dipecah tiga dengan strip: lebih mudah dibacakan lewat telepon, dan
+    // panjangnya tetap.
+    const inti = Array.from(acak, (n) => huruf[n % huruf.length]).join("");
+    setSandiBaru(`${inti.slice(0, 5)}-${inti.slice(5, 10)}-${inti.slice(10)}`);
+    setHasilSandi(null);
+    setGalatSandi(null);
+  };
+
   const gantiSandiOrang = async () => {
     setGalatSandi(null);
     setHasilSandi(null);
@@ -589,6 +629,11 @@ export default function AdminPage() {
     });
     const b = await res.json().catch(() => ({}));
     if (!res.ok) { setGalatSandi(b.detail ?? b.title ?? `HTTP ${res.status}`); return; }
+    // Sandinya disebutkan sekali di sini, pada layar orang yang baru saja
+    // memasangnya — itulah satu-satunya saat ia dapat dibaca. Sesudah ini yang
+    // tersimpan hanya hash-nya, dan tidak ada cara mengembalikannya menjadi
+    // sandi; yang dapat dilakukan hanyalah memasang yang baru lagi.
+    setSandiDipasang(sandiBaru);
     setHasilSandi(k.hasilSandi(b.full_name, b.username, b.sesi_diputus));
     setSandiBaru("");
     void muatPengguna();
@@ -1140,6 +1185,7 @@ export default function AdminPage() {
                   <tr>
                     <th>{k.thUsername}</th><th>{k.thNama}</th><th>{k.thPeran}</th>
                     <th>{k.thSesiAktif}</th><th>{k.thTerakhirMasuk}</th>
+                    <th>{k.thSandiDiganti}</th>
                   </tr>
                   {pengguna.map((u) => (
                     <tr key={u.username}>
@@ -1150,6 +1196,14 @@ export default function AdminPage() {
                       <td>{u.terakhir_masuk
                         ? String(u.terakhir_masuk).slice(0, 19).replace("T", " ")
                         : <span style={{ color: "var(--mut)" }}>{k.belumPernah}</span>}</td>
+                      {/* Sandinya sendiri tidak dapat ditampilkan: yang
+                          tersimpan hash satu arah. Yang dapat ditampilkan —
+                          dan yang sebenarnya berguna — kapan ia terakhir
+                          diganti. Yang masih "bawaan pemasangan" adalah yang
+                          paling perlu diurus lebih dulu. */}
+                      <td>{u.sandi_diganti
+                        ? String(u.sandi_diganti).slice(0, 19).replace("T", " ")
+                        : <span style={{ color: "var(--stop)" }}>{k.sandiBawaan}</span>}</td>
                     </tr>
                   ))}
                 </tbody></table>
@@ -1169,8 +1223,16 @@ export default function AdminPage() {
                 </div>
                 <div>
                   <div className="lbl">{k.sandiBaru}</div>
-                  <input type="password" value={sandiBaru} autoComplete="new-password"
+                  {/* Dapat dibaca, bukan titik-titik: yang mengetik di sini
+                      Admin IT untuk orang lain, dan ia justru harus melihat
+                      apa yang akan diserahkannya. */}
+                  <input type="text" value={sandiBaru} autoComplete="off"
+                         spellCheck={false}
                          onChange={(e) => setSandiBaru(e.target.value)} />
+                  <button type="button" onClick={buatkanSandi}
+                          style={{ marginTop: 6, fontSize: 12.5 }}>
+                    {k.buatkanSandi}
+                  </button>
                 </div>
               </div>
 
@@ -1188,6 +1250,22 @@ export default function AdminPage() {
               {hasilSandi && (
                 <div className="banner ok" style={{ marginTop: 12, marginBottom: 0 }}>
                   <b>{k.berhasil}</b>{hasilSandi}
+                  {sandiDipasang && (
+                    <>
+                      <div style={{ marginTop: 8 }}>
+                        <code style={{ fontSize: 15, letterSpacing: ".04em" }}>
+                          {sandiDipasang}
+                        </code>{" "}
+                        <button type="button" style={{ fontSize: 12 }}
+                                onClick={() => {
+                                  void navigator.clipboard?.writeText(sandiDipasang);
+                                }}>
+                          {k.salin}
+                        </button>
+                      </div>
+                      <div style={{ marginTop: 4 }}>{k.sandiSekali}</div>
+                    </>
+                  )}
                 </div>
               )}
               {galatSandi && (

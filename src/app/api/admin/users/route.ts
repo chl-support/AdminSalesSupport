@@ -21,7 +21,15 @@ export const GET = handler(async (req) => {
             (SELECT COUNT(*)::int FROM sessions s WHERE s.user_id = u.id
               AND s.expires_at > now()) AS sesi_aktif,
             (SELECT MAX(attempted_at) FROM login_attempts l
-              WHERE l.username = u.username AND l.succeeded) AS terakhir_masuk
+              WHERE l.username = u.username AND l.succeeded) AS terakhir_masuk,
+            -- Kapan sandinya terakhir diganti. Sandinya sendiri tidak dapat
+            -- ditampilkan — yang tersimpan hash satu arah, bukan sandinya —
+            -- jadi yang berguna bagi Admin IT adalah umur sandi itu: yang
+            -- tidak pernah diganti sejak pemasangan adalah yang paling perlu
+            -- diurus lebih dulu.
+            (SELECT MAX(a.occurred_at) FROM audit_log a
+              WHERE a.entity_type = 'user' AND a.entity_id = u.id::text
+                AND a.action = 'password_reset') AS sandi_diganti
        FROM users u ORDER BY u.username`);
 });
 
