@@ -206,6 +206,99 @@ async function main() {
              "indeks harus mencakup recipient_role");
     });
 
+  await check("PPh 23 dipotong 2% dan PPh 21 2,5%, untuk semua jenis fee",
+              async () => {
+    // Tarifnya duduk di tabel pajak, bukan di kode, jadi ia berlaku untuk
+    // semua jenis fee sekaligus: yang membedakan hanya atas nama siapa
+    // rekening tujuannya — badan usaha PPh 23, perorangan PPh 21.
+    const baris: any[] = await query(
+      `SELECT rate::float AS rate, has_skb FROM tax_rates
+        WHERE tax_type='pph23'`);
+    assert(baris.length > 0, "tarif PPh 23 tidak ada");
+    for (const b of baris)
+      assert(b.rate === 0.02, `PPh 23 seharusnya 2%, bukan ${b.rate * 100}%`);
+
+    const p21: any[] = await query(
+      "SELECT rate::float AS rate FROM tax_rates WHERE tax_type='pph21'");
+    assert(p21.length > 0, "tarif PPh 21 tidak ada");
+    for (const b of p21)
+      assert(b.rate === 0.025, `PPh 21 seharusnya 2,5%, bukan ${b.rate * 100}%`);
+
+    // Dan benar-benar terpakai pada perhitungannya, bukan hanya tersimpan.
+    const u: any = await one("SELECT * FROM units WHERE id=$1", [unit]);
+    const a: any = await one("SELECT * FROM marketings WHERE id=$1", [agentId]);
+    for (const jenis of ["commission", "continuity_reward"] as const) {
+      const r: any = await calc.calculate(
+        u, a, null, jenis as any, "agent" as any, null, undefined,
+        { holder_type: "company", holder_name: "Uji" });
+      assert(Number(r.snapshot.withholding_rate) === 0.02,
+             `${jenis}: tarif terpakai ${r.snapshot.withholding_rate}`);
+      assert(r.withholding_tax === Math.round(r.gross_amount * 0.02),
+             `${jenis}: PPh ${r.withholding_tax} tidak 2% dari ${r.gross_amount}`);
+    }
+  });
+
+  await check("Closing Fee dan Cash Reward di-gross-up, jenis lain tidak",
+              async () => {
+    // Nominal pada IOM adalah yang harus DITERIMA orangnya: brutonya dibagi
+    // 97,5% bila PPh 21 dan 98% bila PPh 23 — yaitu dibagi (1 - tarif PPh)
+    // yang berlaku — sehingga setelah dipotong, yang diterima persis sebesar
+    // nominal IOM-nya. Jenis fee lain tetap dihitung seperti biasa.
+    const u: any = await one("SELECT * FROM units WHERE id=$1", [unit]);
+    const m: any = await one("SELECT * FROM marketings WHERE id=$1", [inhouseId]);
+    const a: any = await one("SELECT * FROM marketings WHERE id=$1", [agentId]);
+
+    for (const [jenis, peran, siapa, rekening] of [
+      ["cash_reward", "sales_inhouse", m, "individual"],
+      ["closing_fee", "sales_inhouse", m, "individual"],
+      ["cash_reward", "agent", a, "company"],
+      ["closing_fee", "agent", a, "company"],
+    ] as const) {
+      const r: any = await calc.calculate(
+        u, siapa, null, jenis as any, peran as any, null, undefined,
+        { holder_type: rekening, holder_name: "Uji" });
+      const tarif = Number(r.snapshot.withholding_rate);
+      const nominal = Number(r.snapshot.nominal_memo);
+      assert(r.snapshot.gross_up === true,
+             `${jenis}/${rekening} seharusnya di-gross-up`);
+      assert(r.gross_amount === Math.round(nominal / (1 - tarif)),
+             `${jenis}/${rekening}: bruto ${r.gross_amount}, seharusnya ` +
+             `${Math.round(nominal / (1 - tarif))}`);
+      // Tanpa PPN (penerima non-PKP), yang diterima = nominal IOM-nya.
+      if (r.vat === 0)
+        assert(r.net_amount === nominal,
+               `${jenis}/${rekening}: diterima ${r.net_amount}, seharusnya ` +
+               `${nominal}`);
+    }
+
+    // Jenis lain tidak ikut: brutonya tetap sebagaimana memo menuliskannya,
+    // juga ketika baris memonya ditandai "Nominal ini nilai bersih" —
+    // Continuity Reward tidak di-gross-up.
+    for (const jenis of ["commission", "continuity_reward"] as const) {
+      const lain: any = await calc.calculate(
+        u, a, null, jenis as any, "agent" as any, null, undefined,
+        { holder_type: "company", holder_name: "Uji" });
+      assert(lain.snapshot.gross_up === false,
+             `${jenis} seharusnya tidak di-gross-up`);
+      assert(lain.gross_amount === Number(lain.snapshot.nominal_memo),
+             `${jenis}: bruto ${lain.gross_amount} seharusnya sama dengan ` +
+             `nominal memo ${lain.snapshot.nominal_memo}`);
+    }
+
+    // Ditandai bersih pun tidak: aturannya jenis fee, bukan centang pada memo.
+    await query(
+      `UPDATE incentive_schemes SET flat_amount_is_net=true
+        WHERE claim_type='continuity_reward'`);
+    const ctr: any = await calc.calculate(
+      u, a, null, "continuity_reward" as any, "agent" as any, null, undefined,
+      { holder_type: "company", holder_name: "Uji" });
+    assert(ctr.snapshot.gross_up === false,
+           "Continuity Reward bertanda bersih pun tidak boleh di-gross-up");
+    await query(
+      `UPDATE incentive_schemes SET flat_amount_is_net=false
+        WHERE claim_type='continuity_reward'`);
+  });
+
   await check("klaim komisi terbentuk dengan nilai terhitung", async () => {
     const c = await wf.createClaim({ unitId: unit, marketingId: agentId,
       claimType: "commission", recipientRole: "agent", actor: "admin" });
@@ -453,9 +546,12 @@ async function main() {
       unitId: unit, marketingId: inhouseId, claimType: "continuity_reward",
       recipientRole: "sales_inhouse", actor: "admin" });
     assert(c.claim_number.startsWith("CTR-"), c.claim_number);
-    // Skemanya menyebut nilai bersih; brutonya di-gross-up agar yang diterima
-    // penerima tepat sebesar itu sesudah potongan PPh.
-    assert(c.net_amount === 5_000_000, String(c.net_amount));
+    // Continuity Reward TIDAK di-gross-up: nominal memonya bruto, dan PPh
+    // memotong dari situ. Hanya Closing Fee dan Cash Reward yang di-gross-up.
+    const tarif = Number(c.snapshot.withholding_rate);
+    assert(c.gross_amount === 5_000_000, String(c.gross_amount));
+    assert(c.net_amount === 5_000_000 - Math.round(5_000_000 * tarif),
+           `${c.net_amount} pada tarif ${tarif}`);
   });
 
   await check("kategori penerima dibatasi menurut jenis feenya", async () => {

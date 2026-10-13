@@ -90,6 +90,40 @@ async function batasUkuranDokumen(): Promise<void> {
   } catch { /* tabelnya belum ada; menyusul di permintaan berikutnya */ }
 }
 
+/**
+ * PPh 23 dipotong 2%, bukan 2,5%.
+ *
+ * Tarifnya duduk di basis data, bukan di kode, dan pemasangan lama terlanjur
+ * memakai 2,5% untuk penerima badan usaha — angka yang dulu diambil dari
+ * lampiran Detail Perhitungan yang berjalan. Finance sudah memutuskan 2%,
+ * sementara PPh 21 tetap 2,5%, jadi barisnya dibetulkan dari sisi aplikasi:
+ * endpoint penyiapan sudah mati dan SETUP_SECRET dicabut, sehingga tidak ada
+ * lagi jalan menjalankan migrasi pada pemasangan yang sudah berjalan.
+ *
+ * Dijalankan SEKALI, ditandai di tabel settings. Tanpa penanda itu, tarif yang
+ * kelak sengaja diubah orang akan dikembalikan ke 2% pada tiap deploy —
+ * pembetulan satu kali berubah menjadi aturan yang memaksa.
+ *
+ * Klaim yang sudah terbit tidak ikut berubah: tiap klaim menyimpan tarifnya
+ * sendiri pada snapshot, dan yang dihitung ulang hanyalah yang memang
+ * diminta hitung ulang.
+ */
+async function tarifPph23(): Promise<void> {
+  const sudah = await query<{ value: string }>(
+    "SELECT value FROM settings WHERE key='tarif_pph23_2persen'");
+  if (sudah.length) return;
+
+  await query(
+    `UPDATE tax_rates
+        SET rate = 0.02,
+            note = CASE WHEN has_skb THEN 'Pakai SKB: (Komisi + PPN) - PPh 2%'
+                        ELSE '2% atas jasa untuk penerima badan usaha' END
+      WHERE tax_type = 'pph23' AND rate = 0.025`);
+  await query(
+    `INSERT INTO settings (key, value) VALUES ('tarif_pph23_2persen','true')
+     ON CONFLICT (key) DO NOTHING`);
+}
+
 async function pasang(): Promise<void> {
   for (const [tipe, nilai] of NILAI_ENUM) {
     await query(`ALTER TYPE ${tipe} ADD VALUE IF NOT EXISTS '${nilai}'`);
@@ -177,6 +211,7 @@ async function pasang(): Promise<void> {
      EXCEPTION WHEN duplicate_object THEN NULL; END $$`);
 
   await batasUkuranDokumen();
+  await tarifPph23();
 
   // Indeksnya menyebut project_id, yang juga hanya ditambahkan lewat
   // db/schema.sql. Kegagalannya tidak boleh menjatuhkan enam perintah di
