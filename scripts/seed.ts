@@ -168,13 +168,13 @@ const SCHEMES: Skema[] = [
   // menunggu memonya. Nominal sungguhannya datang dari memo, seperti jenis
   // lain — yang di sini hanya data contoh.
   ["002/SBL-BD/MS/III/2026", "continuity_reward", "sales_inhouse", null,
-   null, 5_000_000, null, "2026-04-01", "2026-12-31", true],
+   null, 5_000_000, null, "2026-04-01", "2026-12-31", false],
   ["002/SBL-BD/MS/III/2026", "continuity_reward", "agent", null,
-   null, 5_000_000, null, "2026-04-01", "2026-12-31", true],
+   null, 5_000_000, null, "2026-04-01", "2026-12-31", false],
   ["002/SBL-BD/MS/III/2026", "continuity_reward", "markom", null,
-   null, 1_000_000, null, "2026-04-01", "2026-12-31", true],
+   null, 1_000_000, null, "2026-04-01", "2026-12-31", false],
   ["002/SBL-BD/MS/III/2026", "continuity_reward", "sales_markom", null,
-   null, 1_000_000, null, "2026-04-01", "2026-12-31", true],
+   null, 1_000_000, null, "2026-04-01", "2026-12-31", false],
 
   // ── Closing Fee: IOM 014/SBL-BD/PM/MS/IV/2026, berlaku sejak 1 Apr 2026 ──
   //

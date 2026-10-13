@@ -298,13 +298,14 @@ export async function calculate(
    * penerimanya kekurangan sebesar PPh pada setiap unit; pada Cash Reward
    * Rp 10 juta, Rp 256.410.
    *
-   * Jenis fee lain tetap dihitung seperti biasa — kecuali nominal tetap yang
-   * memang ditandai "Exclude PPh" pada memonya, yang sejak semula berarti
-   * nilai bersih.
+   * HANYA dua jenis itu. Komisi, Continuity Reward dan Overriding tetap
+   * dihitung seperti biasa: nominal memonya adalah bruto, dan PPh memotong
+   * dari situ. Tanda "Nominal ini nilai bersih" pada baris memo pun tidak
+   * lagi menaikkan brutonya di luar dua jenis itu — satu aturan yang dapat
+   * diucapkan dalam satu kalimat lebih baik daripada dua jalur yang hasilnya
+   * bergantung pada satu centang yang jarang dilihat orang.
    */
-  const grossUpWajib = claimType === "closing_fee" || claimType === "cash_reward";
-  const grossUp = (grossUpWajib ||
-                   (scheme.flat_amount !== null && scheme.flat_amount_is_net)) &&
+  const grossUp = (claimType === "closing_fee" || claimType === "cash_reward") &&
                   whtRate > 0 && whtRate < 1;
   const gross = grossUp
     ? Math.round(nominalMemo / (1 - whtRate))

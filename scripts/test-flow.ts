@@ -271,13 +271,32 @@ async function main() {
                `${nominal}`);
     }
 
-    // Komisi tidak ikut: brutonya tetap sebagaimana memo menuliskannya.
-    const kms: any = await calc.calculate(
-      u, a, null, "commission", "agent", null, undefined,
+    // Jenis lain tidak ikut: brutonya tetap sebagaimana memo menuliskannya,
+    // juga ketika baris memonya ditandai "Nominal ini nilai bersih" —
+    // Continuity Reward tidak di-gross-up.
+    for (const jenis of ["commission", "continuity_reward"] as const) {
+      const lain: any = await calc.calculate(
+        u, a, null, jenis as any, "agent" as any, null, undefined,
+        { holder_type: "company", holder_name: "Uji" });
+      assert(lain.snapshot.gross_up === false,
+             `${jenis} seharusnya tidak di-gross-up`);
+      assert(lain.gross_amount === Number(lain.snapshot.nominal_memo),
+             `${jenis}: bruto ${lain.gross_amount} seharusnya sama dengan ` +
+             `nominal memo ${lain.snapshot.nominal_memo}`);
+    }
+
+    // Ditandai bersih pun tidak: aturannya jenis fee, bukan centang pada memo.
+    await query(
+      `UPDATE incentive_schemes SET flat_amount_is_net=true
+        WHERE claim_type='continuity_reward'`);
+    const ctr: any = await calc.calculate(
+      u, a, null, "continuity_reward" as any, "agent" as any, null, undefined,
       { holder_type: "company", holder_name: "Uji" });
-    assert(kms.snapshot.gross_up === false, "Komisi seharusnya tidak di-gross-up");
-    assert(kms.gross_amount === Number(kms.snapshot.nominal_memo),
-           `Komisi: bruto ${kms.gross_amount} seharusnya sama dengan nominal memo`);
+    assert(ctr.snapshot.gross_up === false,
+           "Continuity Reward bertanda bersih pun tidak boleh di-gross-up");
+    await query(
+      `UPDATE incentive_schemes SET flat_amount_is_net=false
+        WHERE claim_type='continuity_reward'`);
   });
 
   await check("klaim komisi terbentuk dengan nilai terhitung", async () => {
@@ -527,9 +546,12 @@ async function main() {
       unitId: unit, marketingId: inhouseId, claimType: "continuity_reward",
       recipientRole: "sales_inhouse", actor: "admin" });
     assert(c.claim_number.startsWith("CTR-"), c.claim_number);
-    // Skemanya menyebut nilai bersih; brutonya di-gross-up agar yang diterima
-    // penerima tepat sebesar itu sesudah potongan PPh.
-    assert(c.net_amount === 5_000_000, String(c.net_amount));
+    // Continuity Reward TIDAK di-gross-up: nominal memonya bruto, dan PPh
+    // memotong dari situ. Hanya Closing Fee dan Cash Reward yang di-gross-up.
+    const tarif = Number(c.snapshot.withholding_rate);
+    assert(c.gross_amount === 5_000_000, String(c.gross_amount));
+    assert(c.net_amount === 5_000_000 - Math.round(5_000_000 * tarif),
+           `${c.net_amount} pada tarif ${tarif}`);
   });
 
   await check("kategori penerima dibatasi menurut jenis feenya", async () => {
