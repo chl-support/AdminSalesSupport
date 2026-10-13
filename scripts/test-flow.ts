@@ -882,6 +882,46 @@ async function main() {
            "baris pelunasannya seharusnya ikut terhapus");
   });
 
+  await check("klaim yang pernah dihapus tidak membuat nomor bentrok",
+              async () => {
+    // Nomor klaim bukan patokan pengajuan: pengajuan fee tidak boleh gagal
+    // hanya karena nomornya. Dulu nomor dihitung dari COUNT(*), jadi satu
+    // klaim yang dihapus membuat deretnya mundur dan menabrak nomor yang
+    // masih ada — galatnya claims_claim_number_key, dan pengajuannya batal.
+    //
+    // Celahnya dibangun di sini: dipasang satu baris Cash Reward yang
+    // nomornya tepat sama dengan COUNT(*)+1, seolah nomor-nomor sebelumnya
+    // pernah ada lalu dihapus.
+    const sumber = await one<{ unit_id: string; marketing_id: string;
+                               project_id: string }>(
+      "SELECT unit_id, marketing_id, project_id FROM claims LIMIT 1");
+    assert(Boolean(sumber), "belum ada klaim contoh");
+    const n = await one<{ c: number }>(
+      "SELECT COUNT(*)::int AS c FROM claims WHERE claim_type='cash_reward'");
+    const bentrok = `CR-2026-${String(n!.c + 1).padStart(4, "0")}`;
+    const pengganggu = await one<{ id: string }>(
+      `INSERT INTO claims (claim_number, claim_type, recipient_role, unit_id,
+         marketing_id, status, gross_amount, vat, withholding_tax, net_amount,
+         project_id)
+       VALUES ($1,'cash_reward','sales_manager_inhouse',$2,$3,'draft',
+               0,0,0,0,$4) RETURNING id`,
+      [bentrok, sumber!.unit_id, sumber!.marketing_id, sumber!.project_id]);
+    try {
+      // Inilah pengajuan yang dulu gagal: nomor hasil COUNT(*)+1 sama dengan
+      // nomor baris pengganggu di atas.
+      const lanjut = await wf.createClaim({
+        unitId: unit, marketingId: inhouseId, claimType: "cash_reward",
+        recipientRole: "sales_inhouse", actor: "admin" });
+      assert(lanjut.claim_number !== bentrok,
+             `nomornya menabrak yang sudah ada: ${lanjut.claim_number}`);
+      assert(lanjut.claim_number === `CR-2026-${String(n!.c + 2).padStart(4, "0")}`,
+             `nomor seharusnya lanjut dari yang tertinggi, bukan ${lanjut.claim_number}`);
+      await query("DELETE FROM claims WHERE id=$1", [lanjut.id]);
+    } finally {
+      await query("DELETE FROM claims WHERE id=$1", [pengganggu!.id]);
+    }
+  });
+
   await check("rekap Overriding memilah unit menurut keadaannya", async () => {
     // Overriding dicetak sebagai Detail Perhitungan per periode, bukan lembar
     // per unit. Yang diuji di sini pemilahannya — unit batal tidak boleh
