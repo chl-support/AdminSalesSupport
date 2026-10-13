@@ -206,6 +206,48 @@ async function main() {
              "indeks harus mencakup recipient_role");
     });
 
+  await check("Closing Fee dan Cash Reward di-gross-up, jenis lain tidak",
+              async () => {
+    // Nominal pada IOM adalah yang harus DITERIMA orangnya: brutonya dibagi
+    // 97,5% bila PPh 21 dan 98% bila PPh 23 — yaitu dibagi (1 - tarif PPh)
+    // yang berlaku — sehingga setelah dipotong, yang diterima persis sebesar
+    // nominal IOM-nya. Jenis fee lain tetap dihitung seperti biasa.
+    const u: any = await one("SELECT * FROM units WHERE id=$1", [unit]);
+    const m: any = await one("SELECT * FROM marketings WHERE id=$1", [inhouseId]);
+    const a: any = await one("SELECT * FROM marketings WHERE id=$1", [agentId]);
+
+    for (const [jenis, peran, siapa, rekening] of [
+      ["cash_reward", "sales_inhouse", m, "individual"],
+      ["closing_fee", "sales_inhouse", m, "individual"],
+      ["cash_reward", "agent", a, "company"],
+      ["closing_fee", "agent", a, "company"],
+    ] as const) {
+      const r: any = await calc.calculate(
+        u, siapa, null, jenis as any, peran as any, null, undefined,
+        { holder_type: rekening, holder_name: "Uji" });
+      const tarif = Number(r.snapshot.withholding_rate);
+      const nominal = Number(r.snapshot.nominal_memo);
+      assert(r.snapshot.gross_up === true,
+             `${jenis}/${rekening} seharusnya di-gross-up`);
+      assert(r.gross_amount === Math.round(nominal / (1 - tarif)),
+             `${jenis}/${rekening}: bruto ${r.gross_amount}, seharusnya ` +
+             `${Math.round(nominal / (1 - tarif))}`);
+      // Tanpa PPN (penerima non-PKP), yang diterima = nominal IOM-nya.
+      if (r.vat === 0)
+        assert(r.net_amount === nominal,
+               `${jenis}/${rekening}: diterima ${r.net_amount}, seharusnya ` +
+               `${nominal}`);
+    }
+
+    // Komisi tidak ikut: brutonya tetap sebagaimana memo menuliskannya.
+    const kms: any = await calc.calculate(
+      u, a, null, "commission", "agent", null, undefined,
+      { holder_type: "company", holder_name: "Uji" });
+    assert(kms.snapshot.gross_up === false, "Komisi seharusnya tidak di-gross-up");
+    assert(kms.gross_amount === Number(kms.snapshot.nominal_memo),
+           `Komisi: bruto ${kms.gross_amount} seharusnya sama dengan nominal memo`);
+  });
+
   await check("klaim komisi terbentuk dengan nilai terhitung", async () => {
     const c = await wf.createClaim({ unitId: unit, marketingId: agentId,
       claimType: "commission", recipientRole: "agent", actor: "admin" });
