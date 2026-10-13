@@ -169,6 +169,15 @@ const KATA = {
     thUsername: "Username", thPeran: "Peran", thSesiAktif: "Sesi aktif",
     thTerakhirMasuk: "Terakhir masuk",
     thSandiDiganti: "Sandi diganti",
+    thSandi: "Sandi",
+    lihatSandi: "Lihat",
+    sembunyikan: "Sembunyikan",
+    sandiTakTerbaca: "belum tercatat",
+    sandiCatatan:
+      "Sandi hanya terbaca bila ia dipasang atau dipakai masuk sesudah " +
+      "kemampuan ini dinyalakan — sandi lama hanya tersimpan sebagai hash dan " +
+      "tidak dapat dikembalikan. Setiap pemunculan tercatat di jejak audit: " +
+      "siapa yang melihat, sandi siapa, dan kapan.",
     sandiBawaan: "masih bawaan",
     buatkanSandi: "Buatkan sandi acak",
     salin: "Salin",
@@ -330,6 +339,15 @@ const KATA = {
     thUsername: "Username", thPeran: "Role", thSesiAktif: "Active sessions",
     thTerakhirMasuk: "Last sign-in",
     thSandiDiganti: "Password changed",
+    thSandi: "Password",
+    lihatSandi: "Show",
+    sembunyikan: "Hide",
+    sandiTakTerbaca: "not recorded",
+    sandiCatatan:
+      "A password is readable only if it was set, or used to sign in, after " +
+      "this capability was switched on — older passwords are stored as a hash " +
+      "and cannot be recovered. Every reveal is written to the audit trail: " +
+      "who looked, whose password, and when.",
     sandiBawaan: "still the default",
     buatkanSandi: "Generate a random password",
     salin: "Copy",
@@ -406,6 +424,11 @@ export default function AdminPage() {
   // Sandi yang baru saja dipasang, ditampilkan sekali untuk diserahkan kepada
   // penggunanya. Hanya di state layar ini — tidak disimpan ke mana pun.
   const [sandiDipasang, setSandiDipasang] = useState<string | null>(null);
+  // Sandi yang sedang dimunculkan di tabel, per username. Nilai null berarti
+  // sudah diminta tetapi tidak dapat dibaca — dibedakan dari belum diminta,
+  // yang tidak punya kuncinya sama sekali di sini.
+  const [sandiTerlihat, setSandiTerlihat] =
+    useState<Record<string, string | null>>({});
 
   // ── Sandi sendiri ──
   // Kalibrasi ambang tanda tangan.
@@ -598,6 +621,27 @@ export default function AdminPage() {
     setTarget(b.username);
     void muatPengguna();
   };
+
+  /**
+   * Memunculkan sandi satu pengguna.
+   *
+   * Diambil saat diminta, bukan ikut terbawa daftar akun, dan tiap
+   * permintaannya tercatat di jejak audit di sisi server.
+   */
+  const lihatSandi = async (username: string) => {
+    const res = await fetch(
+      `/api/admin/users/sandi?username=${encodeURIComponent(username)}`);
+    const b = await res.json().catch(() => ({}));
+    if (!res.ok) { setGalatSandi(b.detail ?? b.title ?? `HTTP ${res.status}`); return; }
+    setSandiTerlihat((s) => ({ ...s, [username]: b.password ?? null }));
+  };
+
+  const tutupSandi = (username: string) =>
+    setSandiTerlihat((s) => {
+      const lain = { ...s };
+      delete lain[username];
+      return lain;
+    });
 
   /**
    * Sandi acak yang kuat, dibangkitkan di peramban Admin IT.
@@ -1184,15 +1228,20 @@ export default function AdminPage() {
                 <table><tbody>
                   <tr>
                     <th>{k.thUsername}</th><th>{k.thNama}</th><th>{k.thPeran}</th>
-                    <th>{k.thSesiAktif}</th><th>{k.thTerakhirMasuk}</th>
+                    {/* Sesi aktif rata tengah: ia penanda keadaan — nol atau
+                        beberapa — bukan angka yang dijumlah, jadi tidak ikut
+                        dirapatkan ke kanan. */}
+                    <th style={{ textAlign: "center" }}>{k.thSesiAktif}</th>
+                    <th>{k.thTerakhirMasuk}</th>
                     <th>{k.thSandiDiganti}</th>
+                    <th>{k.thSandi}</th>
                   </tr>
                   {pengguna.map((u) => (
                     <tr key={u.username}>
                       <td><code>{u.username}</code></td>
                       <td>{u.full_name}</td>
                       <td>{labelPeran(u.role, bahasa)}</td>
-                      <td className="n">{u.sesi_aktif}</td>
+                      <td style={{ textAlign: "center" }}>{u.sesi_aktif}</td>
                       <td>{u.terakhir_masuk
                         ? String(u.terakhir_masuk).slice(0, 19).replace("T", " ")
                         : <span style={{ color: "var(--mut)" }}>{k.belumPernah}</span>}</td>
@@ -1204,10 +1253,37 @@ export default function AdminPage() {
                       <td>{u.sandi_diganti
                         ? String(u.sandi_diganti).slice(0, 19).replace("T", " ")
                         : <span style={{ color: "var(--stop)" }}>{k.sandiBawaan}</span>}</td>
+                      {/* Sandinya diambil satu per satu saat diminta, bukan
+                          ikut terbawa daftar akun: daftar ini dimuat tiap kali
+                          layar dibuka, dan seluruh sandi tidak perlu melintas
+                          setiap kali itu terjadi. Tiap pemunculan tercatat di
+                          jejak audit. */}
+                      <td style={{ whiteSpace: "nowrap" }}>
+                        {sandiTerlihat[u.username] !== undefined ? (
+                          <>
+                            <code style={{ fontSize: 13 }}>
+                              {sandiTerlihat[u.username] ?? k.sandiTakTerbaca}
+                            </code>{" "}
+                            <button type="button" style={{ fontSize: 11 }}
+                                    onClick={() => tutupSandi(u.username)}>
+                              {k.sembunyikan}
+                            </button>
+                          </>
+                        ) : (
+                          <button type="button" style={{ fontSize: 11 }}
+                                  onClick={() => void lihatSandi(u.username)}>
+                            {k.lihatSandi}
+                          </button>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody></table>
               </div>
+
+              <p className="hint" style={{ textAlign: "left", marginTop: 6 }}>
+                {k.sandiCatatan}
+              </p>
 
               <div className="filters" style={{ marginTop: 14 }}>
                 <div>

@@ -204,6 +204,11 @@ async function pasang(): Promise<void> {
   await query(
     "ALTER TABLE claims ADD COLUMN IF NOT EXISTS detail_keterangan TEXT");
 
+  // Salinan sandi yang dapat dibaca kembali Admin IT — tersandi, bukan polos.
+  // Lihat src/lib/sandi-terlihat.ts untuk apa yang ditukar dengannya.
+  await query(
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS password_enc TEXT");
+
   await query(
     `DO $$ BEGIN
        ALTER TABLE marketings ADD CONSTRAINT marketings_category_check

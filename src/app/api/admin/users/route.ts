@@ -1,6 +1,7 @@
 import { handler, requireRole } from "@/lib/api";
 import { audit, one, query } from "@/lib/db";
 import { hashPassword } from "@/lib/auth";
+import { catatSandi } from "@/lib/sandi-terlihat";
 import { WorkflowError } from "@/lib/workflow";
 
 /**
@@ -56,6 +57,8 @@ export const POST = handler(async (req) => {
 
   await query("UPDATE users SET password_hash = $1 WHERE id = $2",
               [await hashPassword(sandi), target.id]);
+  // Salinan yang dapat dibaca kembali, untuk mengingatkan pemiliknya yang lupa.
+  await catatSandi(target.id, sandi);
 
   // Seluruh sesi yang sedang berjalan diputus. Mengganti sandi tanpa memutusnya
   // tidak mengusir siapa pun — dan mengganti sandi justru paling sering
