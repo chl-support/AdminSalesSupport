@@ -6,6 +6,7 @@ import {
   COOKIE, PENGUNCIAN, catatPercobaan, cookieOptions, hashPassword,
   sapuSesiKedaluwarsa, sisaPercobaan, startSession, verifyPassword,
 } from "@/lib/auth";
+import { catatSandi } from "@/lib/sandi-terlihat";
 
 /**
  * Masuk.
@@ -36,7 +37,7 @@ export const POST = handler(async (req) => {
     NextResponse.json({ title: detail, detail, status, ...extra }, { status });
 
   if (!username || !password) {
-    return gagal("Username dan kata sandi wajib diisi.", 422);
+    return gagal("Username dan Password wajib diisi.", 422);
   }
 
   const sisa = await sisaPercobaan(username);
@@ -50,9 +51,10 @@ export const POST = handler(async (req) => {
 
   const user = await one<{
     id: string; username: string; full_name: string; role: string;
-    password_hash: string;
-  }>(`SELECT id, username, full_name, role, password_hash
-        FROM users WHERE username = $1 AND active`, [username]);
+    password_hash: string; password_enc: string | null;
+  }>(`SELECT id, username, full_name, role, password_hash,
+             NULLIF(to_jsonb(u) ->> 'password_enc', '') AS password_enc
+        FROM users u WHERE username = $1 AND active`, [username]);
 
   const { ok, perluDimutakhirkan } =
     await verifyPassword(password, user?.password_hash ?? UMPAN);
@@ -61,7 +63,7 @@ export const POST = handler(async (req) => {
     await catatPercobaan(username, ip, false);
     const tersisa = await sisaPercobaan(username);
     return gagal(
-      "Username atau kata sandi salah.", 401,
+      "Username atau Password salah.", 401,
       tersisa > 0 ? { sisa_percobaan: tersisa } : {});
   }
 
@@ -71,6 +73,12 @@ export const POST = handler(async (req) => {
     await query("UPDATE users SET password_hash = $1 WHERE id = $2",
                 [await hashPassword(password), user.id]);
   }
+
+  // Dan pada saat yang sama salinan sandinya dicatat bila belum ada, supaya
+  // Admin IT dapat mengingatkannya kelak — lihat src/lib/sandi-terlihat.ts.
+  // Hanya bila belum ada: menulis ulang pada tiap kali masuk tidak menambah
+  // apa pun selain beban.
+  if (!user.password_enc) await catatSandi(user.id, password);
 
   await sapuSesiKedaluwarsa();
   const { token, expiresAt } = await startSession(

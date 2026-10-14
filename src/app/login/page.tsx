@@ -21,26 +21,6 @@ import { Logo } from "../logo";
  * tidak menarik apa pun dari luar — satu permintaan ke server ikon adalah satu
  * pihak lagi yang tahu siapa membuka halaman masuk ini dan kapan.
  */
-function IkonWa() {
-  return (
-    <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"
-         fill="currentColor">
-      <path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2 22l5.25-1.38a9.9 9.9 0 0 0 4.79 1.22h.01c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.82 9.82 0 0 0 12.04 2Zm0 18.13h-.01a8.2 8.2 0 0 1-4.19-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.22 8.22 0 0 1-1.26-4.36c0-4.54 3.7-8.24 8.25-8.24 2.2 0 4.27.86 5.83 2.42a8.19 8.19 0 0 1 2.41 5.83c0 4.54-3.7 8.21-8.24 8.21Zm4.52-6.16c-.25-.12-1.47-.72-1.69-.81-.23-.08-.39-.12-.56.13-.16.24-.64.8-.78.97-.15.16-.29.18-.54.06-.25-.13-1.05-.39-1.99-1.23-.74-.66-1.23-1.47-1.38-1.72-.14-.25-.01-.38.11-.5.11-.11.25-.29.37-.43.13-.15.17-.25.25-.41.08-.17.04-.31-.02-.43-.06-.12-.56-1.34-.76-1.84-.2-.48-.41-.42-.56-.43h-.48c-.16 0-.43.06-.65.31-.22.25-.85.84-.85 2.03 0 1.2.87 2.35.99 2.51.12.16 1.71 2.61 4.15 3.66.58.25 1.03.4 1.38.51.58.19 1.11.16 1.53.1.47-.07 1.47-.6 1.67-1.18.21-.58.21-1.07.15-1.18-.06-.11-.22-.17-.47-.29Z" />
-    </svg>
-  );
-}
-
-function IkonSurel() {
-  return (
-    <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"
-         fill="none" stroke="currentColor" strokeWidth="1.8"
-         strokeLinecap="round" strokeLinejoin="round">
-      <rect x="2.5" y="4.5" width="19" height="15" rx="2" />
-      <path d="m3 6.5 9 6 9-6" />
-    </svg>
-  );
-}
-
 /**
  * Mata terbuka/tercoret untuk tombol lihat sandi.
  *
@@ -74,20 +54,46 @@ const KATA = {
     pengantar: "Gunakan akun yang diberikan Admin IT untuk melanjutkan.",
     username: "Username",
     sandi: "Password",
-    lihatSandi: "Tampilkan kata sandi",
-    sembunyikanSandi: "Sembunyikan kata sandi",
+    lihatSandi: "Tampilkan Password",
+    sembunyikanSandi: "Sembunyikan Password",
     memeriksa: "Memeriksa…",
     tombolMasuk: "Masuk",
     gagalJudul: "Tidak dapat masuk",
     gagalHttp: (kode: number) => `Gagal masuk (HTTP ${kode})`,
     sisaPercobaan: (n: number) =>
       `Sisa percobaan sebelum akun dikunci sementara: ${n}.`,
-    lupa: "Lupa kata sandi atau akun terkunci?",
+    // Pertanyaannya tidak lagi menyebut "lupa kata sandi": tautan tepat di
+    // bawahnya sudah berbunyi begitu, dan mengulanginya membuat satu baris
+    // bantuan terbaca dua kali.
+    lupa: "Tidak dapat masuk?",
+    // "Password", bukan "kata sandi": isian di atasnya pun berjudul PASSWORD,
+    // dan satu layar yang menyebut satu hal dengan dua nama membuat orang
+    // bertanya apakah keduanya memang hal yang sama.
+    lupaTautan: "Lupa Password",
+    atau: "atau",
     hubungi: "Hubungi Admin IT",
+    lupaJudul: "Ganti Password",
+    lupaPengantar:
+      "Masukkan alamat email Anda yang terdaftar. Kami mengirim kode " +
+      "verifikasi ke sana, lalu Anda menentukan Password baru.",
+    lupaSurel: "Email terdaftar",
+    lupaKirim: "Kirim kode",
+    lupaMengirim: "Mengirim…",
+    lupaKode: "Kode 6 digit dari email",
+    lupaSandiBaru: "Password baru (minimal 10 karakter)",
+    lupaSimpan: "Simpan Password baru",
+    lupaMenyimpan: "Menyimpan…",
+    lupaKodeTerkirim: (menit: number) =>
+      `Bila alamat itu terdaftar, kode verifikasi sudah dikirim ke sana. ` +
+      `Kode berlaku ${menit} menit. Periksa juga folder spam.`,
+    lupaSelesai:
+      "Password Anda sudah diganti. Silakan masuk dengan Password baru.",
+    lupaGagal: "Tidak dapat melanjutkan",
+    lupaKodeLain: "Minta kode lagi",
     kontakJudul: "Kontak Admin IT",
     kontakPengantar:
       "Silakan menghubungi kontak di bawah ini untuk mengatur ulang username " +
-      "atau kata sandi Anda:",
+      "atau Password Anda:",
     kontakKosong:
       "Kontak Admin IT belum diisi. Hubungi lewat jalur yang biasa Anda pakai.",
     tutup: "Tutup",
@@ -106,8 +112,28 @@ const KATA = {
     gagalHttp: (kode: number) => `Sign-in failed (HTTP ${kode})`,
     sisaPercobaan: (n: number) =>
       `Attempts remaining before the account is temporarily locked: ${n}.`,
-    lupa: "Forgot your password, or is your account locked?",
+    lupa: "Cannot sign in?",
+    lupaTautan: "Forgot password",
+    atau: "or",
     hubungi: "Contact IT Admin",
+    lupaJudul: "Change your password",
+    lupaPengantar:
+      "Enter your registered email address. We send a verification code " +
+      "there, then you choose a new password.",
+    lupaSurel: "Registered email",
+    lupaKirim: "Send code",
+    lupaMengirim: "Sending…",
+    lupaKode: "6-digit code from the email",
+    lupaSandiBaru: "New password (at least 10 characters)",
+    lupaSimpan: "Save new password",
+    lupaMenyimpan: "Saving…",
+    lupaKodeTerkirim: (menit: number) =>
+      `If that address is registered, a verification code has been sent to ` +
+      `it. The code is valid for ${menit} minutes. Check the spam folder too.`,
+    lupaSelesai:
+      "Your password has been changed. Please sign in with the new one.",
+    lupaGagal: "Cannot continue",
+    lupaKodeLain: "Request another code",
     kontakJudul: "IT Admin contact",
     kontakPengantar:
       "Please reach out to the contact below to reset your username or " +
@@ -134,9 +160,19 @@ export default function LoginPage() {
   const [busy, setBusy] = useState(false);
   const [galat, setGalat] = useState<string | null>(null);
   const [sisa, setSisa] = useState<number | null>(null);
-  const [kontak, setKontak] = useState<{ wa: string | null; email: string | null } | null>(null);
-  const [lihatKontak, setLihatKontak] = useState(false);
-  const tutupRef = useRef<HTMLButtonElement | null>(null);
+
+  // Ganti sandi sendiri: email → kode → sandi baru. Tiga langkah dalam satu
+  // kotak, sebab yang membukanya sedang tidak dapat masuk ke mana-mana dan
+  // tidak punya layar lain untuk ditempatkan.
+  const [lihatLupa, setLihatLupa] = useState(false);
+  const [langkahLupa, setLangkahLupa] =
+    useState<"surel" | "kode" | "selesai">("surel");
+  const [surelLupa, setSurelLupa] = useState("");
+  const [kodeLupa, setKodeLupa] = useState("");
+  const [sandiLupa, setSandiLupa] = useState("");
+  const [kabarLupa, setKabarLupa] = useState("");
+  const [galatLupa, setGalatLupa] = useState<string | null>(null);
+  const [sibukLupa, setSibukLupa] = useState(false);
 
   // Pilihan bahasanya kini milik seluruh aplikasi, bukan halaman ini saja —
   // yang disetel di sini tetap berlaku setelah orangnya masuk.
@@ -150,41 +186,6 @@ export default function LoginPage() {
       .catch(() => { /* biarkan formulirnya tampil */ });
   }, []);
 
-  // Kontak Admin IT diambil di awal supaya tautannya langsung menampilkan
-  // isinya saat diklik, bukan berpikir dulu.
-  useEffect(() => {
-    fetch("/api/kontak-admin")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => setKontak(d))
-      .catch(() => { /* biarkan kosong */ });
-  }, []);
-
-  // Pop-up ditutup dengan Esc, dan begitu terbuka fokus papan ketik pindah ke
-  // tombol tutupnya. Lapisan yang menutupi halaman tetapi tidak dapat ditutup
-  // dari papan ketik mengunci orang yang tidak memakai tetikus.
-  useEffect(() => {
-    if (!lihatKontak) return;
-    tutupRef.current?.focus();
-    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setLihatKontak(false); };
-    document.addEventListener("keydown", esc);
-    return () => document.removeEventListener("keydown", esc);
-  }, [lihatKontak]);
-
-  /**
-   * Nomor WhatsApp menjadi bentuk yang diterima wa.me.
-   *
-   * Nomor Indonesia hampir selalu ditulis diawali 0 — dan wa.me tidak mengenal
-   * bentuk itu: tautannya terbuka, lalu WhatsApp menjawab nomornya tidak
-   * terdaftar. Yang salah bukan nomornya, melainkan cara menuliskannya, jadi
-   * diperbaiki di sini alih-alih dituntut dari yang mengisinya.
-   */
-  const nomorWa = (nomor: string) => {
-    const angka = nomor.replace(/\D/g, "");
-    if (angka.startsWith("62")) return angka;
-    if (angka.startsWith("0")) return `62${angka.slice(1)}`;
-    if (angka.startsWith("8")) return `62${angka}`;
-    return angka;
-  };
 
   /**
    * Kembali ke halaman yang tadi diminta, bukan selalu ke beranda.
@@ -201,6 +202,51 @@ export default function LoginPage() {
     const n = new URLSearchParams(window.location.search).get("next") ?? "/klaim";
     const aman = n.startsWith("/") && !n.startsWith("//") ? n : "/klaim";
     return `/project?next=${encodeURIComponent(aman)}`;
+  };
+
+  const mintaKode = async () => {
+    setGalatLupa(null);
+    setSibukLupa(true);
+    try {
+      const res = await fetch("/api/auth/lupa", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: surelLupa.trim() }),
+      });
+      const b = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setGalatLupa(b.detail ?? b.title ?? `HTTP ${res.status}`);
+        return;
+      }
+      setKabarLupa(k.lupaKodeTerkirim(b.berlaku_menit ?? 15));
+      setLangkahLupa("kode");
+    } catch (err: any) {
+      setGalatLupa(String(err?.message ?? err));
+    } finally { setSibukLupa(false); }
+  };
+
+  const simpanSandiBaru = async () => {
+    setGalatLupa(null);
+    setSibukLupa(true);
+    try {
+      const res = await fetch("/api/auth/lupa/verifikasi", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: surelLupa.trim(), kode: kodeLupa.trim(),
+                               password: sandiLupa }),
+      });
+      const b = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setGalatLupa(b.detail ?? b.title ?? `HTTP ${res.status}`);
+        return;
+      }
+      // Username-nya diisikan sekalian: yang baru saja mengganti sandinya
+      // hampir pasti hendak langsung masuk, dan ia belum tentu ingat
+      // username-nya sendiri.
+      setUsername(b.username ?? "");
+      setKodeLupa(""); setSandiLupa("");
+      setLangkahLupa("selesai");
+    } catch (err: any) {
+      setGalatLupa(String(err?.message ?? err));
+    } finally { setSibukLupa(false); }
   };
 
   const masuk = async (e: React.FormEvent) => {
@@ -315,54 +361,93 @@ export default function LoginPage() {
                 pertanyaannya, ia terbaca sebagai lanjutan kalimat, bukan sebagai
                 sesuatu yang dapat ditekan. */}
             <p>{k.lupa}</p>
+            {/* Dua jalan, dan yang pertama tidak melewati siapa pun: mengganti
+                sandi sendiri lewat kode ke email terdaftar. "Hubungi Admin IT"
+                tinggal untuk yang emailnya belum terdaftar atau tidak lagi
+                dapat dibuka. */}
             <button type="button" className="tautan"
-                    onClick={() => setLihatKontak((v) => !v)}>
-              {k.hubungi}
+                    onClick={() => { setLihatLupa(true); setLangkahLupa("surel"); }}>
+              {k.lupaTautan}
             </button>
-
+            {/* "Hubungi Admin IT" dipindahkan ke menu profil di dalam
+                aplikasi, atas permintaan kantor. Yang tersisa di sini jalan
+                yang tidak memerlukan siapa pun. */}
           </div>
 
-          {/* Kontak muncul sebagai pop-up, bukan menyisip di bawah tautannya:
-              menyisip mendorong turun isi kartu dan membuat halaman bergeser
-              tepat saat orangnya hendak membaca nomornya. */}
-          {lihatKontak && (
+          {lihatLupa && (
             <div className="tirai" onMouseDown={(e) => {
-              if (e.target === e.currentTarget) setLihatKontak(false);
+              if (e.target === e.currentTarget) setLihatLupa(false);
             }}>
               <div className="popup" role="dialog" aria-modal="true"
-                   aria-label={k.kontakJudul}>
-                {/* Tanpa judul: tautan yang membukanya sudah berbunyi
-                    "Hubungi Admin IT", dan mengulanginya di dalam kotak membuat
-                    orang membaca hal yang sama dua kali. Nama kotaknya tetap
-                    ada untuk pembaca layar lewat aria-label. */}
-                <p className="pengantar">{k.kontakPengantar}</p>
+                   aria-label={k.lupaJudul}>
+                <h2 style={{ fontSize: 15, margin: "0 0 6px" }}>{k.lupaJudul}</h2>
 
-                <div className="kontak">
-                  {kontak?.wa && (
-                    <a href={`https://wa.me/${nomorWa(kontak.wa)}`}
-                       target="_blank" rel="noreferrer">
-                      <IkonWa />
-                      <span>{kontak.wa}</span>
-                    </a>
-                  )}
-                  {kontak?.email && (
-                    <a href={`mailto:${kontak.email}`}>
-                      <IkonSurel />
-                      <span>{kontak.email}</span>
-                    </a>
-                  )}
-                  {!kontak?.wa && !kontak?.email && (
-                    <span>{k.kontakKosong}</span>
-                  )}
-                </div>
+                {langkahLupa === "surel" && (
+                  <>
+                    <p className="pengantar">{k.lupaPengantar}</p>
+                    <div className="lbl">{k.lupaSurel}</div>
+                    <input type="email" value={surelLupa} autoComplete="email"
+                           style={{ width: "100%" }}
+                           onChange={(e) => setSurelLupa(e.target.value)} />
+                    <button type="button" className="pri" disabled={sibukLupa}
+                            style={{ width: "100%", marginTop: 10 }}
+                            onClick={() => void mintaKode()}>
+                      {sibukLupa ? k.lupaMengirim : k.lupaKirim}
+                    </button>
+                  </>
+                )}
 
-                <button type="button" ref={tutupRef} className="pri"
-                        onClick={() => setLihatKontak(false)}>
+                {langkahLupa === "kode" && (
+                  <>
+                    <div className="banner ok" style={{ marginTop: 4 }}>
+                      {kabarLupa}
+                    </div>
+                    <div className="lbl">{k.lupaKode}</div>
+                    <input value={kodeLupa} inputMode="numeric" maxLength={6}
+                           style={{ width: "100%", letterSpacing: ".3em",
+                                    textAlign: "center", fontSize: 17 }}
+                           onChange={(e) => setKodeLupa(e.target.value)} />
+                    <div className="lbl" style={{ marginTop: 10 }}>
+                      {k.lupaSandiBaru}
+                    </div>
+                    <input type="password" value={sandiLupa}
+                           autoComplete="new-password" style={{ width: "100%" }}
+                           onChange={(e) => setSandiLupa(e.target.value)} />
+                    <button type="button" className="pri"
+                            disabled={sibukLupa || kodeLupa.trim().length !== 6 ||
+                                      sandiLupa.length < 10}
+                            style={{ width: "100%", marginTop: 10 }}
+                            onClick={() => void simpanSandiBaru()}>
+                      {sibukLupa ? k.lupaMenyimpan : k.lupaSimpan}
+                    </button>
+                    <button type="button" className="tautan"
+                            style={{ marginTop: 8 }}
+                            onClick={() => { setLangkahLupa("surel");
+                                             setGalatLupa(null); }}>
+                      {k.lupaKodeLain}
+                    </button>
+                  </>
+                )}
+
+                {langkahLupa === "selesai" && (
+                  <div className="banner ok">{k.lupaSelesai}</div>
+                )}
+
+                {galatLupa && (
+                  <div className="banner stop" style={{ marginTop: 10 }}>
+                    <b>{k.lupaGagal}</b>{galatLupa}
+                  </div>
+                )}
+
+                <button type="button" className="pri"
+                        style={{ marginTop: 10 }}
+                        onClick={() => setLihatLupa(false)}>
                   {k.tutup}
                 </button>
               </div>
             </div>
           )}
+
         </form>
       </main>
     </div>

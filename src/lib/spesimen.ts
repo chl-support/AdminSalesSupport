@@ -319,17 +319,29 @@ export async function kirimSet(token: string) {
  * orang-orang itu berhenti di "belum terdaftar" selamanya, dan fee mereka
  * tidak pernah dapat dibayarkan.
  *
+ * Hasilnya langsung berlaku, tanpa menunggu diperiksa lagi. Pemeriksaan ada
+ * untuk pendaftaran mandiri: di sana yang mengirim adalah agent, dan Admin
+ * yang memutuskan apakah potongan itu memang tanda tangan pada KTP-nya. Pada
+ * jalur ini yang mengunggah SUDAH Admin, dan yang memeriksa akan Admin juga —
+ * orang yang sama memeriksa pekerjaannya sendiri, satu putaran yang tidak
+ * menambah satu pun pemeriksaan sungguhan, hanya satu antrean lagi yang harus
+ * dibuka dan ditekan.
+ *
+ * Yang hilang bersama putaran itu memang ada, dan ditulis di sini supaya
+ * siapa pun yang membacanya kelak tahu ini pilihan, bukan kelalaian: tidak ada
+ * lagi mata kedua atas potongan yang dipilih. Yang menggantikannya jejak
+ * audit — siapa mengunggah, kapan, atas nama siapa, beserta alasannya bila ia
+ * mengganti spesimen yang sudah berlaku — dan layar Spesimen yang menampilkan
+ * jangkar KTP tiap orang untuk dilihat kembali kapan saja.
+ *
  * Yang TIDAK dilonggarkan:
  *
- *   1. Hasilnya tetap masuk sebagai pendaftaran yang harus diperiksa. Admin
- *      yang mengunggah tidak sekaligus menyetujui; yang memutuskan tetap
- *      pemeriksaan di layar yang sama dengan pendaftaran mandiri — dan
- *      sebaiknya bukan orang yang sama.
- *   2. Mengganti spesimen yang sudah berlaku tetap menuntut alasan tertulis,
+ *   1. Mengganti spesimen yang sudah berlaku tetap menuntut alasan tertulis,
  *      persis seperti meminta revisi lewat tautan. Spesimen adalah pembanding
  *      pembayaran orang itu; menggantinya tanpa jejak alasan adalah lubang
  *      yang sama besarnya lewat jalan mana pun.
- *   3. Foto KTP utuhnya tetap dihapus begitu putusannya diambil.
+ *   2. Foto KTP utuhnya tetap dihapus begitu set ini berlaku — ia hanya
+ *      diperlukan selama ada yang memeriksa, dan di sini tidak ada.
  *
  * Yang memang berbeda, dan dicatat apa adanya: persetujuan pemakaian data
  * tidak datang dari orangnya lewat layar ini. Admin yang mengunggah menyatakan
@@ -388,18 +400,24 @@ export async function unggahManual(
      VALUES ($1,$2,1,$3,NULL,'ktp')`,
     [marketingId, setId, p.signature_png]);
 
-  await query("UPDATE marketings SET status='pending_review' WHERE id=$1 " +
-              "AND status IN ('draft','rejected')", [marketingId]);
-
   await audit({
     entityType: "marketing", entityId: marketingId,
     action: "enrollment_manual_uploaded", actor: aktor,
     reason: mengganti ? p.alasan!.trim() : undefined,
     after: { set_id: setId, size_bytes: buf.length, content_type: tipe,
              mengganti, sumber: "unggahan admin",
+             langsung_berlaku: true,
              persetujuan: "dinyatakan Admin yang mengunggah, bukan dari layar " +
                           "pendaftaran" },
   });
+
+  // Langsung berlaku, lewat jalur putusan yang sama dengan pendaftaran mandiri
+  // — bukan dengan UPDATE sendiri. Yang dikerjakan putuskanSet() bukan hanya
+  // mengganti status: ia mengarsipkan set lama, memasang potongan ini sebagai
+  // jangkar identitas pada marketingnya, menghapus foto KTP utuhnya, dan
+  // mencatat putusannya. Menyalin keempatnya ke sini berarti dua salinan yang
+  // akan berbeda pada salah satunya cepat atau lambat.
+  await putuskanSet(marketingId, setId, "approve", aktor);
 
   return { set_id: setId, marketing_id: marketingId, mengganti };
 }
@@ -670,6 +688,50 @@ export async function ubahNomor(
     actor: aktor, before: { phone: mkt.phone }, after: { phone: rapi },
   });
   return { phone: rapi, changed: true };
+}
+
+/**
+ * Perbaiki alamat surel marketing.
+ *
+ * Sejak tautan tanda tangan dapat dikirim lewat surel, alamat ini bukan lagi
+ * keterangan yang enak dibaca melainkan tujuan kiriman. Data yang masuk dari
+ * berkas penjualan kerap tidak memuatnya, dan sebelum ini satu-satunya jalan
+ * mengisinya adalah lewat baris yang dibuat dari nol — yang tidak dapat
+ * dilakukan atas orang yang sudah ada.
+ *
+ * Boleh dikosongkan, berbeda dengan nomor telepon: tidak setiap agent punya
+ * surel, dan memaksa mengisinya akan melahirkan alamat karangan. Yang kosong
+ * disimpan sebagai NULL, dan layar yang mengirim tautan menuliskan sebabnya
+ * alih-alih menawarkan tombol yang pasti gagal.
+ *
+ * Bentuknya diperiksa seadanya — ada @, ada titik sesudahnya, tanpa spasi.
+ * Pemeriksaan yang lebih ketat daripada ini menolak alamat yang sah lebih
+ * sering daripada menangkap yang keliru, dan yang benar-benar membuktikan
+ * sebuah alamat hidup hanyalah surel yang sampai.
+ */
+export async function ubahEmail(
+  marketingId: string, email: string, aktor: string, projectId?: string,
+) {
+  const mkt = await one<{ full_name: string; email: string | null }>(
+    "SELECT full_name, email FROM marketings WHERE id=$1 " +
+    "AND ($2::uuid IS NULL OR project_id=$2)", [marketingId, projectId ?? null]);
+  if (!mkt) throw new WorkflowError("Marketing tidak ditemukan.", "not_found", 404);
+
+  const rapi = String(email ?? "").trim().toLowerCase();
+  if (rapi && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(rapi)) {
+    throw new WorkflowError(
+      "Alamat surel tidak dikenali. Tuliskan seperti nama@contoh.com, atau " +
+      "kosongkan bila memang belum ada.", "email_invalid", 422);
+  }
+  const nilai = rapi || null;
+  if (nilai === (mkt.email ?? null)) return { email: nilai, changed: false };
+
+  await query("UPDATE marketings SET email=$2 WHERE id=$1", [marketingId, nilai]);
+  await audit({
+    entityType: "marketing", entityId: marketingId, action: "email_changed",
+    actor: aktor, before: { email: mkt.email }, after: { email: nilai },
+  });
+  return { email: nilai, changed: true };
 }
 
 /**

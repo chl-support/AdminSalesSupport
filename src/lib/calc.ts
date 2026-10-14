@@ -283,19 +283,33 @@ export async function calculate(
   const whtRow = await findTaxRate(whtType, ctx, onDate, client);
   const whtRate = Number(whtRow?.rate ?? 0);
 
-  /**
-   * Nominal tetap yang ditulis "Exclude PPh" adalah nilai bersih.
-   *
-   * Brutonya dinaikkan sampai setelah dipotong PPh sisanya persis sebesar
-   * nominal itu: bruto = bersih / (1 - tarif). Memperlakukannya sebagai bruto
-   * membuat penerimanya kekurangan sebesar PPh pada setiap klaim — pada Closing
-   * Fee Rp 10 juta, selisihnya Rp 256.410 per unit.
-   */
-  const gross = scheme.flat_amount !== null
-    ? (scheme.flat_amount_is_net && whtRate < 1
-        ? Math.round(Number(scheme.flat_amount) / (1 - whtRate))
-        : Number(scheme.flat_amount))
+  // Nominal sebagaimana tertulis pada IOM/memo — belum di-gross-up.
+  const nominalMemo = scheme.flat_amount !== null
+    ? Number(scheme.flat_amount)
     : applyRate(basisValue, persen.rate);
+
+  /**
+   * Closing Fee dan Cash Reward selalu di-gross-up.
+   *
+   * Nominal yang tertulis pada IOM adalah yang harus DITERIMA orangnya, jadi
+   * brutonya dinaikkan sampai setelah dipotong PPh sisanya persis sebesar
+   * nominal itu: bruto = nominal / (1 - tarif) — dibagi 97,5% bila PPh 21,
+   * 98% bila PPh 23. Memperlakukan nominal IOM sebagai bruto membuat
+   * penerimanya kekurangan sebesar PPh pada setiap unit; pada Cash Reward
+   * Rp 10 juta, Rp 256.410.
+   *
+   * HANYA dua jenis itu. Komisi, Continuity Reward dan Overriding tetap
+   * dihitung seperti biasa: nominal memonya adalah bruto, dan PPh memotong
+   * dari situ. Tanda "Nominal ini nilai bersih" pada baris memo pun tidak
+   * lagi menaikkan brutonya di luar dua jenis itu — satu aturan yang dapat
+   * diucapkan dalam satu kalimat lebih baik daripada dua jalur yang hasilnya
+   * bergantung pada satu centang yang jarang dilihat orang.
+   */
+  const grossUp = (claimType === "closing_fee" || claimType === "cash_reward") &&
+                  whtRate > 0 && whtRate < 1;
+  const gross = grossUp
+    ? Math.round(nominalMemo / (1 - whtRate))
+    : nominalMemo;
 
   // PPN hanya bagi penerima PKP.
   const vat = ctx.pkp_status === "pkp" ? applyRate(gross, vatRate) : 0;
@@ -330,6 +344,11 @@ export async function calculate(
       tier_unit_count: persen.jumlah_unit,
       flat_amount: scheme.flat_amount,
       flat_amount_is_net: scheme.flat_amount_is_net ?? false,
+      // Nominal memo sebelum gross-up, dan apakah gross-up dipakai. Dicatat
+      // supaya pemeriksa dapat melihat angka IOM-nya kembali, bukan hanya
+      // bruto hasil pembagiannya.
+      nominal_memo: nominalMemo,
+      gross_up: grossUp,
       vat_rate: vatRate,
       withholding_type: whtType,
       withholding_rate: whtRow?.rate ?? "0",

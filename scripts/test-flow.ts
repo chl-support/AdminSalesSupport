@@ -16,8 +16,8 @@ import { WorkflowError } from "../src/lib/workflow";
 import { applyRate, ratio, rupiahWords, terbilang } from "../src/lib/money";
 import { collect, preview } from "../src/lib/report";
 import { KATEGORI_JENIS, kategoriAwal } from "../src/lib/kategori";
-import { hapusMarketing, putuskanSet, tambahMarketing, unggahManual }
-  from "../src/lib/spesimen";
+import { hapusMarketing, tambahMarketing, ubahEmail,
+         unggahManual } from "../src/lib/spesimen";
 import { rekapOverriding } from "../src/lib/overriding";
 import { penandatanganRekap } from "../src/lib/penandatangan";
 import { skemaXlsx } from "../src/lib/memo-xlsx";
@@ -84,6 +84,8 @@ async function main() {
       token: link.token, imagePng: signaturePng(seedIndex, 0.06),
       strokes: strokes(seedIndex, 0.06), inputMethod: "stylus" });
     assert(r.outcome === "verified", `tanda tangan gagal: skor ${r.score}`);
+    // Agent yang mengirimnya ke Admin, bukan sistem — lihat kirimKeAdmin().
+    await wf.kirimKeAdmin(link.token);
     await wf.crosscheck(claimId, "admin_sales", "complete", "admin");
     await wf.crosscheck(claimId, "finance", "complete", "ratih");
     const pkg = await wf.printPackage(claimId, "admin");
@@ -206,6 +208,99 @@ async function main() {
              "indeks harus mencakup recipient_role");
     });
 
+  await check("PPh 23 dipotong 2% dan PPh 21 2,5%, untuk semua jenis fee",
+              async () => {
+    // Tarifnya duduk di tabel pajak, bukan di kode, jadi ia berlaku untuk
+    // semua jenis fee sekaligus: yang membedakan hanya atas nama siapa
+    // rekening tujuannya — badan usaha PPh 23, perorangan PPh 21.
+    const baris: any[] = await query(
+      `SELECT rate::float AS rate, has_skb FROM tax_rates
+        WHERE tax_type='pph23'`);
+    assert(baris.length > 0, "tarif PPh 23 tidak ada");
+    for (const b of baris)
+      assert(b.rate === 0.02, `PPh 23 seharusnya 2%, bukan ${b.rate * 100}%`);
+
+    const p21: any[] = await query(
+      "SELECT rate::float AS rate FROM tax_rates WHERE tax_type='pph21'");
+    assert(p21.length > 0, "tarif PPh 21 tidak ada");
+    for (const b of p21)
+      assert(b.rate === 0.025, `PPh 21 seharusnya 2,5%, bukan ${b.rate * 100}%`);
+
+    // Dan benar-benar terpakai pada perhitungannya, bukan hanya tersimpan.
+    const u: any = await one("SELECT * FROM units WHERE id=$1", [unit]);
+    const a: any = await one("SELECT * FROM marketings WHERE id=$1", [agentId]);
+    for (const jenis of ["commission", "continuity_reward"] as const) {
+      const r: any = await calc.calculate(
+        u, a, null, jenis as any, "agent" as any, null, undefined,
+        { holder_type: "company", holder_name: "Uji" });
+      assert(Number(r.snapshot.withholding_rate) === 0.02,
+             `${jenis}: tarif terpakai ${r.snapshot.withholding_rate}`);
+      assert(r.withholding_tax === Math.round(r.gross_amount * 0.02),
+             `${jenis}: PPh ${r.withholding_tax} tidak 2% dari ${r.gross_amount}`);
+    }
+  });
+
+  await check("Closing Fee dan Cash Reward di-gross-up, jenis lain tidak",
+              async () => {
+    // Nominal pada IOM adalah yang harus DITERIMA orangnya: brutonya dibagi
+    // 97,5% bila PPh 21 dan 98% bila PPh 23 — yaitu dibagi (1 - tarif PPh)
+    // yang berlaku — sehingga setelah dipotong, yang diterima persis sebesar
+    // nominal IOM-nya. Jenis fee lain tetap dihitung seperti biasa.
+    const u: any = await one("SELECT * FROM units WHERE id=$1", [unit]);
+    const m: any = await one("SELECT * FROM marketings WHERE id=$1", [inhouseId]);
+    const a: any = await one("SELECT * FROM marketings WHERE id=$1", [agentId]);
+
+    for (const [jenis, peran, siapa, rekening] of [
+      ["cash_reward", "sales_inhouse", m, "individual"],
+      ["closing_fee", "sales_inhouse", m, "individual"],
+      ["cash_reward", "agent", a, "company"],
+      ["closing_fee", "agent", a, "company"],
+    ] as const) {
+      const r: any = await calc.calculate(
+        u, siapa, null, jenis as any, peran as any, null, undefined,
+        { holder_type: rekening, holder_name: "Uji" });
+      const tarif = Number(r.snapshot.withholding_rate);
+      const nominal = Number(r.snapshot.nominal_memo);
+      assert(r.snapshot.gross_up === true,
+             `${jenis}/${rekening} seharusnya di-gross-up`);
+      assert(r.gross_amount === Math.round(nominal / (1 - tarif)),
+             `${jenis}/${rekening}: bruto ${r.gross_amount}, seharusnya ` +
+             `${Math.round(nominal / (1 - tarif))}`);
+      // Tanpa PPN (penerima non-PKP), yang diterima = nominal IOM-nya.
+      if (r.vat === 0)
+        assert(r.net_amount === nominal,
+               `${jenis}/${rekening}: diterima ${r.net_amount}, seharusnya ` +
+               `${nominal}`);
+    }
+
+    // Jenis lain tidak ikut: brutonya tetap sebagaimana memo menuliskannya,
+    // juga ketika baris memonya ditandai "Nominal ini nilai bersih" —
+    // Continuity Reward tidak di-gross-up.
+    for (const jenis of ["commission", "continuity_reward"] as const) {
+      const lain: any = await calc.calculate(
+        u, a, null, jenis as any, "agent" as any, null, undefined,
+        { holder_type: "company", holder_name: "Uji" });
+      assert(lain.snapshot.gross_up === false,
+             `${jenis} seharusnya tidak di-gross-up`);
+      assert(lain.gross_amount === Number(lain.snapshot.nominal_memo),
+             `${jenis}: bruto ${lain.gross_amount} seharusnya sama dengan ` +
+             `nominal memo ${lain.snapshot.nominal_memo}`);
+    }
+
+    // Ditandai bersih pun tidak: aturannya jenis fee, bukan centang pada memo.
+    await query(
+      `UPDATE incentive_schemes SET flat_amount_is_net=true
+        WHERE claim_type='continuity_reward'`);
+    const ctr: any = await calc.calculate(
+      u, a, null, "continuity_reward" as any, "agent" as any, null, undefined,
+      { holder_type: "company", holder_name: "Uji" });
+    assert(ctr.snapshot.gross_up === false,
+           "Continuity Reward bertanda bersih pun tidak boleh di-gross-up");
+    await query(
+      `UPDATE incentive_schemes SET flat_amount_is_net=false
+        WHERE claim_type='continuity_reward'`);
+  });
+
   await check("klaim komisi terbentuk dengan nilai terhitung", async () => {
     const c = await wf.createClaim({ unitId: unit, marketingId: agentId,
       claimType: "commission", recipientRole: "agent", actor: "admin" });
@@ -324,6 +419,25 @@ async function main() {
     assert(Boolean(r.document_hash), "dokumen harus tersegel");
     assert(r.layers_used.includes("dynamic"), JSON.stringify(r.layers_used));
     docHash = r.document_hash!;
+  });
+
+  await check("formulir berhenti di tangan agent sampai ia menekan kirim",
+              async () => {
+    // Tanda tangan yang diterima menyegel dokumennya, tetapi TIDAK
+    // mengirimnya: yang menandatangani harus sempat memeriksa hasilnya dulu.
+    const sesudahTtd = await wf.getClaim(cid);
+    assert(sesudahTtd.status === "signed",
+           `sesudah tanda tangan seharusnya 'signed', bukan '${sesudahTtd.status}'`);
+
+    const kirim = await wf.kirimKeAdmin(token);
+    assert(kirim.sent && !kirim.already, JSON.stringify(kirim));
+    const sesudahKirim = await wf.getClaim(cid);
+    assert(sesudahKirim.status === "crosscheck_in_progress", sesudahKirim.status);
+
+    // Ketukan kedua pada tombol yang sama tidak boleh menjadi galat di layar
+    // orang luar.
+    const lagi = await wf.kirimKeAdmin(token);
+    assert(lagi.sent && lagi.already, JSON.stringify(lagi));
   });
 
   await check("GATE: dokumen bersegel tidak dapat dihitung ulang", async () => {
@@ -453,9 +567,12 @@ async function main() {
       unitId: unit, marketingId: inhouseId, claimType: "continuity_reward",
       recipientRole: "sales_inhouse", actor: "admin" });
     assert(c.claim_number.startsWith("CTR-"), c.claim_number);
-    // Skemanya menyebut nilai bersih; brutonya di-gross-up agar yang diterima
-    // penerima tepat sebesar itu sesudah potongan PPh.
-    assert(c.net_amount === 5_000_000, String(c.net_amount));
+    // Continuity Reward TIDAK di-gross-up: nominal memonya bruto, dan PPh
+    // memotong dari situ. Hanya Closing Fee dan Cash Reward yang di-gross-up.
+    const tarif = Number(c.snapshot.withholding_rate);
+    assert(c.gross_amount === 5_000_000, String(c.gross_amount));
+    assert(c.net_amount === 5_000_000 - Math.round(5_000_000 * tarif),
+           `${c.net_amount} pada tarif ${tarif}`);
   });
 
   await check("kategori penerima dibatasi menurut jenis feenya", async () => {
@@ -595,6 +712,66 @@ async function main() {
     }
   });
 
+  await check("sapaan kata sambutan mengikuti jam, termasuk di batasnya",
+              async () => {
+    // Batas jamnya justru bagian yang paling mudah bergeser satu jam tanpa ada
+    // yang menyadarinya — dan yang menyadarinya adalah penerima surat yang
+    // disapa "Selamat Pagi" pada pukul tiga sore.
+    const { sapaanJam } = await import("../src/lib/sapaan");
+    const harap: [number, string][] = [
+      [0, "Malam"], [4, "Malam"],
+      [5, "Pagi"], [7, "Pagi"], [10, "Pagi"],
+      [11, "Siang"], [14, "Siang"],
+      [15, "Sore"], [18, "Sore"],
+      [19, "Malam"], [23, "Malam"],
+    ];
+    for (const [jam, sapaan] of harap) {
+      assert(sapaanJam(jam) === sapaan,
+             `pukul ${jam} seharusnya ${sapaan}, bukan ${sapaanJam(jam)}`);
+    }
+    // Keempatnya terpakai; tidak ada jam yang jatuh ke luar keempatnya.
+    const semua = new Set(
+      Array.from({ length: 24 }, (_, j) => sapaanJam(j)));
+    assert(semua.size === 4, `seharusnya empat sapaan, bukan ${semua.size}`);
+  });
+
+  await check("surel marketing dapat diperbaiki, dan boleh dikosongkan",
+              async () => {
+    // Sejak tautan tanda tangan dapat dikirim lewat surel, alamat ini tujuan
+    // kiriman — dan data yang masuk dari berkas penjualan kerap tidak
+    // memuatnya. Tanpa jalan memperbaikinya, satu-satunya jalur yang tersisa
+    // bagi orang itu adalah WhatsApp.
+    const p = await one<{ id: string }>(
+      "SELECT id FROM projects ORDER BY created_at LIMIT 1");
+    const orang = await tambahMarketing({
+      nama: "Sari Surel", kategori: "markom", telepon: "0813-9999-0002",
+    }, "admin", p!.id);
+
+    const isi = await ubahEmail(orang.id, "  Sari@Contoh.COM ", "admin", p!.id);
+    // Dibakukan: huruf kecil dan tanpa spasi di tepinya. Alamat yang sama
+    // tertulis dua cara adalah dua alamat bagi yang mencarinya.
+    assert(isi.email === "sari@contoh.com", String(isi.email));
+    assert(isi.changed, "perubahannya tercatat sebagai perubahan");
+
+    // Yang sama persis tidak dicatat dua kali.
+    const lagi = await ubahEmail(orang.id, "sari@contoh.com", "admin", p!.id);
+    assert(!lagi.changed, "alamat yang sama bukan perubahan");
+
+    // Boleh dikosongkan — tidak setiap agent punya surel, dan memaksa
+    // mengisinya hanya melahirkan alamat karangan.
+    const kosong = await ubahEmail(orang.id, "", "admin", p!.id);
+    assert(kosong.email === null, String(kosong.email));
+
+    // Yang bentuknya bukan alamat ditolak, bukan disimpan apa adanya.
+    let tertolak: any = null;
+    try { await ubahEmail(orang.id, "bukan alamat", "admin", p!.id); }
+    catch (e: any) { tertolak = e; }
+    assert(tertolak?.code === "email_invalid",
+           `seharusnya email_invalid, bukan ${tertolak?.code}`);
+
+    await hapusMarketing(orang.id, "admin", p!.id);
+  });
+
   await check("spesimen dapat diunggah Admin tanpa tautan pendaftaran",
               async () => {
     // Tautan menuntut ponsel yang menerima kode, kesediaan membukanya, dan
@@ -616,21 +793,26 @@ async function main() {
       image_base64: png, signature_png: png, projectId: p!.id });
     assert(!hasil.mengganti, "yang pertama bukan penggantian");
 
-    // Hasilnya menunggu pemeriksaan — mengunggah bukan menyetujui.
-    const stt = await one<{ status: string }>(
-      "SELECT status FROM marketings WHERE id=$1", [orang.id]);
-    assert(stt!.status === "pending_review", stt!.status);
+    // Langsung berlaku: tidak ada antrean pemeriksaan untuk jalur ini, sebab
+    // yang mengunggah dan yang memeriksa sama-sama tim Admin.
+    const aktif = await one<{ status: string; jangkar: string | null }>(
+      `SELECT status, reference_signature_png AS jangkar
+         FROM marketings WHERE id=$1`, [orang.id]);
+    assert(aktif!.status === "active", aktif!.status);
+    assert(Boolean(aktif!.jangkar), "potongan tanda tangannya menjadi jangkar");
+
     const sesi = await one<{ state: string; ada: boolean; issued_by: string }>(
       `SELECT state, (ktp_image IS NOT NULL) AS ada, issued_by
          FROM enrollment_sessions WHERE set_id=$1`, [hasil.set_id]);
-    assert(sesi!.state === "submitted", sesi!.state);
-    assert(sesi!.ada, "foto KTP utuh disimpan sampai putusannya diambil");
+    assert(sesi!.state === "approved", sesi!.state);
+    // Foto KTP utuhnya tidak tertinggal: ia hanya diperlukan selama ada yang
+    // memeriksa, dan pada jalur ini tidak ada.
+    assert(!sesi!.ada, "foto KTP utuh dihapus begitu set ini berlaku");
     // Jejaknya menyebut siapa yang mengunggah, bukan orang yang didaftarkan:
     // persetujuan pada jalur ini datang dari Admin, dan itu ditulis apa adanya.
     assert(sesi!.issued_by === "admin", sesi!.issued_by);
 
-    // Tokennya tidak dapat dibuka sebagai tautan pendaftaran: sesinya lahir
-    // dalam keadaan 'submitted', jadi bukaSesi menolaknya.
+    // Tokennya tidak dapat dibuka sebagai tautan pendaftaran.
     const tok = await one<{ token: string }>(
       "SELECT token FROM enrollment_sessions WHERE set_id=$1", [hasil.set_id]);
     const { bukaSesi } = await import("../src/lib/spesimen");
@@ -638,18 +820,6 @@ async function main() {
     try { await bukaSesi(tok!.token); } catch (e: any) { tertutup = e; }
     assert(tertutup?.code === "session_closed",
            `tautannya seharusnya tertutup, bukan ${tertutup?.code}`);
-
-    // Disetujui: spesimennya menjadi jangkar, dan foto KTP utuhnya dihapus.
-    await putuskanSet(orang.id, hasil.set_id, "approve", "admin");
-    const aktif = await one<{ status: string; jangkar: string | null }>(
-      `SELECT status, reference_signature_png AS jangkar
-         FROM marketings WHERE id=$1`, [orang.id]);
-    assert(aktif!.status === "active", aktif!.status);
-    assert(Boolean(aktif!.jangkar), "potongan tanda tangannya menjadi jangkar");
-    const sesudah = await one<{ ada: boolean }>(
-      "SELECT (ktp_image IS NOT NULL) AS ada FROM enrollment_sessions WHERE set_id=$1",
-      [hasil.set_id]);
-    assert(!sesudah!.ada, "foto KTP utuh dihapus begitu diputus");
 
     // Mengganti yang sudah berlaku tetap menuntut alasan tertulis — lubang
     // yang sama besarnya lewat jalan mana pun.
@@ -829,6 +999,46 @@ async function main() {
            "baris pelunasannya seharusnya ikut terhapus");
   });
 
+  await check("klaim yang pernah dihapus tidak membuat nomor bentrok",
+              async () => {
+    // Nomor klaim bukan patokan pengajuan: pengajuan fee tidak boleh gagal
+    // hanya karena nomornya. Dulu nomor dihitung dari COUNT(*), jadi satu
+    // klaim yang dihapus membuat deretnya mundur dan menabrak nomor yang
+    // masih ada — galatnya claims_claim_number_key, dan pengajuannya batal.
+    //
+    // Celahnya dibangun di sini: dipasang satu baris Cash Reward yang
+    // nomornya tepat sama dengan COUNT(*)+1, seolah nomor-nomor sebelumnya
+    // pernah ada lalu dihapus.
+    const sumber = await one<{ unit_id: string; marketing_id: string;
+                               project_id: string }>(
+      "SELECT unit_id, marketing_id, project_id FROM claims LIMIT 1");
+    assert(Boolean(sumber), "belum ada klaim contoh");
+    const n = await one<{ c: number }>(
+      "SELECT COUNT(*)::int AS c FROM claims WHERE claim_type='cash_reward'");
+    const bentrok = `CR-2026-${String(n!.c + 1).padStart(4, "0")}`;
+    const pengganggu = await one<{ id: string }>(
+      `INSERT INTO claims (claim_number, claim_type, recipient_role, unit_id,
+         marketing_id, status, gross_amount, vat, withholding_tax, net_amount,
+         project_id)
+       VALUES ($1,'cash_reward','sales_manager_inhouse',$2,$3,'draft',
+               0,0,0,0,$4) RETURNING id`,
+      [bentrok, sumber!.unit_id, sumber!.marketing_id, sumber!.project_id]);
+    try {
+      // Inilah pengajuan yang dulu gagal: nomor hasil COUNT(*)+1 sama dengan
+      // nomor baris pengganggu di atas.
+      const lanjut = await wf.createClaim({
+        unitId: unit, marketingId: inhouseId, claimType: "cash_reward",
+        recipientRole: "sales_inhouse", actor: "admin" });
+      assert(lanjut.claim_number !== bentrok,
+             `nomornya menabrak yang sudah ada: ${lanjut.claim_number}`);
+      assert(lanjut.claim_number === `CR-2026-${String(n!.c + 2).padStart(4, "0")}`,
+             `nomor seharusnya lanjut dari yang tertinggi, bukan ${lanjut.claim_number}`);
+      await query("DELETE FROM claims WHERE id=$1", [lanjut.id]);
+    } finally {
+      await query("DELETE FROM claims WHERE id=$1", [pengganggu!.id]);
+    }
+  });
+
   await check("rekap Overriding memilah unit menurut keadaannya", async () => {
     // Overriding dicetak sebagai Detail Perhitungan per periode, bukan lembar
     // per unit. Yang diuji di sini pemilahannya — unit batal tidak boleh
@@ -969,6 +1179,7 @@ async function main() {
         token: link.token, imagePng: signaturePng(2, 0.06),
         strokes: strokes(2, 0.06), inputMethod: "stylus" });
       assert(r.outcome === "verified", `outcome ${r.outcome}, skor ${r.score}`);
+      await wf.kirimKeAdmin(link.token);
       await wf.crosscheck(id, "admin_sales", "complete", "admin");
       const after = await wf.financialFinding(id, "ratih",
         "Basis perhitungan keliru, PPN tidak seharusnya dikenakan.", ["vat"]);

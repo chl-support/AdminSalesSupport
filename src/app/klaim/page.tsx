@@ -138,9 +138,6 @@ const KATA = {
     gagalAjukan: "Sebagian pengajuan tidak dapat dibuat",
     dialogNama: "Penjelasan pengajuan",
     dialogJudul: (kode: string) => `Ajukan fee untuk unit ${kode}`,
-    dialogPengantar:
-      "Penjelasan ini tercetak pada Form Pengajuan masing-masing fee, jadi ia " +
-      "dibaca yang menandatangani — bukan catatan internal. Boleh dikosongkan.",
     dialogContoh: "mis. Full Payment. Pembayaran sudah mencapai 20%.",
     dialogPengantarOr:
       "Periode ini tercetak pada kepala rekap Overiding, jadi ia dibaca yang " +
@@ -168,16 +165,9 @@ const KATA = {
     bukuJudul: "Buku rekening",
     bukuTombol: "Unggah buku rekening",
     bukuGanti: "Ganti berkas",
-    bukuPetunjuk:
-      "Foto atau pindaian halaman depan buku rekening. Ikut terlampir pada " +
-      "pengajuannya sebagai bukti rekening; isian di atas tetap diketik " +
-      "sendiri.",
     tfNama: "Nama penerima", tfJenis: "Atas nama",
     tfBadan: "Badan Usaha (PT)", tfPribadi: "Pribadi (Perorangan)",
     tfBank: "Bank", tfRekening: "No. rekening", tfCabang: "Kantor cabang",
-    tfCatatan:
-      "Atas nama siapa rekeningnya menentukan PPh 23 atau PPh 21, jadi " +
-      "periksa sebelum diajukan.",
     untukSiapa: (nama: string, peran: string) => `${peran}: ${nama}`,
     dialogAjukan: "Ajukan",
     dialogBatal: "Batal",
@@ -239,10 +229,6 @@ const KATA = {
     gagalAjukan: "Some submissions could not be created",
     dialogNama: "Submission notes",
     dialogJudul: (kode: string) => `Submit fees for unit ${kode}`,
-    dialogPengantar:
-      "These notes are printed on each fee's submission form, so whoever " +
-      "signs it will read them — they are not internal remarks. May be left " +
-      "blank.",
     dialogContoh: "e.g. Full payment. Payments have reached 20%.",
     dialogPengantarOr:
       "This period is printed on the Overiding recap header, so whoever " +
@@ -270,16 +256,9 @@ const KATA = {
     bukuJudul: "Bank passbook",
     bukuTombol: "Upload passbook",
     bukuGanti: "Replace file",
-    bukuPetunjuk:
-      "A photo or scan of the passbook's front page. It is attached to the " +
-      "submission as proof of the account; the fields above are still typed " +
-      "in by hand.",
     tfNama: "Recipient name", tfJenis: "Held by",
     tfBadan: "Company (PT)", tfPribadi: "Individual",
     tfBank: "Bank", tfRekening: "Account number", tfCabang: "Branch",
-    tfCatatan:
-      "Whether the account is held by a company or an individual decides " +
-      "PPh 23 or PPh 21, so check it before submitting.",
     untukSiapa: (nama: string, peran: string) => `${peran}: ${nama}`,
     dialogAjukan: "Submit",
     dialogBatal: "Cancel",
@@ -1216,13 +1195,14 @@ export default function PengajuanFeePage() {
             </div>
 
             <div className="popup-isi">
-              {/* Dialog yang hanya berisi Overriding tidak punya penjelasan
-                  sama sekali, jadi pengantar tentang penjelasan di sana
-                  menerangkan isian yang tidak ada. */}
-              <p className="hint" style={{ textAlign: "left", margin: "0 0 12px" }}>
-                {siapkan.jenis.every((j) => j === "overriding")
-                  ? k.dialogPengantarOr : k.dialogPengantar}
-              </p>
+              {/* Pengantar hanya tinggal pada dialog Overriding, yang
+                  menerangkan isian periodenya. Pada dialog fee biasa
+                  pengantarnya dibuang: isiannya sudah berjudul sendiri. */}
+              {siapkan.jenis.every((j) => j === "overriding") && (
+                <p className="hint" style={{ textAlign: "left", margin: "0 0 12px" }}>
+                  {k.dialogPengantarOr}
+                </p>
+              )}
 
               {/* Sebab kegagalan berdiri di dalam dialognya, tepat di atas
                   isian yang perlu dibetulkan — bukan sebagai pita di kepala
@@ -1443,16 +1423,9 @@ export default function PengajuanFeePage() {
                         </span>
                       )}
                     </div>
-                    <p className="hint" style={{ textAlign: "left", margin: "6px 0 0" }}>
-                      {k.bukuPetunjuk}
-                    </p>
                   </div>
                 );
               })}
-
-              <p className="hint" style={{ textAlign: "left" }}>
-                {k.tfCatatan}
-              </p>
             </div>
 
             <div className="popup-kaki">

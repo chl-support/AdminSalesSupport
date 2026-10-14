@@ -1,6 +1,7 @@
 import { handler, requireRole } from "@/lib/api";
 import { audit, one, query } from "@/lib/db";
 import { hashPassword } from "@/lib/auth";
+import { catatSandi } from "@/lib/sandi-terlihat";
 import { WorkflowError } from "@/lib/workflow";
 
 /**
@@ -18,10 +19,19 @@ export const GET = handler(async (req) => {
   await requireRole(req, "admin_system");
   return query(
     `SELECT u.username, u.full_name, u.role, u.active,
+            NULLIF(to_jsonb(u) ->> 'email', '') AS email,
             (SELECT COUNT(*)::int FROM sessions s WHERE s.user_id = u.id
               AND s.expires_at > now()) AS sesi_aktif,
             (SELECT MAX(attempted_at) FROM login_attempts l
-              WHERE l.username = u.username AND l.succeeded) AS terakhir_masuk
+              WHERE l.username = u.username AND l.succeeded) AS terakhir_masuk,
+            -- Kapan sandinya terakhir diganti. Sandinya sendiri tidak dapat
+            -- ditampilkan — yang tersimpan hash satu arah, bukan sandinya —
+            -- jadi yang berguna bagi Admin IT adalah umur sandi itu: yang
+            -- tidak pernah diganti sejak pemasangan adalah yang paling perlu
+            -- diurus lebih dulu.
+            (SELECT MAX(a.occurred_at) FROM audit_log a
+              WHERE a.entity_type = 'user' AND a.entity_id = u.id::text
+                AND a.action = 'password_reset') AS sandi_diganti
        FROM users u ORDER BY u.username`);
 });
 
@@ -37,7 +47,7 @@ export const POST = handler(async (req) => {
   }
   if (sandi.length < MIN_PANJANG) {
     throw new WorkflowError(
-      `Kata sandi minimal ${MIN_PANJANG} karakter.`, "validation", 422);
+      `Password minimal ${MIN_PANJANG} karakter.`, "validation", 422);
   }
 
   const target = await one<{ id: string; username: string; full_name: string }>(
@@ -48,6 +58,8 @@ export const POST = handler(async (req) => {
 
   await query("UPDATE users SET password_hash = $1 WHERE id = $2",
               [await hashPassword(sandi), target.id]);
+  // Salinan yang dapat dibaca kembali, untuk mengingatkan pemiliknya yang lupa.
+  await catatSandi(target.id, sandi);
 
   // Seluruh sesi yang sedang berjalan diputus. Mengganti sandi tanpa memutusnya
   // tidak mengusir siapa pun — dan mengganti sandi justru paling sering

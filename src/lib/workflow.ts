@@ -18,20 +18,15 @@ import type { PoolClient } from "pg";
 import * as calc from "./calc";
 import type { ClaimType, OverridingLevel, RecipientRole } from "./calc";
 import { audit, one, query, setting, settingInt, tx } from "./db";
+import { WorkflowError } from "./galat";
+import { kabariStatus } from "./pengingat";
 import * as sig from "./signature";
 import type { Stroke } from "./signature";
 
-export class WorkflowError extends Error {
-  constructor(
-    message: string,
-    public code = "workflow_conflict",
-    public status = 409,
-    public extra: Record<string, unknown> = {},
-  ) {
-    super(message);
-    this.name = "WorkflowError";
-  }
-}
+// Kelasnya pindah ke berkas daunnya sendiri agar tidak terjadi lingkaran
+// impor lewat pengingat/surel; diekspor kembali dari sini supaya seluruh
+// pemanggil lama tetap berjalan apa adanya.
+export { WorkflowError } from "./galat";
 
 export const TRANSITIONS: Record<string, string[]> = {
   draft: ["submitted", "cancelled"],
@@ -99,6 +94,13 @@ export async function transition(
     entityType: "claim", entityId: claimId, action: `status:${old}->${next}`,
     actor, before: { status: old }, after: { status: next }, reason,
   }, client);
+
+  // Pengingat ke peran yang kini menunggui klaim ini. Tidak ditunggu: surel
+  // yang lambat tidak boleh memperlambat orang yang baru saja menekan
+  // tombolnya, dan surel yang gagal tidak boleh membatalkan perpindahan
+  // statusnya. Diam sendiri bila pengiriman surel belum dikonfigurasi.
+  kabariStatus(next);
+
   return getClaim(claimId, client);
 }
 
@@ -270,13 +272,26 @@ export async function createClaim(params: {
     const prefix = { closing_fee: "CF", commission: "KMS", cash_reward: "CR",
                      continuity_reward: "CTR",
                      overriding: "OR" }[params.claimType];
-    const { count } = (await one<{ count: number }>(
-      "SELECT COUNT(*)::int AS count FROM claims WHERE claim_type=$1",
-      [params.claimType], c))!;
-    const number = `${prefix}-${new Date().getFullYear()}-${
-      String(count + 1).padStart(4, "0")}`;
-
-    try {
+    // Nomor klaim cuma label; ia tidak boleh menjadi patokan yang
+    // menghalangi pengajuan fee. Dulu nomornya dihitung dari COUNT(*), jadi
+    // begitu ada klaim yang dihapus (salah input) deretnya mundur dan
+    // menabrak nomor yang sudah ada — pengajuannya ikut gagal dengan galat
+    // claims_claim_number_key. Sekarang nomor diambil dari nomor tertinggi
+    // yang pernah terpakai, dikunci selama transaksi supaya dua pengajuan
+    // serentak tidak mengambil angka yang sama, dan kalau ternyata masih
+    // bentrok angkanya cukup dimajukan: pengajuannya tetap jalan.
+    await c.query("SELECT pg_advisory_xact_lock(hashtext($1))",
+                  [`claim_number:${params.claimType}`]);
+    const { tertinggi } = (await one<{ tertinggi: number }>(
+      `SELECT COALESCE(MAX(NULLIF(regexp_replace(claim_number, '^.*-', ''),
+                                  '')::int), 0)::int AS tertinggi
+         FROM claims
+        WHERE claim_type=$1
+          AND claim_number ~ ('^' || $2 || '-[0-9]{4}-[0-9]+$')`,
+      [params.claimType, prefix], c))!;
+    let urut = tertinggi;
+    let number = "";
+    const sisipkan = async () => {
       const claim = await one(
         `INSERT INTO claims (claim_number, claim_type, recipient_role, unit_id,
            marketing_id, bank_account_id, status, gross_amount, vat,
@@ -298,22 +313,39 @@ export async function createClaim(params: {
          // satu unit, dan bentuknya diperiksa supaya yang bukan UUID tidak
          // sampai ke basis data sebagai galat yang tidak terbaca.
          UUID.test(String(params.batchId ?? "")) ? params.batchId : null], c);
-
-      await audit({
-        entityType: "claim", entityId: claim!.id, action: "create",
-        actor: params.actor, after: { claim_number: number, net: r.net_amount },
-      }, c);
       return claim!;
-    } catch (err: any) {
-      // Ditegakkan UNIQUE INDEX parsial uniq_active_claim di basis data.
-      if (err?.code === "23505" && String(err.constraint).includes("uniq_active_claim")) {
-        throw new WorkflowError(
-          `Unit ini sudah memiliki klaim ${params.claimType} aktif untuk peran ` +
-          `${params.recipientRole}. Kombinasi peran lain tetap dapat diajukan.`,
-          "duplicate_claim",
-        );
+    };
+
+    for (let coba = 1; ; coba++) {
+      urut += 1;
+      number = `${prefix}-${new Date().getFullYear()}-${
+        String(urut).padStart(4, "0")}`;
+      await c.query("SAVEPOINT nomor_klaim");
+      try {
+        const claim = await sisipkan();
+        await c.query("RELEASE SAVEPOINT nomor_klaim");
+        await audit({
+          entityType: "claim", entityId: claim.id, action: "create",
+          actor: params.actor, after: { claim_number: number, net: r.net_amount },
+        }, c);
+        return claim;
+      } catch (err: any) {
+        await c.query("ROLLBACK TO SAVEPOINT nomor_klaim");
+        // Ditegakkan UNIQUE INDEX parsial uniq_active_claim di basis data.
+        if (err?.code === "23505" &&
+            String(err.constraint).includes("uniq_active_claim")) {
+          throw new WorkflowError(
+            `Unit ini sudah memiliki klaim ${params.claimType} aktif untuk peran ` +
+            `${params.recipientRole}. Kombinasi peran lain tetap dapat diajukan.`,
+            "duplicate_claim",
+          );
+        }
+        // Nomor sudah terpakai: maju satu, bukan menolak pengajuannya.
+        if (err?.code === "23505" &&
+            String(err.constraint ?? "").includes("claim_number") &&
+            coba <= 200) continue;
+        throw err;
       }
-      throw err;
     }
   });
 }
@@ -653,7 +685,11 @@ export async function submitSignature(params: {
       "UPDATE claims SET signed_at=now(), signature_score=$1 WHERE id=$2",
       [result.score, claim.id]);
     await transition(claim.id, "signed", "agent");
-    await transition(claim.id, "crosscheck_in_progress", "system");
+    // BERHENTI di "signed". Diteruskan ke Admin hanya oleh yang
+    // menandatangani, lewat tombolnya sendiri — lihat kirimKeAdmin(). Dulu
+    // kedua langkah ini terjadi sekaligus, sehingga formulir melesat ke Admin
+    // pada detik tanda tangannya diterima, sebelum yang menandatangani sempat
+    // melihat hasilnya menempel.
     return { outcome, score: result.score, threshold, attempt_number: attemptNo,
              attempts_remaining: 0, document_hash: hash, guidance: [],
              layers_used: result.layersUsed };
@@ -666,6 +702,64 @@ export async function submitSignature(params: {
            attempts_remaining: Math.max(0, maxAttempts - attemptNo),
            document_hash: null, guidance: result.guidance,
            layers_used: result.layersUsed };
+}
+
+/**
+ * Formulir yang sudah ditandatangani dikirim ke Admin — oleh agent, bukan
+ * oleh sistem.
+ *
+ * Tanda tangan yang diterima menyegel dokumennya dan menghentikan klaim di
+ * status "signed". Yang memindahkannya ke pemeriksaan Admin adalah tombol di
+ * layar tanda tangan, sesudah yang menandatangani melihat sendiri tanda
+ * tangannya menempel pada kolom Pemohon. Satu tombol itulah bedanya antara
+ * "sudah saya tanda tangani" dan "sudah saya periksa dan saya kirim".
+ *
+ * Dapat dipanggil dua kali tanpa akibat: ketukan kedua pada tombol yang sama,
+ * atau halaman yang dimuat ulang sesudah terkirim, tidak boleh berakhir
+ * sebagai galat di layar orang luar.
+ */
+/**
+ * Sesi yang tanda tangannya sudah diterima tetapi formulirnya belum dikirim.
+ *
+ * Bagi openSession() sesi semacam itu sudah tertutup, dan dulu memang tidak
+ * ada lagi yang perlu dikerjakan di sana. Sekarang ada satu: menekan kirim.
+ * Tanpa jalan ini, halaman yang dimuat ulang sesudah tanda tangan — ponsel
+ * yang terkunci, tautan yang dibuka lagi — menampilkan "Tautan tidak berlaku"
+ * sementara klaimnya tertinggal di 'signed' tanpa seorang pun dapat
+ * mengirimnya.
+ */
+export async function sesiMenungguKirim(token: string) {
+  const s = await one(
+    `SELECT s.* FROM signing_sessions s JOIN claims c ON c.id = s.claim_id
+      WHERE s.token=$1 AND s.state='verified' AND c.status='signed'`, [token]);
+  return s ?? null;
+}
+
+export async function kirimKeAdmin(token: string) {
+  // openSession() tidak dipakai di sini: sesi yang tanda tangannya sudah
+  // diterima bernilai 'verified', dan bagi openSession itu berarti tertutup.
+  // Justru sesi seperti itulah yang berhak menekan kirim — yang dijaga di
+  // bawah ini kebalikannya: sesi yang BELUM terverifikasi.
+  const s = await one("SELECT * FROM signing_sessions WHERE token=$1", [token]);
+  if (!s) throw new WorkflowError("Sesi tidak ditemukan.", "not_found", 404);
+  if (s.state !== "verified") {
+    throw new WorkflowError("Link sudah tidak berlaku.", "session_closed", 410);
+  }
+  const claim = await getClaim(s.claim_id);
+
+  if (claim.status === "crosscheck_in_progress") {
+    return { sent: true, already: true, status: claim.status };
+  }
+  if (claim.status !== "signed") {
+    throw new WorkflowError(
+      "Formulir ini belum ditandatangani, jadi belum dapat dikirim ke Admin.",
+      "belum_ditandatangani", 409);
+  }
+
+  await transition(claim.id, "crosscheck_in_progress", "agent");
+  await audit({ entityType: "claim", entityId: claim.id,
+                action: "sent_to_admin", actor: claim.marketing_id });
+  return { sent: true, already: false, status: "crosscheck_in_progress" };
 }
 
 export async function dispute(
