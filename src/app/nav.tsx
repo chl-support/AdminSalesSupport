@@ -66,15 +66,31 @@ const MENU: Butir[] = [
   // dipilih di dalam layar datanya, tempat penyaring lain juga berada.
   // Pengajuan Fee punya layarnya sendiri sekaligus anak: namanya tetap tautan
   // ke daftar pengajuannya, dan pelipatnya tombol tersendiri di sebelahnya.
-  { href: "/klaim", label: { id: "Pengajuan Fee", en: "Fee Submission" },
+  //
+  // Ketiganya satu rumpun karena ketiganya satu urusan yang sama, berurutan:
+  // pengajuan dibuat, dokumennya berjalan sampai disetujui, pembayarannya
+  // dicatat. Berdiri sendiri-sendiri di kolom menu, ketiganya terbaca sebagai
+  // tiga pekerjaan yang tidak berhubungan — padahal yang satu adalah
+  // kelanjutan yang lain.
+  //
+  // Rumpunnya tanpa href: ia nama, bukan layar. Tidak ada satu halaman pun
+  // yang memuat ketiganya sekaligus, dan menjadikannya tautan ke salah satu
+  // anaknya berarti dua butir menu mengantar ke tempat yang sama.
+  {
+    label: { id: "Pengajuan, Dokumen & Payment",
+             en: "Submission, Documents & Payment" },
     anak: [
-      { href: "/klaim/referensi",
-        label: { id: "Referensi Pengajuan", en: "Submission Reference" } },
-    ] },
-  { href: "/memo", label: { id: "Memo Approval", en: "Approval Memo" } },
-  { href: "/persetujuan",
-    label: { id: "Manajemen Alur Kerja Dokumen",
-             en: "Document Workflow Management" } },
+      { href: "/klaim", label: { id: "Pengajuan Fee", en: "Fee Submission" },
+        anak: [
+          { href: "/klaim/referensi",
+            label: { id: "Referensi Pengajuan", en: "Submission Reference" } },
+        ] },
+      { href: "/memo", label: { id: "Memo Approval", en: "Approval Memo" } },
+      { href: "/persetujuan",
+        label: { id: "Manajemen Alur Kerja Dokumen",
+                 en: "Document Workflow Management" } },
+    ],
+  },
   { href: "/laporan",
     label: { id: "Monitoring Laporan", en: "Marketing Report" } },
   // Administrasi sempat hilang dari menu saat susunannya ditata ulang, padahal
@@ -109,16 +125,26 @@ const boleh = (b: Butir, peran?: string) =>
  */
 export function indukDari(path: string):
     { href: string; label: Record<Bahasa, string> } | null {
-  for (const m of MENU) {
-    // Induk tanpa href dilewati: ia nama rumpun, bukan layar, jadi tidak ada
-    // tempat yang dapat dituju baris "kembali" di kepala halaman.
-    if (!m.href) continue;
-    if (m.anak?.some((a) => a.href &&
-                            (path === a.href || path.startsWith(a.href + "/")))) {
-      return { href: m.href, label: m.label };
+  // Ditelusuri sampai ke dasar, bukan hanya satu tingkat: sejak Pengajuan Fee
+  // masuk ke dalam rumpun, Referensi Pengajuan berada dua tingkat dari puncak,
+  // dan pencarian satu tingkat tidak akan menemukan induknya sama sekali.
+  const telusur = (daftar: Butir[]):
+      { href: string; label: Record<Bahasa, string> } | null => {
+    for (const m of daftar) {
+      const anak = m.anak ?? [];
+      // Induk tanpa href dilewati sebagai jawaban — ia nama rumpun, bukan
+      // layar, jadi tidak ada tempat yang dapat dituju baris "kembali" di
+      // kepala halaman. Anaknya tetap ditelusuri.
+      if (m.href && anak.some((a) => a.href && (path === a.href ||
+                                                path.startsWith(a.href + "/")))) {
+        return { href: m.href, label: m.label };
+      }
+      const dalam = telusur(anak);
+      if (dalam) return dalam;
     }
-  }
-  return null;
+    return null;
+  };
+  return telusur(MENU);
 }
 
 /**
@@ -188,71 +214,95 @@ export function Nav({ peran }: { peran?: string }) {
   // akan membuat "/klaim" terpilih bersamaan dengan "/klaim/komisi".
   const aktif = (href: string) => path === href || path.startsWith(href + "/");
 
-  return (
-    <nav className="nav">
-      {MENU.filter((m) => boleh(m, peran)).map((m) => {
-        const anak = (m.anak ?? []).filter((a) => boleh(a, peran));
-        // Rumpun tanpa lintasan sendiri yang seluruh anaknya tersembunyi oleh
-        // peran tidak menyisakan apa pun yang dapat ditekan — judulnya saja
-        // hanya menggantung sebagai kata yang tidak menuju ke mana-mana.
-        if (!m.href && !anak.length) return null;
+  /** Apakah rumpun ini memuat layar yang sedang dibuka, sampai ke dasarnya. */
+  const memuatAktif = (b: Butir): boolean =>
+    (b.anak ?? []).some((a) => (a.href && aktif(a.href)) || memuatAktif(a));
 
-        const kunci = m.href ?? m.label.id;
-        const idAnak = `submenu-${kunci.replace(/[^a-zA-Z0-9]+/g, "-")}`;
-        // Rumpun yang memuat halaman yang sedang dibuka dipaksa terbuka. Menu
-        // yang menyembunyikan justru baris yang sedang menyala membuat orang
-        // kehilangan letaknya sendiri di dalam sistem.
-        const memuatYangAktif = anak.some((a) => aktif(a.href!));
-        const terbuka = memuatYangAktif || !tertutup.includes(kunci);
-        const nama = m.label[bahasa];
+  /**
+   * Satu butir menu, beserta anak-anaknya.
+   *
+   * Memanggil dirinya sendiri, bukan dua penggambar yang masing-masing tahu
+   * satu tingkat: sejak Pengajuan Fee masuk ke dalam rumpun, menunya tiga
+   * tingkat dalam — dan penggambar yang hanya tahu dua tingkat akan diam-diam
+   * membuang Referensi Pengajuan alih-alih mengeluh.
+   */
+  const gambar = (m: Butir, dalam: boolean): React.ReactNode => {
+    const anak = (m.anak ?? []).filter((a) => boleh(a, peran));
+    // Rumpun tanpa lintasan sendiri yang seluruh anaknya tersembunyi oleh
+    // peran tidak menyisakan apa pun yang dapat ditekan — judulnya saja
+    // hanya menggantung sebagai kata yang tidak menuju ke mana-mana.
+    if (!m.href && !anak.length) return null;
 
-        return (
-          <div key={kunci} className="grup">
-            {m.href ? (
-              /* Punya layarnya sendiri: namanya tetap tautan, dan pelipatnya
-                 tombol tersendiri di sebelahnya. Menjadikan seluruh barisnya
-                 pelipat berarti menu ini tidak lagi dapat dibuka dengan
-                 menekan namanya. */
-              <div className="grup-baris">
-                <Link href={m.href} className={path === m.href ? "active" : ""}
-                      aria-current={path === m.href ? "page" : undefined}>
-                  {nama}
-                </Link>
-                {anak.length > 0 && (
-                  <button type="button" className="grup-lipat"
-                          aria-expanded={terbuka} aria-controls={idAnak}
-                          aria-label={terbuka ? bantu.tutup(nama) : bantu.buka(nama)}
-                          onClick={() => lipat(kunci)}>
-                    <IkonLipat terbuka={terbuka} />
-                  </button>
-                )}
-              </div>
-            ) : (
-              /* Tidak punya layar sendiri: seluruh barisnya jadi pelipat. Nama
-                 rumpun yang tidak menuju ke mana-mana tetapi juga tidak dapat
-                 ditekan hanya menggantung sebagai kata mati. */
-              <button type="button" className="grup-judul"
+    const nama = m.label[bahasa];
+
+    // Daun di dalam rumpun: tautan telanjang. Membungkusnya sebagai rumpun
+    // berarti ia membawa jarak bawah dan bungkus yang tidak dipakainya.
+    if (dalam && !anak.length) {
+      return (
+        <Link key={m.href} href={m.href!}
+              className={aktif(m.href!) ? "active" : ""}
+              aria-current={aktif(m.href!) ? "page" : undefined}>
+          {nama}
+        </Link>
+      );
+    }
+
+    const kunci = m.href ?? m.label.id;
+    const idAnak = `submenu-${kunci.replace(/[^a-zA-Z0-9]+/g, "-")}`;
+    // Rumpun yang memuat halaman yang sedang dibuka dipaksa terbuka. Menu
+    // yang menyembunyikan justru baris yang sedang menyala membuat orang
+    // kehilangan letaknya sendiri di dalam sistem.
+    const terbuka = memuatAktif(m) || !tertutup.includes(kunci);
+
+    return (
+      <div key={kunci} className="grup">
+        {m.href ? (
+          /* Punya layarnya sendiri: namanya tetap tautan, dan pelipatnya
+             tombol tersendiri di sebelahnya. Menjadikan seluruh barisnya
+             pelipat berarti menu ini tidak lagi dapat dibuka dengan
+             menekan namanya.
+
+             Cocok persis, bukan `aktif`: Pengajuan Fee punya anak yang
+             lintasannya berawalan sama, dan `aktif` akan menyalakan induk
+             beserta anaknya sekaligus. */
+          <div className="grup-baris">
+            <Link href={m.href} className={path === m.href ? "active" : ""}
+                  aria-current={path === m.href ? "page" : undefined}>
+              {nama}
+            </Link>
+            {anak.length > 0 && (
+              <button type="button" className="grup-lipat"
                       aria-expanded={terbuka} aria-controls={idAnak}
+                      aria-label={terbuka ? bantu.tutup(nama) : bantu.buka(nama)}
                       onClick={() => lipat(kunci)}>
-                <span>{nama}</span>
                 <IkonLipat terbuka={terbuka} />
               </button>
             )}
-
-            {anak.length > 0 && (
-              <div className="anak" id={idAnak} hidden={!terbuka}>
-                {anak.map((a) => (
-                  <Link key={a.href} href={a.href!}
-                        className={aktif(a.href!) ? "active" : ""}
-                        aria-current={aktif(a.href!) ? "page" : undefined}>
-                    {a.label[bahasa]}
-                  </Link>
-                ))}
-              </div>
-            )}
           </div>
-        );
-      })}
+        ) : (
+          /* Tidak punya layar sendiri: seluruh barisnya jadi pelipat. Nama
+             rumpun yang tidak menuju ke mana-mana tetapi juga tidak dapat
+             ditekan hanya menggantung sebagai kata mati. */
+          <button type="button" className="grup-judul"
+                  aria-expanded={terbuka} aria-controls={idAnak}
+                  onClick={() => lipat(kunci)}>
+            <span>{nama}</span>
+            <IkonLipat terbuka={terbuka} />
+          </button>
+        )}
+
+        {anak.length > 0 && (
+          <div className="anak" id={idAnak} hidden={!terbuka}>
+            {anak.map((a) => gambar(a, true))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <nav className="nav">
+      {MENU.filter((m) => boleh(m, peran)).map((m) => gambar(m, false))}
     </nav>
   );
 }
