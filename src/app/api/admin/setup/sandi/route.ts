@@ -4,6 +4,7 @@ import { timingSafeEqual } from "node:crypto";
 import { handler, body } from "@/lib/api";
 import { hashPassword } from "@/lib/auth";
 import { audit, one, query } from "@/lib/db";
+import { catatSandi } from "@/lib/sandi-terlihat";
 
 /**
  * Memasang sandi baru untuk satu pengguna, lewat rahasia penyiapan.
@@ -76,6 +77,7 @@ export const POST = handler(async (req) => {
 
   await query("UPDATE users SET password_hash=$1, active=TRUE WHERE id=$2",
               [await hashPassword(sandi), user.id]);
+  await catatSandi(user.id, sandi);
   const sesi = await query<{ id: string }>(
     "DELETE FROM sessions WHERE user_id=$1 RETURNING id", [user.id]);
 

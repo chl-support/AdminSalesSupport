@@ -204,6 +204,38 @@ async function pasang(): Promise<void> {
   await query(
     "ALTER TABLE claims ADD COLUMN IF NOT EXISTS detail_keterangan TEXT");
 
+  // Salinan sandi yang dapat dibaca kembali Admin IT — tersandi, bukan polos.
+  // Lihat src/lib/sandi-terlihat.ts untuk apa yang ditukar dengannya.
+  await query(
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS password_enc TEXT");
+
+  // Surel pengguna: alamat yang menerima kode verifikasi "lupa kata sandi".
+  // Tanpa alamat ini, orang itu tidak punya jalan mengatur ulang sandinya
+  // sendiri — jadi layar Admin IT meminta mengisinya.
+  await query("ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT");
+  await query(
+    `CREATE UNIQUE INDEX IF NOT EXISTS uniq_users_email
+       ON users (lower(email)) WHERE email IS NOT NULL`);
+
+  // Permintaan atur ulang sandi. Kodenya disimpan sebagai hash, sama seperti
+  // sandi: basis data yang terbaca orang tidak boleh menyerahkan kode yang
+  // sedang berlaku.
+  await query(
+    `CREATE TABLE IF NOT EXISTS password_resets (
+       id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+       user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+       email       TEXT NOT NULL,
+       code_hash   TEXT NOT NULL,
+       attempts    INT  NOT NULL DEFAULT 0,
+       expires_at  TIMESTAMPTZ NOT NULL,
+       used_at     TIMESTAMPTZ,
+       ip_address  TEXT,
+       created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+     )`);
+  await query(
+    `CREATE INDEX IF NOT EXISTS idx_password_resets_email
+       ON password_resets (lower(email), created_at DESC)`);
+
   await query(
     `DO $$ BEGIN
        ALTER TABLE marketings ADD CONSTRAINT marketings_category_check

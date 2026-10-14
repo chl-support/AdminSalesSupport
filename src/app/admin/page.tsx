@@ -25,6 +25,7 @@ const rp = (n?: number | null) => `Rp ${(n ?? 0).toLocaleString("id-ID")}`;
 type Pengguna = {
   username: string; full_name: string; role: string; active: boolean;
   sesi_aktif: number; terakhir_masuk: string | null;
+  sandi_diganti: string | null; email: string | null;
 };
 
 type Hasil = {
@@ -167,6 +168,38 @@ const KATA = {
     akunJudul: "AKUN PENGGUNA",
     thUsername: "Username", thPeran: "Peran", thSesiAktif: "Sesi aktif",
     thTerakhirMasuk: "Terakhir masuk",
+    thSandiDiganti: "Sandi diganti",
+    thSandi: "Sandi",
+    thSurel: "Email",
+    surelKosong: "belum diisi",
+    surelLabel: "Email pengguna yang dipilih di atas",
+    phSurel: "nama@perusahaan.com",
+    simpanSurel: "Simpan email",
+    takDapatSurel: "Email tidak tersimpan",
+    surelCatatan:
+      "Ke alamat inilah kode verifikasi dikirim ketika pengguna menekan " +
+      "\"Lupa kata sandi\" di layar masuk. Tanpa email, ia tidak dapat " +
+      "mengatur ulang sandinya sendiri. Boleh dikosongkan, dan satu alamat " +
+      "hanya boleh dipakai satu akun.",
+    hasilSurel: (nama: string, username: string, surel: string | null) =>
+      surel
+        ? `Email ${nama} (${username}) disimpan: ${surel}.`
+        : `Email ${nama} (${username}) dikosongkan.`,
+    lihatSandi: "Lihat",
+    sembunyikan: "Sembunyikan",
+    sandiTakTerbaca: "belum tercatat",
+    sandiCatatan:
+      "Sandi hanya terbaca bila ia dipasang atau dipakai masuk sesudah " +
+      "kemampuan ini dinyalakan — sandi lama hanya tersimpan sebagai hash dan " +
+      "tidak dapat dikembalikan. Setiap pemunculan tercatat di jejak audit: " +
+      "siapa yang melihat, sandi siapa, dan kapan.",
+    sandiBawaan: "masih bawaan",
+    buatkanSandi: "Buatkan sandi acak",
+    salin: "Salin",
+    sandiSekali:
+      "Catat atau salin sekarang — sandi ini hanya dapat dibaca di sini. Yang " +
+      "tersimpan di basis data hanya hash-nya, dan hash tidak dapat " +
+      "dikembalikan menjadi sandi: bila hilang, pasang sandi baru lagi.",
     pengguna: "Pengguna", pilihPengguna: "— pilih pengguna —",
     sandiBaru: "Kata sandi baru (minimal 8 karakter)",
     gantiSandi: "Ganti sandi pengguna ini",
@@ -320,6 +353,38 @@ const KATA = {
     akunJudul: "USER ACCOUNTS",
     thUsername: "Username", thPeran: "Role", thSesiAktif: "Active sessions",
     thTerakhirMasuk: "Last sign-in",
+    thSandiDiganti: "Password changed",
+    thSandi: "Password",
+    thSurel: "Email",
+    surelKosong: "not set",
+    surelLabel: "Email for the user selected above",
+    phSurel: "name@company.com",
+    simpanSurel: "Save email",
+    takDapatSurel: "The email was not saved",
+    surelCatatan:
+      "This is where the verification code goes when the user taps \"Forgot " +
+      "password\" on the sign-in screen. Without an email they cannot reset " +
+      "their own password. May be left blank, and one address may belong to " +
+      "only one account.",
+    hasilSurel: (nama: string, username: string, surel: string | null) =>
+      surel
+        ? `Email for ${nama} (${username}) saved: ${surel}.`
+        : `Email for ${nama} (${username}) cleared.`,
+    lihatSandi: "Show",
+    sembunyikan: "Hide",
+    sandiTakTerbaca: "not recorded",
+    sandiCatatan:
+      "A password is readable only if it was set, or used to sign in, after " +
+      "this capability was switched on — older passwords are stored as a hash " +
+      "and cannot be recovered. Every reveal is written to the audit trail: " +
+      "who looked, whose password, and when.",
+    sandiBawaan: "still the default",
+    buatkanSandi: "Generate a random password",
+    salin: "Copy",
+    sandiSekali:
+      "Write it down or copy it now — this password can only be read here. " +
+      "What the database stores is its hash, and a hash cannot be turned back " +
+      "into a password: if it is lost, set a new one.",
     pengguna: "User", pilihPengguna: "— pick a user —",
     sandiBaru: "New password (at least 8 characters)",
     gantiSandi: "Change this user's password",
@@ -382,10 +447,21 @@ export default function AdminPage() {
   const [target, setTarget] = useState("");
   const [sandiBaru, setSandiBaru] = useState("");
   const [usernameBaru, setUsernameBaru] = useState("");
+  const [surelBaru, setSurelBaru] = useState("");
+  const [hasilSurel, setHasilSurel] = useState<string | null>(null);
+  const [galatSurel, setGalatSurel] = useState<string | null>(null);
   const [hasilNama, setHasilNama] = useState<string | null>(null);
   const [galatNama, setGalatNama] = useState<string | null>(null);
   const [hasilSandi, setHasilSandi] = useState<string | null>(null);
   const [galatSandi, setGalatSandi] = useState<string | null>(null);
+  // Sandi yang baru saja dipasang, ditampilkan sekali untuk diserahkan kepada
+  // penggunanya. Hanya di state layar ini — tidak disimpan ke mana pun.
+  const [sandiDipasang, setSandiDipasang] = useState<string | null>(null);
+  // Sandi yang sedang dimunculkan di tabel, per username. Nilai null berarti
+  // sudah diminta tetapi tidak dapat dibaca — dibedakan dari belum diminta,
+  // yang tidak punya kuncinya sama sekali di sini.
+  const [sandiTerlihat, setSandiTerlihat] =
+    useState<Record<string, string | null>>({});
 
   // ── Sandi sendiri ──
   // Kalibrasi ambang tanda tangan.
@@ -579,6 +655,61 @@ export default function AdminPage() {
     void muatPengguna();
   };
 
+  const simpanSurel = async () => {
+    setGalatSurel(null);
+    setHasilSurel(null);
+    const res = await fetch("/api/admin/users/email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: target, email: surelBaru.trim() }),
+    });
+    const b = await res.json().catch(() => ({}));
+    if (!res.ok) { setGalatSurel(b.detail ?? b.title ?? `HTTP ${res.status}`); return; }
+    setHasilSurel(k.hasilSurel(b.full_name, b.username, b.email));
+    void muatPengguna();
+  };
+
+  /**
+   * Memunculkan sandi satu pengguna.
+   *
+   * Diambil saat diminta, bukan ikut terbawa daftar akun, dan tiap
+   * permintaannya tercatat di jejak audit di sisi server.
+   */
+  const lihatSandi = async (username: string) => {
+    const res = await fetch(
+      `/api/admin/users/sandi?username=${encodeURIComponent(username)}`);
+    const b = await res.json().catch(() => ({}));
+    if (!res.ok) { setGalatSandi(b.detail ?? b.title ?? `HTTP ${res.status}`); return; }
+    setSandiTerlihat((s) => ({ ...s, [username]: b.password ?? null }));
+  };
+
+  const tutupSandi = (username: string) =>
+    setSandiTerlihat((s) => {
+      const lain = { ...s };
+      delete lain[username];
+      return lain;
+    });
+
+  /**
+   * Sandi acak yang kuat, dibangkitkan di peramban Admin IT.
+   *
+   * Ada karena sandi yang dikarang sendiri di tempat cenderung seragam dan
+   * mudah ditebak — "sales2026" untuk semua orang — sementara yang dipakai di
+   * sini memberi akses ke angka pembayaran. Dibangkitkan dari
+   * crypto.getRandomValues, bukan Math.random yang dapat diramal.
+   */
+  const buatkanSandi = () => {
+    const huruf = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
+    const acak = new Uint32Array(14);
+    crypto.getRandomValues(acak);
+    // Dipecah tiga dengan strip: lebih mudah dibacakan lewat telepon, dan
+    // panjangnya tetap.
+    const inti = Array.from(acak, (n) => huruf[n % huruf.length]).join("");
+    setSandiBaru(`${inti.slice(0, 5)}-${inti.slice(5, 10)}-${inti.slice(10)}`);
+    setHasilSandi(null);
+    setGalatSandi(null);
+  };
+
   const gantiSandiOrang = async () => {
     setGalatSandi(null);
     setHasilSandi(null);
@@ -589,6 +720,11 @@ export default function AdminPage() {
     });
     const b = await res.json().catch(() => ({}));
     if (!res.ok) { setGalatSandi(b.detail ?? b.title ?? `HTTP ${res.status}`); return; }
+    // Sandinya disebutkan sekali di sini, pada layar orang yang baru saja
+    // memasangnya — itulah satu-satunya saat ia dapat dibaca. Sesudah ini yang
+    // tersimpan hanya hash-nya, dan tidak ada cara mengembalikannya menjadi
+    // sandi; yang dapat dilakukan hanyalah memasang yang baru lagi.
+    setSandiDipasang(sandiBaru);
     setHasilSandi(k.hasilSandi(b.full_name, b.username, b.sesi_diputus));
     setSandiBaru("");
     void muatPengguna();
@@ -1139,21 +1275,69 @@ export default function AdminPage() {
                 <table><tbody>
                   <tr>
                     <th>{k.thUsername}</th><th>{k.thNama}</th><th>{k.thPeran}</th>
-                    <th>{k.thSesiAktif}</th><th>{k.thTerakhirMasuk}</th>
+                    {/* Sesi aktif rata tengah: ia penanda keadaan — nol atau
+                        beberapa — bukan angka yang dijumlah, jadi tidak ikut
+                        dirapatkan ke kanan. */}
+                    <th style={{ textAlign: "center" }}>{k.thSesiAktif}</th>
+                    <th>{k.thTerakhirMasuk}</th>
+                    <th>{k.thSurel}</th>
+                    <th>{k.thSandiDiganti}</th>
+                    <th>{k.thSandi}</th>
                   </tr>
                   {pengguna.map((u) => (
                     <tr key={u.username}>
                       <td><code>{u.username}</code></td>
                       <td>{u.full_name}</td>
                       <td>{labelPeran(u.role, bahasa)}</td>
-                      <td className="n">{u.sesi_aktif}</td>
+                      <td style={{ textAlign: "center" }}>{u.sesi_aktif}</td>
                       <td>{u.terakhir_masuk
                         ? String(u.terakhir_masuk).slice(0, 19).replace("T", " ")
                         : <span style={{ color: "var(--mut)" }}>{k.belumPernah}</span>}</td>
+                      {/* Sandinya sendiri tidak dapat ditampilkan: yang
+                          tersimpan hash satu arah. Yang dapat ditampilkan —
+                          dan yang sebenarnya berguna — kapan ia terakhir
+                          diganti. Yang masih "bawaan pemasangan" adalah yang
+                          paling perlu diurus lebih dulu. */}
+                      {/* Surel: ke sinilah kode "lupa kata sandi" dikirim,
+                          jadi yang kosong berarti orang itu belum punya jalan
+                          kembali tanpa menghubungi Admin IT. */}
+                      <td>{u.email
+                        ? u.email
+                        : <span style={{ color: "var(--stop)" }}>{k.surelKosong}</span>}</td>
+                      <td>{u.sandi_diganti
+                        ? String(u.sandi_diganti).slice(0, 19).replace("T", " ")
+                        : <span style={{ color: "var(--stop)" }}>{k.sandiBawaan}</span>}</td>
+                      {/* Sandinya diambil satu per satu saat diminta, bukan
+                          ikut terbawa daftar akun: daftar ini dimuat tiap kali
+                          layar dibuka, dan seluruh sandi tidak perlu melintas
+                          setiap kali itu terjadi. Tiap pemunculan tercatat di
+                          jejak audit. */}
+                      <td style={{ whiteSpace: "nowrap" }}>
+                        {sandiTerlihat[u.username] !== undefined ? (
+                          <>
+                            <code style={{ fontSize: 13 }}>
+                              {sandiTerlihat[u.username] ?? k.sandiTakTerbaca}
+                            </code>{" "}
+                            <button type="button" style={{ fontSize: 11 }}
+                                    onClick={() => tutupSandi(u.username)}>
+                              {k.sembunyikan}
+                            </button>
+                          </>
+                        ) : (
+                          <button type="button" style={{ fontSize: 11 }}
+                                  onClick={() => void lihatSandi(u.username)}>
+                            {k.lihatSandi}
+                          </button>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody></table>
               </div>
+
+              <p className="hint" style={{ textAlign: "left", marginTop: 6 }}>
+                {k.sandiCatatan}
+              </p>
 
               <div className="filters" style={{ marginTop: 14 }}>
                 <div>
@@ -1169,8 +1353,16 @@ export default function AdminPage() {
                 </div>
                 <div>
                   <div className="lbl">{k.sandiBaru}</div>
-                  <input type="password" value={sandiBaru} autoComplete="new-password"
+                  {/* Dapat dibaca, bukan titik-titik: yang mengetik di sini
+                      Admin IT untuk orang lain, dan ia justru harus melihat
+                      apa yang akan diserahkannya. */}
+                  <input type="text" value={sandiBaru} autoComplete="off"
+                         spellCheck={false}
                          onChange={(e) => setSandiBaru(e.target.value)} />
+                  <button type="button" onClick={buatkanSandi}
+                          style={{ marginTop: 6, fontSize: 12.5 }}>
+                    {k.buatkanSandi}
+                  </button>
                 </div>
               </div>
 
@@ -1188,6 +1380,22 @@ export default function AdminPage() {
               {hasilSandi && (
                 <div className="banner ok" style={{ marginTop: 12, marginBottom: 0 }}>
                   <b>{k.berhasil}</b>{hasilSandi}
+                  {sandiDipasang && (
+                    <>
+                      <div style={{ marginTop: 8 }}>
+                        <code style={{ fontSize: 15, letterSpacing: ".04em" }}>
+                          {sandiDipasang}
+                        </code>{" "}
+                        <button type="button" style={{ fontSize: 12 }}
+                                onClick={() => {
+                                  void navigator.clipboard?.writeText(sandiDipasang);
+                                }}>
+                          {k.salin}
+                        </button>
+                      </div>
+                      <div style={{ marginTop: 4 }}>{k.sandiSekali}</div>
+                    </>
+                  )}
                 </div>
               )}
               {galatSandi && (
@@ -1227,6 +1435,39 @@ export default function AdminPage() {
                 {galatNama && (
                   <div className="banner stop" style={{ marginTop: 12, marginBottom: 0 }}>
                     <b>{k.takDapatGantiUsername}</b>{galatNama}
+                  </div>
+                )}
+              </div>
+
+              {/* ── Surel pengguna ──────────────────────────────────────────
+                  Ke alamat inilah kode "lupa kata sandi" dikirim. Diisi Admin
+                  IT, bukan oleh penggunanya sendiri: alamat yang dapat diganti
+                  dari dalam akun memindahkan jalan masuk itu ke tangan siapa
+                  pun yang sempat memakai komputer orang lain. */}
+              <div style={{ borderTop: "1px solid var(--line)", marginTop: 16,
+                            paddingTop: 14 }}>
+                <div className="lbl">{k.surelLabel}</div>
+                <div className="row" style={{ marginBottom: 0 }}>
+                  <input value={surelBaru} autoComplete="off" type="email"
+                         placeholder={k.phSurel}
+                         style={{ minWidth: 260 }}
+                         onChange={(e) => setSurelBaru(e.target.value)} />
+                  <button disabled={!target} onClick={() => void simpanSurel()}>
+                    {k.simpanSurel}
+                  </button>
+                </div>
+                <p className="hint" style={{ textAlign: "left", marginTop: 6 }}>
+                  {k.surelCatatan}
+                </p>
+
+                {hasilSurel && (
+                  <div className="banner ok" style={{ marginTop: 12, marginBottom: 0 }}>
+                    <b>{k.berhasil}</b>{hasilSurel}
+                  </div>
+                )}
+                {galatSurel && (
+                  <div className="banner stop" style={{ marginTop: 12, marginBottom: 0 }}>
+                    <b>{k.takDapatSurel}</b>{galatSurel}
                   </div>
                 )}
               </div>
