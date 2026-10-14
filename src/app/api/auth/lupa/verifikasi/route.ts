@@ -37,7 +37,7 @@ export const POST = handler(async (req) => {
   }
   if (sandi.length < MIN_PANJANG) {
     throw new WorkflowError(
-      `Kata sandi baru minimal ${MIN_PANJANG} karakter.`, "validation", 422);
+      `Password baru minimal ${MIN_PANJANG} karakter.`, "validation", 422);
   }
 
   const minta = await one<{
@@ -51,7 +51,7 @@ export const POST = handler(async (req) => {
 
   if (!minta) {
     throw new WorkflowError(
-      "Tidak ada permintaan ganti sandi yang masih berlaku untuk alamat ini. " +
+      "Tidak ada permintaan ganti Password yang masih berlaku untuk alamat ini. " +
       "Minta kode baru.", "tidak_ada_permintaan", 404);
   }
   if (minta.kedaluwarsa) {

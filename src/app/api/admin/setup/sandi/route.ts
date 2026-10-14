@@ -59,7 +59,7 @@ export const POST = handler(async (req) => {
   // ini biasanya dipakai berbulan-bulan sesudahnya.
   if (sandi.length < 10) {
     return NextResponse.json(
-      { detail: "Sandi baru minimal 10 karakter." }, { status: 422 });
+      { detail: "Password baru minimal 10 karakter." }, { status: 422 });
   }
 
   const user = await one<{ id: string; username: string; full_name: string;
@@ -100,7 +100,7 @@ export const POST = handler(async (req) => {
     role: user.role,
     sessions_closed: sesi.length,
     lockout_cleared: gagal.length,
-    reminder: "Sandi terpasang. Hapus SETUP_SECRET dari Environment Variables " +
+    reminder: "Password terpasang. Hapus SETUP_SECRET dari Environment Variables " +
               "lalu Redeploy, agar jalur ini kembali tidak aktif.",
   };
 }, { publik: true });

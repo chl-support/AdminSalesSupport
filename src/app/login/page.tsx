@@ -54,8 +54,8 @@ const KATA = {
     pengantar: "Gunakan akun yang diberikan Admin IT untuk melanjutkan.",
     username: "Username",
     sandi: "Password",
-    lihatSandi: "Tampilkan kata sandi",
-    sembunyikanSandi: "Sembunyikan kata sandi",
+    lihatSandi: "Tampilkan Password",
+    sembunyikanSandi: "Sembunyikan Password",
     memeriksa: "Memeriksa…",
     tombolMasuk: "Masuk",
     gagalJudul: "Tidak dapat masuk",
@@ -72,28 +72,28 @@ const KATA = {
     lupaTautan: "Lupa Password",
     atau: "atau",
     hubungi: "Hubungi Admin IT",
-    lupaJudul: "Ganti kata sandi",
+    lupaJudul: "Ganti Password",
     lupaPengantar:
       "Masukkan alamat email Anda yang terdaftar. Kami mengirim kode " +
-      "verifikasi ke sana, lalu Anda menentukan kata sandi baru.",
+      "verifikasi ke sana, lalu Anda menentukan Password baru.",
     lupaSurel: "Email terdaftar",
     lupaKirim: "Kirim kode",
     lupaMengirim: "Mengirim…",
     lupaKode: "Kode 6 digit dari email",
-    lupaSandiBaru: "Kata sandi baru (minimal 10 karakter)",
-    lupaSimpan: "Simpan kata sandi baru",
+    lupaSandiBaru: "Password baru (minimal 10 karakter)",
+    lupaSimpan: "Simpan Password baru",
     lupaMenyimpan: "Menyimpan…",
     lupaKodeTerkirim: (menit: number) =>
       `Bila alamat itu terdaftar, kode verifikasi sudah dikirim ke sana. ` +
       `Kode berlaku ${menit} menit. Periksa juga folder spam.`,
     lupaSelesai:
-      "Kata sandi Anda sudah diganti. Silakan masuk dengan kata sandi baru.",
+      "Password Anda sudah diganti. Silakan masuk dengan Password baru.",
     lupaGagal: "Tidak dapat melanjutkan",
     lupaKodeLain: "Minta kode lagi",
     kontakJudul: "Kontak Admin IT",
     kontakPengantar:
       "Silakan menghubungi kontak di bawah ini untuk mengatur ulang username " +
-      "atau kata sandi Anda:",
+      "atau Password Anda:",
     kontakKosong:
       "Kontak Admin IT belum diisi. Hubungi lewat jalur yang biasa Anda pakai.",
     tutup: "Tutup",

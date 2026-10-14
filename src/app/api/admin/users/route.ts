@@ -47,7 +47,7 @@ export const POST = handler(async (req) => {
   }
   if (sandi.length < MIN_PANJANG) {
     throw new WorkflowError(
-      `Kata sandi minimal ${MIN_PANJANG} karakter.`, "validation", 422);
+      `Password minimal ${MIN_PANJANG} karakter.`, "validation", 422);
   }
 
   const target = await one<{ id: string; username: string; full_name: string }>(

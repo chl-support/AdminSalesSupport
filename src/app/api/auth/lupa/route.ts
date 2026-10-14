@@ -68,14 +68,14 @@ export const POST = handler(async (req) => {
 
     await kirimSurel({
       kepada: email,
-      perihal: `Kode verifikasi ganti kata sandi — ${kode}`,
+      perihal: `Kode verifikasi ganti Password — ${kode}`,
       isi:
         `Halo ${user.full_name},\n\n` +
-        `Kode verifikasi untuk mengganti kata sandi akun "${user.username}" ` +
+        `Kode verifikasi untuk mengganti Password akun "${user.username}" ` +
         `adalah:\n\n    ${kode}\n\n` +
         `Kode ini berlaku ${MENIT_BERLAKU} menit. Masukkan pada layar masuk, ` +
-        `lalu tentukan kata sandi baru Anda.\n\n` +
-        `Bila bukan Anda yang meminta, abaikan surel ini — kata sandi Anda ` +
+        `lalu tentukan Password baru Anda.\n\n` +
+        `Bila bukan Anda yang meminta, abaikan surel ini — Password Anda ` +
         `tidak berubah selama kode ini tidak dipakai. Beri tahu Admin IT bila ` +
         `surel seperti ini datang berulang kali.\n`,
     });
@@ -83,7 +83,7 @@ export const POST = handler(async (req) => {
     await audit({
       entityType: "user", entityId: user.id, action: "password_reset_requested",
       actor: user.username, ip,
-      reason: "Kode verifikasi ganti sandi dikirim ke surel terdaftar.",
+      reason: "Kode verifikasi ganti Password dikirim ke surel terdaftar.",
     });
   }
 
