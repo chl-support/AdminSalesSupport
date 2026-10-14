@@ -23,7 +23,7 @@
  * tidak pernah datang.
  */
 
-import { WorkflowError } from "./workflow";
+import { WorkflowError } from "./galat";
 
 export function surelSiap(): boolean {
   return Boolean(process.env.RESEND_API_KEY && process.env.SUREL_PENGIRIM);

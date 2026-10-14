@@ -18,20 +18,15 @@ import type { PoolClient } from "pg";
 import * as calc from "./calc";
 import type { ClaimType, OverridingLevel, RecipientRole } from "./calc";
 import { audit, one, query, setting, settingInt, tx } from "./db";
+import { WorkflowError } from "./galat";
+import { kabariStatus } from "./pengingat";
 import * as sig from "./signature";
 import type { Stroke } from "./signature";
 
-export class WorkflowError extends Error {
-  constructor(
-    message: string,
-    public code = "workflow_conflict",
-    public status = 409,
-    public extra: Record<string, unknown> = {},
-  ) {
-    super(message);
-    this.name = "WorkflowError";
-  }
-}
+// Kelasnya pindah ke berkas daunnya sendiri agar tidak terjadi lingkaran
+// impor lewat pengingat/surel; diekspor kembali dari sini supaya seluruh
+// pemanggil lama tetap berjalan apa adanya.
+export { WorkflowError } from "./galat";
 
 export const TRANSITIONS: Record<string, string[]> = {
   draft: ["submitted", "cancelled"],
@@ -99,6 +94,13 @@ export async function transition(
     entityType: "claim", entityId: claimId, action: `status:${old}->${next}`,
     actor, before: { status: old }, after: { status: next }, reason,
   }, client);
+
+  // Pengingat ke peran yang kini menunggui klaim ini. Tidak ditunggu: surel
+  // yang lambat tidak boleh memperlambat orang yang baru saja menekan
+  // tombolnya, dan surel yang gagal tidak boleh membatalkan perpindahan
+  // statusnya. Diam sendiri bila pengiriman surel belum dikonfigurasi.
+  kabariStatus(next);
+
   return getClaim(claimId, client);
 }
 

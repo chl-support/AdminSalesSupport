@@ -832,6 +832,17 @@ ul.cetak-ceklis .kotak { border: 1px solid var(--ink); width: 14px; height: 14px
 .profil > button { width: 100%; padding: 8px 10px; font-size: 12.5px;
                    border-radius: 6px; }
 
+/* Kontak Admin IT, menyisip di bawah tombolnya. Ia dibuka hanya ketika
+   diperlukan, jadi mendorong turun isi panel di bawahnya tidak mengganggu
+   apa pun — tidak ada apa-apa lagi di bawahnya. */
+.kontak-menu { display: flex; flex-direction: column; gap: 6px;
+               margin-top: 8px; padding-top: 9px;
+               border-top: 1px solid var(--line); font-size: 12.5px; }
+.kontak-menu a { display: flex; align-items: center; gap: 7px;
+                 color: var(--ink); text-decoration: none; }
+.kontak-menu a:hover { text-decoration: underline; }
+.kontak-menu span { color: var(--sub); }
+
 /* Di layar sempit semuanya menumpuk: merek di atas, menu mendatar, lalu isi.
    Kolom 194px pada layar 390px tidak menyisakan tempat untuk apa pun. */
 @media (max-width: 900px) {
