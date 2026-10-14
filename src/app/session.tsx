@@ -18,9 +18,13 @@ import { TombolBahasa, useBahasa } from "./bahasa";
 
 export type Sesi = {
   username: string; full_name: string; role: string;
+  /** Alamat surelnya sendiri, bila sudah ia daftarkan. */
+  email?: string | null;
   project_slug?: string | null;
   project_name?: string | null;
   project_company?: string | null;
+  /** Nomor WhatsApp pengirim project yang sedang dibuka. */
+  project_wa?: string | null;
 };
 
 /** Label yang dibaca manusia untuk tiap peran di basis data. */

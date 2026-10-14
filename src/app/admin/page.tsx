@@ -172,6 +172,45 @@ const KATA = {
     thSandi: "Password",
     thSurel: "Email",
     surelKosong: "belum diisi",
+    pjJudul: "PENGIRIM TIAP PROJECT",
+    pjCatatan:
+      "Nomor WhatsApp dan alamat email yang dipakai mengirim tautan tanda " +
+      "tangan kepada Sales/Agent project ini. Nomor WhatsApp hanya " +
+      "ditampilkan sebagai pengingat — nomor pengirim sebenarnya tetap nomor " +
+      "perangkat yang menekan tombolnya. Alamat email dipakai sungguhan: " +
+      "suratnya dikirim sistem dari alamat itu. Project yang tidak mengisinya " +
+      "memakai pengirim bawaan dari Environment Variables.",
+    pjProject: "Project", pjWa: "No. WhatsApp", pjSurel: "Email pengirim",
+    pjUser: "Akun Gmail", pjSandi: "App Password",
+    pjSandiPh: "diisi hanya bila hendak diganti",
+    pjPilih: "— pilih project —",
+    pjKosong: "belum diisi", pjAda: "terisi",
+    pjSimpan: "Simpan pengirim project",
+    pjTakTersimpan: "Pengirim tidak tersimpan",
+    pjTersimpan: (nama: string): string => `Pengirim project ${nama} disimpan.`,
+    surelLogJudul: "RIWAYAT PENGIRIMAN EMAIL",
+    surelAktif: "Pengiriman email aktif",
+    surelBelum: "Pengiriman email belum dikonfigurasi",
+    surelBelumIsi:
+      "Kode \"Lupa Password\" dan pengingat pekerjaan tidak akan terkirim. " +
+      "Pasang SUREL_PENGIRIM beserta SUREL_SMTP_USER dan SUREL_SMTP_PASS " +
+      "(Gmail), atau RESEND_API_KEY, pada Environment Variables di Vercel, " +
+      "lalu Redeploy.",
+    surelJalur: (j: string): string =>
+      j === "smtp" ? "Lewat SMTP." : "Lewat Resend.",
+    surelDari: "Dikirim atas nama:",
+    surelAkun: "Akun pengirim:",
+    surelLogKosong:
+      "Belum ada email yang dikirim sistem ini. Riwayatnya terisi sendiri " +
+      "begitu ada kode verifikasi atau pengingat pekerjaan yang dikirim.",
+    thWaktu: "Waktu", thTujuan: "Dikirim ke", thJenis: "Jenis",
+    thAkun: "Akun", thHasil: "Hasil",
+    terkirim: "terkirim", gagalKirim: "gagal",
+    jenisSurel: {
+      lupa_password: "Kode lupa Password",
+      verifikasi_email: "Verifikasi email",
+      pengingat: "Pengingat pekerjaan",
+    },
     surelLabel: "Email pengguna yang dipilih di atas",
     phSurel: "nama@perusahaan.com",
     simpanSurel: "Simpan email",
@@ -357,6 +396,45 @@ const KATA = {
     thSandi: "Password",
     thSurel: "Email",
     surelKosong: "not set",
+    pjJudul: "SENDER PER PROJECT",
+    pjCatatan:
+      "The WhatsApp number and email address used to send signing links to " +
+      "this project's Sales/Agents. The number is shown as a reminder only — " +
+      "the real sending number is always the device that taps the button. " +
+      "The email address is used for real: the system sends from it. " +
+      "Projects that leave it empty use the default sender from the " +
+      "environment variables.",
+    pjProject: "Project", pjWa: "WhatsApp number", pjSurel: "Sender email",
+    pjUser: "Gmail account", pjSandi: "App password",
+    pjSandiPh: "fill only to replace it",
+    pjPilih: "— pick a project —",
+    pjKosong: "not set", pjAda: "set",
+    pjSimpan: "Save project sender",
+    pjTakTersimpan: "The sender was not saved",
+    pjTersimpan: (nama: string): string => `Sender for ${nama} saved.`,
+    surelLogJudul: "EMAIL SENDING HISTORY",
+    surelAktif: "Email sending is active",
+    surelBelum: "Email sending is not configured",
+    surelBelumIsi:
+      "Forgot-password codes and work reminders will not go out. Set " +
+      "SUREL_PENGIRIM together with SUREL_SMTP_USER and SUREL_SMTP_PASS " +
+      "(Gmail), or RESEND_API_KEY, in the Vercel environment variables, then " +
+      "redeploy.",
+    surelJalur: (j: string): string =>
+      j === "smtp" ? "Over SMTP." : "Over Resend.",
+    surelDari: "Sent on behalf of:",
+    surelAkun: "Sending account:",
+    surelLogKosong:
+      "This system has not sent any email yet. The history fills itself as " +
+      "soon as a verification code or a work reminder goes out.",
+    thWaktu: "Time", thTujuan: "Sent to", thJenis: "Kind",
+    thAkun: "Account", thHasil: "Result",
+    terkirim: "sent", gagalKirim: "failed",
+    jenisSurel: {
+      lupa_password: "Forgot-password code",
+      verifikasi_email: "Email verification",
+      pengingat: "Work reminder",
+    },
     surelLabel: "Email for the user selected above",
     phSurel: "name@company.com",
     simpanSurel: "Save email",
@@ -447,6 +525,17 @@ export default function AdminPage() {
   const [target, setTarget] = useState("");
   const [sandiBaru, setSandiBaru] = useState("");
   const [usernameBaru, setUsernameBaru] = useState("");
+  const [surelLog, setSurelLog] = useState<any[]>([]);
+  const [surelStatus, setSurelStatus] = useState<any>(null);
+  // Pengirim per project: nomor WhatsApp dan alamat email tiap project.
+  const [pengirim, setPengirim] = useState<any[]>([]);
+  const [pjPilih, setPjPilih] = useState("");
+  const [pjWa, setPjWa] = useState("");
+  const [pjSurel, setPjSurel] = useState("");
+  const [pjUser, setPjUser] = useState("");
+  const [pjSandi, setPjSandi] = useState("");
+  const [pjHasil, setPjHasil] = useState<string | null>(null);
+  const [pjGalat, setPjGalat] = useState<string | null>(null);
   const [surelBaru, setSurelBaru] = useState("");
   const [hasilSurel, setHasilSurel] = useState<string | null>(null);
   const [galatSurel, setGalatSurel] = useState<string | null>(null);
@@ -486,6 +575,48 @@ export default function AdminPage() {
   }, [bolehKelola]);
 
   useEffect(() => { if (sesi) void muatPengguna(); }, [sesi, muatPengguna]);
+
+  // Riwayat pengiriman email. Dimuat sekali bersama daftar akun: ia dibaca
+  // ketika ada yang mengaku emailnya tidak sampai, dan itu pertanyaan yang
+  // datang tanpa aba-aba.
+  const muatSurelLog = useCallback(async () => {
+    if (!bolehKelola) return;
+    const res = await fetch("/api/admin/surel-log");
+    if (res.ok) setSurelLog(await res.json());
+  }, [bolehKelola]);
+
+  useEffect(() => { if (sesi) void muatSurelLog(); }, [sesi, muatSurelLog]);
+
+  const muatPengirim = useCallback(async () => {
+    if (!bolehKelola) return;
+    const res = await fetch("/api/admin/pengirim-project");
+    if (res.ok) setPengirim(await res.json());
+  }, [bolehKelola]);
+
+  useEffect(() => { if (sesi) void muatPengirim(); }, [sesi, muatPengirim]);
+
+  // Formulir mengikuti project yang dipilih. Sandi aplikasinya tidak pernah
+  // dikembalikan server, jadi kotaknya selalu mulai kosong: diisi hanya bila
+  // memang hendak diganti.
+  useEffect(() => {
+    const p = pengirim.find((x) => x.id === pjPilih);
+    setPjWa(p?.wa_pengirim ?? "");
+    setPjSurel(p?.surel_pengirim ?? "");
+    setPjUser(p?.smtp_user ?? "");
+    setPjSandi("");
+    setPjHasil(null); setPjGalat(null);
+  }, [pjPilih, pengirim]);
+
+  // Keadaan pengiriman email sebagaimana terbaca fungsi yang sedang berjalan.
+  // Dipisah dari riwayat: yang satu menjawab "apakah sudah terpasang", yang
+  // lain "apa yang terjadi pada kiriman kemarin".
+  useEffect(() => {
+    if (!sesi || !bolehKelola) return;
+    fetch("/api/admin/surel-status")
+      .then((r) => (r.ok ? r.json() : null))
+      .then(setSurelStatus)
+      .catch(() => setSurelStatus(null));
+  }, [sesi, bolehKelola]);
 
   const muatKalibrasi = useCallback(async () => {
     if (!bolehKelola) return;
@@ -653,6 +784,23 @@ export default function AdminPage() {
     setUsernameBaru("");
     setTarget(b.username);
     void muatPengguna();
+  };
+
+  const simpanPengirim = async () => {
+    setPjGalat(null); setPjHasil(null);
+    const res = await fetch("/api/admin/pengirim-project", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        project_id: pjPilih, wa_pengirim: pjWa.trim(),
+        surel_pengirim: pjSurel.trim(), smtp_user: pjUser.trim(),
+        smtp_pass: pjSandi,
+      }),
+    });
+    const b = await res.json().catch(() => ({}));
+    if (!res.ok) { setPjGalat(b.detail ?? b.title ?? `HTTP ${res.status}`); return; }
+    setPjHasil(k.pjTersimpan(b.project));
+    setPjSandi("");
+    void muatPengirim();
   };
 
   const simpanSurel = async () => {
@@ -1469,6 +1617,154 @@ export default function AdminPage() {
                   <div className="banner stop" style={{ marginTop: 12, marginBottom: 0 }}>
                     <b>{k.takDapatSurel}</b>{galatSurel}
                   </div>
+                )}
+              </div>
+
+              {/* ── Pengirim per project ────────────────────────────────────
+                  Tiap project diurus orang yang berbeda, dan Sales/Agent
+                  mengenali nomor serta alamat project-nya sendiri — bukan
+                  nomor siapa pun yang kebetulan bertugas hari itu. */}
+              <div style={{ borderTop: "1px solid var(--line)", marginTop: 16,
+                            paddingTop: 14 }}>
+                <h3 style={{ margin: "0 0 8px" }}>{k.pjJudul}</h3>
+                <p className="hint" style={{ textAlign: "left", marginTop: 0 }}>
+                  {k.pjCatatan}
+                </p>
+
+                <div className="tscroll">
+                  <table><tbody>
+                    <tr>
+                      <th>{k.pjProject}</th><th>{k.pjWa}</th>
+                      <th>{k.pjSurel}</th><th>{k.pjSandi}</th>
+                    </tr>
+                    {pengirim.map((p) => (
+                      <tr key={p.id}>
+                        <td>{p.name}</td>
+                        <td>{p.wa_pengirim
+                          ?? <span style={{ color: "var(--mut)" }}>{k.pjKosong}</span>}</td>
+                        <td>{p.surel_pengirim
+                          ?? <span style={{ color: "var(--mut)" }}>{k.pjKosong}</span>}</td>
+                        <td>{p.ada_sandi ? k.pjAda
+                          : <span style={{ color: "var(--mut)" }}>{k.pjKosong}</span>}</td>
+                      </tr>
+                    ))}
+                  </tbody></table>
+                </div>
+
+                <div className="filters" style={{ marginTop: 14 }}>
+                  <div>
+                    <div className="lbl">{k.pjProject}</div>
+                    <select value={pjPilih}
+                            onChange={(e) => setPjPilih(e.target.value)}>
+                      <option value="">{k.pjPilih}</option>
+                      {pengirim.map((p) => (
+                        <option key={p.id} value={p.id}>{p.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <div className="lbl">{k.pjWa}</div>
+                    <input value={pjWa} autoComplete="off"
+                           placeholder="0812-3456-7890"
+                           onChange={(e) => setPjWa(e.target.value)} />
+                  </div>
+                </div>
+
+                <div className="filters" style={{ marginTop: 10 }}>
+                  <div>
+                    <div className="lbl">{k.pjSurel}</div>
+                    <input value={pjSurel} autoComplete="off"
+                           placeholder="Admin Naraya <naraya@gmail.com>"
+                           onChange={(e) => setPjSurel(e.target.value)} />
+                  </div>
+                  <div>
+                    <div className="lbl">{k.pjUser}</div>
+                    <input value={pjUser} autoComplete="off" type="email"
+                           placeholder="naraya@gmail.com"
+                           onChange={(e) => setPjUser(e.target.value)} />
+                  </div>
+                  <div>
+                    <div className="lbl">{k.pjSandi}</div>
+                    <input value={pjSandi} autoComplete="off"
+                           placeholder={k.pjSandiPh}
+                           onChange={(e) => setPjSandi(e.target.value)} />
+                  </div>
+                </div>
+
+                <div className="row" style={{ marginTop: 12, marginBottom: 0 }}>
+                  <button className="pri" disabled={!pjPilih}
+                          onClick={() => void simpanPengirim()}>
+                    {k.pjSimpan}
+                  </button>
+                </div>
+
+                {pjHasil && (
+                  <div className="banner ok" style={{ marginTop: 12, marginBottom: 0 }}>
+                    <b>{k.berhasil}</b>{pjHasil}
+                  </div>
+                )}
+                {pjGalat && (
+                  <div className="banner stop" style={{ marginTop: 12, marginBottom: 0 }}>
+                    <b>{k.pjTakTersimpan}</b>{pjGalat}
+                  </div>
+                )}
+              </div>
+
+              {/* ── Riwayat pengiriman email ────────────────────────────────
+                  Dibaca ketika ada yang mengaku emailnya tidak sampai: di
+                  sinilah terbaca bedanya antara yang tidak pernah dikirim,
+                  yang terkirim ke alamat keliru, dan yang ditolak
+                  penyedianya — tiga keadaan dengan tiga perbaikan berbeda. */}
+              <div style={{ borderTop: "1px solid var(--line)", marginTop: 16,
+                            paddingTop: 14 }}>
+                <h3 style={{ margin: "0 0 8px" }}>{k.surelLogJudul}</h3>
+
+                {/* Keadaan pemasangannya, supaya tidak perlu mencoba kirim
+                    dulu untuk tahu apakah variabelnya sudah terbaca. */}
+                {surelStatus && (
+                  <div className={`banner ${surelStatus.aktif ? "ok" : "warn"}`}
+                       style={{ marginBottom: 10 }}>
+                    <b>{surelStatus.aktif ? k.surelAktif : k.surelBelum}</b>
+                    {surelStatus.aktif ? (
+                      <>
+                        {k.surelJalur(surelStatus.jalur)}
+                        <br />{k.surelDari} <b>{surelStatus.pengirim}</b>
+                        {surelStatus.jalur === "smtp" && (
+                          <>
+                            <br />{k.surelAkun} <b>{surelStatus.smtp_user}</b>
+                            {" · "}{surelStatus.smtp_host}:{surelStatus.smtp_port}
+                          </>
+                        )}
+                      </>
+                    ) : k.surelBelumIsi}
+                  </div>
+                )}
+                {surelLog.length ? (
+                  <div className="tscroll">
+                    <table><tbody>
+                      <tr>
+                        <th>{k.thWaktu}</th><th>{k.thTujuan}</th>
+                        <th>{k.thJenis}</th><th>{k.thAkun}</th>
+                        <th>{k.thHasil}</th>
+                      </tr>
+                      {surelLog.map((r, i) => (
+                        <tr key={i}>
+                          <td>{String(r.created_at).slice(0, 19).replace("T", " ")}</td>
+                          <td>{r.kepada}</td>
+                          <td>{k.jenisSurel[r.jenis as keyof typeof k.jenisSurel]
+                                 ?? r.jenis}</td>
+                          <td>{r.username ?? "—"}</td>
+                          <td style={{ color: r.berhasil ? "var(--ink)" : "var(--stop)" }}>
+                            {r.berhasil ? k.terkirim : (r.galat ?? k.gagalKirim)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody></table>
+                  </div>
+                ) : (
+                  <p className="hint" style={{ textAlign: "left", margin: 0 }}>
+                    {k.surelLogKosong}
+                  </p>
                 )}
               </div>
             </div>

@@ -88,7 +88,11 @@ export type SessionUser = {
   project_slug?: string | null;
   project_name?: string | null;
   project_company?: string | null;
+  /** Nomor WhatsApp pengirim project ini, bila Admin IT mengisinya. */
+  project_wa?: string | null;
   id: string; username: string; full_name: string; role: string;
+  /** Alamat surel terdaftar, bila pemiliknya sudah mendaftarkannya sendiri. */
+  email?: string | null;
 };
 
 /** Token disimpan sebagai hash; nilai aslinya hanya dikembalikan sekali. */
@@ -120,8 +124,10 @@ export async function userFromToken(token: string): Promise<SessionUser | null> 
   // lain tanpa ada yang menyadarinya.
   return await one<SessionUser>(
     `SELECT u.id, u.username, u.full_name, u.role,
+            NULLIF(to_jsonb(u) ->> 'email','') AS email,
             s.project_id, p.slug AS project_slug, p.name AS project_name,
-            p.company_name AS project_company
+            p.company_name AS project_company,
+            NULLIF(to_jsonb(p) ->> 'wa_pengirim','') AS project_wa
        FROM sessions s
        JOIN users u ON u.id = s.user_id
        LEFT JOIN projects p ON p.id = s.project_id

@@ -236,6 +236,57 @@ async function pasang(): Promise<void> {
     `CREATE INDEX IF NOT EXISTS idx_password_resets_email
        ON password_resets (lower(email), created_at DESC)`);
 
+  // Pendaftaran alamat surel oleh penggunanya sendiri: kode yang dikirim ke
+  // alamat yang diketiknya, untuk membuktikan alamat itu memang dapat ia buka.
+  await query(
+    `CREATE TABLE IF NOT EXISTS email_verifications (
+       id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+       user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+       email       TEXT NOT NULL,
+       code_hash   TEXT NOT NULL,
+       attempts    INT  NOT NULL DEFAULT 0,
+       expires_at  TIMESTAMPTZ NOT NULL,
+       used_at     TIMESTAMPTZ,
+       ip_address  TEXT,
+       created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+     )`);
+  await query(
+    `CREATE INDEX IF NOT EXISTS idx_email_verifications_user
+       ON email_verifications (user_id, created_at DESC)`);
+
+  // Riwayat pengiriman surel: kapan, ke alamat mana, untuk siapa, jenisnya
+  // apa, berhasil atau tidak. Tanpa catatan ini, "surelnya tidak sampai" tidak
+  // dapat dijawab selain dengan tebakan.
+  await query(
+    `CREATE TABLE IF NOT EXISTS surel_log (
+       id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+       kepada      TEXT NOT NULL,
+       perihal     TEXT NOT NULL,
+       jenis       TEXT NOT NULL,
+       user_id     UUID REFERENCES users(id) ON DELETE SET NULL,
+       berhasil    BOOLEAN NOT NULL,
+       galat       TEXT,
+       created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+     )`);
+  await query(
+    `CREATE INDEX IF NOT EXISTS idx_surel_log_waktu
+       ON surel_log (created_at DESC)`);
+
+  // Pengirim per project: nomor WhatsApp yang dipakai mengirim tautan ke
+  // Sales/Agent, dan alamat email beserta akun pengirimnya. Berada di basis
+  // data, bukan di Environment Variables, karena nilainya berbeda tiap
+  // project sementara environment hanya punya satu nilai untuk seluruh
+  // aplikasi. Sandi aplikasinya disandikan, bukan disimpan polos.
+  for (const kolom of ["wa_pengirim TEXT", "surel_pengirim TEXT",
+                       "smtp_user TEXT", "smtp_pass_enc TEXT",
+                       "smtp_host TEXT", "smtp_port INT"]) {
+    await query(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS ${kolom}`);
+  }
+
+  // Project yang bersangkutan pada riwayat pengiriman, supaya terbaca email
+  // mana yang keluar atas nama project mana.
+  await query("ALTER TABLE surel_log ADD COLUMN IF NOT EXISTS project_id UUID");
+
   await query(
     `DO $$ BEGIN
        ALTER TABLE marketings ADD CONSTRAINT marketings_category_check
