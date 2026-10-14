@@ -382,16 +382,17 @@ export function Nav({ peran }: { peran?: string }) {
      */
     const terbuka = dibuka.includes(kunci);
     /*
-     * Rumpun tertutup yang memuat halaman yang sedang dibuka diberi tanda.
-     * Inilah ganti dari pemaksaan itu: yang dibutuhkan orang bukan isi
-     * rumpunnya terhampar, melainkan tahu di rumpun mana ia sedang berada —
-     * dan satu batang emas di tepi judulnya sudah menjawab itu tanpa membuka
-     * apa pun.
+     * Rumpun tertutup yang memuat halaman sedang dibuka sempat diberi batang
+     * emas di tepi judulnya, sebagai ganti pemaksaan membuka. Dilepas lagi:
+     * batang itu membuat satu rumpun tampak berbeda dari tetangganya, dan
+     * yang terbaca lebih dahulu adalah perbedaan itu.
+     *
+     * Yang hilang karenanya kecil. Sejak isi layar ikut tertutup bersama
+     * rumpunnya, tidak ada lagi halaman yang terlihat di balik menu yang
+     * tertutup — tidak ada letak yang dapat hilang.
      */
-    const tandai = !terbuka && memuatAktif(m);
-
     return (
-      <div key={kunci} className={`grup${tandai ? " ada-aktif" : ""}`}>
+      <div key={kunci} className="grup">
         {m.href ? (
           /* Punya layarnya sendiri: namanya tetap tautan, dan pelipatnya
              tombol tersendiri di sebelahnya. Menjadikan seluruh barisnya
