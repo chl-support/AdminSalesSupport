@@ -38,6 +38,8 @@ const KATA = {
     fSkema: "Cara Bayar",
     fDiskon: "Diskon (%)",
     fBunga: "Bunga KPR (%)",
+    cetakKonsumen: "Preview & Print Out — Konsumen",
+    cetakManagement: "Preview & Print Out — Management",
     rTipe: "Tipe", rLt: "Luas Tanah", rLb: "Luas Bangunan",
     rPricelist: "Harga Price List", rDiskon: "Diskon",
     rTransaksi: "Harga Transaksi",
@@ -84,6 +86,8 @@ const KATA = {
     fSkema: "Payment Scheme",
     fDiskon: "Discount (%)",
     fBunga: "Mortgage Rate (%)",
+    cetakKonsumen: "Preview & Print Out — Customer",
+    cetakManagement: "Preview & Print Out — Management",
     rTipe: "Type", rLt: "Land Area", rLb: "Building Area",
     rPricelist: "List Price", rDiskon: "Discount",
     rTransaksi: "Transaction Price",
@@ -275,6 +279,19 @@ export default function SimulasiPage() {
             <input value={bunga} inputMode="decimal"
                    onChange={(e) => setBunga(e.target.value)} />
           </div>
+        </div>
+        {/* Lembar cetak dibuka di tab tersendiri, membawa masukan di atas
+            lewat alamatnya; angkanya dihitung ulang dengan hitung() yang sama. */}
+        <div className="row" style={{ marginTop: 12, marginBottom: 0 }}>
+          {(["konsumen", "management"] as const).map((jenis) => (
+            <button key={jenis} disabled={!hasil}
+                    onClick={() => window.open(`/simulasi/cetak?${new URLSearchParams({
+                      jenis, kode, skema, tanggal,
+                      diskon: String(angka(diskon)), bunga: String(angka(bunga)),
+                    })}`, "_blank")}>
+              {jenis === "konsumen" ? k.cetakKonsumen : k.cetakManagement}
+            </button>
+          ))}
         </div>
       </div>
 
