@@ -19,23 +19,13 @@ import { useBahasa } from "./bahasa";
 import { DaftarEmail } from "./daftar-email";
 import { KabarMenunggu } from "./kabar-menunggu";
 import { Logo, LogoProject } from "./logo";
-import { Nav, PenyediaMenu, indukDari, useLayarTampil } from "./nav";
+import { Nav, indukDari, useLayarTampil } from "./nav";
 import { BilahPengguna, type Sesi } from "./session";
 
-export function Kerangka(props: {
-  sesi: Sesi; judul: React.ReactNode; children: React.ReactNode;
-  /** Layar yang tabelnya memang lebar; lihat `.konsol.lebar`. */
-  lebar?: boolean;
-}) {
-  // Penyedianya di sini, isinya di komponen tersendiri: keadaan lipatan dibaca
-  // oleh kerangka itu sendiri, dan komponen tidak dapat membaca konteks yang
-  // ia sediakan sendiri.
-  return <PenyediaMenu><IsiKerangka {...props} /></PenyediaMenu>;
-}
-
-function IsiKerangka(
+export function Kerangka(
   { sesi, judul, children, lebar }:
   { sesi: Sesi; judul: React.ReactNode; children: React.ReactNode;
+    /** Layar yang tabelnya memang lebar; lihat `.konsol.lebar`. */
     lebar?: boolean },
 ) {
   const path = usePathname();

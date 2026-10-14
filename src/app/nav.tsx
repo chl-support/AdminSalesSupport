@@ -192,9 +192,12 @@ const KUNCI_BUKA = "chl.menu-terbuka";
  * halaman hanya ditampilkan selama menunya terbuka. Dua tempat membaca satu
  * keadaan, dan keadaan yang disalin ke dua tempat cepat atau lambat berbeda.
  */
-const KonteksLipat = createContext<{ dibuka: string[]; lipat: (k: string) => void }>(
-  { dibuka: [], lipat: () => {} },
-);
+const KonteksLipat = createContext<{
+  dibuka: string[];
+  lipat: (k: string) => void;
+  dipilih: string | null;
+  pilih: (href: string) => void;
+}>({ dibuka: [], lipat: () => {}, dipilih: null, pilih: () => {} });
 
 export function PenyediaMenu({ children }: { children: React.ReactNode }) {
   /**
@@ -229,8 +232,23 @@ export function PenyediaMenu({ children }: { children: React.ReactNode }) {
     });
   };
 
+  /**
+   * Butir menu terakhir yang ditekan, sepanjang halaman ini belum dimuat ulang.
+   *
+   * Tidak disimpan ke mana pun dengan sengaja. Ia memang harus hilang setiap
+   * kali halamannya dimuat ulang: layar kerja baru terbuka karena dipilih, dan
+   * yang baru datang belum memilih apa pun.
+   *
+   * Penyedianya duduk di layout akar, bukan di dalam kerangka tiap halaman.
+   * Di dalam kerangka, ia terpasang ulang tiap kali pindah layar — dan butir
+   * yang baru saja ditekan akan terlupakan persis pada perpindahan yang
+   * disebabkannya.
+   */
+  const [dipilih, setDipilih] = useState<string | null>(null);
+
   return (
-    <KonteksLipat.Provider value={{ dibuka, lipat }}>
+    <KonteksLipat.Provider
+      value={{ dibuka, lipat, dipilih, pilih: setDipilih }}>
       {children}
     </KonteksLipat.Provider>
   );
@@ -239,14 +257,19 @@ export function PenyediaMenu({ children }: { children: React.ReactNode }) {
 /**
  * Rantai kunci rumpun yang menaungi satu lintasan, dari luar ke dalam.
  *
- * Mengembalikan null bila lintasannya tidak ada di menu sama sekali — layar
- * seperti Pengajuan Komisi atau pratinjau klaim, yang dicapai dari dalam layar
- * lain dan tidak punya butir menunya sendiri.
+ * Mengembalikan null bila lintasannya bukan alamat sebuah butir menu — layar
+ * seperti Pengajuan Komisi, lampiran, atau pratinjau klaim, yang dicapai dari
+ * dalam layar lain.
  *
- * Anaknya diperiksa lebih dulu daripada dirinya sendiri. Pengajuan Fee
- * beralamat /klaim dan anaknya /klaim/referensi: diperiksa dari atas,
- * /klaim/referensi akan cocok dengan induknya melalui awalan alamat, dan
- * rantainya berhenti satu tingkat terlalu dini.
+ * Alamatnya dicocokkan persis, bukan lewat awalan. Dicocokkan lewat awalan,
+ * /klaim/pratinjau akan terhitung sebagai butir Pengajuan Fee dan ikut
+ * ditahan — padahal tidak ada butir menu yang dapat ditekan untuk
+ * membukanya, sehingga tautan langsung ke sana berakhir di layar kosong
+ * tanpa jalan keluar.
+ *
+ * Anaknya diperiksa lebih dulu daripada dirinya sendiri, sebab anak dapat
+ * berbagi awalan dengan induknya dan urutan yang terbalik membuat rantainya
+ * berhenti satu tingkat terlalu dini.
  */
 function rantaiRumpun(path: string, daftar: Butir[], atas: string[]):
     string[] | null {
@@ -255,7 +278,7 @@ function rantaiRumpun(path: string, daftar: Butir[], atas: string[]):
     const dalam = m.anak?.length
       ? rantaiRumpun(path, m.anak, [...atas, kunci]) : null;
     if (dalam) return dalam;
-    if (m.href && (path === m.href || path.startsWith(m.href + "/"))) return atas;
+    if (m.href && path === m.href) return atas;
   }
   return null;
 }
@@ -263,26 +286,36 @@ function rantaiRumpun(path: string, daftar: Butir[], atas: string[]):
 /**
  * Bolehkah isi layar ini digambar.
  *
- * Syaratnya: butir menu layar ini terlihat di kolom menu — artinya seluruh
- * rumpun yang menaunginya terbuka, bukan hanya yang terluar. Dengan syarat
- * "yang terluar saja", membuka satu rumpun sudah memunculkan isi layar yang
- * butir menunya masih tersembunyi di dalam rumpun yang tertutup, dan layar itu
- * terbuka tanpa pernah dipilih.
+ * Dua syarat, dan keduanya harus terpenuhi:
  *
- * Layar yang tidak punya butir menu — dicapai dari dalam layar lain — tidak
- * pernah ditahan: tidak ada butir yang dapat diklik untuk membukanya.
+ * 1. Butir menunya ditekan. Bukan sekadar terlihat — sebab alamat yang sedang
+ *    dibuka sudah ada sebelum menunya disentuh, sehingga membuka rumpunnya
+ *    saja akan memunculkan isi layar yang tidak pernah dipilih siapa pun.
+ * 2. Butir itu masih terlihat, yaitu seluruh rumpun yang menaunginya masih
+ *    terbuka. Menutup rumpunnya berarti menutup layarnya.
+ *
+ * Awalan alamat ikut dihitung pada syarat pertama: yang menekan Pengajuan Fee
+ * lalu masuk ke Pengajuan Komisi dari dalam layarnya tetap sedang melihat
+ * layar yang ia pilih.
+ *
+ * Layar yang tidak punya butir menu sama sekali — pratinjau klaim dan
+ * sebangsanya, yang dicapai dari dalam layar lain — tidak pernah ditahan:
+ * tidak ada butir yang dapat ditekan untuk membukanya.
  */
 export function useLayarTampil(path: string) {
-  const { dibuka } = useContext(KonteksLipat);
+  const { dibuka, dipilih } = useContext(KonteksLipat);
   const rantai = rantaiRumpun(path, MENU, []);
-  return rantai === null || rantai.every((k) => dibuka.includes(k));
+  if (rantai === null) return true;
+  const ditekan = dipilih !== null
+    && (path === dipilih || path.startsWith(dipilih + "/"));
+  return ditekan && rantai.every((k) => dibuka.includes(k));
 }
 
 export function Nav({ peran }: { peran?: string }) {
   const path = usePathname();
   const { bahasa } = useBahasa();
   const bantu = BANTU[bahasa];
-  const { dibuka, lipat } = useContext(KonteksLipat);
+  const { dibuka, lipat, pilih } = useContext(KonteksLipat);
 
   // Cocok persis, atau induk dari lintasan sekarang. `startsWith` telanjang
   // akan membuat "/klaim" terpilih bersamaan dengan "/klaim/komisi".
@@ -315,7 +348,8 @@ export function Nav({ peran }: { peran?: string }) {
       return (
         <Link key={m.href} href={m.href!}
               className={aktif(m.href!) ? "active" : ""}
-              aria-current={aktif(m.href!) ? "page" : undefined}>
+              aria-current={aktif(m.href!) ? "page" : undefined}
+              onClick={() => pilih(m.href!)}>
           {nama}
         </Link>
       );
@@ -353,7 +387,8 @@ export function Nav({ peran }: { peran?: string }) {
              beserta anaknya sekaligus. */
           <div className="grup-baris">
             <Link href={m.href} className={path === m.href ? "active" : ""}
-                  aria-current={path === m.href ? "page" : undefined}>
+                  aria-current={path === m.href ? "page" : undefined}
+                  onClick={() => pilih(m.href!)}>
               {nama}
             </Link>
             {anak.length > 0 && (
