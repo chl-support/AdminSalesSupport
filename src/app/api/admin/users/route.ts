@@ -19,6 +19,7 @@ export const GET = handler(async (req) => {
   await requireRole(req, "admin_system");
   return query(
     `SELECT u.username, u.full_name, u.role, u.active,
+            NULLIF(to_jsonb(u) ->> 'email', '') AS email,
             (SELECT COUNT(*)::int FROM sessions s WHERE s.user_id = u.id
               AND s.expires_at > now()) AS sesi_aktif,
             (SELECT MAX(attempted_at) FROM login_attempts l

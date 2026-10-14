@@ -25,7 +25,7 @@ const rp = (n?: number | null) => `Rp ${(n ?? 0).toLocaleString("id-ID")}`;
 type Pengguna = {
   username: string; full_name: string; role: string; active: boolean;
   sesi_aktif: number; terakhir_masuk: string | null;
-  sandi_diganti: string | null;
+  sandi_diganti: string | null; email: string | null;
 };
 
 type Hasil = {
@@ -170,6 +170,21 @@ const KATA = {
     thTerakhirMasuk: "Terakhir masuk",
     thSandiDiganti: "Sandi diganti",
     thSandi: "Sandi",
+    thSurel: "Email",
+    surelKosong: "belum diisi",
+    surelLabel: "Email pengguna yang dipilih di atas",
+    phSurel: "nama@perusahaan.com",
+    simpanSurel: "Simpan email",
+    takDapatSurel: "Email tidak tersimpan",
+    surelCatatan:
+      "Ke alamat inilah kode verifikasi dikirim ketika pengguna menekan " +
+      "\"Lupa kata sandi\" di layar masuk. Tanpa email, ia tidak dapat " +
+      "mengatur ulang sandinya sendiri. Boleh dikosongkan, dan satu alamat " +
+      "hanya boleh dipakai satu akun.",
+    hasilSurel: (nama: string, username: string, surel: string | null) =>
+      surel
+        ? `Email ${nama} (${username}) disimpan: ${surel}.`
+        : `Email ${nama} (${username}) dikosongkan.`,
     lihatSandi: "Lihat",
     sembunyikan: "Sembunyikan",
     sandiTakTerbaca: "belum tercatat",
@@ -340,6 +355,21 @@ const KATA = {
     thTerakhirMasuk: "Last sign-in",
     thSandiDiganti: "Password changed",
     thSandi: "Password",
+    thSurel: "Email",
+    surelKosong: "not set",
+    surelLabel: "Email for the user selected above",
+    phSurel: "name@company.com",
+    simpanSurel: "Save email",
+    takDapatSurel: "The email was not saved",
+    surelCatatan:
+      "This is where the verification code goes when the user taps \"Forgot " +
+      "password\" on the sign-in screen. Without an email they cannot reset " +
+      "their own password. May be left blank, and one address may belong to " +
+      "only one account.",
+    hasilSurel: (nama: string, username: string, surel: string | null) =>
+      surel
+        ? `Email for ${nama} (${username}) saved: ${surel}.`
+        : `Email for ${nama} (${username}) cleared.`,
     lihatSandi: "Show",
     sembunyikan: "Hide",
     sandiTakTerbaca: "not recorded",
@@ -417,6 +447,9 @@ export default function AdminPage() {
   const [target, setTarget] = useState("");
   const [sandiBaru, setSandiBaru] = useState("");
   const [usernameBaru, setUsernameBaru] = useState("");
+  const [surelBaru, setSurelBaru] = useState("");
+  const [hasilSurel, setHasilSurel] = useState<string | null>(null);
+  const [galatSurel, setGalatSurel] = useState<string | null>(null);
   const [hasilNama, setHasilNama] = useState<string | null>(null);
   const [galatNama, setGalatNama] = useState<string | null>(null);
   const [hasilSandi, setHasilSandi] = useState<string | null>(null);
@@ -619,6 +652,20 @@ export default function AdminPage() {
     setHasilNama(k.hasilNama(b.full_name, b.username, b.username_lama));
     setUsernameBaru("");
     setTarget(b.username);
+    void muatPengguna();
+  };
+
+  const simpanSurel = async () => {
+    setGalatSurel(null);
+    setHasilSurel(null);
+    const res = await fetch("/api/admin/users/email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: target, email: surelBaru.trim() }),
+    });
+    const b = await res.json().catch(() => ({}));
+    if (!res.ok) { setGalatSurel(b.detail ?? b.title ?? `HTTP ${res.status}`); return; }
+    setHasilSurel(k.hasilSurel(b.full_name, b.username, b.email));
     void muatPengguna();
   };
 
@@ -1233,6 +1280,7 @@ export default function AdminPage() {
                         dirapatkan ke kanan. */}
                     <th style={{ textAlign: "center" }}>{k.thSesiAktif}</th>
                     <th>{k.thTerakhirMasuk}</th>
+                    <th>{k.thSurel}</th>
                     <th>{k.thSandiDiganti}</th>
                     <th>{k.thSandi}</th>
                   </tr>
@@ -1250,6 +1298,12 @@ export default function AdminPage() {
                           dan yang sebenarnya berguna — kapan ia terakhir
                           diganti. Yang masih "bawaan pemasangan" adalah yang
                           paling perlu diurus lebih dulu. */}
+                      {/* Surel: ke sinilah kode "lupa kata sandi" dikirim,
+                          jadi yang kosong berarti orang itu belum punya jalan
+                          kembali tanpa menghubungi Admin IT. */}
+                      <td>{u.email
+                        ? u.email
+                        : <span style={{ color: "var(--stop)" }}>{k.surelKosong}</span>}</td>
                       <td>{u.sandi_diganti
                         ? String(u.sandi_diganti).slice(0, 19).replace("T", " ")
                         : <span style={{ color: "var(--stop)" }}>{k.sandiBawaan}</span>}</td>
@@ -1381,6 +1435,39 @@ export default function AdminPage() {
                 {galatNama && (
                   <div className="banner stop" style={{ marginTop: 12, marginBottom: 0 }}>
                     <b>{k.takDapatGantiUsername}</b>{galatNama}
+                  </div>
+                )}
+              </div>
+
+              {/* ── Surel pengguna ──────────────────────────────────────────
+                  Ke alamat inilah kode "lupa kata sandi" dikirim. Diisi Admin
+                  IT, bukan oleh penggunanya sendiri: alamat yang dapat diganti
+                  dari dalam akun memindahkan jalan masuk itu ke tangan siapa
+                  pun yang sempat memakai komputer orang lain. */}
+              <div style={{ borderTop: "1px solid var(--line)", marginTop: 16,
+                            paddingTop: 14 }}>
+                <div className="lbl">{k.surelLabel}</div>
+                <div className="row" style={{ marginBottom: 0 }}>
+                  <input value={surelBaru} autoComplete="off" type="email"
+                         placeholder={k.phSurel}
+                         style={{ minWidth: 260 }}
+                         onChange={(e) => setSurelBaru(e.target.value)} />
+                  <button disabled={!target} onClick={() => void simpanSurel()}>
+                    {k.simpanSurel}
+                  </button>
+                </div>
+                <p className="hint" style={{ textAlign: "left", marginTop: 6 }}>
+                  {k.surelCatatan}
+                </p>
+
+                {hasilSurel && (
+                  <div className="banner ok" style={{ marginTop: 12, marginBottom: 0 }}>
+                    <b>{k.berhasil}</b>{hasilSurel}
+                  </div>
+                )}
+                {galatSurel && (
+                  <div className="banner stop" style={{ marginTop: 12, marginBottom: 0 }}>
+                    <b>{k.takDapatSurel}</b>{galatSurel}
                   </div>
                 )}
               </div>
