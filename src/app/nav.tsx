@@ -101,8 +101,8 @@ const MENU: Butir[] = [
   // dan ditawarkan — sedangkan seluruh isi rumpun di atasnya dikerjakan
   // sesudah penjualannya jadi. Dua pekerjaan yang berurutan, bukan sejenis.
   //
-  // Pricelist diunggah per project di layar Pricelist, dan layar Simulasi
-  // membaca pricelist yang berlaku untuk project yang sedang dipilih.
+  // Pricelist diunggah per project di layar Simulasi, yang juga membacanya;
+  // layar Pricelist menampilkan yang berlaku beserta riwayat unggahannya.
   {
     label: { id: "Simulasi & Pricelist", en: "Simulation & Price List" },
     anak: [

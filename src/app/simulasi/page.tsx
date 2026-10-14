@@ -10,8 +10,8 @@
  * menyusunnya.
  *
  * Unit dan cara bayarnya diambil dari pricelist yang berlaku untuk project
- * yang sedang dipilih — diunggah lewat layar Pricelist. Selama sebuah project
- * belum punya pricelist, layar ini menunjuk ke sana.
+ * yang sedang dipilih. Pricelist itu diunggah di layar ini juga, lewat panel
+ * Upload Pricelist di bagian atas (Admin Sales dan Admin IT).
  *
  * Tanggal booking dapat diubah, tidak dipatok hari ini. Simulasi dibuat
  * sebelum konsumen datang, dan jadwal yang dihitung untuk hari ini akan
@@ -23,6 +23,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useBahasa, useKata } from "../bahasa";
 import { Kerangka, MemeriksaSesi } from "../kerangka";
 import { useSesi } from "../session";
+import { PENGUNGGAH, UnggahPricelist } from "./unggah-pricelist";
 import { formatRupiah } from "@/lib/money";
 import { BUNGA_NPV, bentukSkema, hitung, lewatKpr, type Skema,
          type UnitHarga } from "@/lib/simulasi";
@@ -69,8 +70,10 @@ const KATA = {
     aPokok: "Dihitung atas pokok",
     takAda: "Unit ini tidak ada di pricelist.",
     takAdaHarga: "Unit ini tidak punya harga untuk cara bayar tersebut.",
-    belumAda: "Project ini belum punya pricelist. Unggah berkasnya di layar ",
-    keLayar: "Pricelist",
+    belumAda: "Project ini belum punya pricelist. Unggah berkasnya lewat " +
+              "panel Upload Pricelist di atas.",
+    belumAdaBaca: "Project ini belum punya pricelist. Admin Sales atau Admin " +
+                  "IT dapat mengunggahnya di layar ini.",
     memuatPl: "Memuat pricelist…",
     sumber: "Pricelist",
   },
@@ -113,8 +116,10 @@ const KATA = {
     aPokok: "Computed on principal",
     takAda: "This unit is not in the price list.",
     takAdaHarga: "This unit has no price for that payment scheme.",
-    belumAda: "This project has no price list yet. Upload it on the screen ",
-    keLayar: "Price List",
+    belumAda: "This project has no price list yet. Upload it with the " +
+              "Upload Price List panel above.",
+    belumAdaBaca: "This project has no price list yet. Admin Sales or Admin " +
+                  "IT can upload it on this screen.",
     memuatPl: "Loading price list…",
     sumber: "Price list",
   },
@@ -139,6 +144,8 @@ export default function SimulasiPage() {
   const [tanggal, setTanggal] = useState(hariIni);
   const [pl, setPl] = useState<Pricelist | null | undefined>(undefined);
   const [galatPl, setGalatPl] = useState<string | null>(null);
+  // Dinaikkan setiap kali pricelist baru tersimpan, supaya dibaca ulang.
+  const [versiPl, setVersiPl] = useState(0);
   const [kode, setKode] = useState("");
   const [skema, setSkema] = useState<Skema>("");
   const [diskon, setDiskon] = useState("0");
@@ -163,7 +170,7 @@ export default function SimulasiPage() {
       }
     })();
     return () => { batal = true; };
-  }, [sesi]);
+  }, [sesi, versiPl]);
 
   const unit = pl?.unit.find((u) => u.kode === kode) ?? null;
   // Pembanding: kolom cara bayar tunai pada pricelist-nya. Namanya ditulis
@@ -197,13 +204,19 @@ export default function SimulasiPage() {
 
   if (memuat || !sesi) return <MemeriksaSesi />;
 
+  const bolehUnggah = PENGUNGGAH.includes(sesi.role) && !!sesi.project_slug;
+  const unggah = bolehUnggah && (
+    <UnggahPricelist onTersimpan={() => setVersiPl((v) => v + 1)} />
+  );
+
   if (galatPl || !pl) {
     return (
       <Kerangka sesi={sesi} lebar judul={<div><h1>{k.judul}</h1></div>}>
+        {unggah}
         {galatPl ? <div className="banner stop">{galatPl}</div>
           : pl === undefined ? <p className="hint">{k.memuatPl}</p>
           : <div className="banner info">
-              {k.belumAda}<a href="/pricelist">{k.keLayar}</a>.
+              {bolehUnggah ? k.belumAda : k.belumAdaBaca}
             </div>}
       </Kerangka>
     );
@@ -219,6 +232,8 @@ export default function SimulasiPage() {
 
   return (
     <Kerangka sesi={sesi} lebar judul={<div><h1>{k.judul}</h1></div>}>
+
+      {unggah}
 
       <p className="hint" style={{ textAlign: "left", marginTop: 0 }}>
         {k.sumber}: <a href="/pricelist">{pl.nama}</a>
