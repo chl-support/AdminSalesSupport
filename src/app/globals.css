@@ -837,9 +837,12 @@ ul.cetak-ceklis .kotak { border: 1px solid var(--ink); width: 14px; height: 14px
    dengan Keluar dan Ganti project yang memang tindakan. */
 .kontak-menu { display: flex; flex-direction: column; gap: 6px;
                margin-top: 8px; padding-top: 9px;
-               border-top: 1px solid var(--line); font-size: 12.5px; }
-.kontak-menu .ket-kontak { margin: 0 0 2px; font-size: 10.5px;
-                           line-height: 1.35; color: var(--mut); }
+               border-top: 1px solid var(--line); font-size: 10.5px; }
+.kontak-menu .ket-kontak { margin: 0 0 2px; line-height: 1.35;
+                           color: var(--mut); }
+/* Ikonnya ikut mengecil bersama tulisannya; ikon 17px di samping tulisan
+   10,5px terbaca sebagai dua benda dari ukuran yang berbeda. */
+.kontak-menu a svg { width: 14px; height: 14px; }
 .kontak-menu a { display: flex; align-items: center; gap: 7px;
                  color: var(--ink); text-decoration: none; }
 .kontak-menu a:hover { text-decoration: underline; }
