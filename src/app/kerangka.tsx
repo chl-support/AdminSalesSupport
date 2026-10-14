@@ -19,17 +19,40 @@ import { useBahasa } from "./bahasa";
 import { DaftarEmail } from "./daftar-email";
 import { KabarMenunggu } from "./kabar-menunggu";
 import { Logo, LogoProject } from "./logo";
-import { Nav, indukDari } from "./nav";
+import { Nav, PenyediaMenu, indukDari, useMenuTerbuka } from "./nav";
 import { BilahPengguna, type Sesi } from "./session";
 
-export function Kerangka(
+export function Kerangka(props: {
+  sesi: Sesi; judul: React.ReactNode; children: React.ReactNode;
+  /** Layar yang tabelnya memang lebar; lihat `.konsol.lebar`. */
+  lebar?: boolean;
+}) {
+  // Penyedianya di sini, isinya di komponen tersendiri: keadaan lipatan dibaca
+  // oleh kerangka itu sendiri, dan komponen tidak dapat membaca konteks yang
+  // ia sediakan sendiri.
+  return <PenyediaMenu><IsiKerangka {...props} /></PenyediaMenu>;
+}
+
+function IsiKerangka(
   { sesi, judul, children, lebar }:
   { sesi: Sesi; judul: React.ReactNode; children: React.ReactNode;
-    /** Layar yang tabelnya memang lebar; lihat `.konsol.lebar`. */
     lebar?: boolean },
 ) {
   const induk = indukDari(usePathname());
   const { bahasa } = useBahasa();
+  /**
+   * Judul dan isi halaman hanya ditampilkan selama menunya terbuka.
+   *
+   * Yang tertutup bukan hanya daftar menunya, melainkan layarnya: selama
+   * rumpunnya terlipat, yang terlihat tinggal bilah atas dan latar gambarnya.
+   * Isinya kembali begitu rumpunnya dibuka.
+   *
+   * Isinya tidak dibongkar dari pohon, hanya tidak digambar. Membongkarnya
+   * berarti setiap kali menunya ditutup lalu dibuka lagi, seluruh layar memuat
+   * ulang datanya dari awal — dan yang sedang mengetik di kotak saringan
+   * kehilangan ketikannya.
+   */
+  const tampil = useMenuTerbuka();
 
   return (
     <div className={`konsol${lebar ? " lebar" : ""}`}>
@@ -64,10 +87,10 @@ export function Kerangka(
                 sendirian tidak memberi tahu bahwa ia salah satu dari empat
                 jenis di bawah Pengajuan Fee. Halaman yang bukan anak siapa pun
                 tidak menampilkan baris ini sama sekali. */}
-            {induk && (
+            {tampil && induk && (
               <Link className="induk" href={induk.href}>{induk.label[bahasa]}</Link>
             )}
-            {judul}
+            {tampil && judul}
           </div>
 
           {/* Nama project di kepala tiap halaman, bukan hanya di pemilihnya:
@@ -115,7 +138,7 @@ export function Kerangka(
         <aside className="sisi">
           <Nav peran={sesi.role} />
         </aside>
-        <main className="isi">{children}</main>
+        <main className="isi" hidden={!tampil}>{children}</main>
       </div>
 
       {/* Pemberitahuan sekali-per-masuk tentang dokumen yang menunggu orang

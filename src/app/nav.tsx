@@ -16,7 +16,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 
 import { useBahasa, type Bahasa } from "./bahasa";
 
@@ -185,11 +185,18 @@ const BANTU = {
  */
 const KUNCI_BUKA = "chl.menu-terbuka";
 
-export function Nav({ peran }: { peran?: string }) {
-  const path = usePathname();
-  const { bahasa } = useBahasa();
-  const bantu = BANTU[bahasa];
+/**
+ * Keadaan lipatan menu, dibagi ke seluruh kerangka.
+ *
+ * Bukan milik <Nav> sendiri lagi: kerangka halaman ikut membacanya, sebab isi
+ * halaman hanya ditampilkan selama menunya terbuka. Dua tempat membaca satu
+ * keadaan, dan keadaan yang disalin ke dua tempat cepat atau lambat berbeda.
+ */
+const KonteksLipat = createContext<{ dibuka: string[]; lipat: (k: string) => void }>(
+  { dibuka: [], lipat: () => {} },
+);
 
+export function PenyediaMenu({ children }: { children: React.ReactNode }) {
   /**
    * Rumpun yang sedang terbuka — bukan yang sedang terlipat.
    *
@@ -198,9 +205,6 @@ export function Nav({ peran }: { peran?: string }) {
    * sekaligus, dan rumpun yang isinya selalu terlihat bukan rumpun melainkan
    * hanya judul di atas daftar. Dengan "yang terbuka", menu dimulai tertutup:
    * isinya muncul karena rumpunnya ditekan.
-   *
-   * Yang tidak ikut berbalik: rumpun yang memuat layar sedang dibuka tetap
-   * dipaksa terbuka, dan itu dihitung terpisah dari daftar ini.
    */
   const [dibuka, setDibuka] = useState<string[]>([]);
 
@@ -224,6 +228,36 @@ export function Nav({ peran }: { peran?: string }) {
       return baru;
     });
   };
+
+  return (
+    <KonteksLipat.Provider value={{ dibuka, lipat }}>
+      {children}
+    </KonteksLipat.Provider>
+  );
+}
+
+/** Kunci tiap rumpun teratas yang punya anak. */
+const KUNCI_RUMPUN = MENU.filter((m) => m.anak?.length)
+                         .map((m) => m.href ?? m.label.id);
+
+/**
+ * Adakah rumpun teratas yang sedang terbuka.
+ *
+ * Dipakai kerangka halaman untuk memutuskan menampilkan isinya atau tidak.
+ * Yang dihitung hanya rumpun teratas: kunci rumpun di dalamnya bisa tertinggal
+ * di penyimpanan dari sesi sebelumnya, dan rumpun yang induknya tertutup tidak
+ * terlihat oleh siapa pun.
+ */
+export function useMenuTerbuka() {
+  const { dibuka } = useContext(KonteksLipat);
+  return KUNCI_RUMPUN.some((k) => dibuka.includes(k));
+}
+
+export function Nav({ peran }: { peran?: string }) {
+  const path = usePathname();
+  const { bahasa } = useBahasa();
+  const bantu = BANTU[bahasa];
+  const { dibuka, lipat } = useContext(KonteksLipat);
 
   // Cocok persis, atau induk dari lintasan sekarang. `startsWith` telanjang
   // akan membuat "/klaim" terpilih bersamaan dengan "/klaim/komisi".
