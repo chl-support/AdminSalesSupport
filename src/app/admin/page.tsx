@@ -44,11 +44,11 @@ const KATA = {
     takBerwenang: (peran: string) => `Peran ${peran} tidak berwenang atas menu ini`,
     takBerwenangIsi:
       "Unggah Laporan Penjualan, kalibrasi ambang tanda tangan, dan penggantian " +
-      "kata sandi seluruhnya dikerjakan Admin IT. Hubungi Admin IT bila kata " +
-      "sandi Anda perlu diganti.",
+      "Password seluruhnya dikerjakan Admin IT. Hubungi Admin IT bila " +
+      "Password Anda perlu diganti.",
     kontakJudul: "KONTAK ADMIN SISTEM",
     kontakCatatan:
-      "Tampil pada halaman masuk bagi orang yang lupa sandinya atau akunnya " +
+      "Tampil pada halaman masuk bagi orang yang lupa Password-nya atau akunnya " +
       "terkunci — merekalah yang tidak dapat menghubungi siapa pun lewat sistem " +
       "ini. Dikosongkan berarti halaman masuk hanya menyarankan jalur biasa, " +
       "bukan menampilkan nomor karangan.",
@@ -168,8 +168,8 @@ const KATA = {
     akunJudul: "AKUN PENGGUNA",
     thUsername: "Username", thPeran: "Peran", thSesiAktif: "Sesi aktif",
     thTerakhirMasuk: "Terakhir masuk",
-    thSandiDiganti: "Sandi diganti",
-    thSandi: "Sandi",
+    thSandiDiganti: "Password diganti",
+    thSandi: "Password",
     thSurel: "Email",
     surelKosong: "belum diisi",
     surelLabel: "Email pengguna yang dipilih di atas",
@@ -178,8 +178,8 @@ const KATA = {
     takDapatSurel: "Email tidak tersimpan",
     surelCatatan:
       "Ke alamat inilah kode verifikasi dikirim ketika pengguna menekan " +
-      "\"Lupa kata sandi\" di layar masuk. Tanpa email, ia tidak dapat " +
-      "mengatur ulang sandinya sendiri. Boleh dikosongkan, dan satu alamat " +
+      "\"Lupa Password\" di layar masuk. Tanpa email, ia tidak dapat " +
+      "mengatur ulang Password-nya sendiri. Boleh dikosongkan, dan satu alamat " +
       "hanya boleh dipakai satu akun.",
     hasilSurel: (nama: string, username: string, surel: string | null) =>
       surel
@@ -189,23 +189,23 @@ const KATA = {
     sembunyikan: "Sembunyikan",
     sandiTakTerbaca: "belum tercatat",
     sandiCatatan:
-      "Sandi hanya terbaca bila ia dipasang atau dipakai masuk sesudah " +
-      "kemampuan ini dinyalakan — sandi lama hanya tersimpan sebagai hash dan " +
-      "tidak dapat dikembalikan. Setiap pemunculan tercatat di jejak audit: " +
-      "siapa yang melihat, sandi siapa, dan kapan.",
+      "Password hanya terbaca bila ia dipasang atau dipakai masuk sesudah " +
+      "kemampuan ini dinyalakan — Password lama hanya tersimpan sebagai hash " +
+      "dan tidak dapat dikembalikan. Setiap pemunculan tercatat di jejak " +
+      "audit: siapa yang melihat, Password siapa, dan kapan.",
     sandiBawaan: "masih bawaan",
-    buatkanSandi: "Buatkan sandi acak",
+    buatkanSandi: "Buatkan Password acak",
     salin: "Salin",
     sandiSekali:
-      "Catat atau salin sekarang — sandi ini hanya dapat dibaca di sini. Yang " +
-      "tersimpan di basis data hanya hash-nya, dan hash tidak dapat " +
-      "dikembalikan menjadi sandi: bila hilang, pasang sandi baru lagi.",
+      "Catat atau salin sekarang — Password ini hanya dapat dibaca di sini. " +
+      "Yang tersimpan di basis data hanya hash-nya, dan hash tidak dapat " +
+      "dikembalikan menjadi Password: bila hilang, pasang Password baru lagi.",
     pengguna: "Pengguna", pilihPengguna: "— pilih pengguna —",
-    sandiBaru: "Kata sandi baru (minimal 8 karakter)",
-    gantiSandi: "Ganti sandi pengguna ini",
+    sandiBaru: "Password baru (minimal 8 karakter)",
+    gantiSandi: "Ganti Password pengguna ini",
     gantiSandiCatatan:
-      "Mengganti sandi memutus seluruh sesi pengguna itu yang sedang berjalan.",
-    takDapatGantiSandi: "Tidak dapat mengganti sandi",
+      "Mengganti Password memutus seluruh sesi pengguna itu yang sedang berjalan.",
+    takDapatGantiSandi: "Tidak dapat mengganti Password",
     usernameBaruLabel: "Username baru untuk pengguna yang dipilih di atas",
     phUsername: "3–32 karakter, huruf kecil",
     gantiUsername: "Ganti username",
@@ -221,7 +221,7 @@ const KATA = {
       `Sesinya yang sedang berjalan tidak terputus; nama baru dipakai saat ia ` +
       `masuk berikutnya.`,
     hasilSandi: (nama: string, username: string, sesi: number) =>
-      `Sandi ${nama} (${username}) diganti. ${sesi} sesi yang sedang berjalan ` +
+      `Password ${nama} (${username}) diganti. ${sesi} sesi yang sedang berjalan ` +
       `diputus.`,
   },
   en: {
@@ -1407,7 +1407,7 @@ export default function AdminPage() {
               {/* ── Ganti username ──────────────────────────────────────────
                   Pengguna yang dipilih di atas, dipakai lagi di sini: dua
                   pemilih untuk satu orang yang sama hanya menambah kesempatan
-                  mengganti sandi orang A sambil menamai ulang orang B. */}
+                  mengganti Password orang A sambil menamai ulang orang B. */}
               <div style={{ borderTop: "1px solid var(--line)", marginTop: 16,
                             paddingTop: 14 }}>
                 <div className="lbl">

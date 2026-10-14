@@ -277,7 +277,7 @@ export default function SetupPage() {
       });
       const b = await res.json().catch(() => ({}));
       if (res.ok) {
-        setSandiHasil({ cls: "ok", title: `Sandi ${b.username} diganti`,
+        setSandiHasil({ cls: "ok", title: `Password ${b.username} diganti`,
           lines: [`${b.full_name} (${b.role}).`,
                   `${b.sessions_closed} sesi yang sedang berjalan diputus.`,
                   b.lockout_cleared
@@ -290,7 +290,7 @@ export default function SetupPage() {
           lines: ["Nilainya harus sama persis dengan SETUP_SECRET di " +
                   "Environment Variables."] });
       } else {
-        setSandiHasil({ cls: "stop", title: "Sandi tidak terpasang",
+        setSandiHasil({ cls: "stop", title: "Password tidak terpasang",
                         lines: [b.detail ?? `HTTP ${res.status}`] });
       }
     } catch (e: any) {
@@ -407,13 +407,13 @@ export default function SetupPage() {
           lain. Jalur ini hidup hanya selama SETUP_SECRET terpasang, sama
           seperti penyiapan di atasnya. */}
       <div className="card">
-        <h2 style={{ margin: "0 0 10px", fontSize: 14 }}>Ganti sandi pengguna</h2>
+        <h2 style={{ margin: "0 0 10px", fontSize: 14 }}>Ganti Password pengguna</h2>
         <div className="banner warn">
           <b>Untuk sandi yang lupa</b>
-          Sandi baru dipasang dan penguncian setelah lima percobaan gagal ikut
+          Password baru dipasang dan penguncian setelah lima percobaan gagal ikut
           dibuka. Memakai SETUP_SECRET yang sama dengan di atas; selama
           SETUP_SECRET masih terpasang, siapa pun yang mengetahui nilainya dapat
-          mengganti sandi siapa pun — hapus kembali sesudah selesai, lalu
+          mengganti Password siapa pun — hapus kembali sesudah selesai, lalu
           Redeploy.
         </div>
 
@@ -423,7 +423,7 @@ export default function SetupPage() {
                onChange={(e) => setSandiUser(e.target.value)}
                placeholder="mis. sysadmin" />
 
-        <div className="lbl" style={{ marginTop: 10 }}>Sandi baru</div>
+        <div className="lbl" style={{ marginTop: 10 }}>Password baru</div>
         <input type="password" value={sandiBaru} autoComplete="new-password"
                style={{ width: "100%", fontSize: 14, textAlign: "left",
                         letterSpacing: "normal" }}
@@ -432,7 +432,7 @@ export default function SetupPage() {
 
         <button className="pri" onClick={gantiSandi}
                 disabled={sandiBusy || sandiBaru.length < 10}>
-          {sandiBusy ? "Memasang…" : "Pasang sandi baru"}
+          {sandiBusy ? "Memasang…" : "Pasang Password baru"}
         </button>
 
         {sandiHasil && (

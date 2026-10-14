@@ -37,7 +37,7 @@ export const POST = handler(async (req) => {
     NextResponse.json({ title: detail, detail, status, ...extra }, { status });
 
   if (!username || !password) {
-    return gagal("Username dan kata sandi wajib diisi.", 422);
+    return gagal("Username dan Password wajib diisi.", 422);
   }
 
   const sisa = await sisaPercobaan(username);
@@ -63,7 +63,7 @@ export const POST = handler(async (req) => {
     await catatPercobaan(username, ip, false);
     const tersisa = await sisaPercobaan(username);
     return gagal(
-      "Username atau kata sandi salah.", 401,
+      "Username atau Password salah.", 401,
       tersisa > 0 ? { sisa_percobaan: tersisa } : {});
   }
 
