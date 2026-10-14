@@ -174,8 +174,16 @@ const BANTU = {
         tutup: (n: string) => `Hide ${n} submenu` },
 };
 
-/** Di mana rumpun yang sedang terlipat disimpan. */
-const KUNCI_LIPAT = "chl.menu-tertutup";
+/**
+ * Di mana rumpun yang sedang terbuka disimpan.
+ *
+ * Kuncinya berganti nama dari "chl.menu-tertutup" bersamaan dengan berbaliknya
+ * arti isinya. Nama lama dibiarkan mati di penyimpanan peramban alih-alih
+ * dipakai ulang: yang sudah pernah memakai aplikasi ini menyimpan daftar
+ * "yang terlipat" di sana, dan daftar itu dibaca sebagai "yang terbuka" akan
+ * membuka persis rumpun yang dulu sengaja mereka tutup.
+ */
+const KUNCI_BUKA = "chl.menu-terbuka";
 
 export function Nav({ peran }: { peran?: string }) {
   const path = usePathname();
@@ -183,14 +191,18 @@ export function Nav({ peran }: { peran?: string }) {
   const bantu = BANTU[bahasa];
 
   /**
-   * Rumpun yang sedang terlipat, bukan yang sedang terbuka.
+   * Rumpun yang sedang terbuka — bukan yang sedang terlipat.
    *
-   * Yang disimpan kebalikannya supaya keadaan awalnya — belum ada yang pernah
-   * dilipat — berarti semuanya terbuka. Menyimpan "yang terbuka" membuat
-   * pemakai baru, dan siapa pun yang penyimpanan situsnya dibersihkan,
-   * mendapat menu yang seluruh sub-nya tersembunyi.
+   * Dibalik dengan sengaja. Yang disimpan "yang terlipat", keadaan awalnya —
+   * belum ada yang pernah ditekan — berarti seluruh isi menu terhampar
+   * sekaligus, dan rumpun yang isinya selalu terlihat bukan rumpun melainkan
+   * hanya judul di atas daftar. Dengan "yang terbuka", menu dimulai tertutup:
+   * isinya muncul karena rumpunnya ditekan.
+   *
+   * Yang tidak ikut berbalik: rumpun yang memuat layar sedang dibuka tetap
+   * dipaksa terbuka, dan itu dihitung terpisah dari daftar ini.
    */
-  const [tertutup, setTertutup] = useState<string[]>([]);
+  const [dibuka, setDibuka] = useState<string[]>([]);
 
   // Dibaca setelah komponen terpasang, bukan saat render: membaca localStorage
   // saat render membuat keluaran server dan klien berbeda. Dibungkus try/catch
@@ -198,16 +210,16 @@ export function Nav({ peran }: { peran?: string }) {
   // ingatan lipatan jauh lebih mahal daripada manfaatnya.
   useEffect(() => {
     try {
-      const t = JSON.parse(localStorage.getItem(KUNCI_LIPAT) ?? "[]");
-      if (Array.isArray(t)) setTertutup(t.filter((x) => typeof x === "string"));
-    } catch { /* biarkan semuanya terbuka */ }
+      const t = JSON.parse(localStorage.getItem(KUNCI_BUKA) ?? "[]");
+      if (Array.isArray(t)) setDibuka(t.filter((x) => typeof x === "string"));
+    } catch { /* biarkan semuanya tertutup */ }
   }, []);
 
   const lipat = (kunci: string) => {
-    setTertutup((lama) => {
+    setDibuka((lama) => {
       const baru = lama.includes(kunci)
         ? lama.filter((x) => x !== kunci) : [...lama, kunci];
-      try { localStorage.setItem(KUNCI_LIPAT, JSON.stringify(baru)); }
+      try { localStorage.setItem(KUNCI_BUKA, JSON.stringify(baru)); }
       catch { /* tidak apa-apa */ }
       return baru;
     });
@@ -255,7 +267,7 @@ export function Nav({ peran }: { peran?: string }) {
     // Rumpun yang memuat halaman yang sedang dibuka dipaksa terbuka. Menu
     // yang menyembunyikan justru baris yang sedang menyala membuat orang
     // kehilangan letaknya sendiri di dalam sistem.
-    const terbuka = memuatAktif(m) || !tertutup.includes(kunci);
+    const terbuka = memuatAktif(m) || dibuka.includes(kunci);
 
     return (
       <div key={kunci} className="grup">
