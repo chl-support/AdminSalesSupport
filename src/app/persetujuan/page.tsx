@@ -240,6 +240,10 @@ const KATA = {
     waTerbit: (hp: string) => `Tautan terbit untuk ${hp}.`,
     waBukaWa: "Buka WhatsApp", waSalin: "Salin pesan",
     waEmail: "Kirim Email",
+    waSurelTerkirim: (kepada: string): string =>
+      `Surat tautan terkirim ke ${kepada}.`,
+    waNomorProject: (nomor: string): string =>
+      `Kirim dari WhatsApp ${nomor} — nomor pengirim project ini.`,
     waTanpaEmail:
       "Surel belum terisi pada Data Marketing, jadi tautannya hanya dapat " +
       "dikirim lewat WhatsApp.",
@@ -432,6 +436,10 @@ const KATA = {
     waTerbit: (hp: string) => `Link issued for ${hp}.`,
     waBukaWa: "Open WhatsApp", waSalin: "Copy the message",
     waEmail: "Send email",
+    waSurelTerkirim: (kepada: string): string =>
+      `The link letter was sent to ${kepada}.`,
+    waNomorProject: (nomor: string): string =>
+      `Send from WhatsApp ${nomor} — this project's sending number.`,
     waTanpaEmail:
       "No email on Data Marketing, so the link can only go by WhatsApp.",
     waHpKosong:
@@ -584,6 +592,10 @@ export default function PersetujuanPage() {
   const [mengirim, setMengirim] = useState<string | null>(null);
   /** Klaim yang tahapnya sedang dipindahkan. */
   const [gerak, setGerak] = useState<string | null>(null);
+  // Klaim yang suratnya sedang dikirim. Tombolnya dimatikan selama itu: surat
+  // yang sama terkirim dua kali hanya membuat penerimanya bertanya mana yang
+  // berlaku.
+  const [kirimSurel, setKirimSurel] = useState<string | null>(null);
   /** Baris yang nomor IOM-nya sedang dikirim, supaya tidak ditulis ganda. */
   const [iomSimpan, setIomSimpan] = useState<string | null>(null);
   /**
@@ -828,6 +840,31 @@ export default function PersetujuanPage() {
    * tidak ikut ke dalam pesan — kode dan tautan pada satu pesan yang sama
    * membuat siapa pun yang meneruskan pesan itu ikut membawa keduanya.
    */
+  /**
+   * Surat tautan dikirim sistem ke email Sales/Agent, atas nama project.
+   *
+   * Isinya disusun di layar ini dan dikirimkan apa adanya ke server, supaya
+   * surat yang diterima lewat email sama persis dengan yang dibaca Admin di
+   * kotak ini, yang disalin, dan yang dikirim lewat WhatsApp.
+   */
+  const kirimTautanSurel = async (c: any, sambutan: string) => {
+    setKirimSurel(c.id);
+    try {
+      const res = await fetch(`/api/claims/${c.id}/kirim-tautan`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          perihal: k.waSurelPerihal(c?.claim_number ?? ""),
+          isi: `${sambutan}\n\n${k.waKodeCatatan}`,
+        }),
+      });
+      const b = await res.json().catch(() => ({}));
+      setKabar(res.ok ? k.waSurelTerkirim(b.kepada)
+                      : (b.detail ?? b.title ?? `HTTP ${res.status}`));
+    } catch (e: any) {
+      setKabar(String(e?.message ?? e));
+    } finally { setKirimSurel(null); }
+  };
+
   const kirimTautan = async (c: any) => {
     setMengirim(c.id); setGalat(null); setKabar(null);
     try {
@@ -2560,21 +2597,31 @@ export default function PersetujuanPage() {
                            `?text=${encodeURIComponent(sambutan)}`}
                      target="_blank" rel="noreferrer">{k.waBukaWa}</a>
                 )}
+                {/* Dikirim sistem, atas nama alamat email project — bukan
+                    lagi membuka aplikasi email Admin sendiri. Suratnya sama
+                    persis dengan yang disalin dan yang lewat WhatsApp. */}
                 {c?.marketing?.email && (
-                  <a className="tombol-klaim kecil"
-                     href={`mailto:${encodeURIComponent(c.marketing.email)}` +
-                           `?subject=${encodeURIComponent(
-                             k.waSurelPerihal(c?.claim_number ?? ""))}` +
-                           `&body=${encodeURIComponent(
-                             `${sambutan}\n\n${k.waKodeCatatan}`)}`}>
-                    {k.waEmail}
-                  </a>
+                  <button disabled={kirimSurel === c.id}
+                          onClick={() => void kirimTautanSurel(c, sambutan)}>
+                    {kirimSurel === c.id ? k.waMengirim : k.waEmail}
+                  </button>
                 )}
                 <button onClick={() => {
                   navigator.clipboard?.writeText(sambutan);
                   setKabar(k.waTersalin);
                 }}>{k.waSalin}</button>
               </div>
+
+              {/* Nomor WhatsApp project ini. Nomor pengirim sebenarnya
+                  selalu nomor perangkat yang menekan tombolnya — wa.me tidak
+                  dapat memilihkan nomor — jadi yang dapat dilakukan layar ini
+                  adalah menyebutkan nomor mana yang seharusnya dipakai, agar
+                  Sales/Agent menerima tautannya dari nomor yang ia kenal. */}
+              {sesi.project_wa && (
+                <p className="hint" style={{ textAlign: "left", margin: "0 0 6px" }}>
+                  {k.waNomorProject(sesi.project_wa)}
+                </p>
+              )}
 
               {!c?.marketing?.email && (
                 <p className="hint" style={{ textAlign: "left", margin: "0 0 6px" }}>

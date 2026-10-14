@@ -23,6 +23,8 @@ export type Sesi = {
   project_slug?: string | null;
   project_name?: string | null;
   project_company?: string | null;
+  /** Nomor WhatsApp pengirim project yang sedang dibuka. */
+  project_wa?: string | null;
 };
 
 /** Label yang dibaca manusia untuk tiap peran di basis data. */

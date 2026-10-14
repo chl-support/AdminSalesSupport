@@ -35,7 +35,8 @@
  * tidak pernah datang.
  */
 
-import { query } from "./db";
+import { one, query } from "./db";
+import { buka } from "./sandi-terlihat";
 import { WorkflowError } from "./galat";
 
 /** Jalan pengiriman yang sedang terpasang, atau null bila belum ada. */
@@ -65,15 +66,66 @@ export function alamatPengirim(): string | null {
  */
 async function catat(p: {
   kepada: string; perihal: string; jenis: string; userId?: string | null;
-  berhasil: boolean; galat?: string | null;
+  projectId?: string | null; berhasil: boolean; galat?: string | null;
 }): Promise<void> {
   try {
     await query(
-      `INSERT INTO surel_log (kepada, perihal, jenis, user_id, berhasil, galat)
-       VALUES ($1,$2,$3,$4,$5,$6)`,
-      [p.kepada, p.perihal, p.jenis, p.userId ?? null, p.berhasil,
-       p.galat ?? null]);
+      `INSERT INTO surel_log (kepada, perihal, jenis, user_id, project_id,
+                              berhasil, galat)
+       VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+      [p.kepada, p.perihal, p.jenis, p.userId ?? null, p.projectId ?? null,
+       p.berhasil, p.galat ?? null]);
   } catch { /* tabelnya menyusul pada pemasangan berikutnya */ }
+}
+
+/**
+ * Pengirim yang berlaku untuk sebuah email.
+ *
+ * Project boleh punya pengirimnya sendiri — tiap project diurus orang yang
+ * berbeda, dan surat yang datang dari alamat project itulah yang dikenali
+ * Sales/Agent-nya. Yang tidak mengisinya memakai pengirim bawaan dari
+ * Environment Variables; email yang bukan milik project mana pun (kode Lupa
+ * Password, verifikasi email) selalu memakai yang bawaan.
+ */
+export type Pengirim = {
+  jalur: "smtp" | "resend";
+  dari: string;
+  smtpUser?: string; smtpPass?: string; smtpHost?: string; smtpPort?: number;
+};
+
+async function pengirimProject(projectId: string): Promise<Pengirim | null> {
+  const p = await one<{ surel_pengirim: string | null; smtp_user: string | null;
+                        smtp_pass_enc: string | null; smtp_host: string | null;
+                        smtp_port: number | null }>(
+    `SELECT NULLIF(to_jsonb(projects) ->> 'surel_pengirim','') AS surel_pengirim,
+            NULLIF(to_jsonb(projects) ->> 'smtp_user','')      AS smtp_user,
+            NULLIF(to_jsonb(projects) ->> 'smtp_pass_enc','')  AS smtp_pass_enc,
+            NULLIF(to_jsonb(projects) ->> 'smtp_host','')      AS smtp_host,
+            NULLIF(to_jsonb(projects) ->> 'smtp_port','')::int AS smtp_port
+       FROM projects WHERE id = $1`, [projectId]).catch(() => null);
+  if (!p?.surel_pengirim || !p.smtp_user || !p.smtp_pass_enc) return null;
+
+  const sandi = await buka(p.smtp_pass_enc);
+  if (!sandi) return null;   // kuncinya berganti; jatuh ke pengirim bawaan
+  return {
+    jalur: "smtp", dari: p.surel_pengirim,
+    smtpUser: p.smtp_user, smtpPass: sandi,
+    smtpHost: p.smtp_host ?? "smtp.gmail.com",
+    smtpPort: p.smtp_port ?? 587,
+  };
+}
+
+function pengirimBawaan(): Pengirim | null {
+  const jalur = jalurSurel();
+  if (!jalur) return null;
+  return {
+    jalur,
+    dari: process.env.SUREL_PENGIRIM!,
+    smtpUser: process.env.SUREL_SMTP_USER,
+    smtpPass: process.env.SUREL_SMTP_PASS,
+    smtpHost: process.env.SUREL_SMTP_HOST || "smtp.gmail.com",
+    smtpPort: Number(process.env.SUREL_SMTP_PORT || 587),
+  };
 }
 
 /**
@@ -82,23 +134,21 @@ async function catat(p: {
  * nodemailer dimuat saat dipakai, bukan di kepala berkas: yang memasang Resend
  * tidak perlu ikut menanggung pustaka ini pada tiap permintaan.
  */
-async function lewatSmtp(p: { kepada: string; perihal: string; isi: string }) {
+async function lewatSmtp(p: { kepada: string; perihal: string; isi: string },
+                         dari: Pengirim) {
   const { createTransport } = await import("nodemailer");
-  const port = Number(process.env.SUREL_SMTP_PORT || 587);
+  const port = dari.smtpPort ?? 587;
   const kurir = createTransport({
-    host: process.env.SUREL_SMTP_HOST || "smtp.gmail.com",
+    host: dari.smtpHost ?? "smtp.gmail.com",
     port,
     // 465 memakai TLS sejak detik pertama; 587 memulai polos lalu naik ke TLS
     // lewat STARTTLS. Keduanya terenkripsi — yang salah hanya bila keduanya
     // ditukar.
     secure: port === 465,
-    auth: {
-      user: process.env.SUREL_SMTP_USER!,
-      pass: process.env.SUREL_SMTP_PASS!,
-    },
+    auth: { user: dari.smtpUser!, pass: dari.smtpPass! },
   });
   await kurir.sendMail({
-    from: process.env.SUREL_PENGIRIM!,
+    from: dari.dari,
     to: p.kepada,
     subject: p.perihal,
     text: p.isi,
@@ -106,7 +156,8 @@ async function lewatSmtp(p: { kepada: string; perihal: string; isi: string }) {
 }
 
 /** Mengirim lewat Resend — satu panggilan HTTPS. */
-async function lewatResend(p: { kepada: string; perihal: string; isi: string }) {
+async function lewatResend(p: { kepada: string; perihal: string; isi: string },
+                           dari: Pengirim) {
   // Alamatnya dapat dialihkan lewat SUREL_URL: dipakai menguji alur ini tanpa
   // benar-benar mengirim surel, dan membuka jalan bagi penyedia lain yang
   // menerima bentuk permintaan yang sama.
@@ -118,7 +169,7 @@ async function lewatResend(p: { kepada: string; perihal: string; isi: string }) 
       Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
     },
     body: JSON.stringify({
-      from: process.env.SUREL_PENGIRIM,
+      from: dari.dari,
       to: [p.kepada],
       subject: p.perihal,
       text: p.isi,
@@ -134,9 +185,12 @@ export async function kirimSurel(p: {
   kepada: string; perihal: string; isi: string;
   /** Untuk riwayat: jenis surel dan pemiliknya, bila diketahui. */
   jenis?: string; userId?: string | null;
+  /** Bila diisi, pengirim project itulah yang dipakai — bila ia mengisinya. */
+  projectId?: string | null;
 }): Promise<void> {
-  const jalur = jalurSurel();
-  if (!jalur) {
+  const dari = (p.projectId ? await pengirimProject(p.projectId) : null)
+            ?? pengirimBawaan();
+  if (!dari) {
     throw new WorkflowError(
       "Pengiriman email belum dikonfigurasi, jadi kode verifikasi tidak dapat " +
       "dikirim. Admin IT perlu memasang SUREL_PENGIRIM beserta SUREL_SMTP_USER " +
@@ -145,8 +199,8 @@ export async function kirimSurel(p: {
   }
 
   try {
-    if (jalur === "smtp") await lewatSmtp(p);
-    else await lewatResend(p);
+    if (dari.jalur === "smtp") await lewatSmtp(p, dari);
+    else await lewatResend(p, dari);
   } catch (err: any) {
     // Sebabnya ikut dicatat: "gagal mengirim" tanpa sebab membuat Admin IT
     // menebak antara sandi aplikasi yang salah, alamat pengirim yang tidak
@@ -155,10 +209,12 @@ export async function kirimSurel(p: {
     const sebab = String(err?.message ?? err).slice(0, 200);
     await catat({ kepada: p.kepada, perihal: p.perihal,
                   jenis: p.jenis ?? "lain", userId: p.userId,
-                  berhasil: false, galat: `${jalur}: ${sebab}` });
+                  projectId: p.projectId, berhasil: false,
+                  galat: `${dari.jalur}: ${sebab}` });
     throw new WorkflowError(`Email gagal dikirim. ${sebab}`, "surel_gagal", 502);
   }
 
   await catat({ kepada: p.kepada, perihal: p.perihal,
-                jenis: p.jenis ?? "lain", userId: p.userId, berhasil: true });
+                jenis: p.jenis ?? "lain", userId: p.userId,
+                projectId: p.projectId, berhasil: true });
 }

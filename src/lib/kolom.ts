@@ -272,6 +272,21 @@ async function pasang(): Promise<void> {
     `CREATE INDEX IF NOT EXISTS idx_surel_log_waktu
        ON surel_log (created_at DESC)`);
 
+  // Pengirim per project: nomor WhatsApp yang dipakai mengirim tautan ke
+  // Sales/Agent, dan alamat email beserta akun pengirimnya. Berada di basis
+  // data, bukan di Environment Variables, karena nilainya berbeda tiap
+  // project sementara environment hanya punya satu nilai untuk seluruh
+  // aplikasi. Sandi aplikasinya disandikan, bukan disimpan polos.
+  for (const kolom of ["wa_pengirim TEXT", "surel_pengirim TEXT",
+                       "smtp_user TEXT", "smtp_pass_enc TEXT",
+                       "smtp_host TEXT", "smtp_port INT"]) {
+    await query(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS ${kolom}`);
+  }
+
+  // Project yang bersangkutan pada riwayat pengiriman, supaya terbaca email
+  // mana yang keluar atas nama project mana.
+  await query("ALTER TABLE surel_log ADD COLUMN IF NOT EXISTS project_id UUID");
+
   await query(
     `DO $$ BEGIN
        ALTER TABLE marketings ADD CONSTRAINT marketings_category_check
