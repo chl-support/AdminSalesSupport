@@ -101,9 +101,8 @@ const MENU: Butir[] = [
   // dan ditawarkan — sedangkan seluruh isi rumpun di atasnya dikerjakan
   // sesudah penjualannya jadi. Dua pekerjaan yang berurutan, bukan sejenis.
   //
-  // Layarnya belum ada; keduanya memakai <BelumSiap>. Menunya disusun lebih
-  // dulu supaya urutannya sudah benar sejak sekarang, dan tanpa layar di
-  // ujungnya menekan menu itu berakhir pada halaman 404 bawaan Next.js.
+  // Pricelist diunggah per project di layar Pricelist, dan layar Simulasi
+  // membaca pricelist yang berlaku untuk project yang sedang dipilih.
   {
     label: { id: "Simulasi & Pricelist", en: "Simulation & Price List" },
     anak: [

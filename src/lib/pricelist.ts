@@ -1,0 +1,446 @@
+/**
+ * Pricelist per project, diunggah sebagai berkas Excel.
+ *
+ * Bentuk berkasnya sama dengan lembar pricelist pada "Simulation TOP": satu
+ * baris judul berisi Unit No, Address, Tipe, Area (M²) yang dipecah menjadi
+ * Land dan Build pada baris di bawahnya, lalu satu kolom harga untuk tiap
+ * cara bayar. Baris judulnya dicari, bukan dipatok di baris pertama — berkas
+ * dari bagian penjualan sering diawali logo dan nama project.
+ *
+ * Satu project dapat menyimpan beberapa pricelist (riwayat), tetapi hanya
+ * satu yang berlaku. Unggahan baru langsung berlaku; yang lama tetap tersimpan
+ * dan dapat diberlakukan kembali bila unggahan barunya ternyata keliru.
+ *
+ * Pricelist disimpan utuh sebagai satu baris JSON, bukan dipecah per unit:
+ * ia selalu berganti serentak lewat satu berkas, tidak pernah disunting per
+ * unit, dan yang dibaca layar simulasi selalu seluruh isinya sekaligus.
+ */
+
+import ExcelJS from "exceljs";
+
+import { audit, one, query, tx } from "./db";
+import { PRICELIST, PROJECT_NARAYA, SKEMA } from "./pricelist-naraya";
+import { bentukSkema, uraianBentuk, type UnitHarga } from "./simulasi";
+
+// ── Membaca berkas ─────────────────────────────────────────────────────────
+
+/** Isi sel sebagai nilai yang dibaca orang: angka, teks, atau kosong. */
+function nilaiSel(sel: ExcelJS.Cell): string | number | null {
+  let v: any = sel.value;
+  if (v && typeof v === "object") {
+    if ("result" in v) v = v.result;                       // rumus
+    else if ("richText" in v) v = v.richText.map((r: any) => r.text).join("");
+    else if ("text" in v) v = v.text;                      // tautan
+    else if (v instanceof Date) v = null;
+    else if ("error" in v) v = null;
+  }
+  if (v == null || v === "") return null;
+  return typeof v === "number" ? v : String(v);
+}
+
+const teks = (v: string | number | null) =>
+  v == null ? "" : String(v).replace(/\s+/g, " ").trim();
+
+/**
+ * Angka dari sel. Sel angka dipakai apa adanya; sel teks dibaca dalam bentuk
+ * Indonesia (1.817.000.000 dan 146,50) maupun Inggris (1,817,000,000 dan
+ * 146.50). NaN berarti selnya terisi tetapi bukan angka.
+ */
+export function angkaSel(v: string | number | null): number | null {
+  if (v == null) return null;
+  if (typeof v === "number") return Number.isFinite(v) ? v : NaN;
+  let s = v.trim().replace(/^rp\.?/i, "").replace(/\s/g, "");
+  if (!s || s === "-") return null;
+  const titik = s.includes("."), koma = s.includes(",");
+  if (titik && koma) {
+    s = s.lastIndexOf(",") > s.lastIndexOf(".")
+      ? s.replace(/\./g, "").replace(",", ".")
+      : s.replace(/,/g, "");
+  } else if (titik) {
+    if (/^-?\d{1,3}(\.\d{3})+$/.test(s)) s = s.replace(/\./g, "");
+  } else if (koma) {
+    s = /^-?\d{1,3}(,\d{3}){2,}$/.test(s) ? s.replace(/,/g, "") : s.replace(",", ".");
+  }
+  const n = Number(s);
+  return Number.isFinite(n) ? n : NaN;
+}
+
+const KEPALA_UNIT = /^(unit\s*no\.?|no\.?\s*unit|kode\s*unit|unit)$/i;
+
+export type HasilBaca = {
+  lembar: string;
+  /** Nomor baris judul, sebagaimana tertulis di Excel (mulai 1). */
+  barisJudul: number;
+  skema: { nama: string; uraian: string }[];
+  unit: UnitHarga[];
+  /** Menghalangi penyimpanan. */
+  galat: string[];
+  /** Boleh disimpan, tetapi perlu dilihat orang lebih dulu. */
+  peringatan: string[];
+};
+
+/** Satu lembar kerja; null bila lembar ini tidak memuat baris "Unit No". */
+function bacaLembar(ws: ExcelJS.Worksheet): HasilBaca | null {
+  const baris = (r: number) => {
+    const row = ws.getRow(r);
+    const isi: (string | number | null)[] = [];
+    for (let c = 1; c <= ws.columnCount; c++) isi.push(nilaiSel(row.getCell(c)));
+    return isi;
+  };
+
+  let judul = -1;
+  for (let r = 1; r <= Math.min(ws.rowCount, 40); r++) {
+    if (baris(r).some((v) => KEPALA_UNIT.test(teks(v)))) { judul = r; break; }
+  }
+  if (judul < 0) return null;
+
+  const H = baris(judul).map(teks), H2 = baris(judul + 1).map(teks);
+  const cari = (re: RegExp) => {
+    for (let i = 0; i < H.length; i++) {
+      if (re.test(H[i]) || re.test(H2[i])) return i;
+    }
+    return -1;
+  };
+  const kUnit = H.findIndex((h) => KEPALA_UNIT.test(h));
+  const kAlamat = cari(/^(address|alamat|blok|cluster|kluster)$/i);
+  const kTipe = cari(/^(tipe|type)$/i);
+  const kLt = cari(/^(land|tanah|lt|luas tanah)$/i);
+  const kLb = cari(/^(build|building|bangunan|lb|luas bangunan)$/i);
+  const adaSub = H2.some((h) => /^(land|build|tanah|bangunan|lt|lb)$/i.test(h));
+  const mulai = judul + (adaSub ? 2 : 1);
+
+  const galat: string[] = [], peringatan: string[] = [];
+  const hilang = [kAlamat < 0 && "Address", kTipe < 0 && "Tipe",
+                  kLt < 0 && "Land", kLb < 0 && "Build"].filter(Boolean);
+  if (hilang.length) {
+    peringatan.push(`Kolom ${hilang.join(", ")} tidak ditemukan; unit tetap ` +
+                    "terbaca tanpa kolom itu.");
+  }
+
+  // Kolom harga: seluruh kolom berjudul di kanan kolom identitas unit. Sel yang
+  // dinaungi gabungan vertikal (mis. "CASH KERAS" yang di-merge dua baris)
+  // membawa nama yang sama pada baris kedua, maka nama diambil dari baris judul.
+  const terakhir = Math.max(kUnit, kAlamat, kTipe, kLt, kLb);
+  const kolom: { i: number; nama: string }[] = [];
+  for (let i = terakhir + 1; i < H.length; i++) {
+    const nama = H[i] || H2[i];
+    if (nama && !kolom.some((k) => k.nama === nama)) kolom.push({ i, nama });
+  }
+  if (!kolom.length) {
+    galat.push("Tidak ada kolom harga di kanan kolom Build.");
+  }
+  for (const k of kolom) {
+    if (!bentukSkema(k.nama)) {
+      galat.push(`Cara bayar "${k.nama}" tidak dikenali. Nama kolom harus ` +
+                 "memuat CASH, CICILAN …x, atau KPR (mis. KPR DP 10%/4x).");
+    }
+  }
+  const tunai = kolom.filter((k) => bentukSkema(k.nama)?.jenis === "cash");
+  if (!tunai.length) {
+    galat.push("Kolom Cash Keras tidak ada. Ia menjadi pembanding NPV cara " +
+               "bayar lainnya.");
+  }
+
+  const unit: UnitHarga[] = [];
+  const dilihat = new Map<string, number>();
+  let kosong = 0, kecil = 0;
+  for (let r = mulai; r <= ws.rowCount; r++) {
+    const isi = baris(r);
+    const kode = teks(isi[kUnit]);
+    const mentah = kolom.map((k) => angkaSel(isi[k.i]));
+    if (!kode) {
+      if (mentah.some((v) => v)) {
+        galat.push(`Baris ${r}: harga terisi tetapi Unit No kosong.`);
+      }
+      continue;
+    }
+    if (/^(total|jumlah|keterangan|catatan|note)/i.test(kode)) continue;
+    if (!mentah.some((v) => v)) continue;
+
+    if (dilihat.has(kode)) {
+      galat.push(`Unit No ${kode} tertulis dua kali (baris ${dilihat.get(kode)} ` +
+                 `dan ${r}).`);
+      continue;
+    }
+    dilihat.set(kode, r);
+
+    const bukan = kolom.filter((_, j) => Number.isNaN(mentah[j])).map((k) => k.nama);
+    if (bukan.length) {
+      galat.push(`Baris ${r} (${kode}): bukan angka di kolom ${bukan.join(", ")}.`);
+    }
+    const harga: Record<string, number> = {};
+    kolom.forEach((k, j) => {
+      const v = mentah[j];
+      if (v != null && !Number.isNaN(v) && v > 0) {
+        harga[k.nama] = v;
+        if (v < 1_000_000) kecil++;
+      } else if (v == null) kosong++;
+    });
+    const luas = (i: number) => {
+      if (i < 0) return null;
+      const v = angkaSel(isi[i]);
+      return v == null || Number.isNaN(v) ? null : v;
+    };
+    unit.push({
+      kode, alamat: kAlamat < 0 ? "" : teks(isi[kAlamat]),
+      tipe: kTipe < 0 ? "" : teks(isi[kTipe]),
+      lt: luas(kLt), lb: luas(kLb), harga,
+    });
+  }
+
+  if (!unit.length) galat.push("Tidak ada baris unit di bawah baris judul.");
+  if (kosong) {
+    peringatan.push(`${kosong} sel harga kosong; cara bayar itu tidak ` +
+                    "ditawarkan untuk unitnya.");
+  }
+  if (kecil) {
+    peringatan.push(`${kecil} harga di bawah Rp 1.000.000. Harga harus ditulis ` +
+                    "dalam rupiah penuh, bukan dalam juta.");
+  }
+  if (tunai.length) {
+    const murah = unit.filter((u) => {
+      const t = u.harga[tunai[0].nama];
+      return t && Object.entries(u.harga).some(([n, v]) => n !== tunai[0].nama && v < t);
+    });
+    if (murah.length) {
+      peringatan.push(`${murah.length} unit punya harga cara bayar lain di bawah ` +
+                      `Cash Keras (mis. ${murah[0].kode}).`);
+    }
+  }
+
+  return {
+    lembar: ws.name, barisJudul: judul,
+    skema: kolom.map((k) => {
+      const b = bentukSkema(k.nama);
+      return { nama: k.nama, uraian: b ? uraianBentuk(b) : "Tidak dikenali" };
+    }),
+    unit, galat, peringatan,
+  };
+}
+
+/**
+ * Baca berkas pricelist. Lembar yang dipakai adalah lembar pertama yang memuat
+ * baris "Unit No" — atau lembar yang disebutkan namanya.
+ */
+export async function bacaPricelist(
+  isi: ArrayBuffer, namaLembar?: string,
+): Promise<HasilBaca & { daftarLembar: string[] }> {
+  const wb = new ExcelJS.Workbook();
+  try {
+    await wb.xlsx.load(isi as any);
+  } catch {
+    throw new Error("Berkas tidak dapat dibaca sebagai Excel .xlsx. Berkas " +
+                    ".xls lama perlu disimpan ulang sebagai .xlsx lebih dulu.");
+  }
+  const daftarLembar = wb.worksheets.map((w) => w.name);
+  const calon = namaLembar
+    ? wb.worksheets.filter((w) => w.name === namaLembar)
+    : wb.worksheets;
+  for (const ws of calon) {
+    const h = bacaLembar(ws);
+    if (h) return { ...h, daftarLembar };
+  }
+  throw new Error(namaLembar
+    ? `Lembar "${namaLembar}" tidak memuat kolom Unit No.`
+    : "Tidak ada lembar yang memuat kolom Unit No. Pakai template dari layar " +
+      "Pricelist.");
+}
+
+// ── Template ───────────────────────────────────────────────────────────────
+
+/** Berkas contoh dengan bentuk yang diterima, berisi lima unit Naraya. */
+export async function templatePricelist(): Promise<Buffer> {
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet("Price List", { views: [{ state: "frozen", ySplit: 2 }] });
+  const kepala = ["Unit No", "Address", "Tipe", "Area (M²)", "", ...SKEMA];
+  ws.addRow(kepala);
+  ws.addRow(["", "", "", "Land", "Build", ...SKEMA.map(() => "")]);
+  for (const c of [1, 2, 3, ...SKEMA.map((_, i) => 6 + i)]) ws.mergeCells(1, c, 2, c);
+  ws.mergeCells(1, 4, 1, 5);
+  for (const u of PRICELIST.slice(0, 5)) {
+    ws.addRow([u.kode, u.alamat, u.tipe, u.lt, u.lb, ...SKEMA.map((s) => u.harga[s])]);
+  }
+  ws.columns.forEach((col, i) => {
+    col.width = i < 3 ? 13 : i < 5 ? 9 : Math.max(16, String(kepala[i]).length + 2);
+  });
+  for (let r = 3; r <= 7; r++) {
+    for (let c = 4; c <= 5; c++) ws.getCell(r, c).numFmt = "#,##0.00";
+    for (let c = 6; c <= kepala.length; c++) ws.getCell(r, c).numFmt = "#,##0";
+  }
+  for (const r of [1, 2]) {
+    ws.getRow(r).eachCell((c) => {
+      c.font = { bold: true };
+      c.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+      c.border = { bottom: { style: "thin" } };
+    });
+  }
+
+  const p = wb.addWorksheet("Petunjuk");
+  p.getColumn(1).width = 110;
+  [
+    "Petunjuk pengisian pricelist",
+    "",
+    "1. Isi unit mulai baris 3 lembar Price List. Baris 3–7 hanya contoh; timpa atau hapus.",
+    "2. Baris judul (baris 1–2) jangan diubah, kecuali nama kolom cara bayar.",
+    "3. Kolom cara bayar boleh ditambah atau dikurangi di kanan kolom Build. Namanya menentukan jadwalnya:",
+    "     CASH KERAS → cash;  CICILAN 24x → DP 10% lalu 23x angsuran;",
+    "     KPR DP 10%/4x → DP 10% dicicil 4x lalu pelunasan bank;  KPR DP 0% → tanpa DP;",
+    "     KPR atau KPR DP 20% → DP sekali lalu pelunasan bank.",
+    "4. Kolom CASH KERAS wajib ada: ia menjadi pembanding NPV.",
+    "5. Harga dalam rupiah penuh (1817000000). Unit No tidak boleh dobel. Sel harga boleh kosong.",
+  ].forEach((t, i) => { p.getCell(i + 1, 1).value = t; });
+  p.getCell(1, 1).font = { bold: true, size: 13 };
+
+  return Buffer.from(await wb.xlsx.writeBuffer());
+}
+
+// ── Penyimpanan ────────────────────────────────────────────────────────────
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Tabelnya dipasang dari sisi aplikasi, sekali per proses — alasannya sama
+ * dengan src/lib/kolom.ts: yang hanya tertulis di db/schema.sql baru sampai
+ * ke basis data yang sudah berjalan bila migrasi dijalankan ulang.
+ */
+let sekali: Promise<void> | null = null;
+export function ensureTabelPricelist(): Promise<void> {
+  sekali ??= (async () => {
+    await query(`
+      CREATE TABLE IF NOT EXISTS pricelists (
+        id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        project_id    UUID NOT NULL REFERENCES projects(id),
+        nama          TEXT NOT NULL,
+        nama_berkas   TEXT,
+        lembar        TEXT,
+        skema         JSONB NOT NULL,
+        unit          JSONB NOT NULL,
+        jumlah_unit   INT NOT NULL,
+        aktif         BOOLEAN NOT NULL DEFAULT false,
+        diunggah_oleh TEXT,
+        diunggah_pada TIMESTAMPTZ NOT NULL DEFAULT now()
+      )`);
+    await query(`CREATE UNIQUE INDEX IF NOT EXISTS pricelists_satu_aktif
+                   ON pricelists (project_id) WHERE aktif`);
+  })().catch((e) => { sekali = null; throw e; });
+  return sekali;
+}
+
+export type RingkasPricelist = {
+  id: string; nama: string; nama_berkas: string | null; lembar: string | null;
+  jumlah_unit: number; jumlah_skema: number; aktif: boolean;
+  diunggah_oleh: string | null; diunggah_pada: string;
+};
+
+export type PricelistBerlaku = {
+  /** null untuk pricelist bawaan yang tidak tersimpan di basis data. */
+  id: string | null;
+  nama: string;
+  sumber: "unggahan" | "bawaan";
+  skema: string[];
+  unit: UnitHarga[];
+};
+
+export async function daftarPricelist(projectId: string): Promise<RingkasPricelist[]> {
+  await ensureTabelPricelist();
+  return query<RingkasPricelist>(
+    `SELECT id, nama, nama_berkas, lembar, jumlah_unit,
+            jsonb_array_length(skema) AS jumlah_skema, aktif,
+            diunggah_oleh, diunggah_pada
+       FROM pricelists WHERE project_id=$1
+      ORDER BY diunggah_pada DESC`, [projectId]);
+}
+
+/**
+ * Pricelist yang berlaku bagi sebuah project: unggahan yang aktif, atau —
+ * khusus Naraya Serpong — pricelist bawaan selama belum ada unggahan.
+ */
+export async function pricelistBerlaku(
+  projectId: string, projectSlug: string | null | undefined,
+): Promise<PricelistBerlaku | null> {
+  await ensureTabelPricelist();
+  const row = await one<{ id: string; nama: string; skema: string[]; unit: UnitHarga[] }>(
+    "SELECT id, nama, skema, unit FROM pricelists WHERE project_id=$1 AND aktif",
+    [projectId]);
+  if (row) return { ...row, sumber: "unggahan" };
+  if (projectSlug === PROJECT_NARAYA) {
+    return { id: null, nama: "Pricelist bawaan Naraya Serpong", sumber: "bawaan",
+             skema: [...SKEMA], unit: PRICELIST };
+  }
+  return null;
+}
+
+/** Simpan hasil baca sebagai pricelist yang berlaku untuk project-nya. */
+export async function simpanPricelist(input: {
+  projectId: string; nama: string; namaBerkas: string;
+  hasil: HasilBaca; aktor: string;
+}): Promise<{ id: string }> {
+  const { hasil } = input;
+  if (hasil.galat.length) {
+    throw new Error("Pricelist masih memuat galat dan belum dapat disimpan.");
+  }
+  await ensureTabelPricelist();
+  return tx(async (c) => {
+    await c.query("UPDATE pricelists SET aktif=false WHERE project_id=$1 AND aktif",
+                  [input.projectId]);
+    const { rows } = await c.query<{ id: string }>(
+      `INSERT INTO pricelists (project_id, nama, nama_berkas, lembar, skema, unit,
+                               jumlah_unit, aktif, diunggah_oleh)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,true,$8) RETURNING id`,
+      [input.projectId, input.nama, input.namaBerkas, hasil.lembar,
+       JSON.stringify(hasil.skema.map((s) => s.nama)), JSON.stringify(hasil.unit),
+       hasil.unit.length, input.aktor]);
+    await audit({
+      entityType: "pricelist", entityId: rows[0].id, action: "pricelist_uploaded",
+      actor: input.aktor,
+      after: { nama: input.nama, berkas: input.namaBerkas,
+               unit: hasil.unit.length, skema: hasil.skema.length },
+    }, c);
+    return { id: rows[0].id };
+  });
+}
+
+/** Berlakukan kembali pricelist lama milik project yang sama. */
+export async function berlakukanPricelist(
+  id: string, projectId: string, aktor: string,
+): Promise<void> {
+  await ensureTabelPricelist();
+  if (!UUID.test(id)) throw new Error("Pricelist tidak ditemukan pada project ini.");
+  await tx(async (c) => {
+    const { rows } = await c.query<{ nama: string }>(
+      "SELECT nama FROM pricelists WHERE id=$1 AND project_id=$2", [id, projectId]);
+    if (!rows.length) throw new Error("Pricelist tidak ditemukan pada project ini.");
+    await c.query("UPDATE pricelists SET aktif=false WHERE project_id=$1 AND aktif",
+                  [projectId]);
+    await c.query("UPDATE pricelists SET aktif=true WHERE id=$1", [id]);
+    await audit({ entityType: "pricelist", entityId: id,
+                  action: "pricelist_activated", actor: aktor,
+                  after: { nama: rows[0].nama } }, c);
+  });
+}
+
+/**
+ * Hapus pricelist yang tidak berlaku. Yang sedang berlaku tidak dapat
+ * dihapus — layar simulasi project itu akan kosong seketika; berlakukan
+ * pricelist lain lebih dulu.
+ */
+export async function hapusPricelist(
+  id: string, projectId: string, aktor: string,
+): Promise<void> {
+  await ensureTabelPricelist();
+  if (!UUID.test(id)) throw new Error("Pricelist tidak ditemukan pada project ini.");
+  await tx(async (c) => {
+    const { rows } = await c.query<{ nama: string; aktif: boolean }>(
+      "SELECT nama, aktif FROM pricelists WHERE id=$1 AND project_id=$2",
+      [id, projectId]);
+    if (!rows.length) throw new Error("Pricelist tidak ditemukan pada project ini.");
+    if (rows[0].aktif) {
+      throw new Error("Pricelist yang sedang berlaku tidak dapat dihapus. " +
+                      "Berlakukan pricelist lain lebih dulu.");
+    }
+    await c.query("DELETE FROM pricelists WHERE id=$1", [id]);
+    await audit({ entityType: "pricelist", entityId: id,
+                  action: "pricelist_deleted", actor: aktor,
+                  before: { nama: rows[0].nama } }, c);
+  });
+}
