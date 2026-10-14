@@ -11,7 +11,7 @@
  *
  * Unit dan cara bayarnya diambil dari pricelist yang berlaku untuk project
  * yang sedang dipilih. Pricelist itu diunggah di layar ini juga, lewat panel
- * Upload Pricelist di bagian atas (Admin Sales dan Admin IT).
+ * Upload D-Pricelist di bagian atas (Admin Sales dan Admin IT).
  *
  * Tanggal booking dapat diubah, tidak dipatok hari ini. Simulasi dibuat
  * sebelum konsumen datang, dan jadwal yang dihitung untuk hari ini akan
@@ -71,7 +71,7 @@ const KATA = {
     takAda: "Unit ini tidak ada di pricelist.",
     takAdaHarga: "Unit ini tidak punya harga untuk cara bayar tersebut.",
     belumAda: "Project ini belum punya pricelist. Unggah berkasnya lewat " +
-              "panel Upload Pricelist di atas.",
+              "panel Upload D-Pricelist di atas.",
     belumAdaBaca: "Project ini belum punya pricelist. Admin Sales atau Admin " +
                   "IT dapat mengunggahnya di layar ini.",
     memuatPl: "Memuat pricelist…",
@@ -117,7 +117,7 @@ const KATA = {
     takAda: "This unit is not in the price list.",
     takAdaHarga: "This unit has no price for that payment scheme.",
     belumAda: "This project has no price list yet. Upload it with the " +
-              "Upload Price List panel above.",
+              "Upload D-Pricelist panel above.",
     belumAdaBaca: "This project has no price list yet. Admin Sales or Admin " +
                   "IT can upload it on this screen.",
     memuatPl: "Loading price list…",
