@@ -43,43 +43,46 @@ type Butir = {
  * jadi mengetikkan alamatnya langsung tidak memberi akses apa pun.
  */
 const MENU: Butir[] = [
-  // Data marketing di atas: penerima fee berasal dari sini, dan yang belum
-  // punya spesimen tanda tangan klaimnya selalu berakhir di pemeriksaan manual.
-  // Yang menentukan hasil pengajuan karenanya dilihat lebih dulu daripada
-  // pengajuannya.
-  //
-  // Tanpa href: ia nama rumpun, dan satu-satunya layar di bawahnya adalah
-  // Spesimen Tanda Tangan. Menjadikannya tautan ke layar anaknya berarti dua
-  // butir menu mengantar ke tempat yang sama, dan keduanya menyala bersamaan
-  // saat layar itu dibuka.
-  {
-    label: { id: "Data Marketing", en: "Marketing Data" },
-    peran: ["admin_sales", "admin_system"],
-    anak: [
-      { href: "/spesimen",
-        label: { id: "Spesimen Tanda Tangan", en: "Specimen Signature" } },
-    ],
-  },
-  // Keempat jenis fee tidak lagi menjadi butir menu tersendiri. Menu dan daftar
-  // pilihan pada layarnya adalah dua jalan menuju hal yang sama, dan yang satu
-  // selalu lebih pendek — yang lain lalu hanya memanjangkan kolom menu. Jenisnya
-  // dipilih di dalam layar datanya, tempat penyaring lain juga berada.
-  // Pengajuan Fee punya layarnya sendiri sekaligus anak: namanya tetap tautan
-  // ke daftar pengajuannya, dan pelipatnya tombol tersendiri di sebelahnya.
-  //
-  // Ketiganya satu rumpun karena ketiganya satu urusan yang sama, berurutan:
-  // pengajuan dibuat, dokumennya berjalan sampai disetujui, pembayarannya
-  // dicatat. Berdiri sendiri-sendiri di kolom menu, ketiganya terbaca sebagai
-  // tiga pekerjaan yang tidak berhubungan — padahal yang satu adalah
-  // kelanjutan yang lain.
+  // Satu rumpun memayungi seluruh pekerjaan sehari-hari, dan susunan di
+  // dalamnya dibiarkan apa adanya — yang berubah hanya atapnya.
   //
   // Rumpunnya tanpa href: ia nama, bukan layar. Tidak ada satu halaman pun
-  // yang memuat ketiganya sekaligus, dan menjadikannya tautan ke salah satu
-  // anaknya berarti dua butir menu mengantar ke tempat yang sama.
+  // yang memuat seluruh isinya, dan menjadikannya tautan ke salah satu
+  // anaknya berarti dua butir menu mengantar ke tempat yang sama, lalu
+  // keduanya menyala bersamaan saat layar itu dibuka.
+  //
+  // Administrasi dan Jejak Audit sengaja tetap di luar: keduanya hanya untuk
+  // Admin IT, dan bukan bagian dari alur pengajuan maupun dokumen. Memasukkan
+  // keduanya membuat rumpun ini berarti "semua menu", dan rumpun yang berarti
+  // semua tidak memisahkan apa pun.
   {
     label: { id: "Pengajuan, Dokumen & Payment",
              en: "Submission, Documents & Payment" },
     anak: [
+      // Data marketing di atas: penerima fee berasal dari sini, dan yang belum
+      // punya spesimen tanda tangan klaimnya selalu berakhir di pemeriksaan
+      // manual. Yang menentukan hasil pengajuan karenanya dilihat lebih dulu
+      // daripada pengajuannya.
+      //
+      // Tanpa href, dengan alasan yang sama seperti rumpun di atasnya:
+      // satu-satunya layar di bawahnya adalah Spesimen Tanda Tangan.
+      {
+        label: { id: "Data Marketing", en: "Marketing Data" },
+        peran: ["admin_sales", "admin_system"],
+        anak: [
+          { href: "/spesimen",
+            label: { id: "Spesimen Tanda Tangan", en: "Specimen Signature" } },
+        ],
+      },
+      // Keempat jenis fee tidak menjadi butir menu tersendiri. Menu dan daftar
+      // pilihan pada layarnya adalah dua jalan menuju hal yang sama, dan yang
+      // satu selalu lebih pendek — yang lain lalu hanya memanjangkan kolom
+      // menu. Jenisnya dipilih di dalam layar datanya, tempat penyaring lain
+      // juga berada.
+      //
+      // Pengajuan Fee punya layarnya sendiri sekaligus anak: namanya tetap
+      // tautan ke daftar pengajuannya, dan pelipatnya tombol tersendiri di
+      // sebelahnya.
       { href: "/klaim", label: { id: "Pengajuan Fee", en: "Fee Submission" },
         anak: [
           { href: "/klaim/referensi",
@@ -89,10 +92,10 @@ const MENU: Butir[] = [
       { href: "/persetujuan",
         label: { id: "Manajemen Alur Kerja Dokumen",
                  en: "Document Workflow Management" } },
+      { href: "/laporan",
+        label: { id: "Monitoring Laporan", en: "Marketing Report" } },
     ],
   },
-  { href: "/laporan",
-    label: { id: "Monitoring Laporan", en: "Marketing Report" } },
   // Administrasi sempat hilang dari menu saat susunannya ditata ulang, padahal
   // layarnya tetap ada: unggah Laporan Penjualan, Laporan Penerimaan, dan
   // Report Agent semuanya di sana. Butir yang hilang membuat satu-satunya jalan

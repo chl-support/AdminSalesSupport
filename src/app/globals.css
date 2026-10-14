@@ -806,6 +806,11 @@ ul.cetak-ceklis .kotak { border: 1px solid var(--ink); width: 14px; height: 14px
    bahwa yang di bawahnya satu rumpun. */
 .nav .anak .grup { margin-bottom: 7px; }
 .nav .anak .grup:last-child { margin-bottom: 0; }
+/* Judul rumpun di dalam rumpun seberat dan sebesar tautan di sebelahnya.
+   Dibiarkan seberat judul rumpun teratas, ia tampak setingkat dengan
+   induknya sendiri — padahal ia justru anaknya. */
+.nav .anak .grup-judul { font-size: 12px; font-weight: 500;
+                         padding-left: 9px; }
 
 /* Lencana profil di kanan atas, dan panel yang muncul saat diklik. */
 .bilah { position: relative; flex: none; }
