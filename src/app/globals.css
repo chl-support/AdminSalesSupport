@@ -811,14 +811,27 @@ ul.cetak-ceklis .kotak { border: 1px solid var(--ink); width: 14px; height: 14px
    induknya sendiri — padahal ia justru anaknya. */
 .nav .anak .grup-judul { font-size: 12px; font-weight: 500;
                          padding-left: 9px; }
-/* Rumpun tertutup yang memuat halaman yang sedang dibuka: nadanya menua dan
-   diberi batang emas, batang yang sama dengan penanda menu yang sedang
-   dibuka. Rumpun yang tertutup rapat tanpa tanda apa pun membuat orang
-   kehilangan letaknya sendiri di dalam sistem — dan yang dibutuhkannya
-   bukan isi rumpunnya terhampar, hanya tahu ia sedang berada di mana. */
+/* Rumpun tertutup yang memuat halaman yang sedang dibuka: diberi batang emas,
+   batang yang sama dengan penanda menu yang sedang dibuka. Rumpun yang
+   tertutup rapat tanpa tanda apa pun membuat orang kehilangan letaknya sendiri
+   di dalam sistem — dan yang dibutuhkannya bukan isi rumpunnya terhampar,
+   hanya tahu ia sedang berada di mana.
+
+   Batangnya saja, nadanya tidak ikut dituakan. Dituakan, dua rumpun yang
+   bersebelahan tampak berbeda tebal tulisannya, dan yang terbaca lebih dahulu
+   adalah perbedaan itu — bukan batang yang justru menjadi penandanya. */
 .nav .grup.ada-aktif > .grup-judul,
-.nav .grup.ada-aktif > .grup-baris > a { position: relative;
-                                         color: var(--ink); }
+.nav .grup.ada-aktif > .grup-baris > a { position: relative; }
+/* Seluruh butir teratas bernada sama, setua yang paling tua di antaranya.
+   Sebelumnya hanya rumpun yang memuat halaman sedang dibuka yang bernada tua,
+   dan dua rumpun bersebelahan karena itu tampak berbeda tebal tulisannya —
+   yang terbaca lebih dahulu perbedaan nada itu, bukan batang emas yang justru
+   menjadi penandanya.
+
+   Hanya yang teratas. Anak-anaknya tetap lebih muda nadanya: di situlah
+   susunan bertingkatnya terbaca tanpa perlu ikon maupun garis tambahan. */
+.nav > .grup > .grup-judul,
+.nav > .grup > .grup-baris > a { color: var(--ink); }
 .nav .grup.ada-aktif > .grup-judul::before,
 .nav .grup.ada-aktif > .grup-baris > a::before {
   content: ""; position: absolute; left: 0; top: 7px; bottom: 7px; width: 3px;
