@@ -811,6 +811,19 @@ ul.cetak-ceklis .kotak { border: 1px solid var(--ink); width: 14px; height: 14px
    induknya sendiri — padahal ia justru anaknya. */
 .nav .anak .grup-judul { font-size: 12px; font-weight: 500;
                          padding-left: 9px; }
+/* Rumpun tertutup yang memuat halaman yang sedang dibuka: nadanya menua dan
+   diberi batang emas, batang yang sama dengan penanda menu yang sedang
+   dibuka. Rumpun yang tertutup rapat tanpa tanda apa pun membuat orang
+   kehilangan letaknya sendiri di dalam sistem — dan yang dibutuhkannya
+   bukan isi rumpunnya terhampar, hanya tahu ia sedang berada di mana. */
+.nav .grup.ada-aktif > .grup-judul,
+.nav .grup.ada-aktif > .grup-baris > a { position: relative;
+                                         color: var(--ink); }
+.nav .grup.ada-aktif > .grup-judul::before,
+.nav .grup.ada-aktif > .grup-baris > a::before {
+  content: ""; position: absolute; left: 0; top: 7px; bottom: 7px; width: 3px;
+  border-radius: 0 2px 2px 0; background: var(--emas);
+}
 
 /* Lencana profil di kanan atas, dan panel yang muncul saat diklik. */
 .bilah { position: relative; flex: none; }

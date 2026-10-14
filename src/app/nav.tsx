@@ -264,13 +264,25 @@ export function Nav({ peran }: { peran?: string }) {
 
     const kunci = m.href ?? m.label.id;
     const idAnak = `submenu-${kunci.replace(/[^a-zA-Z0-9]+/g, "-")}`;
-    // Rumpun yang memuat halaman yang sedang dibuka dipaksa terbuka. Menu
-    // yang menyembunyikan justru baris yang sedang menyala membuat orang
-    // kehilangan letaknya sendiri di dalam sistem.
-    const terbuka = memuatAktif(m) || dibuka.includes(kunci);
+    /*
+     * Terbuka hanya karena ditekan. Sempat dipaksa terbuka juga bila rumpunnya
+     * memuat halaman yang sedang dibuka — dan selama tiap rumpun memayungi
+     * satu-dua layar saja, aturan itu benar. Begitu seluruh layar kerja pindah
+     * ke dalam satu rumpun, syaratnya hampir selalu terpenuhi: rumpunnya
+     * praktis tidak pernah tertutup, dan tombolnya kehilangan artinya.
+     */
+    const terbuka = dibuka.includes(kunci);
+    /*
+     * Rumpun tertutup yang memuat halaman yang sedang dibuka diberi tanda.
+     * Inilah ganti dari pemaksaan itu: yang dibutuhkan orang bukan isi
+     * rumpunnya terhampar, melainkan tahu di rumpun mana ia sedang berada —
+     * dan satu batang emas di tepi judulnya sudah menjawab itu tanpa membuka
+     * apa pun.
+     */
+    const tandai = !terbuka && memuatAktif(m);
 
     return (
-      <div key={kunci} className="grup">
+      <div key={kunci} className={`grup${tandai ? " ada-aktif" : ""}`}>
         {m.href ? (
           /* Punya layarnya sendiri: namanya tetap tautan, dan pelipatnya
              tombol tersendiri di sebelahnya. Menjadikan seluruh barisnya
