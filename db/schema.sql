@@ -918,4 +918,25 @@ CREATE TABLE IF NOT EXISTS memo_files (
 CREATE INDEX IF NOT EXISTS idx_memo_files_memo
   ON memo_files(memo_id, uploaded_at);
 
+-- Pricelist per project, diunggah dari layar Pricelist. Seluruh unit satu
+-- berkas disimpan utuh sebagai JSON: ia berganti serentak, tidak disunting per
+-- unit. Satu project boleh menyimpan riwayat, tetapi hanya satu yang berlaku.
+-- Dipasang juga dari sisi aplikasi oleh ensureTabelPricelist()
+-- (src/lib/pricelist.ts), sebab migrasi tidak selalu dijalankan ulang.
+CREATE TABLE IF NOT EXISTS pricelists (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id    UUID NOT NULL REFERENCES projects(id),
+  nama          TEXT NOT NULL,
+  nama_berkas   TEXT,
+  lembar        TEXT,
+  skema         JSONB NOT NULL,
+  unit          JSONB NOT NULL,
+  jumlah_unit   INT NOT NULL,
+  aktif         BOOLEAN NOT NULL DEFAULT false,
+  diunggah_oleh TEXT,
+  diunggah_pada TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS pricelists_satu_aktif
+  ON pricelists (project_id) WHERE aktif;
+
 COMMIT;

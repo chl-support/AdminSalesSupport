@@ -9,19 +9,26 @@
  * tenor. Perhitungannya duduk di src/lib/simulasi.ts; layar ini hanya
  * menyusunnya.
  *
+ * Unit dan cara bayarnya diambil dari pricelist yang berlaku untuk project
+ * yang sedang dipilih. Pricelist itu diunggah di layar ini juga, lewat panel
+ * Upload Pricelist di bagian atas (Admin Sales dan Admin IT).
+ *
  * Tanggal booking dapat diubah, tidak dipatok hari ini. Simulasi dibuat
  * sebelum konsumen datang, dan jadwal yang dihitung untuk hari ini akan
  * meleset sehari-dua begitu dicetak esok paginya.
  */
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { useBahasa, useKata } from "../bahasa";
 import { Kerangka, MemeriksaSesi } from "../kerangka";
 import { useSesi } from "../session";
+import { PENGUNGGAH, UnggahPricelist } from "./unggah-pricelist";
 import { formatRupiah } from "@/lib/money";
-import { PRICELIST, SKEMA, unitHarga, type Skema } from "@/lib/pricelist-naraya";
-import { BUNGA_NPV, hitung, lewatKpr } from "@/lib/simulasi";
+import { BUNGA_NPV, bentukSkema, hitung, lewatKpr, type Skema,
+         type UnitHarga } from "@/lib/simulasi";
+
+type Pricelist = { nama: string; skema: Skema[]; unit: UnitHarga[] };
 
 const KATA = {
   id: {
@@ -62,6 +69,13 @@ const KATA = {
     aPerBulan: "Angsuran per bulan",
     aPokok: "Dihitung atas pokok",
     takAda: "Unit ini tidak ada di pricelist.",
+    takAdaHarga: "Unit ini tidak punya harga untuk cara bayar tersebut.",
+    belumAda: "Project ini belum punya pricelist. Unggah berkasnya lewat " +
+              "panel Upload Pricelist di atas.",
+    belumAdaBaca: "Project ini belum punya pricelist. Admin Sales atau Admin " +
+                  "IT dapat mengunggahnya di layar ini.",
+    memuatPl: "Memuat pricelist…",
+    sumber: "Pricelist",
   },
   en: {
     judul: "Simulation / NPV",
@@ -101,6 +115,13 @@ const KATA = {
     aPerBulan: "Monthly instalment",
     aPokok: "Computed on principal",
     takAda: "This unit is not in the price list.",
+    takAdaHarga: "This unit has no price for that payment scheme.",
+    belumAda: "This project has no price list yet. Upload it with the " +
+              "Upload Price List panel above.",
+    belumAdaBaca: "This project has no price list yet. Admin Sales or Admin " +
+                  "IT can upload it on this screen.",
+    memuatPl: "Loading price list…",
+    sumber: "Price list",
   },
 };
 
@@ -121,12 +142,40 @@ export default function SimulasiPage() {
   const { bahasa } = useBahasa();
 
   const [tanggal, setTanggal] = useState(hariIni);
-  const [kode, setKode] = useState(PRICELIST[0]?.kode ?? "");
-  const [skema, setSkema] = useState<Skema>("CASH KERAS");
+  const [pl, setPl] = useState<Pricelist | null | undefined>(undefined);
+  const [galatPl, setGalatPl] = useState<string | null>(null);
+  // Dinaikkan setiap kali pricelist baru tersimpan, supaya dibaca ulang.
+  const [versiPl, setVersiPl] = useState(0);
+  const [kode, setKode] = useState("");
+  const [skema, setSkema] = useState<Skema>("");
   const [diskon, setDiskon] = useState("0");
   const [bunga, setBunga] = useState("4.65");
 
-  const unit = unitHarga(kode);
+  useEffect(() => {
+    if (!sesi) return;
+    let batal = false;
+    (async () => {
+      const res = await fetch("/api/pricelist");
+      const b = await res.json().catch(() => ({}));
+      if (batal) return;
+      if (res.status === 401) { location.href = "/login"; return; }
+      if (!res.ok) { setGalatPl(b.detail ?? b.title ?? `HTTP ${res.status}`); return; }
+      const p: Pricelist | null = b.berlaku ?? null;
+      setGalatPl(null);
+      setPl(p);
+      if (p) {
+        setKode((kd) => p.unit.some((u) => u.kode === kd) ? kd : (p.unit[0]?.kode ?? ""));
+        setSkema((sk) => p.skema.includes(sk) ? sk
+          : (p.skema.find((x) => bentukSkema(x)?.jenis === "cash") ?? p.skema[0] ?? ""));
+      }
+    })();
+    return () => { batal = true; };
+  }, [sesi, versiPl]);
+
+  const unit = pl?.unit.find((u) => u.kode === kode) ?? null;
+  // Pembanding: kolom cara bayar tunai pada pricelist-nya. Namanya ditulis
+  // tiap project sendiri, jadi dicari dari bentuknya, bukan dari teksnya.
+  const tunai = pl?.skema.find((x) => bentukSkema(x)?.jenis === "cash") ?? "";
   // Tanggalnya dibaca sebagai tengah malam UTC, bukan waktu setempat: selisih
   // hari pada jadwal harus bulat, dan tanggal yang lahir di zona waktu lain
   // menggeser seluruh jadwal setengah hari.
@@ -140,20 +189,41 @@ export default function SimulasiPage() {
     return Number.isFinite(n) ? n : 0;
   };
 
-  const hasil = useMemo(() => unit && hitung({
+  const hasil = useMemo(() => unit && unit.harga[skema] > 0 ? hitung({
     unit, skema, diskon: angka(diskon) / 100,
     bungaKpr: angka(bunga) / 100, tanggal: booking,
-  }), [unit, skema, diskon, bunga, booking]);
+  }) : null, [unit, skema, diskon, bunga, booking]);
 
   // Pembanding tetap Cash Keras, cara bayar yang paling ringkas jadwalnya dan
   // karena itu paling tinggi nilai sekarangnya — di situlah selisih cara bayar
   // lain terbaca sebagai biaya menunggu.
-  const dasar = useMemo(() => unit && hitung({
-    unit, skema: "CASH KERAS", diskon: angka(diskon) / 100,
+  const dasar = useMemo(() => unit && unit.harga[tunai] > 0 ? hitung({
+    unit, skema: tunai, diskon: angka(diskon) / 100,
     bungaKpr: angka(bunga) / 100, tanggal: booking,
-  }), [unit, diskon, bunga, booking]);
+  }) : null, [unit, tunai, diskon, bunga, booking]);
 
   if (memuat || !sesi) return <MemeriksaSesi />;
+
+  const bolehUnggah = PENGUNGGAH.includes(sesi.role) && !!sesi.project_slug;
+  const unggah = bolehUnggah && (
+    <UnggahPricelist onTersimpan={() => setVersiPl((v) => v + 1)} />
+  );
+
+  if (galatPl || !pl) {
+    return (
+      <Kerangka sesi={sesi} lebar judul={<div><h1>{k.judul}</h1></div>}>
+        {unggah}
+        {galatPl ? <div className="banner stop">{galatPl}</div>
+          : pl === undefined ? <p className="hint">{k.memuatPl}</p>
+          : <div className="banner info">
+              {bolehUnggah ? k.belumAda : k.belumAdaBaca}
+            </div>}
+      </Kerangka>
+    );
+  }
+
+  const luas = (n: number | null) =>
+    n == null ? "—" : `${n.toLocaleString("id-ID")} m²`;
 
   const tglTeks = (d: Date) =>
     d.toLocaleDateString(bahasa === "id" ? "id-ID" : "en-GB",
@@ -162,6 +232,12 @@ export default function SimulasiPage() {
 
   return (
     <Kerangka sesi={sesi} lebar judul={<div><h1>{k.judul}</h1></div>}>
+
+      {unggah}
+
+      <p className="hint" style={{ textAlign: "left", marginTop: 0 }}>
+        {k.sumber}: <a href="/pricelist">{pl.nama}</a>
+      </p>
 
       <div className="panel sp">
         <div className="filters">
@@ -173,7 +249,7 @@ export default function SimulasiPage() {
           <div>
             <div className="lbl">{k.fUnit}</div>
             <select value={kode} onChange={(e) => setKode(e.target.value)}>
-              {PRICELIST.map((u) => (
+              {pl.unit.map((u) => (
                 <option key={u.kode} value={u.kode}>
                   {u.kode} — {u.alamat}
                 </option>
@@ -184,7 +260,9 @@ export default function SimulasiPage() {
             <div className="lbl">{k.fSkema}</div>
             <select value={skema}
                     onChange={(e) => setSkema(e.target.value as Skema)}>
-              {SKEMA.map((s) => <option key={s} value={s}>{s}</option>)}
+              {pl.skema.map((s) => (
+                <option key={s} value={s} disabled={!((unit?.harga[s] ?? 0) > 0)}>{s}</option>
+              ))}
             </select>
           </div>
           <div>
@@ -201,7 +279,7 @@ export default function SimulasiPage() {
       </div>
 
       {!unit || !hasil || !dasar ? (
-        <div className="banner stop">{k.takAda}</div>
+        <div className="banner stop">{!unit ? k.takAda : k.takAdaHarga}</div>
       ) : (
         <>
           <div className="dua-kolom sp">
@@ -210,9 +288,9 @@ export default function SimulasiPage() {
               <table className="tabel-ringkas"><tbody>
                 <tr><td>{k.rTipe}</td><td className="n">{unit.tipe}</td></tr>
                 <tr><td>{k.rLt}</td>
-                    <td className="n">{unit.lt.toLocaleString("id-ID")} m²</td></tr>
+                    <td className="n">{luas(unit.lt)}</td></tr>
                 <tr><td>{k.rLb}</td>
-                    <td className="n">{unit.lb.toLocaleString("id-ID")} m²</td></tr>
+                    <td className="n">{luas(unit.lb)}</td></tr>
                 <tr><td>{k.rPricelist}</td>
                     <td className="n">{formatRupiah(hasil.hargaPricelist)}</td></tr>
                 <tr><td>{k.rDiskon}</td>
@@ -226,10 +304,12 @@ export default function SimulasiPage() {
               <h2>{k.hargaSemua}</h2>
               <table className="tabel-ringkas"><tbody>
                 <tr><th>{k.kSkema}</th><th>{k.kHarga}</th></tr>
-                {SKEMA.map((s) => (
+                {pl.skema.map((s) => (
                   <tr key={s} className={s === skema ? "terpilih" : undefined}>
                     <td>{s}</td>
-                    <td className="n">{formatRupiah(unit.harga[s])}</td>
+                    <td className="n">
+                      {unit.harga[s] > 0 ? formatRupiah(unit.harga[s]) : "—"}
+                    </td>
                   </tr>
                 ))}
               </tbody></table>
@@ -314,7 +394,7 @@ export default function SimulasiPage() {
           <div className="dua-kolom">
             <div className="panel">
               <h2>{k.banding}</h2>
-              {skema === "CASH KERAS" ? (
+              {skema === tunai ? (
                 <p className="hint" style={{ textAlign: "left" }}>{k.bSama}</p>
               ) : (
                 <table className="tabel-ringkas"><tbody>

@@ -1745,6 +1745,61 @@ async function main() {
     assert(Math.abs(h.jumlahTagihan - h.jumlahNilai) < 0.1, "tagihan penuh");
   });
 
+  // Pricelist unggahan: nama kolom cara bayar menentukan jadwalnya. Kesepuluh
+  // nama Naraya harus terbaca sebagai bentuk yang jadwalnya sama dengan berkas
+  // Excel-nya — uji angka di atas berjalan lewat jalur ini juga.
+  await check("nama cara bayar terbaca sebagai bentuk jadwalnya", async () => {
+    const { bentukSkema } = await import("../src/lib/simulasi");
+    const harap: Record<string, string> = {
+      "CASH KERAS": '{"jenis":"cash"}',
+      "CICILAN 12x": '{"jenis":"cicilan","kali":12}',
+      "CICILAN 30x": '{"jenis":"cicilan","kali":30}',
+      "KPR EXPRESS": '{"jenis":"kpr","muka":0.1}',
+      "BANK KPR - DP 10% (KPR REGULAR)": '{"jenis":"kpr","muka":0.1}',
+      "KPR DP 0% Express": '{"jenis":"kpr-dp0"}',
+      "KPR DP 10%/4x": '{"jenis":"kpr-cicil","muka":0.1,"kali":4}',
+      "KPR DP 20%/6x": '{"jenis":"kpr-cicil","muka":0.2,"kali":6}',
+    };
+    for (const [nama, json] of Object.entries(harap)) {
+      const b = JSON.stringify(bentukSkema(nama));
+      assert(b === json, `${nama}: ${b}`);
+    }
+    assert(bentukSkema("Harga Spesial") === null, "nama asing harus ditolak");
+  });
+
+  await check("unggahan pricelist dibaca dan diperiksa", async () => {
+    const ExcelJS = (await import("exceljs")).default;
+    const { bacaPricelist, templatePricelist } = await import("../src/lib/pricelist");
+
+    // Template yang diunduh orang harus terbaca kembali tanpa galat.
+    const t = await templatePricelist();
+    const tb = await bacaPricelist(
+      t.buffer.slice(t.byteOffset, t.byteOffset + t.byteLength) as ArrayBuffer);
+    assert(tb.galat.length === 0, `template: ${tb.galat.join("; ")}`);
+    assert(tb.unit.length === 5 && tb.skema.length === 10,
+           `template: ${tb.unit.length} unit, ${tb.skema.length} skema`);
+    assert(tb.unit[0].harga["CASH KERAS"] === 1_817_000_000, "harga template");
+
+    // Berkas project lain: judul di atas tabel, angka berformat Indonesia,
+    // Unit No dobel dan sel bukan angka harus menjadi galat.
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet("Simulation TOP");
+    ws.addRow(["PRICELIST"]); ws.addRow([]);
+    ws.addRow(["Unit No", "Address", "Tipe", "Area (M²)", "", "CASH KERAS",
+               "CICILAN 36x"]);
+    ws.addRow(["", "", "", "Land", "Build"]);
+    ws.mergeCells(3, 4, 3, 5);
+    ws.addRow(["X-01", "A", "9", "146,50", "88,00", "1.817.000.000", 1_906_000_000]);
+    ws.addRow(["X-02", "A", 9, 85, 88, 1_329_000_000, "abc"]);
+    ws.addRow(["X-02", "A", 9, 85, 88, 1_329_000_000, 1_394_000_000]);
+    const h = await bacaPricelist(await wb.xlsx.writeBuffer() as ArrayBuffer);
+    assert(h.barisJudul === 3, `baris judul: ${h.barisJudul}`);
+    assert(h.unit[0].lt === 146.5 && h.unit[0].harga["CASH KERAS"] === 1_817_000_000,
+           `angka Indonesia: ${JSON.stringify(h.unit[0])}`);
+    assert(h.galat.some((g) => g.includes("dua kali")), "Unit No dobel");
+    assert(h.galat.some((g) => g.includes("bukan angka")), "sel bukan angka");
+  });
+
   console.log("\n" + "=".repeat(62));
   console.log(`  LULUS ${pass.length}   GAGAL ${fail.length}`);
   if (fail.length) {

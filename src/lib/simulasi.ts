@@ -1,5 +1,5 @@
 /**
- * Simulasi cara bayar dan NPV — Naraya Serpong.
+ * Simulasi cara bayar dan NPV — untuk seluruh project.
  *
  * Salinan model yang selama ini hidup di berkas Excel "Simulation TOP Naraya":
  * satu lembar masukan, sepuluh lembar jadwal pembayaran, dan sepuluh lembar
@@ -19,9 +19,88 @@
  *      tertulis di berkasnya.
  */
 
-import { SKEMA, type Skema, type UnitHarga } from "./pricelist-naraya";
+import { SKEMA } from "./pricelist-naraya";
 
-export { SKEMA, type Skema };
+export { SKEMA };
+
+/**
+ * Nama cara bayar, persis seperti kepala kolom pricelist-nya.
+ *
+ * Sengaja teks bebas, bukan daftar tetap: tiap project mengunggah
+ * pricelist-nya sendiri, dan nama kolomnya ditulis bagian penjualan project
+ * itu. Bentuk jadwalnya dibaca dari namanya lewat bentukSkema().
+ */
+export type Skema = string;
+
+/** Satu baris pricelist: satu unit beserta harganya per cara bayar. */
+export type UnitHarga = {
+  kode: string;
+  alamat: string;
+  tipe: string | number;
+  /** Luas tanah, m2. Kosong bila pricelist-nya tidak menuliskannya. */
+  lt: number | null;
+  /** Luas bangunan, m2. */
+  lb: number | null;
+  /** Harga per cara bayar. Cara bayar yang tidak tersedia tidak ada di sini. */
+  harga: Record<string, number>;
+};
+
+/**
+ * Bentuk jadwal sebuah cara bayar.
+ *
+ * Kesepuluh cara bayar Naraya dipetakan ke bentuk yang jadwalnya sama persis
+ * dengan berkas Excel-nya. Project lain memakai nama yang mengikuti pola yang
+ * sama — "CICILAN 36x", "KPR DP 15%/3x" — dan mendapat jadwal yang dibangun
+ * dengan aturan yang sama.
+ */
+export type Bentuk =
+  | { jenis: "cash" }
+  /** Uang muka 10% lalu sisanya dicicil; `kali` = banyak termin seluruhnya. */
+  | { jenis: "cicilan"; kali: number }
+  /** Uang muka sekali, lalu pelunasan lewat bank. */
+  | { jenis: "kpr"; muka: number }
+  /** Tanpa uang muka: booking fee lalu pelunasan lewat bank. */
+  | { jenis: "kpr-dp0" }
+  /** Uang muka dicicil `kali` kali, lalu pelunasan lewat bank. */
+  | { jenis: "kpr-cicil"; muka: number; kali: number };
+
+/**
+ * Bentuk jadwal dibaca dari nama kolomnya. null bila namanya tidak dikenali —
+ * pricelist yang memuat kolom seperti itu ditolak saat diunggah, bukan
+ * dihitung dengan jadwal tebakan.
+ */
+export function bentukSkema(nama: string): Bentuk | null {
+  const n = nama.toLowerCase().replace(/\s+/g, " ");
+  if (/\b(cash|tunai|keras)\b/.test(n) && !/kpr|kpa/.test(n)) return { jenis: "cash" };
+  if (/cicilan|angsuran|installment|bertahap/.test(n) && !/kpr|kpa/.test(n)) {
+    const x = /(\d+)\s*(x|kali)\b/.exec(n);
+    const kali = x ? Number(x[1]) : 0;
+    return kali >= 2 ? { jenis: "cicilan", kali } : null;
+  }
+  if (/\b(kpr|kpa)\b/.test(n)) {
+    const dp = /dp\s*(\d+(?:[.,]\d+)?)\s*%/.exec(n);
+    const muka = dp ? Number(dp[1].replace(",", ".")) / 100 : 0.1;
+    if (muka === 0) return { jenis: "kpr-dp0" };
+    if (!(muka > 0 && muka < 1)) return null;
+    const x = /(\d+)\s*x\b/.exec(n);
+    return x && Number(x[1]) >= 1
+      ? { jenis: "kpr-cicil", muka, kali: Number(x[1]) }
+      : { jenis: "kpr", muka };
+  }
+  return null;
+}
+
+/** Ringkasan bentuk jadwal untuk dibaca orang, mis. di pratinjau unggahan. */
+export function uraianBentuk(b: Bentuk): string {
+  const pct = (x: number) => `${+(x * 100).toFixed(2)}%`;
+  switch (b.jenis) {
+    case "cash": return "Cash: 30% di hari ke-7, pelunasan di hari ke-14";
+    case "cicilan": return `Cicilan ${b.kali}x: DP 10% lalu ${b.kali - 1}x angsuran bulanan`;
+    case "kpr": return `KPR: DP ${pct(b.muka)} sekali, pelunasan bank sebulan kemudian`;
+    case "kpr-dp0": return "KPR DP 0%: booking fee, pelunasan bank sebulan kemudian";
+    case "kpr-cicil": return `KPR: DP ${pct(b.muka)} dicicil ${b.kali}x, lalu pelunasan bank`;
+  }
+}
 
 /**
  * Tarif PPN ditanggung pemerintah per periode, beserta pagunya.
@@ -45,12 +124,10 @@ export const BUNGA_NPV = 0.12;
 export const TENOR_KPR = [4, 9, 14, 19, 24] as const;
 
 /** Skema yang jadwalnya berujung pada pelunasan lewat bank. */
-const LEWAT_KPR: readonly Skema[] = [
-  "KPR EXPRESS", "BANK KPR - DP 10% (KPR REGULAR)", "KPR DP 0% Express",
-  "KPR DP 10%/4x", "KPR DP 20%/6x",
-];
-
-export const lewatKpr = (s: Skema) => LEWAT_KPR.includes(s);
+export const lewatKpr = (s: Skema) => {
+  const b = bentukSkema(s);
+  return !!b && b.jenis.startsWith("kpr");
+};
 
 export type Termin = {
   ket: string;
@@ -147,12 +224,12 @@ function jadwal(skema: Skema, h: number, booking: Date): Kasar[] {
   };
 
   // Uang muka sekali di hari ke-14, lalu pelunasan lewat bank sebulan sesudahnya.
-  const kprSekali = (): Kasar[] => {
+  const kprSekali = (muka: number): Kasar[] => {
     const p1 = tambahHari(booking, 14);
     return [
       bf(10_000_000),
-      { ket: "Pembayaran 1", tgl: p1, nilai: h * 0.1 - 10_000_000 },
-      { ket: "Pelunasan KPR", tgl: tambahBulan(p1, 1), nilai: h * 0.9 },
+      { ket: "Pembayaran 1", tgl: p1, nilai: h * muka - 10_000_000 },
+      { ket: "Pelunasan KPR", tgl: tambahBulan(p1, 1), nilai: h * (1 - muka) },
     ];
   };
 
@@ -173,8 +250,10 @@ function jadwal(skema: Skema, h: number, booking: Date): Kasar[] {
     return baris;
   };
 
-  switch (skema) {
-    case "CASH KERAS": {
+  const b = bentukSkema(skema);
+  if (!b) throw new Error(`Bentuk jadwal cara bayar "${skema}" tidak dikenali.`);
+  switch (b.jenis) {
+    case "cash": {
       const p1 = tambahHari(booking, 7);
       return [
         bf(10_000_000),
@@ -182,21 +261,17 @@ function jadwal(skema: Skema, h: number, booking: Date): Kasar[] {
         { ket: "Pelunasan", tgl: tambahHari(p1, 7), nilai: h * 0.7 },
       ];
     }
-    case "CICILAN 12x": return cicilan(11);
-    case "CICILAN 18x": return cicilan(17);
-    case "CICILAN 24x": return cicilan(23);
-    case "CICILAN 30x": return cicilan(29);
-    case "KPR EXPRESS":
-    case "BANK KPR - DP 10% (KPR REGULAR)": return kprSekali();
-    case "KPR DP 0% Express": {
+    // "CICILAN 12x" = uang muka ditambah 11 angsuran.
+    case "cicilan": return cicilan(b.kali - 1);
+    case "kpr": return kprSekali(b.muka);
+    case "kpr-dp0": {
       const bf0 = 5_000_000;
       return [
         bf(bf0),
         { ket: "Pelunasan KPR", tgl: tambahBulan(booking, 1), nilai: h - bf0 },
       ];
     }
-    case "KPR DP 10%/4x": return kprCicil(0.1, 4);
-    case "KPR DP 20%/6x": return kprCicil(0.2, 6);
+    case "kpr-cicil": return kprCicil(b.muka, b.kali);
   }
 }
 
@@ -239,6 +314,9 @@ export function hitung(
 ): Hasil {
   const booking = hari0(tanggal);
   const hargaPricelist = unit.harga[skema];
+  if (!(hargaPricelist > 0)) {
+    throw new Error(`Unit ${unit.kode} tidak punya harga untuk ${skema}.`);
+  }
   const potongan = hargaPricelist * diskon;
   const h = hargaPricelist - potongan;
 
