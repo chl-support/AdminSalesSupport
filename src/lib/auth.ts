@@ -89,6 +89,8 @@ export type SessionUser = {
   project_name?: string | null;
   project_company?: string | null;
   id: string; username: string; full_name: string; role: string;
+  /** Alamat surel terdaftar, bila pemiliknya sudah mendaftarkannya sendiri. */
+  email?: string | null;
 };
 
 /** Token disimpan sebagai hash; nilai aslinya hanya dikembalikan sekali. */
@@ -120,6 +122,7 @@ export async function userFromToken(token: string): Promise<SessionUser | null> 
   // lain tanpa ada yang menyadarinya.
   return await one<SessionUser>(
     `SELECT u.id, u.username, u.full_name, u.role,
+            NULLIF(to_jsonb(u) ->> 'email','') AS email,
             s.project_id, p.slug AS project_slug, p.name AS project_name,
             p.company_name AS project_company
        FROM sessions s

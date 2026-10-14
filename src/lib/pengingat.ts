@@ -89,9 +89,10 @@ export async function kabariPeran(peran: string, alamatAplikasi?: string) {
   const status = MENUNGGU[peran] ?? [];
   if (!status.length || !surelSiap()) return;
 
-  const penerima = await query<{ username: string; full_name: string;
-                                 email: string }>(
-    `SELECT username, full_name, NULLIF(to_jsonb(users) ->> 'email','') AS email
+  const penerima = await query<{ id: string; username: string;
+                                 full_name: string; email: string }>(
+    `SELECT id, username, full_name,
+            NULLIF(to_jsonb(users) ->> 'email','') AS email
        FROM users
       WHERE role = $1::user_role AND active
         AND NULLIF(to_jsonb(users) ->> 'email','') IS NOT NULL`, [peran]);
@@ -121,6 +122,8 @@ export async function kabariPeran(peran: string, alamatAplikasi?: string) {
     try {
       await kirimSurel({
         kepada: p.email,
+        jenis: "pengingat",
+        userId: p.id,
         perihal: `${total} pekerjaan menunggu Anda — CHL Sales Admin`,
         isi:
           `Halo ${p.full_name},\n\n` +

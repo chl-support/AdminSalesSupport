@@ -16,6 +16,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { useBahasa } from "./bahasa";
+import { DaftarEmail } from "./daftar-email";
 import { KabarMenunggu } from "./kabar-menunggu";
 import { Logo, LogoProject } from "./logo";
 import { Nav, indukDari } from "./nav";
@@ -121,6 +122,12 @@ export function Kerangka(
           ini. Dipasang di kerangka, bukan di satu layar: yang masuk mendarat
           di layar yang berbeda-beda menurut apa yang tadi dituju. */}
       <KabarMenunggu sesi={sesi} />
+
+      {/* Tawaran mendaftarkan alamat email, bagi yang belum punya. Berdiri di
+          sini karena ia bukan milik satu layar: yang masuk mendarat di layar
+          mana pun, dan tawarannya harus sampai kepadanya di mana pun ia
+          mendarat. */}
+      <DaftarEmail sesi={sesi} />
     </div>
   );
 }

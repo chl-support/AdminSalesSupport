@@ -172,6 +172,18 @@ const KATA = {
     thSandi: "Password",
     thSurel: "Email",
     surelKosong: "belum diisi",
+    surelLogJudul: "RIWAYAT PENGIRIMAN EMAIL",
+    surelLogKosong:
+      "Belum ada email yang dikirim sistem ini. Riwayatnya terisi sendiri " +
+      "begitu ada kode verifikasi atau pengingat pekerjaan yang dikirim.",
+    thWaktu: "Waktu", thTujuan: "Dikirim ke", thJenis: "Jenis",
+    thAkun: "Akun", thHasil: "Hasil",
+    terkirim: "terkirim", gagalKirim: "gagal",
+    jenisSurel: {
+      lupa_password: "Kode lupa Password",
+      verifikasi_email: "Verifikasi email",
+      pengingat: "Pengingat pekerjaan",
+    },
     surelLabel: "Email pengguna yang dipilih di atas",
     phSurel: "nama@perusahaan.com",
     simpanSurel: "Simpan email",
@@ -357,6 +369,18 @@ const KATA = {
     thSandi: "Password",
     thSurel: "Email",
     surelKosong: "not set",
+    surelLogJudul: "EMAIL SENDING HISTORY",
+    surelLogKosong:
+      "This system has not sent any email yet. The history fills itself as " +
+      "soon as a verification code or a work reminder goes out.",
+    thWaktu: "Time", thTujuan: "Sent to", thJenis: "Kind",
+    thAkun: "Account", thHasil: "Result",
+    terkirim: "sent", gagalKirim: "failed",
+    jenisSurel: {
+      lupa_password: "Forgot-password code",
+      verifikasi_email: "Email verification",
+      pengingat: "Work reminder",
+    },
     surelLabel: "Email for the user selected above",
     phSurel: "name@company.com",
     simpanSurel: "Save email",
@@ -447,6 +471,7 @@ export default function AdminPage() {
   const [target, setTarget] = useState("");
   const [sandiBaru, setSandiBaru] = useState("");
   const [usernameBaru, setUsernameBaru] = useState("");
+  const [surelLog, setSurelLog] = useState<any[]>([]);
   const [surelBaru, setSurelBaru] = useState("");
   const [hasilSurel, setHasilSurel] = useState<string | null>(null);
   const [galatSurel, setGalatSurel] = useState<string | null>(null);
@@ -486,6 +511,17 @@ export default function AdminPage() {
   }, [bolehKelola]);
 
   useEffect(() => { if (sesi) void muatPengguna(); }, [sesi, muatPengguna]);
+
+  // Riwayat pengiriman email. Dimuat sekali bersama daftar akun: ia dibaca
+  // ketika ada yang mengaku emailnya tidak sampai, dan itu pertanyaan yang
+  // datang tanpa aba-aba.
+  const muatSurelLog = useCallback(async () => {
+    if (!bolehKelola) return;
+    const res = await fetch("/api/admin/surel-log");
+    if (res.ok) setSurelLog(await res.json());
+  }, [bolehKelola]);
+
+  useEffect(() => { if (sesi) void muatSurelLog(); }, [sesi, muatSurelLog]);
 
   const muatKalibrasi = useCallback(async () => {
     if (!bolehKelola) return;
@@ -1469,6 +1505,43 @@ export default function AdminPage() {
                   <div className="banner stop" style={{ marginTop: 12, marginBottom: 0 }}>
                     <b>{k.takDapatSurel}</b>{galatSurel}
                   </div>
+                )}
+              </div>
+
+              {/* ── Riwayat pengiriman email ────────────────────────────────
+                  Dibaca ketika ada yang mengaku emailnya tidak sampai: di
+                  sinilah terbaca bedanya antara yang tidak pernah dikirim,
+                  yang terkirim ke alamat keliru, dan yang ditolak
+                  penyedianya — tiga keadaan dengan tiga perbaikan berbeda. */}
+              <div style={{ borderTop: "1px solid var(--line)", marginTop: 16,
+                            paddingTop: 14 }}>
+                <h3 style={{ margin: "0 0 8px" }}>{k.surelLogJudul}</h3>
+                {surelLog.length ? (
+                  <div className="tscroll">
+                    <table><tbody>
+                      <tr>
+                        <th>{k.thWaktu}</th><th>{k.thTujuan}</th>
+                        <th>{k.thJenis}</th><th>{k.thAkun}</th>
+                        <th>{k.thHasil}</th>
+                      </tr>
+                      {surelLog.map((r, i) => (
+                        <tr key={i}>
+                          <td>{String(r.created_at).slice(0, 19).replace("T", " ")}</td>
+                          <td>{r.kepada}</td>
+                          <td>{k.jenisSurel[r.jenis as keyof typeof k.jenisSurel]
+                                 ?? r.jenis}</td>
+                          <td>{r.username ?? "—"}</td>
+                          <td style={{ color: r.berhasil ? "var(--ink)" : "var(--stop)" }}>
+                            {r.berhasil ? k.terkirim : (r.galat ?? k.gagalKirim)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody></table>
+                  </div>
+                ) : (
+                  <p className="hint" style={{ textAlign: "left", margin: 0 }}>
+                    {k.surelLogKosong}
+                  </p>
                 )}
               </div>
             </div>

@@ -25,5 +25,8 @@ export const GET = handler(async (req) => {
     project_slug: user.project_slug ?? null,
     project_name: user.project_name ?? null,
     project_company: user.project_company ?? null,
+    // Alamat surelnya sendiri: layar memakainya untuk memutuskan apakah
+    // perlu menawarkan pendaftaran. Alamat orang lain tidak pernah ikut.
+    email: user.email ?? null,
   };
 }, { publik: true });

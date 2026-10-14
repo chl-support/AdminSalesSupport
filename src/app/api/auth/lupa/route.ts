@@ -68,6 +68,8 @@ export const POST = handler(async (req) => {
 
     await kirimSurel({
       kepada: email,
+      jenis: "lupa_password",
+      userId: user.id,
       perihal: `Kode verifikasi ganti Password — ${kode}`,
       isi:
         `Halo ${user.full_name},\n\n` +

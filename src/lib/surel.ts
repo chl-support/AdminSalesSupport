@@ -23,14 +23,38 @@
  * tidak pernah datang.
  */
 
+import { query } from "./db";
 import { WorkflowError } from "./galat";
 
 export function surelSiap(): boolean {
   return Boolean(process.env.RESEND_API_KEY && process.env.SUREL_PENGIRIM);
 }
 
+/**
+ * Mencatat satu pengiriman ke riwayat.
+ *
+ * Kegagalan pencatatannya ditelan: surel yang sudah terkirim tidak boleh
+ * dilaporkan gagal hanya karena catatannya tidak tertulis — dan tabelnya
+ * mungkin belum terpasang pada basis data yang belum menerima pemasangan
+ * kolom.
+ */
+async function catat(p: {
+  kepada: string; perihal: string; jenis: string; userId?: string | null;
+  berhasil: boolean; galat?: string | null;
+}): Promise<void> {
+  try {
+    await query(
+      `INSERT INTO surel_log (kepada, perihal, jenis, user_id, berhasil, galat)
+       VALUES ($1,$2,$3,$4,$5,$6)`,
+      [p.kepada, p.perihal, p.jenis, p.userId ?? null, p.berhasil,
+       p.galat ?? null]);
+  } catch { /* tabelnya menyusul pada pemasangan berikutnya */ }
+}
+
 export async function kirimSurel(p: {
   kepada: string; perihal: string; isi: string;
+  /** Untuk riwayat: jenis surel dan pemiliknya, bila diketahui. */
+  jenis?: string; userId?: string | null;
 }): Promise<void> {
   if (!surelSiap()) {
     throw new WorkflowError(
@@ -62,8 +86,15 @@ export async function kirimSurel(p: {
     // IT menebak antara kunci yang salah, domain yang belum diverifikasi, dan
     // alamat tujuan yang keliru — tiga hal dengan tiga perbaikan berbeda.
     const detail = await res.text().catch(() => "");
+    await catat({ kepada: p.kepada, perihal: p.perihal,
+                  jenis: p.jenis ?? "lain", userId: p.userId,
+                  berhasil: false,
+                  galat: `HTTP ${res.status} ${detail.slice(0, 200)}` });
     throw new WorkflowError(
       `Surel gagal dikirim (HTTP ${res.status}). ${detail.slice(0, 200)}`,
       "surel_gagal", 502);
   }
+
+  await catat({ kepada: p.kepada, perihal: p.perihal,
+                jenis: p.jenis ?? "lain", userId: p.userId, berhasil: true });
 }
