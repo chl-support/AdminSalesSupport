@@ -66,7 +66,10 @@ const KATA = {
     // bawahnya sudah berbunyi begitu, dan mengulanginya membuat satu baris
     // bantuan terbaca dua kali.
     lupa: "Tidak dapat masuk?",
-    lupaTautan: "Lupa kata sandi",
+    // "Password", bukan "kata sandi": isian di atasnya pun berjudul PASSWORD,
+    // dan satu layar yang menyebut satu hal dengan dua nama membuat orang
+    // bertanya apakah keduanya memang hal yang sama.
+    lupaTautan: "Lupa Password",
     atau: "atau",
     hubungi: "Hubungi Admin IT",
     lupaJudul: "Ganti kata sandi",
