@@ -23,7 +23,7 @@ import type { UnitHarga } from "@/lib/simulasi";
 
 const KATA = {
   id: {
-    unggah: "Upload Pricelist",
+    unggah: "Upload D-Pricelist",
     unggahCatatan: "Berkas .xlsx dengan bentuk yang sama seperti lembar " +
       "pricelist Simulation TOP: Unit No, Address, Tipe, Area (Land, Build), " +
       "lalu satu kolom harga per cara bayar. Pricelist yang tersimpan langsung " +
@@ -50,7 +50,7 @@ const KATA = {
     sisanya: (n: number) => `… dan ${n} unit lainnya`,
   },
   en: {
-    unggah: "Upload Price List",
+    unggah: "Upload D-Pricelist",
     unggahCatatan: "An .xlsx file shaped like the Simulation TOP price list " +
       "sheet: Unit No, Address, Type, Area (Land, Build), then one price " +
       "column per payment scheme. A saved price list is used by the " +
