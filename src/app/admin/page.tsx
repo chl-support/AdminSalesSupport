@@ -173,6 +173,17 @@ const KATA = {
     thSurel: "Email",
     surelKosong: "belum diisi",
     surelLogJudul: "RIWAYAT PENGIRIMAN EMAIL",
+    surelAktif: "Pengiriman email aktif",
+    surelBelum: "Pengiriman email belum dikonfigurasi",
+    surelBelumIsi:
+      "Kode \"Lupa Password\" dan pengingat pekerjaan tidak akan terkirim. " +
+      "Pasang SUREL_PENGIRIM beserta SUREL_SMTP_USER dan SUREL_SMTP_PASS " +
+      "(Gmail), atau RESEND_API_KEY, pada Environment Variables di Vercel, " +
+      "lalu Redeploy.",
+    surelJalur: (j: string): string =>
+      j === "smtp" ? "Lewat SMTP." : "Lewat Resend.",
+    surelDari: "Dikirim atas nama:",
+    surelAkun: "Akun pengirim:",
     surelLogKosong:
       "Belum ada email yang dikirim sistem ini. Riwayatnya terisi sendiri " +
       "begitu ada kode verifikasi atau pengingat pekerjaan yang dikirim.",
@@ -370,6 +381,17 @@ const KATA = {
     thSurel: "Email",
     surelKosong: "not set",
     surelLogJudul: "EMAIL SENDING HISTORY",
+    surelAktif: "Email sending is active",
+    surelBelum: "Email sending is not configured",
+    surelBelumIsi:
+      "Forgot-password codes and work reminders will not go out. Set " +
+      "SUREL_PENGIRIM together with SUREL_SMTP_USER and SUREL_SMTP_PASS " +
+      "(Gmail), or RESEND_API_KEY, in the Vercel environment variables, then " +
+      "redeploy.",
+    surelJalur: (j: string): string =>
+      j === "smtp" ? "Over SMTP." : "Over Resend.",
+    surelDari: "Sent on behalf of:",
+    surelAkun: "Sending account:",
     surelLogKosong:
       "This system has not sent any email yet. The history fills itself as " +
       "soon as a verification code or a work reminder goes out.",
@@ -472,6 +494,7 @@ export default function AdminPage() {
   const [sandiBaru, setSandiBaru] = useState("");
   const [usernameBaru, setUsernameBaru] = useState("");
   const [surelLog, setSurelLog] = useState<any[]>([]);
+  const [surelStatus, setSurelStatus] = useState<any>(null);
   const [surelBaru, setSurelBaru] = useState("");
   const [hasilSurel, setHasilSurel] = useState<string | null>(null);
   const [galatSurel, setGalatSurel] = useState<string | null>(null);
@@ -522,6 +545,17 @@ export default function AdminPage() {
   }, [bolehKelola]);
 
   useEffect(() => { if (sesi) void muatSurelLog(); }, [sesi, muatSurelLog]);
+
+  // Keadaan pengiriman email sebagaimana terbaca fungsi yang sedang berjalan.
+  // Dipisah dari riwayat: yang satu menjawab "apakah sudah terpasang", yang
+  // lain "apa yang terjadi pada kiriman kemarin".
+  useEffect(() => {
+    if (!sesi || !bolehKelola) return;
+    fetch("/api/admin/surel-status")
+      .then((r) => (r.ok ? r.json() : null))
+      .then(setSurelStatus)
+      .catch(() => setSurelStatus(null));
+  }, [sesi, bolehKelola]);
 
   const muatKalibrasi = useCallback(async () => {
     if (!bolehKelola) return;
@@ -1516,6 +1550,27 @@ export default function AdminPage() {
               <div style={{ borderTop: "1px solid var(--line)", marginTop: 16,
                             paddingTop: 14 }}>
                 <h3 style={{ margin: "0 0 8px" }}>{k.surelLogJudul}</h3>
+
+                {/* Keadaan pemasangannya, supaya tidak perlu mencoba kirim
+                    dulu untuk tahu apakah variabelnya sudah terbaca. */}
+                {surelStatus && (
+                  <div className={`banner ${surelStatus.aktif ? "ok" : "warn"}`}
+                       style={{ marginBottom: 10 }}>
+                    <b>{surelStatus.aktif ? k.surelAktif : k.surelBelum}</b>
+                    {surelStatus.aktif ? (
+                      <>
+                        {k.surelJalur(surelStatus.jalur)}
+                        <br />{k.surelDari} <b>{surelStatus.pengirim}</b>
+                        {surelStatus.jalur === "smtp" && (
+                          <>
+                            <br />{k.surelAkun} <b>{surelStatus.smtp_user}</b>
+                            {" · "}{surelStatus.smtp_host}:{surelStatus.smtp_port}
+                          </>
+                        )}
+                      </>
+                    ) : k.surelBelumIsi}
+                  </div>
+                )}
                 {surelLog.length ? (
                   <div className="tscroll">
                     <table><tbody>
