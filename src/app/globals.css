@@ -2764,3 +2764,92 @@ td.sel-surel, th.sel-surel { white-space: nowrap; font-size: 11.5px; }
   background: var(--fill); font-weight: 700; color: var(--ink);
   border-top: 2px solid var(--line);
 }
+
+/* ── Pratinjau & cetak Simulasi / NPV (/simulasi/cetak) ──────────────────
+   Dua lembar yang bentuknya disalin dari lembar cetak berkas Simulation TOP:
+   Konsumen (tegak) dan Management (melintang). Di layar keduanya tampil
+   sebagai kertas putih di atas latar; di kertas hanya lembarnya yang
+   tercetak. Hurufnya Calibri bila ada, supaya sama dengan cetakan Excel. */
+.cetak-sim { padding: 16px; }
+.cetak-sim-alat { display: flex; flex-wrap: wrap; gap: 10px 16px;
+                  align-items: center; justify-content: space-between;
+                  max-width: 1120px; margin: 0 auto 14px; }
+.lembar-sim { background: #fff; color: #000; margin: 0 auto;
+              font: 12.5px/1.35 Calibri, Carlito, "Segoe UI", Arial, sans-serif;
+              box-shadow: 0 1px 6px rgba(0,0,0,.12); }
+.lembar-sim :where(table) { border-collapse: collapse; width: auto; margin: 0; }
+/* Gaya tabel bawaan layar (garis abu-abu, kepala berlatar) tidak dibawa ke
+   lembar cetak. :where() menjaga kekhususannya serendah mungkin, supaya
+   garis hitam lembar di bawah ini tetap berlaku. */
+.lembar-sim :where(td, th) { border: 0; background: transparent; color: inherit;
+                             font-size: inherit; text-transform: none;
+                             letter-spacing: normal; height: auto; }
+.lembar-sim td, .lembar-sim th { padding: 1px 5px; white-space: nowrap; }
+.lembar-sim .n { text-align: right; }
+.lembar-sim .c { text-align: center; }
+
+/* Konsumen */
+.lembar-sim.konsumen { width: 190mm; padding: 10mm 8mm; box-sizing: border-box; }
+.ls-kepala { display: flex; flex-direction: column; align-items: center;
+             gap: 14px; margin-bottom: 22px; }
+.ls-kepala .ganti-lambang { font: 400 30px/1 Georgia, "Times New Roman", serif;
+                            letter-spacing: .06em; color: #5a4a42; }
+.ls-sub { font-size: 13px; }
+.ls-data { margin: 0 0 18px 30px; }
+.ls-data td { padding: 1px 0; }
+.ls-data td:nth-child(1) { width: 110px; }
+.ls-data td:nth-child(2) { width: 135px; }
+.ls-data td:nth-child(3) { width: 120px; padding-left: 0; }
+.ls-data .ls-jeda td { height: 12px; }
+.ls-tabel { width: 100%; }
+.ls-tabel th { border: 1px solid #000; font-weight: 700; text-align: center;
+               border-bottom: 2px solid #000; }
+.ls-tabel td { border-left: 1px solid #000; border-right: 1px solid #000;
+               border-bottom: 1px solid #000; }
+.ls-tabel td.rp { min-width: 105px; }
+.rp-isi { display: flex; justify-content: space-between; gap: 6px; }
+.ls-total td { border-top: 2px solid #000; border-bottom: 2px solid #000; }
+.ls-total td:first-child { border-left: 0; }
+
+/* Management */
+.lembar-sim.management { width: 277mm; padding: 6mm; box-sizing: border-box;
+                          font-size: 11px; }
+.lm-judul { font: 700 20px/1.2 Arial, sans-serif; margin: 0 0 22px; }
+.lm-dua { display: grid; grid-template-columns: 37fr 55fr; gap: 0 10px;
+          align-items: start; }
+.lm-sisi > table { width: 100%; }
+.lm-id td:nth-child(1) { width: 26%; }
+.lm-id td.lm-label { background: #808080; color: #fff; font-weight: 700;
+                     text-align: center; letter-spacing: .03em; width: 42%; }
+.lm-luas { margin: 0 0 8px; }
+.lm-luas td:first-child { width: 40%; }
+.lm-dtp { background: #c0c0c0; margin: 0 0 8px; }
+.lm-dtp td:first-child, .lm-dtp td:nth-child(2) { color: #c00000; }
+.lm-dtp td:nth-child(3) { color: #c00000; font-weight: 700; }
+.lm-dtp .biru { color: #0000c0; font-weight: 700; }
+.lm-sisi.kiri .lm-luas { margin-bottom: 8px; height: 38px; }
+.lm-harga { border: 1px solid #000; margin-bottom: 8px; }
+.lm-harga td { border-bottom: 1px solid #000; height: 16px; }
+.lm-harga td:nth-child(1) { width: 60%; }
+.lm-harga td:nth-child(3) { border-left: 1px solid #000; width: 26%; }
+.lm-jadwal th { border: 1px solid #000; text-align: center; font-weight: 700; }
+.lm-jadwal td { border-left: 1px solid #000; border-right: 1px solid #000; }
+.lm-jadwal tr:last-child td { border-bottom: 1px solid #000; }
+.lm-jadwal .lm-kosong td { height: 9px; border-bottom: 1px solid #000; }
+.lm-jumlah { margin-top: 6px; }
+.lm-jumlah td { height: 17px; }
+.lm-jumlah .kotak { border: 1px solid #000; }
+.lm-sisi.kiri .lm-jumlah td:nth-child(1) { width: 51%; }
+.lm-sisi.kiri .lm-jumlah td:nth-child(2) { width: 24.5%; }
+.lm-sisi.kanan .lm-jumlah td:nth-child(1) { width: 38%; }
+.lm-sisi.kanan .lm-jumlah td:nth-child(n+2) { width: 15.5%; }
+.lm-banding td { padding-top: 3px; }
+
+@media print {
+  .cetak-sim { padding: 0; }
+  .lembar-sim { box-shadow: none; margin: 0; }
+  /* Dikecilkan seperlunya agar satu lembar jatuh pada satu halaman; nilai
+     --muat dihitung halaman cetaknya dari tinggi lembar yang terukur. */
+  .muat-halaman > .lembar-sim { zoom: var(--muat, 1); }
+  body { background: #fff !important; }
+}
