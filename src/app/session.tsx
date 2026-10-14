@@ -140,11 +140,11 @@ function IkonSurel() {
 const KATA = {
   id: { profil: (n: string) => `Profil ${n}`, keluar: "Keluar",
         gantiProject: "Ganti project", bahasa: "Bahasa",
-        hubungi: "Hubungi Admin IT",
+        hubungi: "Jika ada kendala, silahkan hubungi Admin IT:",
         kontakKosong: "Kontak Admin IT belum diisi." },
   en: { profil: (n: string) => `${n} profile`, keluar: "Sign out",
         gantiProject: "Switch project", bahasa: "Language",
-        hubungi: "Contact IT Admin",
+        hubungi: "If anything goes wrong, contact the IT Admin:",
         kontakKosong: "No IT Admin contact has been set." },
 };
 
@@ -163,17 +163,20 @@ export function BilahPengguna({ sesi }: { sesi: Sesi }) {
   const k = KATA[bahasa];
   const [buka, setBuka] = useState(false);
   const kotak = useRef<HTMLDivElement | null>(null);
-  const [lihatKontak, setLihatKontak] = useState(false);
   const [kontak, setKontak] = useState<{ wa: string | null;
                                          email: string | null } | null>(null);
 
-  const bukaKontak = async () => {
-    setLihatKontak((v) => !v);
-    if (kontak) return;
-    const d = await fetch("/api/kontak-admin").then((r) => r.json())
-      .catch(() => null);
-    setKontak(d ?? { wa: null, email: null });
-  };
+  // Diambil sekali, saat panel dibuka. Bukan saat halaman dimuat: kontak Admin
+  // IT dibaca beberapa kali setahun, dan tiap layar tidak perlu memintanya.
+  useEffect(() => {
+    if (!buka || kontak) return;
+    let hidup = true;
+    fetch("/api/kontak-admin")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (hidup) setKontak(d ?? { wa: null, email: null }); })
+      .catch(() => { if (hidup) setKontak({ wa: null, email: null }); });
+    return () => { hidup = false; };
+  }, [buka, kontak]);
 
   // Tutup saat menekan di luar atau menekan Esc. Panel yang hanya dapat ditutup
   // lewat lencananya sendiri akan menghalangi isi halaman di belakangnya.
@@ -227,12 +230,13 @@ export function BilahPengguna({ sesi }: { sesi: Sesi }) {
           </button>
           <button onClick={() => void keluar()}>{k.keluar}</button>
 
-          {/* Kontak Admin IT, dipindahkan ke sini dari layar masuk. Nomornya
-              diambil saat dibuka, bukan saat halaman dimuat: ia hanya dibaca
-              ketika memang ada yang perlu menghubungi. */}
-          <button onClick={() => void bukaKontak()}>{k.hubungi}</button>
-          {lihatKontak && (
+          {/* Kontak Admin IT, dipindahkan ke sini dari layar masuk. Bukan
+              tombol: ia bukan tindakan sekelas Keluar atau Ganti project,
+              melainkan keterangan — satu kalimat kecil dengan nomor yang
+              langsung dapat ditekan di bawahnya. */}
+          {kontak && (
             <div className="kontak-menu">
+              <p className="ket-kontak">{k.hubungi}</p>
               {kontak?.wa && (
                 <a href={`https://wa.me/${nomorWa(kontak.wa)}`}
                    target="_blank" rel="noreferrer">
