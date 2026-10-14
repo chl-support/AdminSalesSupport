@@ -2733,3 +2733,34 @@ a.unduh-qr { color: var(--note); text-decoration: underline; }
    sebagai dua nilai. */
 td.sel-hp, th.sel-hp { white-space: nowrap; }
 td.sel-surel, th.sel-surel { white-space: nowrap; font-size: 11.5px; }
+
+/* ── Layar Simulasi / NPV ─────────────────────────────────────────────── */
+
+/* Dua panel berdampingan, menumpuk pada layar sempit. Ringkasan unit dan
+   daftar harga memang dibaca berpasangan: yang satu menyebut unitnya, yang
+   lain menyebut harganya pada tiap cara bayar. */
+.dua-kolom { display: grid; gap: 14px; grid-template-columns: 1fr 1fr;
+             align-items: start; }
+@media (max-width: 900px) { .dua-kolom { grid-template-columns: 1fr; } }
+
+/* Tabel dua kolom: sebutan di kiri, angka di kanan. Tanpa garis tegak di
+   antaranya — pasangan sebutan dan angkanya sudah terbaca dari jaraknya, dan
+   garis pada tabel sependek ini menambah bidang yang harus dilewati mata. */
+.tabel-ringkas { font-size: 12.5px; }
+.tabel-ringkas td, .tabel-ringkas th { border-left: 0; border-right: 0; }
+.tabel-ringkas td:last-child, .tabel-ringkas th:last-child {
+  text-align: right; white-space: nowrap;
+}
+/* Baris cara bayar yang sedang dipilih, di daftar harga. */
+.tabel-ringkas tr.terpilih > td { background: var(--notebg); color: var(--ink); }
+.tabel-ringkas tr.terpilih > td:first-child { font-weight: 700; }
+
+/* Jadwal pembayaran: angkanya rapat dan sejajar, sebab yang dibaca di sana
+   perbandingan antarbaris, bukan tiap baris sendiri-sendiri. */
+.tabel-jadwal { font-size: 12px; }
+.tscroll > .tabel-jadwal { min-width: 900px; }
+.tabel-jadwal td { white-space: nowrap; }
+.tabel-jadwal tr.baris-total > td {
+  background: var(--fill); font-weight: 700; color: var(--ink);
+  border-top: 2px solid var(--line);
+}

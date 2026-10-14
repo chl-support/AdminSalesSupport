@@ -1657,6 +1657,94 @@ async function main() {
            `laporan adalah view, tidak boleh punya: ${writers.join(", ")}`);
   });
 
+  // Simulasi cara bayar: angka harapannya diambil dari berkas Excel
+  // "Simulation TOP Naraya" yang menjadi asalnya — lembar NPV Cash Keras pada
+  // salinan yang cara bayarnya memang Cash Keras, dan NPV BANK KPR pada
+  // salinan satu lagi. Hanya lembar cara bayar terpilih yang angkanya hidup di
+  // berkas itu, sebab tiap lembar mengambil harganya lewat IF(cara bayar = ...).
+  //
+  // Diuji terhadap angka berkasnya, bukan terhadap rumus yang ditulis ulang di
+  // sini: yang harus sama adalah hasilnya, dan hasil itulah yang dibandingkan
+  // orang dengan berkas yang masih mereka pegang.
+  await check("simulasi cash keras sama dengan berkas asalnya", async () => {
+    const { hitung } = await import("../src/lib/simulasi");
+    const { unitHarga } = await import("../src/lib/pricelist-naraya");
+    const unit = unitHarga("NS-NR1-01");
+    assert(!!unit, "NS-NR1-01 harus ada di pricelist");
+    const h = hitung({ unit: unit!, skema: "CASH KERAS", diskon: 0,
+                       bungaKpr: 0.0465,
+                       tanggal: new Date(Date.UTC(2026, 9, 14)) });
+
+    const bulat = (n: number) => Math.round(n);
+    assert(h.hargaTransaksi === 1_817_000_000, `harga: ${h.hargaTransaksi}`);
+    assert(h.termin.length === 3, `termin: ${h.termin.length}`);
+    assert(bulat(h.termin[1].nilai) === 535_100_000, `p1: ${h.termin[1].nilai}`);
+    assert(bulat(h.termin[2].nilai) === 1_271_900_000, `p2: ${h.termin[2].nilai}`);
+    assert(h.termin[1].hari === 7 && h.termin[2].hari === 14, "jarak hari");
+    assert(bulat(h.termin[2].pv) === 1_266_060_185, `pv: ${h.termin[2].pv}`);
+    assert(bulat(h.jumlahPv) === 1_809_930_340, `npv: ${h.jumlahPv}`);
+
+    // Booking fee tidak kena DTP, dan pajaknya terbawa ke termin sesudahnya.
+    assert(h.termin[0].dtp === 0, "booking fee tidak kena DTP");
+    assert(h.termin[1].dtp === 54_018_919, `dtp p1: ${h.termin[1].dtp}`);
+    assert(h.termin[2].dtp === 126_044_144, `dtp p2: ${h.termin[2].dtp}`);
+    assert(h.jumlahDtp === h.totalDtp,
+           `alokasi DTP harus habis: ${h.jumlahDtp} vs ${h.totalDtp}`);
+  });
+
+  await check("pagu DTP memotong harga di atas batas", async () => {
+    const { hitung } = await import("../src/lib/simulasi");
+    const { unitHarga } = await import("../src/lib/pricelist-naraya");
+    const unit = unitHarga("NS-NR1-01")!;
+    // Harga transaksinya 2,302 miliar, di atas Max PPN DTP 2,22 miliar tetapi
+    // di bawah Harga Jual Max 5,55 miliar: dasarnya dipotong ke pagu.
+    const h = hitung({ unit, skema: "BANK KPR - DP 10% (KPR REGULAR)",
+                       diskon: 0, bungaKpr: 0.0465,
+                       tanggal: new Date(Date.UTC(2026, 9, 14)) });
+    assert(h.hargaTransaksi === 2_302_000_000, `harga: ${h.hargaTransaksi}`);
+    assert(h.totalDtp === 220_000_000, `pagu: ${h.totalDtp}`);
+    assert(h.jumlahDtp === 220_000_000, `terpakai: ${h.jumlahDtp}`);
+  });
+
+  await check("jadwal tiap cara bayar menjumlah persis harga transaksinya",
+              async () => {
+    const { hitung, SKEMA } = await import("../src/lib/simulasi");
+    const { PRICELIST } = await import("../src/lib/pricelist-naraya");
+    // Seluruh unit, seluruh cara bayar. Jadwal yang tidak menjumlah persis
+    // harga transaksinya berarti ada termin yang hilang atau dihitung dua kali,
+    // dan selisih sekecil satu rupiah pun akan ditemukan konsumen.
+    for (const unit of PRICELIST) {
+      for (const skema of SKEMA) {
+        const h = hitung({ unit, skema, diskon: 0.05, bungaKpr: 0.0465,
+                           tanggal: new Date(Date.UTC(2026, 9, 14)) });
+        // Batasnya sepersepuluh rupiah, bukan nol. Cicilan 30x membagi 90%
+        // harga menjadi 29 bagian, dan 29 bukan pangkat dua: jumlah kembalinya
+        // meleset beberapa per sejuta rupiah pada bilangan pecahan biner mana
+        // pun. Yang diuji di sini tidak ada termin yang hilang, bukan bahwa
+        // pembagian biner dapat dibalik dengan sempurna.
+        const selisih = Math.abs(h.jumlahNilai - h.hargaTransaksi);
+        assert(selisih < 0.1,
+               `${unit.kode} ${skema}: ${h.jumlahNilai} vs ${h.hargaTransaksi}`);
+        // Tagihan ditambah DTP harus kembali menjadi nilai penuhnya.
+        const kembali = Math.abs(h.jumlahTagihan + h.jumlahDtp - h.jumlahNilai);
+        assert(kembali < 0.1, `${unit.kode} ${skema}: tagihan + DTP`);
+      }
+    }
+  });
+
+  await check("di luar periode DTP tidak ada PPN yang ditanggung", async () => {
+    const { hitung } = await import("../src/lib/simulasi");
+    const { unitHarga } = await import("../src/lib/pricelist-naraya");
+    const unit = unitHarga("NS-NR1-01")!;
+    // 2027 tidak tercakup tabel tarif: tidak ada DTP sama sekali, dan seluruh
+    // nilainya ditagihkan kepada konsumen.
+    const h = hitung({ unit, skema: "CASH KERAS", diskon: 0, bungaKpr: 0.0465,
+                       tanggal: new Date(Date.UTC(2027, 2, 1)) });
+    assert(h.tarifDtp === 0 && h.totalDtp === 0, `tarif: ${h.tarifDtp}`);
+    assert(h.jumlahDtp === 0, `dtp: ${h.jumlahDtp}`);
+    assert(Math.abs(h.jumlahTagihan - h.jumlahNilai) < 0.1, "tagihan penuh");
+  });
+
   console.log("\n" + "=".repeat(62));
   console.log(`  LULUS ${pass.length}   GAGAL ${fail.length}`);
   if (fail.length) {
