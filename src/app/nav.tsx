@@ -96,6 +96,22 @@ const MENU: Butir[] = [
         label: { id: "Monitoring Laporan", en: "Marketing Report" } },
     ],
   },
+  // Simulasi dan pricelist berdiri sebagai rumpun tersendiri, bukan di dalam
+  // rumpun di atasnya: keduanya dikerjakan sebelum ada penjualan — dihitung
+  // dan ditawarkan — sedangkan seluruh isi rumpun di atasnya dikerjakan
+  // sesudah penjualannya jadi. Dua pekerjaan yang berurutan, bukan sejenis.
+  //
+  // Layarnya belum ada; keduanya memakai <BelumSiap>. Menunya disusun lebih
+  // dulu supaya urutannya sudah benar sejak sekarang, dan tanpa layar di
+  // ujungnya menekan menu itu berakhir pada halaman 404 bawaan Next.js.
+  {
+    label: { id: "Simulasi & Pricelist", en: "Simulation & Price List" },
+    anak: [
+      { href: "/simulasi",
+        label: { id: "Simulasi / NPV", en: "Simulation / NPV" } },
+      { href: "/pricelist", label: { id: "Pricelist", en: "Price List" } },
+    ],
+  },
   // Administrasi sempat hilang dari menu saat susunannya ditata ulang, padahal
   // layarnya tetap ada: unggah Laporan Penjualan, Laporan Penerimaan, dan
   // Report Agent semuanya di sana. Butir yang hilang membuat satu-satunya jalan
