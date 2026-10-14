@@ -236,21 +236,46 @@ export function PenyediaMenu({ children }: { children: React.ReactNode }) {
   );
 }
 
-/** Kunci tiap rumpun teratas yang punya anak. */
-const KUNCI_RUMPUN = MENU.filter((m) => m.anak?.length)
-                         .map((m) => m.href ?? m.label.id);
+/**
+ * Rantai kunci rumpun yang menaungi satu lintasan, dari luar ke dalam.
+ *
+ * Mengembalikan null bila lintasannya tidak ada di menu sama sekali — layar
+ * seperti Pengajuan Komisi atau pratinjau klaim, yang dicapai dari dalam layar
+ * lain dan tidak punya butir menunya sendiri.
+ *
+ * Anaknya diperiksa lebih dulu daripada dirinya sendiri. Pengajuan Fee
+ * beralamat /klaim dan anaknya /klaim/referensi: diperiksa dari atas,
+ * /klaim/referensi akan cocok dengan induknya melalui awalan alamat, dan
+ * rantainya berhenti satu tingkat terlalu dini.
+ */
+function rantaiRumpun(path: string, daftar: Butir[], atas: string[]):
+    string[] | null {
+  for (const m of daftar) {
+    const kunci = m.href ?? m.label.id;
+    const dalam = m.anak?.length
+      ? rantaiRumpun(path, m.anak, [...atas, kunci]) : null;
+    if (dalam) return dalam;
+    if (m.href && (path === m.href || path.startsWith(m.href + "/"))) return atas;
+  }
+  return null;
+}
 
 /**
- * Adakah rumpun teratas yang sedang terbuka.
+ * Bolehkah isi layar ini digambar.
  *
- * Dipakai kerangka halaman untuk memutuskan menampilkan isinya atau tidak.
- * Yang dihitung hanya rumpun teratas: kunci rumpun di dalamnya bisa tertinggal
- * di penyimpanan dari sesi sebelumnya, dan rumpun yang induknya tertutup tidak
- * terlihat oleh siapa pun.
+ * Syaratnya: butir menu layar ini terlihat di kolom menu — artinya seluruh
+ * rumpun yang menaunginya terbuka, bukan hanya yang terluar. Dengan syarat
+ * "yang terluar saja", membuka satu rumpun sudah memunculkan isi layar yang
+ * butir menunya masih tersembunyi di dalam rumpun yang tertutup, dan layar itu
+ * terbuka tanpa pernah dipilih.
+ *
+ * Layar yang tidak punya butir menu — dicapai dari dalam layar lain — tidak
+ * pernah ditahan: tidak ada butir yang dapat diklik untuk membukanya.
  */
-export function useMenuTerbuka() {
+export function useLayarTampil(path: string) {
   const { dibuka } = useContext(KonteksLipat);
-  return KUNCI_RUMPUN.some((k) => dibuka.includes(k));
+  const rantai = rantaiRumpun(path, MENU, []);
+  return rantai === null || rantai.every((k) => dibuka.includes(k));
 }
 
 export function Nav({ peran }: { peran?: string }) {

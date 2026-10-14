@@ -19,7 +19,7 @@ import { useBahasa } from "./bahasa";
 import { DaftarEmail } from "./daftar-email";
 import { KabarMenunggu } from "./kabar-menunggu";
 import { Logo, LogoProject } from "./logo";
-import { Nav, PenyediaMenu, indukDari, useMenuTerbuka } from "./nav";
+import { Nav, PenyediaMenu, indukDari, useLayarTampil } from "./nav";
 import { BilahPengguna, type Sesi } from "./session";
 
 export function Kerangka(props: {
@@ -38,21 +38,23 @@ function IsiKerangka(
   { sesi: Sesi; judul: React.ReactNode; children: React.ReactNode;
     lebar?: boolean },
 ) {
-  const induk = indukDari(usePathname());
+  const path = usePathname();
+  const induk = indukDari(path);
   const { bahasa } = useBahasa();
   /**
-   * Judul dan isi halaman hanya ditampilkan selama menunya terbuka.
+   * Judul dan isi halaman hanya ditampilkan selama butir menunya terlihat.
    *
-   * Yang tertutup bukan hanya daftar menunya, melainkan layarnya: selama
-   * rumpunnya terlipat, yang terlihat tinggal bilah atas dan latar gambarnya.
-   * Isinya kembali begitu rumpunnya dibuka.
+   * Yang tertutup bukan hanya daftar menunya, melainkan layarnya: selama butir
+   * menu layar ini masih tersembunyi di dalam rumpun yang terlipat, yang
+   * terlihat tinggal bilah atas dan latar gambarnya. Isinya muncul begitu
+   * butirnya terlihat — yaitu begitu layar ini memang dapat dipilih.
    *
    * Isinya tidak dibongkar dari pohon, hanya tidak digambar. Membongkarnya
    * berarti setiap kali menunya ditutup lalu dibuka lagi, seluruh layar memuat
    * ulang datanya dari awal — dan yang sedang mengetik di kotak saringan
    * kehilangan ketikannya.
    */
-  const tampil = useMenuTerbuka();
+  const tampil = useLayarTampil(path);
 
   return (
     <div className={`konsol${lebar ? " lebar" : ""}`}>
