@@ -272,14 +272,19 @@ const KATA = {
      */
     waSambutan: (penerima: string, project: string, tautan: string,
                  salam: string) =>
-      `Dear Bapak/Ibu. ${penerima}\n\n` +
-      `Selamat ${salam} Bapak/Ibu. ${penerima}\n` +
-      "Berikut terlampir Link untuk Form Pengajuan Fee yang perlu " +
-      `Bapak/Ibu. ${penerima} isi untuk kami dapat proses.\n` +
-      "Terima kasih.\n\n" +
-      "Salam Hangat,\n" +
-      `Admin ${project}\n\n` +
-      tautan,
+      `Yth. Bapak/Ibu ${penerima},\n\n` +
+      `Selamat ${salam}.\n\n` +
+      "Sehubungan dengan proses pengajuan fee, bersama ini kami sampaikan " +
+      "tautan Form Pengajuan Fee yang perlu Bapak/Ibu lengkapi sebagai salah " +
+      "satu persyaratan untuk proses lebih lanjut.\n" +
+      "Silakan mengakses tautan berikut untuk mengisi formulir tersebut:\n\n" +
+      "Link Form Pengajuan Fee:\n" +
+      `${tautan}\n\n` +
+      "Mohon formulir dapat diisi dengan lengkap dan benar agar proses " +
+      "pengajuan dapat berjalan dengan baik.\n\n" +
+      "Atas perhatian dan kerja sama Bapak/Ibu, kami ucapkan terima kasih.\n\n" +
+      "Salam hormat,\n" +
+      `Admin ${project}`,
     waTutup: "Tutup",
     ringkasTutup: "Ringkas kembali",
     ringkasBuka: "Tampilkan seluruh langkah",
@@ -449,14 +454,19 @@ const KATA = {
     waAlamat: "Greeting",
     waSambutan: (penerima: string, project: string, tautan: string,
                  salam: string) =>
-      `Dear Bapak/Ibu. ${penerima}\n\n` +
-      `Selamat ${salam} Bapak/Ibu. ${penerima}\n` +
-      "Berikut terlampir Link untuk Form Pengajuan Fee yang perlu " +
-      `Bapak/Ibu. ${penerima} isi untuk kami dapat proses.\n` +
-      "Terima kasih.\n\n" +
-      "Salam Hangat,\n" +
-      `Admin ${project}\n\n` +
-      tautan,
+      `Yth. Bapak/Ibu ${penerima},\n\n` +
+      `Selamat ${salam}.\n\n` +
+      "Sehubungan dengan proses pengajuan fee, bersama ini kami sampaikan " +
+      "tautan Form Pengajuan Fee yang perlu Bapak/Ibu lengkapi sebagai salah " +
+      "satu persyaratan untuk proses lebih lanjut.\n" +
+      "Silakan mengakses tautan berikut untuk mengisi formulir tersebut:\n\n" +
+      "Link Form Pengajuan Fee:\n" +
+      `${tautan}\n\n` +
+      "Mohon formulir dapat diisi dengan lengkap dan benar agar proses " +
+      "pengajuan dapat berjalan dengan baik.\n\n" +
+      "Atas perhatian dan kerja sama Bapak/Ibu, kami ucapkan terima kasih.\n\n" +
+      "Salam hormat,\n" +
+      `Admin ${project}`,
     waTutup: "Close",
     ringkasTutup: "Collapse again",
     ringkasBuka: "Show every step",
