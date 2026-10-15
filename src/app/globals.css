@@ -2760,6 +2760,7 @@ td.sel-surel, th.sel-surel { white-space: nowrap; font-size: 11.5px; }
 .tabel-jadwal { font-size: 12px; }
 .tscroll > .tabel-jadwal { min-width: 900px; }
 .tabel-jadwal td { white-space: nowrap; }
+.tabel-jadwal th { text-align: center; }
 .tabel-jadwal tr.baris-total > td {
   background: var(--fill); font-weight: 700; color: var(--ink);
   border-top: 2px solid var(--line);
