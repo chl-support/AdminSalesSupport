@@ -100,7 +100,7 @@ const KATA = {
       "Belum ada jadwal tersimpan untuk unit dan cara bayar ini.",
     rPada: "Disimpan", rOleh: "Oleh", rTgl: "Tgl Booking", rDisk: "Diskon",
     rBunga: "Bunga KPR", rCatatan: "Catatan", rTotal: "Total Nilai",
-    rBaris: "Baris", rBuka: "Buka",
+    rBuka: "Buka",
     bJudul: (w: string, o: string) => `Perbandingan jadwal · versi ${w} oleh ${o}`,
     bSebelum: "Sebelum · jadwal standar", bSesudah: "Sesudah · versi tersimpan",
     bBaru: "Baru", bSembunyi: "Hide", bDiubah: "Diubah",
@@ -180,7 +180,7 @@ const KATA = {
       "No saved schedules for this unit and payment scheme yet.",
     rPada: "Saved", rOleh: "By", rTgl: "Booking Date", rDisk: "Discount",
     rBunga: "Mortgage Rate", rCatatan: "Note", rTotal: "Total Value",
-    rBaris: "Rows", rBuka: "Open",
+    rBuka: "Open",
     bJudul: (w: string, o: string) => `Schedule comparison · version ${w} by ${o}`,
     bSebelum: "Before · standard schedule", bSesudah: "After · saved version",
     bBaru: "New", bSembunyi: "Hidden", bDiubah: "Changed",
@@ -741,7 +741,7 @@ export default function SimulasiPage() {
                   <tr>
                     <th>{k.rPada}</th><th>{k.rOleh}</th><th>{k.rTgl}</th>
                     <th>{k.rDisk}</th><th>{k.rBunga}</th><th>{k.rCatatan}</th>
-                    <th>{k.rBaris}</th><th>{k.rTotal}</th><th />
+                    <th>{k.rTotal}</th><th />
                   </tr>
                   {riwayat.map((v) => (
                     <tr key={v.id}>
@@ -751,7 +751,6 @@ export default function SimulasiPage() {
                       <td className="n">{v.diskon.toLocaleString("id-ID")}%</td>
                       <td className="n">{v.bunga.toLocaleString("id-ID")}%</td>
                       <td>{v.catatan ?? "—"}</td>
-                      <td className="n">{v.baris.length}</td>
                       <td className="n">
                         {angkaLembar(v.baris.reduce((a, b) => a + b.nilai, 0))}
                       </td>
