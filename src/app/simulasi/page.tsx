@@ -96,8 +96,8 @@ const KATA = {
     sTersimpan: "Tersimpan", sBelum: "Belum disimpan",
     sBerhasil: (w: string) => `Jadwal tersimpan sebagai versi ${w}.`,
     sDibuka: (w: string, o: string) => `Membuka versi ${w} oleh ${o}.`,
-    rJudul: "Riwayat jadwal tersimpan", rKosong:
-      "Belum ada jadwal tersimpan untuk unit dan cara bayar ini.",
+    rJudul: "Riwayat Perubahan Jadwal", rKosong:
+      "Belum ada perubahan jadwal yang disimpan untuk unit dan cara bayar ini.",
     rPada: "Disimpan", rOleh: "Oleh", rTgl: "Tgl Booking", rDisk: "Diskon",
     rBunga: "Bunga KPR", rCatatan: "Catatan", rTotal: "Total Nilai",
     rBuka: "Buka",
@@ -176,8 +176,8 @@ const KATA = {
     sTersimpan: "Saved", sBelum: "Not saved",
     sBerhasil: (w: string) => `Schedule saved as version ${w}.`,
     sDibuka: (w: string, o: string) => `Opened version ${w} by ${o}.`,
-    rJudul: "Saved schedule history", rKosong:
-      "No saved schedules for this unit and payment scheme yet.",
+    rJudul: "Schedule Change History", rKosong:
+      "No saved schedule changes for this unit and payment scheme yet.",
     rPada: "Saved", rOleh: "By", rTgl: "Booking Date", rDisk: "Discount",
     rBunga: "Mortgage Rate", rCatatan: "Note", rTotal: "Total Value",
     rBuka: "Open",
