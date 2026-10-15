@@ -3,10 +3,9 @@
 /**
  * Pricelist — yang berlaku untuk project terpilih, beserta riwayat unggahannya.
  *
- * Isinya panel yang sama dengan yang tampil di layar Simulasi / NPV (lihat
- * ./panel-pricelist.tsx). Unggahannya tetap dilakukan di layar Simulasi; di
- * sini pricelist dapat dibuka, diunduh, diberlakukan kembali, atau dihapus
- * tanpa membuka layar simulasinya.
+ * Isinya ada di ./panel-pricelist.tsx. Unggahannya dilakukan di layar
+ * Simulasi / NPV; di sini pricelist dapat dibuka, diunduh, diberlakukan
+ * kembali, atau dihapus.
  */
 
 import { useState } from "react";
