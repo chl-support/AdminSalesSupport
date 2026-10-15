@@ -37,6 +37,15 @@ import { LembarKonsumen, LembarManagement, kodeJadwal, namaPdf, tanggalIso,
 type BarisUbah = {
   ket: string; tgl: string; nilaiAsli: number; teks: string | null;
   sembunyi: boolean; tambahan: boolean;
+  /**
+   * Persentase yang diketik orang pada kolom %, apa adanya.
+   *
+   * Null berarti kolom itu mengikuti nilainya — yang ditampilkan dihitung
+   * dari nilai baris. Begitu diketik, arahnya berbalik: nilainya yang
+   * dihitung dari persen. Menyimpan apa yang diketik, bukan hasil hitungnya,
+   * menjaga "29," tetap dapat dilanjutkan menjadi "29,45" tanpa melompat.
+   */
+  persenTeks?: string | null;
 };
 
 /** "1.234.567" atau "1234567,5" menjadi angka; kosong atau keliru menjadi 0. */
@@ -504,6 +513,56 @@ export default function SimulasiPage() {
       { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
   };
 
+  /** Persen tanpa tanda %, untuk ditampilkan di dalam kotak isian. */
+  const persenAngka = (nilai: number) => {
+    const pl = hasil?.hargaPricelist ?? 0;
+    if (!(pl > 0)) return "";
+    return (nilai / pl * 100).toLocaleString("id-ID",
+      { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+
+  const bacaPersen = (s: string) => {
+    const n = Number(s.replace(/\./g, "").replace(",", "."));
+    return Number.isFinite(n) ? n : 0;
+  };
+
+  /**
+   * Persen diketik, nilainya yang menyesuaikan.
+   *
+   * Aturannya dari bagian penjualan, dan letak barisnya yang menentukan:
+   *
+   *   • baris pertama (booking fee) dan baris ketiga dan seterusnya
+   *     — nilai = harga PL × persen;
+   *   • baris kedua ("Pembayaran 1") — nilai = harga PL × persen, dikurangi
+   *     nilai booking fee. Persen pada baris itu memang mencakup booking fee
+   *     yang sudah dibayar di muka, jadi tanpa pengurangan itu uangnya
+   *     terhitung dua kali.
+   */
+  const ubahPersen = (i: number, mentah: string) => {
+    // Hanya angka dan satu koma: "29,45" ditulis orang Indonesia dengan koma,
+    // dan titik ribuan tidak punya arti pada persen.
+    const [bulat, ...pecahan] = mentah.replace(/[^\d,]/g, "").split(",");
+    const teksPersen = pecahan.length
+      ? `${bulat},${pecahan.join("").slice(0, 2)}` : bulat;
+
+    setUbah((u) => {
+      if (!u) return u;
+      const pl = hasil?.hargaPricelist ?? 0;
+      if (!(pl > 0)) {
+        return u.map((x, j) => j === i ? { ...x, persenTeks: teksPersen } : x);
+      }
+      let nilai = pl * bacaPersen(teksPersen) / 100;
+      if (i === 1) nilai -= nilaiBaris(u[0]);
+      // Di bawah nol tidak dibulatkan diam-diam ke angka lain: nol terbaca
+      // sebagai "persen ini lebih kecil daripada booking fee-nya", dan itu
+      // memang yang perlu dilihat orang yang mengetiknya.
+      const bulatRp = Math.max(0, Math.round(nilai));
+      return u.map((x, j) => j === i
+        ? { ...x, persenTeks: teksPersen, teks: bulatRp.toLocaleString("id-ID") }
+        : x);
+    });
+  };
+
   // Pembanding tetap Cash Keras, cara bayar yang paling ringkas jadwalnya dan
   // karena itu paling tinggi nilai sekarangnya — di situlah selisih cara bayar
   // lain terbaca sebagai biaya menunggu.
@@ -832,11 +891,20 @@ export default function SimulasiPage() {
                         ? <input type="date" value={b.tgl}
                                  onChange={(e) => ganti({ tgl: e.target.value })} />
                         : tglPendek(t.tgl)}</td>
-                      <td className="n">{persenPl(t.nilai)}</td>
+                      <td className="n">{modeUbah && b
+                        ? <input className="n" inputMode="decimal"
+                                 value={b.persenTeks ?? persenAngka(t.nilai)}
+                                 onChange={(e) => ubahPersen(i, e.target.value)} />
+                        : persenPl(t.nilai)}</td>
                       <td className="n">{modeUbah && b
                         ? <input className="n" inputMode="decimal"
                                  value={b.teks ?? Math.round(b.nilaiAsli).toLocaleString("id-ID")}
-                                 onChange={(e) => ganti({ teks: rapikanRupiah(e.target.value) })} />
+                                 onChange={(e) => ganti({
+                                   teks: rapikanRupiah(e.target.value),
+                                   // Nilai yang diketik tangan membatalkan
+                                   // persen yang tadi diketik: arahnya
+                                   // berbalik lagi, persen mengikuti nilai.
+                                   persenTeks: null })} />
                         : angkaLembar(t.nilai)}</td>
                       <td className="n">{angkaLembar(t.pv)}</td>
                       <td className="n">{angkaLembar(t.tagihan)}</td>
