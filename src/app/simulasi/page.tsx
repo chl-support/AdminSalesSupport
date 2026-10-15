@@ -101,7 +101,7 @@ const KATA = {
     rPada: "Disimpan", rOleh: "Oleh", rTgl: "Tgl Booking", rDisk: "Diskon",
     rBunga: "Bunga KPR", rCatatan: "Catatan", rTotal: "Total Nilai",
     rBuka: "Buka",
-    bJudul: (w: string, o: string) => `Perbandingan jadwal · versi ${w} oleh ${o}`,
+    bJudul: "Perbandingan Jadwal",
     bSebelum: "Sebelum · jadwal standar", bSesudah: "Sesudah · versi tersimpan",
     bBaru: "Baru", bSembunyi: "Hide", bDiubah: "Diubah",
     bRingkas: "Ringkasan", bSelisih: "Selisih",
@@ -181,7 +181,7 @@ const KATA = {
     rPada: "Saved", rOleh: "By", rTgl: "Booking Date", rDisk: "Discount",
     rBunga: "Mortgage Rate", rCatatan: "Note", rTotal: "Total Value",
     rBuka: "Open",
-    bJudul: (w: string, o: string) => `Schedule comparison · version ${w} by ${o}`,
+    bJudul: "Schedule Comparison",
     bSebelum: "Before · standard schedule", bSesudah: "After · saved version",
     bBaru: "New", bSembunyi: "Hidden", bDiubah: "Changed",
     bRingkas: "Summary", bSelisih: "Difference",
@@ -866,11 +866,11 @@ export default function SimulasiPage() {
             if (e.target === e.currentTarget) setBanding(null);
           }}>
             <div className="popup lebar" role="dialog" aria-modal="true"
-                 aria-label={k.bJudul(waktu(v.disimpan_pada), v.disimpan_oleh ?? "—")}
+                 aria-label={k.bJudul}
                  style={{ maxWidth: 1120 }}>
               <div className="popup-kepala">
                 <h2>
-                  {k.bJudul(waktu(v.disimpan_pada), v.disimpan_oleh ?? "—")}
+                  {k.bJudul}
                   {v.catatan && <span className="pill">{v.catatan}</span>}
                 </h2>
                 <button className="tautan" aria-label={k.bTutup}
