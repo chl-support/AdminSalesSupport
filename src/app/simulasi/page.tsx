@@ -18,12 +18,14 @@
  * meleset sehari-dua begitu dicetak esok paginya.
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useBahasa, useKata } from "../bahasa";
 import { Kerangka, MemeriksaSesi } from "../kerangka";
 import { useSesi } from "../session";
 import { PENGUNGGAH, UnggahPricelist } from "./unggah-pricelist";
+import { LembarKonsumen, LembarManagement, namaPdf, unduhPdf, type Jenis }
+  from "./lembar-cetak";
 import { formatRupiah } from "@/lib/money";
 import { BUNGA_NPV, bentukSkema, hitung, lewatKpr, type Skema,
          type UnitHarga } from "@/lib/simulasi";
@@ -40,6 +42,10 @@ const KATA = {
     fBunga: "Bunga KPR (%)",
     cetakKonsumen: "Preview & Print Out — Konsumen",
     cetakManagement: "Preview & Print Out — Management",
+    unduhKonsumen: "Unduh PDF — Konsumen",
+    unduhManagement: "Unduh PDF — Management",
+    menyusun: "Menyusun PDF…",
+    gagalPdf: "PDF tidak dapat disusun. Coba lagi, atau pakai Preview & Print Out lalu Simpan sebagai PDF.",
     rTipe: "Tipe", rLt: "Luas Tanah", rLb: "Luas Bangunan",
     rPricelist: "Harga Price List", rDiskon: "Diskon",
     rTransaksi: "Harga Transaksi",
@@ -88,6 +94,10 @@ const KATA = {
     fBunga: "Mortgage Rate (%)",
     cetakKonsumen: "Preview & Print Out — Customer",
     cetakManagement: "Preview & Print Out — Management",
+    unduhKonsumen: "Download PDF — Customer",
+    unduhManagement: "Download PDF — Management",
+    menyusun: "Building PDF…",
+    gagalPdf: "The PDF could not be built. Try again, or use Preview & Print Out and Save as PDF.",
     rTipe: "Type", rLt: "Land Area", rLb: "Building Area",
     rPricelist: "List Price", rDiskon: "Discount",
     rTransaksi: "Transaction Price",
@@ -206,6 +216,25 @@ export default function SimulasiPage() {
     bungaKpr: angka(bunga) / 100, tanggal: booking,
   }) : null, [unit, tunai, diskon, bunga, booking]);
 
+  // Unduh PDF: lembar cetaknya digambar di luar layar, dipotret, lalu
+  // diunduh — lembar yang sama dengan halaman pratinjau, tanpa membuka tab.
+  // Sisi kiri lembar Management adalah Cash Keras tanpa diskon, seperti di
+  // halaman pratinjaunya.
+  const [unduh, setUnduh] = useState<Jenis | null>(null);
+  const [galatPdf, setGalatPdf] = useState(false);
+  const lembarPdf = useRef<HTMLDivElement | null>(null);
+  const cashPdf = useMemo(() => unit && unit.harga[tunai] > 0 ? hitung({
+    unit, skema: tunai, diskon: 0, bungaKpr: angka(bunga) / 100, tanggal: booking,
+  }) : null, [unit, tunai, bunga, booking]);
+  useEffect(() => {
+    if (!unduh) return;
+    const el = lembarPdf.current?.firstElementChild as HTMLElement | null;
+    if (!el) { setUnduh(null); return; }
+    unduhPdf(el, unduh, namaPdf(kode, skema, unduh))
+      .catch(() => setGalatPdf(true))
+      .finally(() => setUnduh(null));
+  }, [unduh, kode, skema]);
+
   if (memuat || !sesi) return <MemeriksaSesi />;
 
   const bolehUnggah = PENGUNGGAH.includes(sesi.role) && !!sesi.project_slug;
@@ -292,6 +321,26 @@ export default function SimulasiPage() {
               {jenis === "konsumen" ? k.cetakKonsumen : k.cetakManagement}
             </button>
           ))}
+          {(["konsumen", "management"] as const).map((jenis) => (
+            <button key={"pdf-" + jenis}
+                    disabled={!hasil || !!unduh || (jenis === "management" && !cashPdf)}
+                    onClick={() => { setGalatPdf(false); setUnduh(jenis); }}>
+              {unduh === jenis ? k.menyusun
+                : jenis === "konsumen" ? k.unduhKonsumen : k.unduhManagement}
+            </button>
+          ))}
+        </div>
+        {galatPdf && <div className="banner stop">{k.gagalPdf}</div>}
+        <div ref={lembarPdf} aria-hidden
+             style={{ position: "fixed", left: -10000, top: 0 }}>
+          {unduh === "konsumen" && hasil && unit && (
+            <LembarKonsumen h={hasil} unit={unit} slug={sesi.project_slug ?? ""}
+                            nama={sesi.project_name ?? ""} booking={booking} />
+          )}
+          {unduh === "management" && hasil && cashPdf && unit && (
+            <LembarManagement h={hasil} cash={cashPdf} unit={unit}
+                              nama={sesi.project_name ?? ""} />
+          )}
         </div>
       </div>
 
