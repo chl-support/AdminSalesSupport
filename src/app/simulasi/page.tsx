@@ -123,6 +123,7 @@ const KATA = {
     bKet: "Sel berwarna berubah dari jadwal standar. Baris Hide tidak tampil di " +
           "lembar cetak tetapi tetap dihitung.",
     kKet: "Keterangan", kTempo: "Tgl", kHari: "Hari",
+    kPersen: "%",
     kJumlah: "Nilai (VALUE)", kPv: "PV", kDtp: "DTP (PPN)",
     kTagihan: "Tagihan (DTP)",
     total: "TOTAL",
@@ -213,7 +214,7 @@ const KATA = {
     bDtp: "Total VAT relief", bTutup: "Close",
     bKet: "Highlighted cells differ from the standard schedule. Hidden rows " +
           "are not printed but still count.",
-    kKet: "Description", kTempo: "Date", kHari: "Days",
+    kKet: "Description", kTempo: "Date", kHari: "Days", kPersen: "%",
     kJumlah: "Value", kPv: "PV", kDtp: "VAT Borne by Govt",
     kTagihan: "Billed (net of VAT)",
     total: "TOTAL",
@@ -486,6 +487,22 @@ export default function SimulasiPage() {
     });
   }, [ubah, hasilStandar, unit, skema, skemaHarga, diskon, bunga, booking, tarifDtp]);
   const sembunyi = ubah?.map((b) => b.sembunyi);
+
+  /**
+   * Porsi satu nilai terhadap harga pricelist yang dipilih.
+   *
+   * Pembandingnya harga pricelist, bukan harga transaksi: yang hendak dibaca
+   * orang penjualan adalah "termin ini berapa persen dari PL", dan diskon
+   * tidak mengubah pertanyaan itu. Dua angka di belakang koma karena termin
+   * kecil seperti booking fee kerap di bawah satu persen, dan "1%" untuk dua
+   * nilai yang berbeda menyembunyikan justru yang sedang dibandingkan.
+   */
+  const persenPl = (nilai: number) => {
+    const pl = hasil?.hargaPricelist ?? 0;
+    if (!(pl > 0)) return "-";
+    return `${(nilai / pl * 100).toLocaleString("id-ID",
+      { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
+  };
 
   // Pembanding tetap Cash Keras, cara bayar yang paling ringkas jadwalnya dan
   // karena itu paling tinggi nilai sekarangnya — di situlah selisih cara bayar
@@ -789,6 +806,11 @@ export default function SimulasiPage() {
                   <th style={{ width: 170 }}>{k.kKet}</th>
                   <th style={{ width: 62 }}>{k.kHari}</th>
                   <th style={{ width: modeUbah ? 140 : 100 }}>{k.kTempo}</th>
+                  {/* Porsi tiap termin terhadap harga pricelist yang dipilih.
+                      Hanya di layar kerja: lembar cetak dan PDF-nya tidak
+                      memuatnya — yang dibaca konsumen adalah nominalnya,
+                      bukan cara jadwalnya disusun. */}
+                  <th style={{ width: 72 }}>{k.kPersen}</th>
                   <th>{k.kJumlah}</th>
                   <th>{k.kPv}</th>
                   <th>{k.kTagihan}</th>
@@ -810,6 +832,7 @@ export default function SimulasiPage() {
                         ? <input type="date" value={b.tgl}
                                  onChange={(e) => ganti({ tgl: e.target.value })} />
                         : tglPendek(t.tgl)}</td>
+                      <td className="n">{persenPl(t.nilai)}</td>
                       <td className="n">{modeUbah && b
                         ? <input className="n" inputMode="decimal"
                                  value={b.teks ?? Math.round(b.nilaiAsli).toLocaleString("id-ID")}
@@ -843,6 +866,7 @@ export default function SimulasiPage() {
                 })}
                 <tr className="baris-total">
                   <td colSpan={3}>{k.total}</td>
+                  <td className="n">{persenPl(hasil.jumlahNilai)}</td>
                   <td className="n">{angkaLembar(hasil.jumlahNilai)}</td>
                   <td className="n">{angkaLembar(hasil.jumlahPv)}</td>
                   <td className="n">{angkaLembar(hasil.jumlahTagihan)}</td>
