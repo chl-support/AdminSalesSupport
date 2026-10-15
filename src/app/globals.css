@@ -22,6 +22,22 @@
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; }
+
+/* Huruf Kapital Di Awal Setiap Kata, untuk seluruh aplikasi — atas permintaan
+   pemakainya. Hanya pada teks yang berfungsi sebagai nama: judul, label
+   isian, kepala kolom, tombol, menu, tanda (pill), judul pita pesan, dan
+   kolom label tabel ringkas. Kalimat penjelasan dan pesan tetap seperti
+   kalimat biasa supaya mudah dibaca.
+
+   Diterapkan dari satu tempat, bukan dengan menulis ulang ratusan teks: teks
+   yang ditambahkan kemudian ikut dengan sendirinya. :where() membuat
+   kekhususannya nol, sehingga aturan yang sudah ada — teks yang sengaja
+   ditulis HURUF BESAR, isi lembar cetak yang menyalin Excel — tetap menang. */
+:where(h1, h2, h3, h4, th, button, select, summary, legend, .lbl, .pill,
+       label.tombol-berkas, .nav a, .banner > b, .tabel-ringkas td:first-child) {
+  text-transform: capitalize;
+}
+:where(.lbl-rinci, .hint) { text-transform: none; }
 body {
   background: var(--bg); color: var(--ink);
   font: 14px/1.55 var(--ui); -webkit-font-smoothing: antialiased;
