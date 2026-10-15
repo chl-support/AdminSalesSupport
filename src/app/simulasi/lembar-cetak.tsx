@@ -66,8 +66,10 @@ function Rp({ n, tebal }: { n: number; tebal?: boolean }) {
 
 // ── Lembar Konsumen ────────────────────────────────────────────────────────
 
-export function LembarKonsumen({ h, unit, slug, nama, booking }: {
+export function LembarKonsumen({ h, unit, slug, nama, booking, bungaKpr }: {
   h: Hasil; unit: UnitHarga; slug: string; nama: string; booking: Date;
+  /** Bunga KPR setahun, sebagai pecahan — untuk judul blok angsuran. */
+  bungaKpr: number;
 }) {
   return (
     <div className="lembar-sim konsumen">
@@ -115,6 +117,23 @@ export function LembarKonsumen({ h, unit, slug, nama, booking }: {
           <Rp n={h.jumlahDtp} tebal />
         </tr>
       </tbody></table>
+
+      {/* Hanya untuk cara bayar yang dilunasi bank: angsuran per bulan atas
+          tagihan pelunasan KPR, pada tenor 5–25 tahun. */}
+      {h.angsuran.length > 0 && (
+        <table className="ls-kpr"><tbody>
+          {h.angsuran.map((a, i) => (
+            <tr key={a.tahun}>
+              <td>{i === 0 ? `Simulasi KPR Bunga ${persen(bungaKpr)}` : ""}</td>
+              <td className="n">{a.tahun} Tahun</td>
+              <td>:</td>
+              <td>Rp</td>
+              <td className="n">{angka(a.perBulan)}</td>
+              <td>per bulan</td>
+            </tr>
+          ))}
+        </tbody></table>
+      )}
     </div>
   );
 }

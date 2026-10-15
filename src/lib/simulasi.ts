@@ -8,15 +8,20 @@
  * tampak ganjil, karena angka yang keluar dari layar ini dibandingkan orang
  * dengan angka yang keluar dari berkas itu.
  *
- * Tiga hal yang sengaja ditiru persis, meskipun dapat ditulis lebih rapi:
+ * Dua hal yang sengaja ditiru persis, meskipun dapat ditulis lebih rapi:
  *
  *   1. PPN DTP dialokasikan per termin secara berurutan, dan termin yang
  *      pendahulunya belum kena DTP menghitung pajaknya atas gabungan dirinya
  *      dan pendahulunya. Itulah cara booking fee ikut terbawa.
  *   2. Alokasinya dipotong oleh sisa pagu, dan pagu itulah yang memberlakukan
  *      tarif — bukan tarif yang dikalikan pada tiap barisnya.
- *   3. Tenor simulasi KPR 4, 9, 14, 19, dan 24 tahun. Angka itu memang yang
- *      tertulis di berkasnya.
+ *
+ * Tenor simulasi KPR sempat ditulis 4, 9, 14, 19, dan 24 tahun — begitulah
+ * sel-sel tenor di berkasnya terbaca, sebab tersimpan sebagai tanggal. Lembar
+ * cetak "Simulasi Hitungan Rumah" dari berkas yang sama menuliskan 5, 10, 15,
+ * 20, dan 25 tahun, dan angsurannya cocok sampai rupiah terakhir dengan tenor
+ * itu (NS-NR1-01, BANK KPR, pokok 1.874.612.613, 4,65%: 5 tahun 35.076.445,
+ * 25 tahun 10.579.952). Yang dipakai kini tenor cetakan itu.
  */
 
 import { SKEMA } from "./pricelist-naraya";
@@ -121,7 +126,7 @@ export const TARIF_PPN_DTP = [
 export const BUNGA_NPV = 0.12;
 
 /** Tenor yang ditawarkan pada simulasi angsuran KPR, dalam tahun. */
-export const TENOR_KPR = [4, 9, 14, 19, 24] as const;
+export const TENOR_KPR = [5, 10, 15, 20, 25] as const;
 
 /** Skema yang jadwalnya berujung pada pelunasan lewat bank. */
 export const lewatKpr = (s: Skema) => {

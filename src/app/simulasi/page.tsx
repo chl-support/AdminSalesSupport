@@ -335,7 +335,8 @@ export default function SimulasiPage() {
              style={{ position: "fixed", left: -10000, top: 0 }}>
           {unduh === "konsumen" && hasil && unit && (
             <LembarKonsumen h={hasil} unit={unit} slug={sesi.project_slug ?? ""}
-                            nama={sesi.project_name ?? ""} booking={booking} />
+                            nama={sesi.project_name ?? ""} booking={booking}
+                            bungaKpr={angka(bunga) / 100} />
           )}
           {unduh === "management" && hasil && cashPdf && unit && (
             <LembarManagement h={hasil} cash={cashPdf} unit={unit}
