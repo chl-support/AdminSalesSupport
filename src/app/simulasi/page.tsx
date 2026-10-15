@@ -39,6 +39,16 @@ type BarisUbah = {
 };
 
 /** "1.234.567" atau "1234567,5" menjadi angka; kosong atau keliru menjadi 0. */
+/**
+ * Isian nilai ditulis ulang dengan titik ribuan selagi diketik: 6000000
+ * menjadi 6.000.000. Hanya angka dan satu koma desimal yang dipertahankan.
+ */
+const rapikanRupiah = (s: string) => {
+  const bersih = s.replace(/[^\d,]/g, "");
+  const [bulat, ...pecahan] = bersih.split(",");
+  const ribuan = bulat.replace(/^0+(?=\d)/, "").replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  return pecahan.length ? `${ribuan},${pecahan.join("").slice(0, 2)}` : ribuan;
+};
 const bacaRupiah = (s: string) => {
   const n = Number(s.replace(/[^\d,.-]/g, "").replace(/\./g, "").replace(",", "."));
   return Number.isFinite(n) ? n : 0;
@@ -649,7 +659,7 @@ export default function SimulasiPage() {
                       <td className="n">{modeUbah && b
                         ? <input className="n" inputMode="decimal"
                                  value={b.teks ?? Math.round(b.nilaiAsli).toLocaleString("id-ID")}
-                                 onChange={(e) => ganti({ teks: e.target.value })} />
+                                 onChange={(e) => ganti({ teks: rapikanRupiah(e.target.value) })} />
                         : angkaLembar(t.nilai)}</td>
                       <td className="n">{angkaLembar(t.pv)}</td>
                       <td className="n">{angkaLembar(t.tagihan)}</td>
