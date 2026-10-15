@@ -37,6 +37,15 @@ import { LembarKonsumen, LembarManagement, kodeJadwal, namaPdf, tanggalIso,
 type BarisUbah = {
   ket: string; tgl: string; nilaiAsli: number; teks: string | null;
   sembunyi: boolean; tambahan: boolean;
+  /**
+   * Persentase yang diketik orang pada kolom %, apa adanya.
+   *
+   * Null berarti kolom itu mengikuti nilainya — yang ditampilkan dihitung
+   * dari nilai baris. Begitu diketik, arahnya berbalik: nilainya yang
+   * dihitung dari persen. Menyimpan apa yang diketik, bukan hasil hitungnya,
+   * menjaga "29," tetap dapat dilanjutkan menjadi "29,45" tanpa melompat.
+   */
+  persenTeks?: string | null;
 };
 
 /** "1.234.567" atau "1234567,5" menjadi angka; kosong atau keliru menjadi 0. */
@@ -123,6 +132,7 @@ const KATA = {
     bKet: "Sel berwarna berubah dari jadwal standar. Baris Hide tidak tampil di " +
           "lembar cetak tetapi tetap dihitung.",
     kKet: "Keterangan", kTempo: "Tgl", kHari: "Hari",
+    kPersen: "%",
     kJumlah: "Nilai (VALUE)", kPv: "PV", kDtp: "DTP (PPN)",
     kTagihan: "Tagihan (DTP)",
     total: "TOTAL",
@@ -213,7 +223,7 @@ const KATA = {
     bDtp: "Total VAT relief", bTutup: "Close",
     bKet: "Highlighted cells differ from the standard schedule. Hidden rows " +
           "are not printed but still count.",
-    kKet: "Description", kTempo: "Date", kHari: "Days",
+    kKet: "Description", kTempo: "Date", kHari: "Days", kPersen: "%",
     kJumlah: "Value", kPv: "PV", kDtp: "VAT Borne by Govt",
     kTagihan: "Billed (net of VAT)",
     total: "TOTAL",
@@ -486,6 +496,80 @@ export default function SimulasiPage() {
     });
   }, [ubah, hasilStandar, unit, skema, skemaHarga, diskon, bunga, booking, tarifDtp]);
   const sembunyi = ubah?.map((b) => b.sembunyi);
+
+  /**
+   * Porsi satu nilai terhadap harga pricelist yang dipilih.
+   *
+   * Pembandingnya harga pricelist, bukan harga transaksi: yang hendak dibaca
+   * orang penjualan adalah "termin ini berapa persen dari PL", dan diskon
+   * tidak mengubah pertanyaan itu. Dua angka di belakang koma karena termin
+   * kecil seperti booking fee kerap di bawah satu persen, dan "1%" untuk dua
+   * nilai yang berbeda menyembunyikan justru yang sedang dibandingkan.
+   */
+  const persenPl = (nilai: number) => {
+    const pl = hasil?.hargaPricelist ?? 0;
+    if (!(pl > 0)) return "-";
+    return `${(nilai / pl * 100).toLocaleString("id-ID",
+      { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
+  };
+
+  /** Persen tanpa tanda %, untuk ditampilkan di dalam kotak isian. */
+  const persenAngka = (nilai: number) => {
+    const pl = hasil?.hargaPricelist ?? 0;
+    if (!(pl > 0)) return "";
+    return (nilai / pl * 100).toLocaleString("id-ID",
+      { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+
+  const bacaPersen = (s: string) => {
+    const n = Number(s.replace(/\./g, "").replace(",", "."));
+    return Number.isFinite(n) ? n : 0;
+  };
+
+  /**
+   * Persen diketik, nilainya yang menyesuaikan.
+   *
+   * Aturannya dari bagian penjualan, dan letak barisnya yang menentukan:
+   *
+   *   • baris pertama (booking fee) — nilainya tetap, bukan turunan persen.
+   *     Booking fee adalah angka bulat yang disepakati di muka (10.000.000),
+   *     sama untuk unit mahal maupun murah, jadi persen di baris itu hanya
+   *     melaporkan porsinya terhadap harga PL dan tidak dapat diketik; yang
+   *     mengubahnya adalah kolom Nilai (VALUE) sendiri;
+   *   • baris kedua ("Pembayaran 1") — nilai = harga PL × persen, dikurangi
+   *     nilai booking fee. Persen pada baris itu memang mencakup booking fee
+   *     yang sudah dibayar di muka, jadi tanpa pengurangan itu uangnya
+   *     terhitung dua kali;
+   *   • baris ketiga dan seterusnya — nilai = harga PL × persen.
+   */
+  const ubahPersen = (i: number, mentah: string) => {
+    // Hanya angka dan satu koma: "29,45" ditulis orang Indonesia dengan koma,
+    // dan titik ribuan tidak punya arti pada persen.
+    const [bulat, ...pecahan] = mentah.replace(/[^\d,]/g, "").split(",");
+    const teksPersen = pecahan.length
+      ? `${bulat},${pecahan.join("").slice(0, 2)}` : bulat;
+
+    setUbah((u) => {
+      if (!u) return u;
+      const pl = hasil?.hargaPricelist ?? 0;
+      if (!(pl > 0)) {
+        return u.map((x, j) => j === i ? { ...x, persenTeks: teksPersen } : x);
+      }
+      // Baris booking fee: persennya tidak menyetel nilainya.
+      if (i === 0) {
+        return u.map((x, j) => j === i ? { ...x, persenTeks: teksPersen } : x);
+      }
+      let nilai = pl * bacaPersen(teksPersen) / 100;
+      if (i === 1) nilai -= nilaiBaris(u[0]);
+      // Di bawah nol tidak dibulatkan diam-diam ke angka lain: nol terbaca
+      // sebagai "persen ini lebih kecil daripada booking fee-nya", dan itu
+      // memang yang perlu dilihat orang yang mengetiknya.
+      const bulatRp = Math.max(0, Math.round(nilai));
+      return u.map((x, j) => j === i
+        ? { ...x, persenTeks: teksPersen, teks: bulatRp.toLocaleString("id-ID") }
+        : x);
+    });
+  };
 
   // Pembanding tetap Cash Keras, cara bayar yang paling ringkas jadwalnya dan
   // karena itu paling tinggi nilai sekarangnya — di situlah selisih cara bayar
@@ -789,6 +873,11 @@ export default function SimulasiPage() {
                   <th style={{ width: 170 }}>{k.kKet}</th>
                   <th style={{ width: 62 }}>{k.kHari}</th>
                   <th style={{ width: modeUbah ? 140 : 100 }}>{k.kTempo}</th>
+                  {/* Porsi tiap termin terhadap harga pricelist yang dipilih.
+                      Hanya di layar kerja: lembar cetak dan PDF-nya tidak
+                      memuatnya — yang dibaca konsumen adalah nominalnya,
+                      bukan cara jadwalnya disusun. */}
+                  <th style={{ width: 72 }}>{k.kPersen}</th>
                   <th>{k.kJumlah}</th>
                   <th>{k.kPv}</th>
                   <th>{k.kTagihan}</th>
@@ -810,10 +899,23 @@ export default function SimulasiPage() {
                         ? <input type="date" value={b.tgl}
                                  onChange={(e) => ganti({ tgl: e.target.value })} />
                         : tglPendek(t.tgl)}</td>
+                      {/* Baris booking fee tanpa kotak isian: nilainya tetap,
+                          jadi persennya di sana hanya laporan — lihat
+                          `ubahPersen`. */}
+                      <td className="n">{modeUbah && b && i > 0
+                        ? <input className="n" inputMode="decimal"
+                                 value={b.persenTeks ?? persenAngka(t.nilai)}
+                                 onChange={(e) => ubahPersen(i, e.target.value)} />
+                        : persenPl(t.nilai)}</td>
                       <td className="n">{modeUbah && b
                         ? <input className="n" inputMode="decimal"
                                  value={b.teks ?? Math.round(b.nilaiAsli).toLocaleString("id-ID")}
-                                 onChange={(e) => ganti({ teks: rapikanRupiah(e.target.value) })} />
+                                 onChange={(e) => ganti({
+                                   teks: rapikanRupiah(e.target.value),
+                                   // Nilai yang diketik tangan membatalkan
+                                   // persen yang tadi diketik: arahnya
+                                   // berbalik lagi, persen mengikuti nilai.
+                                   persenTeks: null })} />
                         : angkaLembar(t.nilai)}</td>
                       <td className="n">{angkaLembar(t.pv)}</td>
                       <td className="n">{angkaLembar(t.tagihan)}</td>
@@ -843,6 +945,7 @@ export default function SimulasiPage() {
                 })}
                 <tr className="baris-total">
                   <td colSpan={3}>{k.total}</td>
+                  <td className="n">{persenPl(hasil.jumlahNilai)}</td>
                   <td className="n">{angkaLembar(hasil.jumlahNilai)}</td>
                   <td className="n">{angkaLembar(hasil.jumlahPv)}</td>
                   <td className="n">{angkaLembar(hasil.jumlahTagihan)}</td>
