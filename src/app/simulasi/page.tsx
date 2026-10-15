@@ -631,7 +631,7 @@ export default function SimulasiPage() {
           )}
           {unduh === "management" && hasil && cashPdf && unit && (
             <LembarManagement h={hasil} cash={cashPdf} unit={unit}
-                              nama={sesi.project_name ?? ""} sembunyi={sembunyi} />
+                              slug={sesi.project_slug ?? ""} nama={sesi.project_name ?? ""} sembunyi={sembunyi} />
           )}
         </div>
       </div>

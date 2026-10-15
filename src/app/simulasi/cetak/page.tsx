@@ -210,7 +210,8 @@ export default function CetakSimulasiPage() {
           ? <LembarKonsumen h={hasil} unit={unit!} slug={sesi.project_slug ?? ""}
                             nama={nama} booking={booking}
                             bungaKpr={(m?.bunga ?? 0) / 100} sembunyi={sembunyi} />
-          : <LembarManagement h={hasil} cash={cash!} unit={unit!} nama={nama}
+          : <LembarManagement h={hasil} cash={cash!} unit={unit!}
+                              slug={sesi.project_slug ?? ""} nama={nama}
                               sembunyi={sembunyi} />}
       </div>
     </div>
