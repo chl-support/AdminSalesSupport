@@ -28,7 +28,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useKata } from "../../bahasa";
 import { MemeriksaSesi } from "../../kerangka";
 import { useSesi } from "../../session";
-import { hitung, type UnitHarga } from "@/lib/simulasi";
+import { hitung, type TarifDtp, type UnitHarga } from "@/lib/simulasi";
 import { LembarKonsumen, LembarManagement, bacaJadwal, namaPdf, tanggalIso, unduhPdf,
          type BarisSunting, type Jenis }
   from "../lembar-cetak";
@@ -115,14 +115,24 @@ export default function CetakSimulasiPage() {
   const [menyusun, setMenyusun] = useState(false);
   const [galatPdf, setGalatPdf] = useState(false);
 
+  // Tabel Tarif PPN DTP yang berlaku, sama dengan yang dipakai layar Simulasi.
+  const [tarifDtp, setTarifDtp] = useState<TarifDtp[] | undefined>(undefined);
+  const [tarifSiap, setTarifSiap] = useState(false);
+  useEffect(() => {
+    if (!sesi) return;
+    fetch("/api/tarif-dtp").then((r) => r.ok ? r.json() : null)
+      .then((b) => { if (b?.tarif) setTarifDtp(b.tarif); })
+      .catch(() => {}).finally(() => setTarifSiap(true));
+  }, [sesi]);
+
   const hasil = useMemo(() => {
-    if (!m || !unit || !(unit.harga[m.pl || m.skema] > 0)) return null;
+    if (!tarifSiap || !m || !unit || !(unit.harga[m.pl || m.skema] > 0)) return null;
     return hitung({ unit, skema: m.skema, skemaHarga: m.pl || undefined,
                     diskon: m.diskon / 100,
-                    bungaKpr: m.bunga / 100, tanggal: booking,
+                    bungaKpr: m.bunga / 100, tanggal: booking, tarifDtp,
                     jadwalManual: m.jadwal?.map((b) => ({
                       ket: b.ket, tgl: tanggalIso(b.tgl, booking), nilai: b.nilai })) });
-  }, [m, unit, booking]);
+  }, [m, unit, booking, tarifDtp, tarifSiap]);
   const sembunyi = m?.jadwal?.map((b) => b.sembunyi);
 
   // Sisi kiri lembar Management: cara bayar yang sama pada harga
@@ -133,8 +143,8 @@ export default function CetakSimulasiPage() {
   const cash = useMemo(() => {
     if (!unit || !m || !(unit.harga[m.skema] > 0)) return null;
     return hitung({ unit, skema: m.skema, diskon: 0,
-                    bungaKpr: m.bunga / 100, tanggal: booking });
-  }, [unit, m, booking]);
+                    bungaKpr: m.bunga / 100, tanggal: booking, tarifDtp });
+  }, [unit, m, booking, tarifDtp]);
 
   const jenis = m?.jenis ?? "konsumen";
 

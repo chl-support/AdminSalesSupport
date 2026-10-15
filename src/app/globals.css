@@ -2922,3 +2922,7 @@ td.sel-surel, th.sel-surel { white-space: nowrap; font-size: 11.5px; }
 /* Tanpa pasangan di kanan (mis. Cash Keras tanpa angsuran KPR), kartu tetap
    selebar kolom kiri, supaya label dan angkanya tidak terpisah jauh. */
 .dua-kolom.tunggal > .sim-tumpuk { grid-column: 1; }
+
+/* Panel Tarif PPN DTP: isian selebar selnya saat disunting. */
+.tscroll > .tabel-jadwal.tarif-dtp { min-width: 980px; }
+.tabel-jadwal.tarif-dtp td input { width: 100%; }

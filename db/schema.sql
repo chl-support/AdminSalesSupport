@@ -962,4 +962,19 @@ ALTER TABLE simulasi_jadwal ADD COLUMN IF NOT EXISTS skema_harga TEXT;
 CREATE INDEX IF NOT EXISTS simulasi_jadwal_unit
   ON simulasi_jadwal (project_id, kode_unit, skema, disimpan_pada DESC);
 
+
+-- Tabel Tarif PPN DTP, disunting dari layar Simulasi / NPV; berlaku untuk
+-- seluruh project. Diisi awal oleh ensureTabelTarifDtp() (src/lib/tarif-dtp.ts).
+CREATE TABLE IF NOT EXISTS tarif_ppn_dtp (
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  urutan         INT NOT NULL,
+  nama           TEXT NOT NULL,
+  awal           DATE NOT NULL,
+  akhir          DATE NOT NULL,
+  tarif          NUMERIC NOT NULL,
+  harga_jual_max NUMERIC NOT NULL,
+  max_dtp        NUMERIC NOT NULL,
+  peraturan      TEXT
+);
+
 COMMIT;

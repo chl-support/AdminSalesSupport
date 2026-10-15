@@ -115,12 +115,25 @@ export function uraianBentuk(b: Bentuk): string {
  * dinaikkan menjadi batas sesudah PPN. Dituliskan di sini sebagai hasilnya
  * supaya yang membaca tidak perlu menghitung 1,11 di kepalanya.
  */
-export const TARIF_PPN_DTP = [
+/** Satu periode PPN DTP. Tarif sebagai pecahan: 1 berarti 100%. */
+export type TarifDtp = {
+  nama: string; awal: string; akhir: string; tarif: number;
+  hargaJualMax: number; maxDtp: number;
+  /** Dasar peraturannya, mis. nomor PMK. Hanya keterangan. */
+  peraturan?: string | null;
+};
+
+/**
+ * Isi awal tabel Tarif PPN DTP. Tabel yang berlaku disimpan di basis data dan
+ * diubah dari layar Simulasi (src/lib/tarif-dtp.ts); daftar ini dipakai bila
+ * tabelnya belum pernah diisi, dan oleh uji yang mencocokkan berkas Excel.
+ */
+export const TARIF_PPN_DTP: readonly TarifDtp[] = [
   { nama: "Tahap I", awal: "2025-01-01", akhir: "2025-06-30", tarif: 0.5,
     hargaJualMax: 5_000_000_000 * 1.11, maxDtp: 2_000_000_000 * 1.11 },
   { nama: "Tahap II", awal: "2026-01-01", akhir: "2026-12-31", tarif: 1,
     hargaJualMax: 5_000_000_000 * 1.11, maxDtp: 2_000_000_000 * 1.11 },
-] as const;
+];
 
 /** Bunga yang dipakai mendiskontokan arus kas. Tetap 12%, seperti di berkasnya. */
 export const BUNGA_NPV = 0.12;
@@ -293,9 +306,9 @@ function jadwal(skema: Skema, h: number, booking: Date): Kasar[] {
  * mendapat DTP sebesar pagunya. Di antara Max PPN DTP dan Harga Jual Max,
  * yang dikenakan pagunya.
  */
-function paguDtp(h: number, jatuhTempoTerakhir: Date) {
+function paguDtp(h: number, jatuhTempoTerakhir: Date, daftar: readonly TarifDtp[]) {
   const t = jatuhTempoTerakhir.toISOString().slice(0, 10);
-  const p = TARIF_PPN_DTP.find((x) => x.awal <= t && t <= x.akhir);
+  const p = daftar.find((x) => x.awal <= t && t <= x.akhir);
   if (!p) return { tarif: 0, dasar: 0, total: 0 };
   const dasar = h <= 0 ? 0
     : h > p.hargaJualMax ? 0
@@ -313,7 +326,8 @@ export function angsuranBulanan(pokok: number, bungaSetahun: number, tahun: numb
 }
 
 export function hitung(
-  { unit, skema, skemaHarga, diskon, bungaKpr, tanggal, jadwalManual }: {
+  { unit, skema, skemaHarga, diskon, bungaKpr, tanggal, jadwalManual,
+    tarifDtp = TARIF_PPN_DTP }: {
     unit: UnitHarga;
     /** Cara bayar yang menentukan bentuk jadwalnya. */
     skema: Skema;
@@ -335,6 +349,8 @@ export function hitung(
      * DTP berjalan menurut urutan termin.
      */
     jadwalManual?: Kasar[];
+    /** Tabel Tarif PPN DTP yang berlaku; bawaan TARIF_PPN_DTP. */
+    tarifDtp?: readonly TarifDtp[];
   },
 ): Hasil {
   const booking = hari0(tanggal);
@@ -350,7 +366,7 @@ export function hitung(
     ? jadwalManual.map((k) => ({ ...k, tgl: hari0utc(k.tgl) }))
     : jadwal(skema, h, booking);
   const terakhir = kasar.reduce((a, b) => (b.tgl > a ? b.tgl : a), kasar[0].tgl);
-  const pagu = paguDtp(h, terakhir);
+  const pagu = paguDtp(h, terakhir, tarifDtp);
 
   const termin: Termin[] = [];
   let terpakai = 0;
