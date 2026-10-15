@@ -179,6 +179,8 @@ export type Hasil = {
   dasarDtp: number;
   /** Pagu PPN DTP untuk seluruh jadwal. */
   totalDtp: number;
+  /** Jadwalnya disunting tangan, bukan jadwal bawaan cara bayarnya. */
+  jadwalDisunting: boolean;
   termin: Termin[];
   jumlahNilai: number;
   jumlahPv: number;
@@ -420,6 +422,7 @@ export function hitung(
     diskon: potongan, hargaTransaksi: h,
     bungaNpv: BUNGA_NPV,
     tarifDtp: pagu.tarif, dasarDtp: pagu.dasar, totalDtp: pagu.total,
+    jadwalDisunting: !!jadwalManual?.length,
     termin, jumlahNilai, jumlahPv,
     jumlahTagihan: jumlah((t) => t.tagihan), jumlahDtp: jumlah((t) => t.dtp),
     rasioPv: jumlahNilai === 0 ? 0 : jumlahPv / jumlahNilai,

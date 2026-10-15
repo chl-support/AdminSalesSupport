@@ -64,6 +64,36 @@ function Rp({ n, tebal }: { n: number; tebal?: boolean }) {
                                    : <span className="rp-isi">{isi}</span>}</td>;
 }
 
+/**
+ * Nama cara bayar pada lembar Konsumen.
+ *
+ * Jadwal yang keluar dari pricelist apa adanya disebut dengan nama kolomnya.
+ * Begitu ada yang diubah untuk konsumen ini — diskon, penambahan harga, atau
+ * jadwal yang disunting tangan — yang dicetak bukan lagi cara bayar baku itu,
+ * melainkan kesepakatan tersendiri, dan diberi nama "Special Payment".
+ *
+ * Namanya sendiri diringkas menurut permintaan bagian penjualan:
+ *
+ *   • mengandung KPR (atau KPA) → "Special Payment KPR", berapa pun DP dan
+ *     cicilan uang mukanya; yang penting bagi konsumen pelunasannya lewat bank;
+ *   • cicilan → "Special Payment Cicilan [n]x", dengan n dihitung dari
+ *     jadwal yang benar-benar tercetak: seluruh baris kecuali booking fee,
+ *     jadi angsuran terakhir maupun pelunasan ikut terhitung. Jadwal yang
+ *     disunting karenanya menyebut angka yang sesuai dengan barisnya, bukan
+ *     angka pada nama kolom pricelist yang sudah tidak berlaku lagi;
+ *   • selain itu → nama kolomnya sendiri, mis. "Special Payment CASH KERAS".
+ */
+function caraBayarLembar(h: Hasil, barisTampil: { ket: string }[]): string {
+  const khusus = h.diskon > 0 || h.tambahan > 0 || h.jadwalDisunting;
+  if (!khusus) return h.skema;
+  if (/\b(kpr|kpa)\b/i.test(h.skema)) return "Special Payment KPR";
+  if (/cicilan|angsuran|installment|bertahap/i.test(h.skema)) {
+    const n = barisTampil.filter((t) => !/booking/i.test(t.ket)).length;
+    return `Special Payment Cicilan ${n}x`;
+  }
+  return `Special Payment ${h.skema}`;
+}
+
 // ── Lembar Konsumen ────────────────────────────────────────────────────────
 
 export function LembarKonsumen({ h, unit, slug, nama, booking, bungaKpr, sembunyi }: {
@@ -73,6 +103,7 @@ export function LembarKonsumen({ h, unit, slug, nama, booking, bungaKpr, sembuny
   /** Bunga KPR setahun, sebagai pecahan — untuk judul blok angsuran. */
   bungaKpr: number;
 }) {
+  const tampil = h.termin.filter((_, i) => !sembunyi?.[i]);
   return (
     <div className="lembar-sim konsumen">
       <div className="ls-kepala">
@@ -89,7 +120,8 @@ export function LembarKonsumen({ h, unit, slug, nama, booking, bungaKpr, sembuny
         <tr><td>Address</td><td>: {unit.alamat}</td>
             <td>Luas Bangunan</td><td>: {luas(unit.lb, 0)} M²</td></tr>
         <tr><td>No. Unit</td><td>: {unit.kode}</td><td /><td /></tr>
-        <tr><td>Cara Bayar</td><td>: {h.skema}</td><td /><td /></tr>
+        <tr><td>Cara Bayar</td>
+            <td>: {caraBayarLembar(h, tampil)}</td><td /><td /></tr>
         <tr><td>Harga Price List{h.skemaHarga !== h.skema && ` (PL ${h.skemaHarga})`}</td>
             <td>: Rp {angka(h.hargaPricelist)}</td><td /><td /></tr>
         {h.tambahan > 0 && (
@@ -109,7 +141,7 @@ export function LembarKonsumen({ h, unit, slug, nama, booking, bungaKpr, sembuny
           <th>No.</th><th>Keterangan</th><th>Jatuh Tempo</th>
           <th>Jumlah</th><th>Tagihan (DTP)</th><th>DTP (PPN)</th>
         </tr>
-        {h.termin.filter((_, i) => !sembunyi?.[i]).map((t, i) => (
+        {tampil.map((t, i) => (
           <tr key={i}>
             <td className="c">{i + 1}</td>
             <td>{t.ket}</td>
