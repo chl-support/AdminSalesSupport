@@ -531,12 +531,16 @@ export default function SimulasiPage() {
    *
    * Aturannya dari bagian penjualan, dan letak barisnya yang menentukan:
    *
-   *   • baris pertama (booking fee) dan baris ketiga dan seterusnya
-   *     — nilai = harga PL × persen;
+   *   • baris pertama (booking fee) — nilainya tetap, bukan turunan persen.
+   *     Booking fee adalah angka bulat yang disepakati di muka (10.000.000),
+   *     sama untuk unit mahal maupun murah, jadi persen di baris itu hanya
+   *     melaporkan porsinya terhadap harga PL dan tidak dapat diketik; yang
+   *     mengubahnya adalah kolom Nilai (VALUE) sendiri;
    *   • baris kedua ("Pembayaran 1") — nilai = harga PL × persen, dikurangi
    *     nilai booking fee. Persen pada baris itu memang mencakup booking fee
    *     yang sudah dibayar di muka, jadi tanpa pengurangan itu uangnya
-   *     terhitung dua kali.
+   *     terhitung dua kali;
+   *   • baris ketiga dan seterusnya — nilai = harga PL × persen.
    */
   const ubahPersen = (i: number, mentah: string) => {
     // Hanya angka dan satu koma: "29,45" ditulis orang Indonesia dengan koma,
@@ -549,6 +553,10 @@ export default function SimulasiPage() {
       if (!u) return u;
       const pl = hasil?.hargaPricelist ?? 0;
       if (!(pl > 0)) {
+        return u.map((x, j) => j === i ? { ...x, persenTeks: teksPersen } : x);
+      }
+      // Baris booking fee: persennya tidak menyetel nilainya.
+      if (i === 0) {
         return u.map((x, j) => j === i ? { ...x, persenTeks: teksPersen } : x);
       }
       let nilai = pl * bacaPersen(teksPersen) / 100;
@@ -891,7 +899,10 @@ export default function SimulasiPage() {
                         ? <input type="date" value={b.tgl}
                                  onChange={(e) => ganti({ tgl: e.target.value })} />
                         : tglPendek(t.tgl)}</td>
-                      <td className="n">{modeUbah && b
+                      {/* Baris booking fee tanpa kotak isian: nilainya tetap,
+                          jadi persennya di sana hanya laporan — lihat
+                          `ubahPersen`. */}
+                      <td className="n">{modeUbah && b && i > 0
                         ? <input className="n" inputMode="decimal"
                                  value={b.persenTeks ?? persenAngka(t.nilai)}
                                  onChange={(e) => ubahPersen(i, e.target.value)} />
