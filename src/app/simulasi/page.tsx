@@ -24,6 +24,7 @@ import { useKata } from "../bahasa";
 import { Kerangka, MemeriksaSesi } from "../kerangka";
 import { useSesi } from "../session";
 import { PENGUNGGAH, UnggahPricelist } from "./unggah-pricelist";
+import { PanelTarifDtp } from "./tarif-dtp";
 import { LembarKonsumen, LembarManagement, kodeJadwal, namaPdf, tanggalIso,
          tglPendek, unduhPdf, angka as angkaLembar, type Jenis }
   from "./lembar-cetak";
@@ -57,7 +58,7 @@ const nilaiBaris = (b: BarisUbah) => b.teks == null ? b.nilaiAsli : bacaRupiah(b
 const iso = (d: Date) => d.toISOString().slice(0, 10);
 import { formatRupiah } from "@/lib/money";
 import { BUNGA_NPV, bentukSkema, hitung, lewatKpr, type Hasil, type Skema,
-         type UnitHarga } from "@/lib/simulasi";
+         type TarifDtp, type UnitHarga } from "@/lib/simulasi";
 
 type Pricelist = { nama: string; skema: Skema[]; unit: UnitHarga[] };
 
@@ -311,14 +312,23 @@ export default function SimulasiPage() {
     return Number.isFinite(n) ? n : 0;
   };
 
+  // Tabel Tarif PPN DTP yang berlaku, dari basis data. Selama belum termuat,
+  // hitung() memakai daftar bawaannya.
+  const [tarifDtp, setTarifDtp] = useState<TarifDtp[] | undefined>(undefined);
+  useEffect(() => {
+    if (!sesi) return;
+    fetch("/api/tarif-dtp").then((r) => r.ok ? r.json() : null)
+      .then((b) => { if (b?.tarif) setTarifDtp(b.tarif); }).catch(() => {});
+  }, [sesi]);
+
   // Harga permintaan dari kolom lain hanya bila unit punya harga di kolom itu.
   const skemaHarga = plHarga && plHarga !== skema && unit && unit.harga[plHarga] > 0
     ? plHarga : undefined;
   const hasilStandar = useMemo(() => unit && unit.harga[skemaHarga ?? skema] > 0
     ? hitung({
         unit, skema, skemaHarga, diskon: angka(diskon) / 100,
-        bungaKpr: angka(bunga) / 100, tanggal: booking,
-      }) : null, [unit, skema, skemaHarga, diskon, bunga, booking]);
+        bungaKpr: angka(bunga) / 100, tanggal: booking, tarifDtp,
+      }) : null, [unit, skema, skemaHarga, diskon, bunga, booking, tarifDtp]);
 
   // Jadwal suntingan. null = jadwal standar cara bayarnya. Disetel ulang
   // setiap kali dasar jadwalnya berganti: suntingan untuk unit atau cara
@@ -439,7 +449,7 @@ export default function SimulasiPage() {
         const tgl = tanggalIso(v.tanggal_booking, booking);
         const dasarV = { unit, skema, skemaHarga: v.skema_harga || undefined,
                          diskon: v.diskon / 100,
-                         bungaKpr: v.bunga / 100, tanggal: tgl };
+                         bungaKpr: v.bunga / 100, tanggal: tgl, tarifDtp };
         setBanding({
           v, sebelum: hitung(dasarV),
           sesudah: hitung({ ...dasarV, jadwalManual: v.baris.map((b) => ({
@@ -470,11 +480,11 @@ export default function SimulasiPage() {
     if (!ubah || !unit || !hasilStandar) return hasilStandar;
     return hitung({
       unit, skema, skemaHarga, diskon: angka(diskon) / 100,
-      bungaKpr: angka(bunga) / 100, tanggal: booking,
+      bungaKpr: angka(bunga) / 100, tanggal: booking, tarifDtp,
       jadwalManual: ubah.map((b) => ({
         ket: b.ket, tgl: tanggalIso(b.tgl, booking), nilai: nilaiBaris(b) })),
     });
-  }, [ubah, hasilStandar, unit, skema, skemaHarga, diskon, bunga, booking]);
+  }, [ubah, hasilStandar, unit, skema, skemaHarga, diskon, bunga, booking, tarifDtp]);
   const sembunyi = ubah?.map((b) => b.sembunyi);
 
   // Pembanding tetap Cash Keras, cara bayar yang paling ringkas jadwalnya dan
@@ -482,8 +492,8 @@ export default function SimulasiPage() {
   // lain terbaca sebagai biaya menunggu.
   const dasar = useMemo(() => unit && unit.harga[tunai] > 0 ? hitung({
     unit, skema: tunai, diskon: angka(diskon) / 100,
-    bungaKpr: angka(bunga) / 100, tanggal: booking,
-  }) : null, [unit, tunai, diskon, bunga, booking]);
+    bungaKpr: angka(bunga) / 100, tanggal: booking, tarifDtp,
+  }) : null, [unit, tunai, diskon, bunga, booking, tarifDtp]);
 
   // Unduh PDF: lembar cetaknya digambar di luar layar, dipotret, lalu
   // diunduh — lembar yang sama dengan halaman pratinjau, tanpa membuka tab.
@@ -493,8 +503,8 @@ export default function SimulasiPage() {
   const [galatPdf, setGalatPdf] = useState(false);
   const lembarPdf = useRef<HTMLDivElement | null>(null);
   const cashPdf = useMemo(() => unit && unit.harga[skema] > 0 ? hitung({
-    unit, skema, diskon: 0, bungaKpr: angka(bunga) / 100, tanggal: booking,
-  }) : null, [unit, skema, bunga, booking]);
+    unit, skema, diskon: 0, bungaKpr: angka(bunga) / 100, tanggal: booking, tarifDtp,
+  }) : null, [unit, skema, bunga, booking, tarifDtp]);
   useEffect(() => {
     if (!unduh) return;
     const el = lembarPdf.current?.firstElementChild as HTMLElement | null;
@@ -968,6 +978,10 @@ export default function SimulasiPage() {
           </div>
         </>
       )}
+      <PanelTarifDtp tarif={tarifDtp ?? []}
+                     bolehUbah={PENGUNGGAH.includes(sesi.role)}
+                     onTersimpan={setTarifDtp} />
+
       {banding && (() => {
         const { v, sebelum, sesudah } = banding;
         // Baris sesudah dicocokkan dengan baris standar menurut urutan baris
