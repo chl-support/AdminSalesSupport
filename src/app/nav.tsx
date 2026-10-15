@@ -103,12 +103,15 @@ const MENU: Butir[] = [
   //
   // Pricelist diunggah per project di layar Simulasi, yang juga membacanya
   // dan menampilkan yang berlaku beserta riwayat unggahannya. Layar Pricelist
-  // tersendiri sudah dilebur ke sana; /pricelist kini dialihkan ke /simulasi.
+  // tetap ada sebagai butir menu tersendiri, atas permintaan pemakainya:
+  // orang yang hanya ingin melihat atau mengunduh pricelist tidak perlu
+  // membuka layar Simulasi.
   {
     label: { id: "Simulasi & Pricelist", en: "Simulation & Price List" },
     anak: [
       { href: "/simulasi",
         label: { id: "Simulasi / NPV", en: "Simulation / NPV" } },
+      { href: "/pricelist", label: { id: "Pricelist", en: "Price List" } },
     ],
   },
   // Administrasi sempat hilang dari menu saat susunannya ditata ulang, padahal
