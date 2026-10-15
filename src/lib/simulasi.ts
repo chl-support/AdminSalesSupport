@@ -177,6 +177,10 @@ export type Hasil = {
 const hari0 = (d: Date) =>
   new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
 
+/** Tanggal yang sudah tengah malam UTC dibiarkan; selainnya dibulatkan ke harinya. */
+const hari0utc = (d: Date) =>
+  new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+
 const tambahHari = (d: Date, n: number) =>
   new Date(d.getTime() + n * 86_400_000);
 
@@ -198,7 +202,7 @@ const selisihHari = (a: Date, b: Date) =>
   Math.round((a.getTime() - b.getTime()) / 86_400_000);
 
 /** Satu baris jadwal sebelum PV dan DTP dihitung. */
-type Kasar = { ket: string; tgl: Date; nilai: number };
+export type Kasar = { ket: string; tgl: Date; nilai: number };
 
 /**
  * Jadwal pembayaran satu skema.
@@ -307,7 +311,7 @@ export function angsuranBulanan(pokok: number, bungaSetahun: number, tahun: numb
 }
 
 export function hitung(
-  { unit, skema, diskon, bungaKpr, tanggal }: {
+  { unit, skema, diskon, bungaKpr, tanggal, jadwalManual }: {
     unit: UnitHarga;
     skema: Skema;
     /** Potongan atas harga pricelist, sebagai pecahan: 0,05 berarti 5%. */
@@ -315,6 +319,13 @@ export function hitung(
     /** Bunga KPR setahun, dipakai hanya untuk simulasi angsuran. */
     bungaKpr: number;
     tanggal: Date;
+    /**
+     * Jadwal yang disunting tangan di layar Simulasi, menggantikan jadwal
+     * bawaan cara bayarnya. PV, DTP, tagihan, dan angsuran dihitung atasnya
+     * dengan aturan yang sama; urutannya dipakai apa adanya, sebab alokasi
+     * DTP berjalan menurut urutan termin.
+     */
+    jadwalManual?: Kasar[];
   },
 ): Hasil {
   const booking = hari0(tanggal);
@@ -325,7 +336,9 @@ export function hitung(
   const potongan = hargaPricelist * diskon;
   const h = hargaPricelist - potongan;
 
-  const kasar = jadwal(skema, h, booking);
+  const kasar = jadwalManual?.length
+    ? jadwalManual.map((k) => ({ ...k, tgl: hari0utc(k.tgl) }))
+    : jadwal(skema, h, booking);
   const terakhir = kasar.reduce((a, b) => (b.tgl > a ? b.tgl : a), kasar[0].tgl);
   const pagu = paguDtp(h, terakhir);
 

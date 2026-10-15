@@ -66,8 +66,10 @@ function Rp({ n, tebal }: { n: number; tebal?: boolean }) {
 
 // ── Lembar Konsumen ────────────────────────────────────────────────────────
 
-export function LembarKonsumen({ h, unit, slug, nama, booking, bungaKpr }: {
+export function LembarKonsumen({ h, unit, slug, nama, booking, bungaKpr, sembunyi }: {
   h: Hasil; unit: UnitHarga; slug: string; nama: string; booking: Date;
+  /** Termin yang disembunyikan di layar Simulasi; tetap masuk total. */
+  sembunyi?: boolean[];
   /** Bunga KPR setahun, sebagai pecahan — untuk judul blok angsuran. */
   bungaKpr: number;
 }) {
@@ -103,7 +105,7 @@ export function LembarKonsumen({ h, unit, slug, nama, booking, bungaKpr }: {
           <th>No.</th><th>Keterangan</th><th>Jatuh Tempo</th>
           <th>Jumlah</th><th>Tagihan (DTP)</th><th>DTP (PPN)</th>
         </tr>
-        {h.termin.map((t, i) => (
+        {h.termin.filter((_, i) => !sembunyi?.[i]).map((t, i) => (
           <tr key={i}>
             <td className="c">{i + 1}</td>
             <td>{t.ket}</td>
@@ -140,8 +142,10 @@ export function LembarKonsumen({ h, unit, slug, nama, booking, bungaKpr }: {
 
 // ── Lembar Management ──────────────────────────────────────────────────────
 
-export function LembarManagement({ h, cash, unit, nama }: {
+export function LembarManagement({ h, cash, unit, nama, sembunyi }: {
   h: Hasil; cash: Hasil; unit: UnitHarga; nama: string;
+  /** Termin sisi PERMINTAAN yang disembunyikan; tetap masuk total. */
+  sembunyi?: boolean[];
 }) {
   const kluster = nama.toUpperCase();
   const selisih = (a: number, b: number) => b ? (a - b) / b : 0;
@@ -225,7 +229,7 @@ export function LembarManagement({ h, cash, unit, nama }: {
             <tr><th>Keterangan</th><th>Hari</th><th>Tgl</th><th>Nilai (VALUE)</th>
                 <th>PV</th><th>Tagihan (DTP)</th><th>DTP (PPN)</th></tr>
             <tr className="lm-kosong"><td /><td /><td /><td /><td /><td /><td /></tr>
-            {h.termin.map((t, i) => (
+            {h.termin.filter((_, i) => !sembunyi?.[i]).map((t, i) => (
               <tr key={i}>
                 <td>{t.ket.toUpperCase()}</td>
                 <td className="c">{t.hari || "-"}</td>
@@ -312,3 +316,27 @@ export async function unduhPdf(el: HTMLElement, jenis: Jenis, namaBerkas: string
 export const namaPdf = (kode: string, skema: string, jenis: Jenis) =>
   `Simulasi ${kode} ${skema} - ${jenis === "konsumen" ? "Konsumen" : "Management"}.pdf`
     .replace(/[\\/:*?"<>|]/g, "-");
+
+// ── Jadwal suntingan, dibawa lewat alamat ke halaman pratinjau ─────────────
+
+/** Satu baris jadwal suntingan: keterangan, tanggal YYYY-MM-DD, nilai, tersembunyi. */
+export type BarisSunting = { ket: string; tgl: string; nilai: number; sembunyi: boolean };
+
+export const kodeJadwal = (b: BarisSunting[]) =>
+  JSON.stringify(b.map((x) => [x.ket, x.tgl, x.nilai, x.sembunyi ? 1 : 0]));
+
+export function bacaJadwal(teks: string | null): BarisSunting[] | null {
+  if (!teks) return null;
+  try {
+    const a = JSON.parse(teks);
+    if (!Array.isArray(a) || !a.length) return null;
+    return a.map((x: any) => ({ ket: String(x[0] ?? ""), tgl: String(x[1] ?? ""),
+                                nilai: Number(x[2]) || 0, sembunyi: x[3] === 1 }));
+  } catch { return null; }
+}
+
+/** "2026-10-15" sebagai tengah malam UTC; kosong atau keliru jatuh pada `cadangan`. */
+export function tanggalIso(s: string, cadangan: Date): Date {
+  const [th, bl, tg] = s.split("-").map(Number);
+  return th && bl && tg ? new Date(Date.UTC(th, bl - 1, tg)) : cadangan;
+}
