@@ -186,7 +186,8 @@ export default function CetakSimulasiPage() {
           ? <div className="banner stop">{k.takAda}</div>
         : jenis === "konsumen"
           ? <LembarKonsumen h={hasil} unit={unit!} slug={sesi.project_slug ?? ""}
-                            nama={nama} booking={booking} />
+                            nama={nama} booking={booking}
+                            bungaKpr={(m?.bunga ?? 0) / 100} />
           : <LembarManagement h={hasil} cash={cash!} unit={unit!} nama={nama} />}
       </div>
     </div>

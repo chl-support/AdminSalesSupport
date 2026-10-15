@@ -1706,6 +1706,21 @@ async function main() {
     assert(h.jumlahDtp === 220_000_000, `terpakai: ${h.jumlahDtp}`);
   });
 
+  // Angka harapan dari lembar cetak "Simulasi Hitungan Rumah" berkas yang
+  // sama: BANK KPR, NS-NR1-01, booking 15 Oktober 2026, bunga 4,65%.
+  await check("angsuran KPR sama dengan lembar Simulasi Hitungan Rumah", async () => {
+    const { hitung } = await import("../src/lib/simulasi");
+    const { unitHarga } = await import("../src/lib/pricelist-naraya");
+    const h = hitung({ unit: unitHarga("NS-NR1-01")!,
+                       skema: "BANK KPR - DP 10% (KPR REGULAR)", diskon: 0,
+                       bungaKpr: 0.0465, tanggal: new Date(Date.UTC(2026, 9, 15)) });
+    const harap = [[5, 35_076_445], [10, 19_564_019], [15, 14_484_788],
+                   [20, 12_012_047], [25, 10_579_952]];
+    assert(JSON.stringify(h.angsuran.map((a) => [a.tahun, Math.round(a.perBulan)]))
+             === JSON.stringify(harap),
+           `angsuran: ${JSON.stringify(h.angsuran)}`);
+  });
+
   await check("jadwal tiap cara bayar menjumlah persis harga transaksinya",
               async () => {
     const { hitung, SKEMA } = await import("../src/lib/simulasi");
