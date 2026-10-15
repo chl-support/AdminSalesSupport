@@ -114,7 +114,7 @@ const KATA = {
     kTagihan: "Tagihan (DTP)",
     total: "TOTAL",
     npv: "Nilai Sekarang (NPV)",
-    nBunga: "Suku Bunga",
+    nBunga: "Interest Rate",
     nNominal: "Jumlah nominal",
     nPv: "Jumlah nilai sekarang",
     nRasio: "Nilai sekarang terhadap nominal",
