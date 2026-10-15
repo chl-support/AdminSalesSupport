@@ -574,10 +574,13 @@ export default function SimulasiPage() {
           </div>
           <div>
             <div className="lbl">{k.fPl}</div>
-            <select value={skemaHarga ?? ""}
+            {/* Semua kolom pricelist ditawarkan, termasuk yang sama dengan
+                cara bayarnya (mis. CASH KERAS): memilihnya sama hasilnya
+                dengan "Sesuai Cara Bayar", tetapi orang mencarinya dengan nama. */}
+            <select value={plHarga && (unit?.harga[plHarga] ?? 0) > 0 ? plHarga : ""}
                     onChange={(e) => setPlHarga(e.target.value as Skema)}>
               <option value="">{k.fPlSama}</option>
-              {pl.skema.filter((s) => s !== skema).map((s) => (
+              {pl.skema.map((s) => (
                 <option key={s} value={s} disabled={!((unit?.harga[s] ?? 0) > 0)}>{s}</option>
               ))}
             </select>
