@@ -127,3 +127,41 @@ export async function simpanJadwal(input: {
     return { id: rows[0].id };
   });
 }
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Hapus versi tersimpan: satu versi (`id`), atau seluruh versi satu unit dan
+ * cara bayar (`semua`). Hanya dalam project yang sedang dipilih. Isi yang
+ * dihapus dicatat di jejak audit, supaya penghapusan tetap dapat ditelusuri
+ * meskipun riwayatnya sendiri sudah tidak ada.
+ */
+export async function hapusJadwal(input: {
+  projectId: string; aktor: string;
+  id?: string; semua?: { kodeUnit: string; skema: string };
+}): Promise<{ terhapus: number }> {
+  await ensureTabelJadwal();
+  if (input.id && !UUID.test(input.id)) throw new Error("Versi jadwal tidak ditemukan.");
+  if (!input.id && !(input.semua?.kodeUnit && input.semua?.skema)) {
+    throw new Error("Sebutkan versi yang dihapus, atau unit dan cara bayarnya.");
+  }
+  return tx(async (c) => {
+    const { rows } = input.id
+      ? await c.query(
+          `DELETE FROM simulasi_jadwal WHERE id=$1 AND project_id=$2
+           RETURNING id, kode_unit, skema, tanggal_booking, catatan, disimpan_oleh, disimpan_pada`,
+          [input.id, input.projectId])
+      : await c.query(
+          `DELETE FROM simulasi_jadwal WHERE project_id=$1 AND kode_unit=$2 AND skema=$3
+           RETURNING id, kode_unit, skema, tanggal_booking, catatan, disimpan_oleh, disimpan_pada`,
+          [input.projectId, input.semua!.kodeUnit, input.semua!.skema]);
+    if (input.id && !rows.length) throw new Error("Versi jadwal tidak ditemukan.");
+    for (const r of rows) {
+      await audit({
+        entityType: "simulasi_jadwal", entityId: r.id,
+        action: "simulasi_jadwal_deleted", actor: input.aktor, before: r,
+      }, c);
+    }
+    return { terhapus: rows.length };
+  });
+}

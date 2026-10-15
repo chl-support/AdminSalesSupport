@@ -100,7 +100,10 @@ const KATA = {
       "Belum ada perubahan jadwal yang disimpan untuk unit dan cara bayar ini.",
     rPada: "Disimpan", rOleh: "Oleh", rTgl: "Tgl Booking", rDisk: "Diskon",
     rBunga: "Bunga KPR", rCatatan: "Catatan", rTotal: "Total Nilai",
-    rBuka: "Buka",
+    rBuka: "Buka", rHapus: "Hapus", rHapusSemua: "Hapus Semua",
+    rYakin: "Hapus versi ini?", rYakinSemua: (n: number) =>
+      `Hapus seluruh ${n} versi untuk unit dan cara bayar ini?`,
+    rYa: "Ya, Hapus", rBatal: "Batal",
     ksHarga: "Harga Transaksi", ksTagihan: "Total Tagihan (DTP)",
     ksNpv: "Nilai Sekarang (NPV)", ksDtp: "DTP (PPN)",
     ksDiskon: (p: string) => `Diskon ${p}`,
@@ -185,7 +188,10 @@ const KATA = {
       "No saved schedule changes for this unit and payment scheme yet.",
     rPada: "Saved", rOleh: "By", rTgl: "Booking Date", rDisk: "Discount",
     rBunga: "Mortgage Rate", rCatatan: "Note", rTotal: "Total Value",
-    rBuka: "Open",
+    rBuka: "Open", rHapus: "Delete", rHapusSemua: "Delete All",
+    rYakin: "Delete this version?", rYakinSemua: (n: number) =>
+      `Delete all ${n} versions for this unit and payment scheme?`,
+    rYa: "Yes, Delete", rBatal: "Cancel",
     ksHarga: "Transaction Price", ksTagihan: "Total Billed (net of VAT)",
     ksNpv: "Present Value (NPV)", ksDtp: "VAT Relief (DTP)",
     ksDiskon: (p: string) => `Discount ${p}`,
@@ -342,6 +348,24 @@ export default function SimulasiPage() {
   };
   const [riwayat, setRiwayat] = useState<Versi[]>([]);
   const [versiRiwayat, setVersiRiwayat] = useState(0);
+  // Konfirmasi hapus riwayat: id versi, "semua", atau null.
+  const [yakinHapus, setYakinHapus] = useState<string | null>(null);
+  const hapusRiwayat = async (sasaran: string) => {
+    const q = sasaran === "semua"
+      ? new URLSearchParams({ kode, skema, semua: "1" })
+      : new URLSearchParams({ id: sasaran });
+    const res = await fetch(`/api/simulasi-jadwal?${q}`, { method: "DELETE" });
+    const b = await res.json().catch(() => ({}));
+    setYakinHapus(null);
+    if (!res.ok) {
+      setPesanSimpan({ ok: false, teks: b.detail ?? b.title ?? `HTTP ${res.status}` });
+      return;
+    }
+    // Versi yang sedang tampil mungkin ikut terhapus: jadwal suntingannya
+    // tetap di layar, tetapi kini terhitung belum disimpan.
+    if (ubah) setTersimpan(null);
+    setVersiRiwayat((v) => v + 1);
+  };
   const [catatan, setCatatan] = useState("");
   const [menyimpan, setMenyimpan] = useState(false);
   const [pesanSimpan, setPesanSimpan] = useState<{ ok: boolean; teks: string } | null>(null);
@@ -791,7 +815,22 @@ export default function SimulasiPage() {
           </div>
 
           <div className="panel sp">
-            <h2>{k.rJudul}</h2>
+            <h2>
+              {k.rJudul}
+              {PENGUNGGAH.includes(sesi.role) && riwayat.length > 0 && (
+                yakinHapus === "semua" ? (
+                  <span className="row" style={{ margin: 0 }}>
+                    <span className="hint" style={{ margin: 0 }}>
+                      {k.rYakinSemua(riwayat.length)}</span>
+                    <button className="pri" onClick={() => void hapusRiwayat("semua")}>
+                      {k.rYa}</button>
+                    <button onClick={() => setYakinHapus(null)}>{k.rBatal}</button>
+                  </span>
+                ) : (
+                  <button onClick={() => setYakinHapus("semua")}>{k.rHapusSemua}</button>
+                )
+              )}
+            </h2>
             {riwayat.length === 0 ? (
               <p className="hint" style={{ textAlign: "left" }}>{k.rKosong}</p>
             ) : (
@@ -813,7 +852,25 @@ export default function SimulasiPage() {
                       <td className="n">
                         {angkaLembar(v.baris.reduce((a, b) => a + b.nilai, 0))}
                       </td>
-                      <td><button onClick={() => bukaVersi(v)}>{k.rBuka}</button></td>
+                      <td>
+                        {yakinHapus === v.id ? (
+                          <span className="row" style={{ margin: 0, flexWrap: "nowrap",
+                                                         justifyContent: "flex-end" }}>
+                            <span className="hint" style={{ margin: 0 }}>{k.rYakin}</span>
+                            <button className="pri" onClick={() => void hapusRiwayat(v.id)}>
+                              {k.rYa}</button>
+                            <button onClick={() => setYakinHapus(null)}>{k.rBatal}</button>
+                          </span>
+                        ) : (
+                          <span className="row" style={{ margin: 0, flexWrap: "nowrap",
+                                                         justifyContent: "flex-end" }}>
+                            <button onClick={() => bukaVersi(v)}>{k.rBuka}</button>
+                            {PENGUNGGAH.includes(sesi.role) && (
+                              <button onClick={() => setYakinHapus(v.id)}>{k.rHapus}</button>
+                            )}
+                          </span>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody></table>
