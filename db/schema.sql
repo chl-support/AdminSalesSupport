@@ -939,4 +939,24 @@ CREATE TABLE IF NOT EXISTS pricelists (
 CREATE UNIQUE INDEX IF NOT EXISTS pricelists_satu_aktif
   ON pricelists (project_id) WHERE aktif;
 
+
+-- Jadwal pembayaran suntingan dari layar Simulasi / NPV. Tiap simpan menambah
+-- satu versi (riwayat), tidak menimpa. Dipasang juga dari sisi aplikasi oleh
+-- ensureTabelJadwal() (src/lib/simulasi-jadwal.ts).
+CREATE TABLE IF NOT EXISTS simulasi_jadwal (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id      UUID NOT NULL REFERENCES projects(id),
+  kode_unit       TEXT NOT NULL,
+  skema           TEXT NOT NULL,
+  tanggal_booking DATE NOT NULL,
+  diskon          NUMERIC NOT NULL DEFAULT 0,
+  bunga           NUMERIC NOT NULL DEFAULT 0,
+  baris           JSONB NOT NULL,
+  catatan         TEXT,
+  disimpan_oleh   TEXT,
+  disimpan_pada   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS simulasi_jadwal_unit
+  ON simulasi_jadwal (project_id, kode_unit, skema, disimpan_pada DESC);
+
 COMMIT;

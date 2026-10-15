@@ -81,6 +81,16 @@ const KATA = {
       "diskon diganti.",
     eSelisih: (tot: string, sel: string, h: string) =>
       `Total jadwal ${tot} berbeda ${sel} dari Harga Transaksi ${h}.`,
+    sSimpan: "Simpan jadwal", sMenyimpan: "Menyimpan…",
+    sCatatan: "Catatan (mis. nama konsumen)",
+    sTersimpan: "Tersimpan", sBelum: "Belum disimpan",
+    sBerhasil: (w: string) => `Jadwal tersimpan sebagai versi ${w}.`,
+    sDibuka: (w: string, o: string) => `Membuka versi ${w} oleh ${o}.`,
+    rJudul: "Riwayat jadwal tersimpan", rKosong:
+      "Belum ada jadwal tersimpan untuk unit dan cara bayar ini.",
+    rPada: "Disimpan", rOleh: "Oleh", rTgl: "Tgl Booking", rDisk: "Diskon",
+    rBunga: "Bunga KPR", rCatatan: "Catatan", rTotal: "Total Nilai",
+    rBaris: "Baris", rBuka: "Buka",
     kKet: "Keterangan", kTempo: "Tgl", kHari: "Hari",
     kJumlah: "Nilai (VALUE)", kPv: "PV", kDtp: "DTP (PPN)",
     kTagihan: "Tagihan (DTP)",
@@ -143,6 +153,16 @@ const KATA = {
       "date or discount changes.",
     eSelisih: (tot: string, sel: string, h: string) =>
       `Schedule total ${tot} differs by ${sel} from the Transaction Price ${h}.`,
+    sSimpan: "Save schedule", sMenyimpan: "Saving…",
+    sCatatan: "Note (e.g. customer name)",
+    sTersimpan: "Saved", sBelum: "Not saved",
+    sBerhasil: (w: string) => `Schedule saved as version ${w}.`,
+    sDibuka: (w: string, o: string) => `Opened version ${w} by ${o}.`,
+    rJudul: "Saved schedule history", rKosong:
+      "No saved schedules for this unit and payment scheme yet.",
+    rPada: "Saved", rOleh: "By", rTgl: "Booking Date", rDisk: "Discount",
+    rBunga: "Mortgage Rate", rCatatan: "Note", rTotal: "Total Value",
+    rBaris: "Rows", rBuka: "Open",
     kKet: "Description", kTempo: "Date", kHari: "Days",
     kJumlah: "Value", kPv: "PV", kDtp: "VAT Borne by Govt",
     kTagihan: "Billed (net of VAT)",
@@ -249,10 +269,108 @@ export default function SimulasiPage() {
   // Jadwal suntingan. null = jadwal standar cara bayarnya. Disetel ulang
   // setiap kali dasar jadwalnya berganti: suntingan untuk unit atau cara
   // bayar lain tidak berlaku di sini.
-  const [ubah, setUbah] = useState<BarisUbah[] | null>(null);
+  //
+  // Suntingan melekat pada kuncinya — unit, cara bayar, tanggal, diskon. Bila
+  // salah satunya diganti, layar kembali ke jadwal standar; membuka versi
+  // tersimpan mengisi keempatnya sekaligus beserta barisnya.
+  const kunciKini = `${kode}|${skema}|${tanggal}|${angka(diskon)}`;
+  const [ubahKunci, setUbahKunci] =
+    useState<{ kunci: string; baris: BarisUbah[] } | null>(null);
+  const ubah = ubahKunci?.kunci === kunciKini ? ubahKunci.baris : null;
   const [modeUbah, setModeUbah] = useState(false);
-  useEffect(() => { setUbah(null); setModeUbah(false); },
-            [kode, skema, tanggal, diskon]);
+  // Keterangan versi yang sedang tampil; null = ada suntingan yang belum disimpan.
+  const [tersimpan, setTersimpan] = useState<string | null>(null);
+  const setUbah = (f: BarisUbah[] | null |
+                       ((u: BarisUbah[] | null) => BarisUbah[] | null)) => {
+    setTersimpan(null);
+    setUbahKunci((s) => {
+      const kini = s?.kunci === kunciKini ? s.baris : null;
+      const baru = typeof f === "function" ? f(kini) : f;
+      return baru ? { kunci: kunciKini, baris: baru } : null;
+    });
+  };
+  useEffect(() => {
+    setModeUbah(false);
+    // Suntingan untuk kunci lain dibuang, bukan disimpan diam-diam: kembali
+    // ke unit yang sama menampilkan jadwal standar, dan versi yang memang
+    // ingin dipakai lagi dibuka dari riwayat.
+    setUbahKunci((s) => s && s.kunci !== kunciKini ? null : s);
+  }, [kunciKini]);
+
+  // Riwayat versi tersimpan untuk unit dan cara bayar ini.
+  type Versi = {
+    id: string; tanggal_booking: string; diskon: number; bunga: number;
+    baris: { ket: string; tgl: string; nilai: number; sembunyi: boolean;
+             tambahan: boolean }[];
+    catatan: string | null; disimpan_oleh: string | null; disimpan_pada: string;
+  };
+  const [riwayat, setRiwayat] = useState<Versi[]>([]);
+  const [versiRiwayat, setVersiRiwayat] = useState(0);
+  const [catatan, setCatatan] = useState("");
+  const [menyimpan, setMenyimpan] = useState(false);
+  const [pesanSimpan, setPesanSimpan] = useState<{ ok: boolean; teks: string } | null>(null);
+  useEffect(() => {
+    if (!sesi || !kode || !skema) return;
+    let batal = false;
+    fetch(`/api/simulasi-jadwal?${new URLSearchParams({ kode, skema })}`)
+      .then((r) => r.ok ? r.json() : { riwayat: [] })
+      .then((b) => { if (!batal) setRiwayat(b.riwayat ?? []); })
+      .catch(() => {});
+    return () => { batal = true; };
+  }, [sesi, kode, skema, versiRiwayat]);
+  useEffect(() => { setPesanSimpan(null); }, [kunciKini]);
+
+  const waktu = (s: string) => new Date(s).toLocaleString("id-ID",
+    { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+
+  const simpanJadwal = async () => {
+    if (!ubah) return;
+    setMenyimpan(true); setPesanSimpan(null);
+    try {
+      const res = await fetch("/api/simulasi-jadwal", {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          kode, skema, tanggal, diskon: angka(diskon), bunga: angka(bunga),
+          catatan, baris: ubah.map((b) => ({
+            ket: b.ket, tgl: b.tgl, nilai: nilaiBaris(b),
+            sembunyi: b.sembunyi, tambahan: b.tambahan })),
+        }),
+      });
+      const b = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setPesanSimpan({ ok: false, teks: b.detail ?? b.title ?? `HTTP ${res.status}` });
+        return;
+      }
+      const w = waktu(new Date().toISOString());
+      setTersimpan(w);
+      setModeUbah(false);
+      setPesanSimpan({ ok: true, teks: k.sBerhasil(w) });
+      setVersiRiwayat((v) => v + 1);
+    } catch (e: any) {
+      setPesanSimpan({ ok: false, teks: String(e?.message ?? e) });
+    } finally {
+      setMenyimpan(false);
+    }
+  };
+
+  const bukaVersi = (v: Versi) => {
+    setTanggal(v.tanggal_booking);
+    setDiskon(String(v.diskon));
+    setBunga(String(v.bunga));
+    setCatatan(v.catatan ?? "");
+    setUbahKunci({
+      kunci: `${kode}|${skema}|${v.tanggal_booking}|${v.diskon}`,
+      baris: v.baris.map((b) => ({ ket: b.ket, tgl: b.tgl, nilaiAsli: b.nilai,
+                                   teks: null, sembunyi: b.sembunyi,
+                                   tambahan: b.tambahan })),
+    });
+    const w = waktu(v.disimpan_pada);
+    setTersimpan(w);
+    setModeUbah(false);
+    // Dijadwalkan sesudah efek pengosongan pesan yang dipicu kunci baru.
+    setTimeout(() => setPesanSimpan(
+      { ok: true, teks: k.sDibuka(w, v.disimpan_oleh ?? "—") }), 0);
+  };
 
   const hasil = useMemo(() => {
     if (!ubah || !unit || !hasilStandar) return hasilStandar;
@@ -443,7 +561,9 @@ export default function SimulasiPage() {
               {k.jadwal}
               <span>
                 <span className="pill">{skema}</span>
-                {ubah && <span className="pill warn">{k.eDiubah}</span>}
+                {ubah && (tersimpan
+                  ? <span className="pill ok">{k.sTersimpan} · {tersimpan}</span>
+                  : <span className="pill warn">{k.sBelum}</span>)}
               </span>
             </h2>
             <div className="row" style={{ marginTop: 0 }}>
@@ -472,6 +592,20 @@ export default function SimulasiPage() {
                 </button>
               )}
             </div>
+            {ubah && (
+              <div className="row" style={{ marginTop: 0 }}>
+                <input value={catatan} maxLength={200} placeholder={k.sCatatan}
+                       aria-label={k.sCatatan} style={{ maxWidth: 320 }}
+                       onChange={(e) => setCatatan(e.target.value)} />
+                <button className="pri" disabled={menyimpan || !!tersimpan}
+                        onClick={() => void simpanJadwal()}>
+                  {menyimpan ? k.sMenyimpan : k.sSimpan}
+                </button>
+              </div>
+            )}
+            {pesanSimpan && (
+              <div className={`banner ${pesanSimpan.ok ? "ok" : "stop"}`}>{pesanSimpan.teks}</div>
+            )}
             {modeUbah && (
               <p className="hint" style={{ textAlign: "left", marginTop: 0 }}>{k.eCatatan}</p>
             )}
@@ -553,6 +687,36 @@ export default function SimulasiPage() {
                 </tr>
               </tbody></table>
             </div>
+
+            <h3 style={{ marginTop: 18 }}>{k.rJudul}</h3>
+            {riwayat.length === 0 ? (
+              <p className="hint" style={{ textAlign: "left" }}>{k.rKosong}</p>
+            ) : (
+              <div className="tscroll" style={{ maxHeight: 320, overflowY: "auto" }}>
+                <table className="tabel-ringkas" style={{ whiteSpace: "nowrap" }}><tbody>
+                  <tr>
+                    <th>{k.rPada}</th><th>{k.rOleh}</th><th>{k.rTgl}</th>
+                    <th>{k.rDisk}</th><th>{k.rBunga}</th><th>{k.rCatatan}</th>
+                    <th>{k.rBaris}</th><th>{k.rTotal}</th><th />
+                  </tr>
+                  {riwayat.map((v) => (
+                    <tr key={v.id}>
+                      <td>{waktu(v.disimpan_pada)}</td>
+                      <td>{v.disimpan_oleh ?? "—"}</td>
+                      <td>{tglPendek(tanggalIso(v.tanggal_booking, booking))}</td>
+                      <td className="n">{v.diskon.toLocaleString("id-ID")}%</td>
+                      <td className="n">{v.bunga.toLocaleString("id-ID")}%</td>
+                      <td>{v.catatan ?? "—"}</td>
+                      <td className="n">{v.baris.length}</td>
+                      <td className="n">
+                        {angkaLembar(v.baris.reduce((a, b) => a + b.nilai, 0))}
+                      </td>
+                      <td><button onClick={() => bukaVersi(v)}>{k.rBuka}</button></td>
+                    </tr>
+                  ))}
+                </tbody></table>
+              </div>
+            )}
           </div>
 
           <div className="dua-kolom sp">
