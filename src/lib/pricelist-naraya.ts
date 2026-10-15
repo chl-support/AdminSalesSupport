@@ -7,11 +7,10 @@
  * dengan yang dipegang bagian penjualan, sebab keduanya dibandingkan orang
  * yang sama dalam satu pertemuan.
  *
- * Sejak layar Pricelist dapat menerima unggahan, berkas ini tinggal menjadi
- * pricelist bawaan Naraya Serpong: dipakai selama project itu belum punya
- * pricelist yang diunggah, dan menjadi patokan uji yang angkanya dicocokkan
- * dengan berkas Excel aslinya. Project lain tidak punya bawaan seperti ini —
- * pricelist-nya selalu datang lewat unggahan (src/lib/pricelist.ts).
+ * Tidak lagi dipakai sebagai pricelist aplikasi: setiap project, termasuk
+ * Naraya Serpong, memakai pricelist yang diunggah (src/lib/pricelist.ts).
+ * Berkas ini tinggal sebagai patokan uji — angkanya dicocokkan dengan berkas
+ * Excel aslinya — dan sebagai contoh baris pada template unggahan.
  */
 
 /** Nama cara bayar, persis seperti pada kepala kolom pricelist. */
@@ -41,8 +40,6 @@ export type UnitHarga = {
   harga: Record<Skema, number>;
 };
 
-/** Slug project yang memakai berkas ini selama belum ada pricelist yang diunggah. */
-export const PROJECT_NARAYA = "naraya-serpong";
 
 export const PRICELIST: UnitHarga[] = [
   { kode: "NS-NR1-01", alamat: "NARAYA 1", tipe: 7, lt: 146.5, lb: 88,
