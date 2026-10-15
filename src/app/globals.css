@@ -2898,3 +2898,27 @@ td.sel-surel, th.sel-surel { white-space: nowrap; font-size: 11.5px; }
                                         font-weight: 600; }
 .tabel-jadwal.banding tr.banding-baru td { background: var(--okbg); }
 .tabel-jadwal.banding .pill + .pill { margin-left: 4px; }
+
+/* ── Layar Simulasi / NPV: ringkasan dan kartu yang sejajar ─────────────── */
+.sim-ringkas { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+               gap: 14px; }
+@media (max-width: 1000px) { .sim-ringkas { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 520px) { .sim-ringkas { grid-template-columns: 1fr; } }
+.sim-kotak { background: #fff; border: 1px solid var(--line);
+             border-radius: var(--lengkung-besar); padding: 14px 16px;
+             display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.sim-kotak .lbl { margin: 0; }
+.sim-kotak b { font-size: 19px; font-weight: 650; line-height: 1.25;
+               font-variant-numeric: tabular-nums; white-space: nowrap;
+               overflow: hidden; text-overflow: ellipsis; }
+.sim-kotak small { font-size: 11.5px; color: var(--mut); }
+/* NPV adalah angka pokok layar ini: kotaknya diberi garis tepi tegas. */
+.sim-kotak.utama { border-color: var(--ink); box-shadow: inset 0 3px 0 var(--emas); }
+/* Kartu berdampingan setinggi pasangannya, tanpa sisa kosong yang timpang. */
+.dua-kolom.sim-sejajar { align-items: stretch; }
+.dua-kolom.sim-sejajar > .panel { display: flex; flex-direction: column; }
+/* Kartu yang ditumpuk dalam satu kolom, supaya kedua kolom seimbang. */
+.sim-tumpuk { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+/* Tanpa pasangan di kanan (mis. Cash Keras tanpa angsuran KPR), kartu tetap
+   selebar kolom kiri, supaya label dan angkanya tidak terpisah jauh. */
+.dua-kolom.tunggal > .sim-tumpuk { grid-column: 1; }
