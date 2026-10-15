@@ -101,6 +101,12 @@ const KATA = {
     rPada: "Disimpan", rOleh: "Oleh", rTgl: "Tgl Booking", rDisk: "Diskon",
     rBunga: "Bunga KPR", rCatatan: "Catatan", rTotal: "Total Nilai",
     rBuka: "Buka",
+    ksHarga: "Harga Transaksi", ksTagihan: "Total Tagihan (DTP)",
+    ksNpv: "Nilai Sekarang (NPV)", ksDtp: "DTP (PPN)",
+    ksDiskon: (p: string) => `Diskon ${p}`,
+    ksTagihanKet: "Dibayar konsumen setelah PPN DTP",
+    ksNpvKet: (p: string) => `${p} dari nominal, bunga 12%`,
+    ksDtpKet: (p: string) => `Tarif ${p}`, ksDtpLuar: "Di luar periode DTP",
     bJudul: "Perbandingan Jadwal",
     bSebelum: "Sebelum · jadwal standar", bSesudah: "Sesudah · versi tersimpan",
     bBaru: "Baru", bSembunyi: "Hide", bDiubah: "Diubah",
@@ -180,6 +186,12 @@ const KATA = {
     rPada: "Saved", rOleh: "By", rTgl: "Booking Date", rDisk: "Discount",
     rBunga: "Mortgage Rate", rCatatan: "Note", rTotal: "Total Value",
     rBuka: "Open",
+    ksHarga: "Transaction Price", ksTagihan: "Total Billed (net of VAT)",
+    ksNpv: "Present Value (NPV)", ksDtp: "VAT Relief (DTP)",
+    ksDiskon: (p: string) => `Discount ${p}`,
+    ksTagihanKet: "Paid by the customer after VAT relief",
+    ksNpvKet: (p: string) => `${p} of nominal, 12% rate`,
+    ksDtpKet: (p: string) => `Rate ${p}`, ksDtpLuar: "Outside the relief period",
     bJudul: "Schedule Comparison",
     bSebelum: "Before · standard schedule", bSesudah: "After · saved version",
     bBaru: "New", bSembunyi: "Hidden", bDiubah: "Changed",
@@ -564,22 +576,68 @@ export default function SimulasiPage() {
         <div className="banner stop">{!unit ? k.takAda : k.takAdaHarga}</div>
       ) : (
         <>
+          {/* Ringkasan: empat angka yang paling sering dicari, sebelum
+              rinciannya. */}
+          <div className="sim-ringkas sp">
+            <div className="sim-kotak">
+              <span className="lbl">{k.ksHarga}</span>
+              <b>{formatRupiah(Math.round(hasil.hargaTransaksi))}</b>
+              <small>{skema}{hasil.diskon > 0 &&
+                ` · ${k.ksDiskon(persen(hasil.diskon / hasil.hargaPricelist))}`}</small>
+            </div>
+            <div className="sim-kotak">
+              <span className="lbl">{k.ksTagihan}</span>
+              <b>{formatRupiah(Math.round(hasil.jumlahTagihan))}</b>
+              <small>{k.ksTagihanKet}</small>
+            </div>
+            <div className="sim-kotak utama">
+              <span className="lbl">{k.ksNpv}</span>
+              <b>{formatRupiah(Math.round(hasil.jumlahPv))}</b>
+              <small>{k.ksNpvKet(persen(hasil.rasioPv))}</small>
+            </div>
+            <div className="sim-kotak">
+              <span className="lbl">{k.ksDtp}</span>
+              <b>{formatRupiah(hasil.jumlahDtp)}</b>
+              <small>{hasil.tarifDtp === 0 ? k.ksDtpLuar
+                : k.ksDtpKet(persen(hasil.tarifDtp, 0))}</small>
+            </div>
+          </div>
+
           <div className="dua-kolom sp">
-            <div className="panel">
-              <h2>{unit.kode}</h2>
-              <table className="tabel-ringkas"><tbody>
-                <tr><td>{k.rTipe}</td><td className="n">{unit.tipe}</td></tr>
-                <tr><td>{k.rLt}</td>
-                    <td className="n">{luas(unit.lt)}</td></tr>
-                <tr><td>{k.rLb}</td>
-                    <td className="n">{luas(unit.lb)}</td></tr>
-                <tr><td>{k.rPricelist}</td>
-                    <td className="n">{formatRupiah(hasil.hargaPricelist)}</td></tr>
-                <tr><td>{k.rDiskon}</td>
-                    <td className="n">{formatRupiah(hasil.diskon)}</td></tr>
-                <tr><td><b>{k.rTransaksi}</b></td>
-                    <td className="n"><b>{formatRupiah(hasil.hargaTransaksi)}</b></td></tr>
-              </tbody></table>
+            <div className="sim-tumpuk">
+              <div className="panel">
+                <h2>{unit.kode}</h2>
+                <table className="tabel-ringkas"><tbody>
+                  <tr><td>{k.rTipe}</td><td className="n">{unit.tipe}</td></tr>
+                  <tr><td>{k.rLt}</td>
+                      <td className="n">{luas(unit.lt)}</td></tr>
+                  <tr><td>{k.rLb}</td>
+                      <td className="n">{luas(unit.lb)}</td></tr>
+                  <tr><td>{k.rPricelist}</td>
+                      <td className="n">{formatRupiah(hasil.hargaPricelist)}</td></tr>
+                  <tr><td>{k.rDiskon}</td>
+                      <td className="n">{formatRupiah(hasil.diskon)}</td></tr>
+                  <tr><td><b>{k.rTransaksi}</b></td>
+                      <td className="n"><b>{formatRupiah(hasil.hargaTransaksi)}</b></td></tr>
+                </tbody></table>
+              </div>
+              <div className="panel">
+                <h2>{k.dtpJudul}</h2>
+                {hasil.tarifDtp === 0 ? (
+                  <p className="hint" style={{ textAlign: "left" }}>{k.dLuar}</p>
+                ) : (
+                  <table className="tabel-ringkas"><tbody>
+                    <tr><td>{k.dTarif}</td>
+                        <td className="n">{persen(hasil.tarifDtp, 0)}</td></tr>
+                    <tr><td>{k.dDasar}</td>
+                        <td className="n">{formatRupiah(Math.round(hasil.dasarDtp))}</td></tr>
+                    <tr><td>{k.dPagu}</td>
+                        <td className="n">{formatRupiah(hasil.totalDtp)}</td></tr>
+                    <tr><td><b>{k.dTerpakai}</b></td>
+                        <td className="n"><b>{formatRupiah(hasil.jumlahDtp)}</b></td></tr>
+                  </tbody></table>
+                )}
+              </div>
             </div>
 
             <div className="panel">
@@ -730,7 +788,10 @@ export default function SimulasiPage() {
               </tbody></table>
             </div>
 
-            <h3 style={{ marginTop: 18 }}>{k.rJudul}</h3>
+          </div>
+
+          <div className="panel sp">
+            <h2>{k.rJudul}</h2>
             {riwayat.length === 0 ? (
               <p className="hint" style={{ textAlign: "left" }}>{k.rKosong}</p>
             ) : (
@@ -760,62 +821,45 @@ export default function SimulasiPage() {
             )}
           </div>
 
-          <div className="dua-kolom sp">
-            <div className="panel">
-              <h2>{k.npv}</h2>
-              <table className="tabel-ringkas"><tbody>
-                <tr><td>{k.nBunga}</td>
-                    <td className="n">{persen(BUNGA_NPV, 0)}</td></tr>
-                <tr><td>{k.nNominal}</td>
-                    <td className="n">{formatRupiah(Math.round(hasil.jumlahNilai))}</td></tr>
-                <tr><td><b>{k.nPv}</b></td>
-                    <td className="n"><b>{formatRupiah(Math.round(hasil.jumlahPv))}</b></td></tr>
-                <tr><td>{k.nRasio}</td>
-                    <td className="n">{persen(hasil.rasioPv)}</td></tr>
-                <tr><td>{k.nSelisih}</td>
-                    <td className="n">
-                      {formatRupiah(Math.round(hasil.jumlahPv - hasil.jumlahNilai))}
-                    </td></tr>
-              </tbody></table>
-            </div>
 
-            <div className="panel">
-              <h2>{k.dtpJudul}</h2>
-              {hasil.tarifDtp === 0 ? (
-                <p className="hint" style={{ textAlign: "left" }}>{k.dLuar}</p>
-              ) : (
-                <table className="tabel-ringkas"><tbody>
-                  <tr><td>{k.dTarif}</td>
-                      <td className="n">{persen(hasil.tarifDtp, 0)}</td></tr>
-                  <tr><td>{k.dDasar}</td>
-                      <td className="n">{formatRupiah(Math.round(hasil.dasarDtp))}</td></tr>
-                  <tr><td>{k.dPagu}</td>
-                      <td className="n">{formatRupiah(hasil.totalDtp)}</td></tr>
-                  <tr><td><b>{k.dTerpakai}</b></td>
-                      <td className="n"><b>{formatRupiah(hasil.jumlahDtp)}</b></td></tr>
-                </tbody></table>
-              )}
-            </div>
-          </div>
-
-          <div className="dua-kolom">
-            {/* Untuk Cash Keras sendiri tidak ada yang dibandingkan, jadi
-                panelnya tidak ditampilkan sama sekali. */}
-            {skema !== tunai && (
+          <div className={`dua-kolom${lewatKpr(skema) && hasil.angsuran.length > 0
+                            ? "" : " tunggal"}`}>
+            <div className="sim-tumpuk">
               <div className="panel">
-                <h2>{k.banding}</h2>
+                <h2>{k.npv}</h2>
                 <table className="tabel-ringkas"><tbody>
-                  <tr><td>{k.bNominal}</td>
+                  <tr><td>{k.nBunga}</td>
+                      <td className="n">{persen(BUNGA_NPV, 0)}</td></tr>
+                  <tr><td>{k.nNominal}</td>
+                      <td className="n">{formatRupiah(Math.round(hasil.jumlahNilai))}</td></tr>
+                  <tr><td><b>{k.nPv}</b></td>
+                      <td className="n"><b>{formatRupiah(Math.round(hasil.jumlahPv))}</b></td></tr>
+                  <tr><td>{k.nRasio}</td>
+                      <td className="n">{persen(hasil.rasioPv)}</td></tr>
+                  <tr><td>{k.nSelisih}</td>
                       <td className="n">
-                        {formatRupiah(Math.round(hasil.jumlahNilai - dasar.jumlahNilai))}
-                      </td></tr>
-                  <tr><td>{k.bPv}</td>
-                      <td className="n">
-                        {formatRupiah(Math.round(hasil.jumlahPv - dasar.jumlahPv))}
+                        {formatRupiah(Math.round(hasil.jumlahPv - hasil.jumlahNilai))}
                       </td></tr>
                 </tbody></table>
               </div>
-            )}
+              {/* Untuk Cash Keras sendiri tidak ada yang dibandingkan, jadi
+                  panelnya tidak ditampilkan sama sekali. */}
+              {skema !== tunai && (
+                <div className="panel">
+                  <h2>{k.banding}</h2>
+                  <table className="tabel-ringkas"><tbody>
+                    <tr><td>{k.bNominal}</td>
+                        <td className="n">
+                          {formatRupiah(Math.round(hasil.jumlahNilai - dasar.jumlahNilai))}
+                        </td></tr>
+                    <tr><td>{k.bPv}</td>
+                        <td className="n">
+                          {formatRupiah(Math.round(hasil.jumlahPv - dasar.jumlahPv))}
+                        </td></tr>
+                  </tbody></table>
+                </div>
+              )}
+            </div>
 
             {lewatKpr(skema) && hasil.angsuran.length > 0 && (
               <div className="panel">
