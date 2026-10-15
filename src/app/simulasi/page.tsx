@@ -128,7 +128,6 @@ const KATA = {
     banding: "Perbandingan terhadap Cash Keras",
     bNominal: "Selisih nominal",
     bPv: "Selisih nilai sekarang",
-    bSama: "Cara bayar ini memang Cash Keras.",
     angsuran: "Simulasi Angsuran KPR",
     aTenor: "Tenor", aTahun: (n: number) => `${n} tahun`,
     aPerBulan: "Angsuran per bulan",
@@ -208,7 +207,6 @@ const KATA = {
     banding: "Compared with Cash Keras",
     bNominal: "Nominal difference",
     bPv: "Present value difference",
-    bSama: "This scheme is Cash Keras.",
     angsuran: "Mortgage Instalment Simulation",
     aTenor: "Tenor", aTahun: (n: number) => `${n} years`,
     aPerBulan: "Monthly instalment",
@@ -801,11 +799,11 @@ export default function SimulasiPage() {
           </div>
 
           <div className="dua-kolom">
-            <div className="panel">
-              <h2>{k.banding}</h2>
-              {skema === tunai ? (
-                <p className="hint" style={{ textAlign: "left" }}>{k.bSama}</p>
-              ) : (
+            {/* Untuk Cash Keras sendiri tidak ada yang dibandingkan, jadi
+                panelnya tidak ditampilkan sama sekali. */}
+            {skema !== tunai && (
+              <div className="panel">
+                <h2>{k.banding}</h2>
                 <table className="tabel-ringkas"><tbody>
                   <tr><td>{k.bNominal}</td>
                       <td className="n">
@@ -816,8 +814,8 @@ export default function SimulasiPage() {
                         {formatRupiah(Math.round(hasil.jumlahPv - dasar.jumlahPv))}
                       </td></tr>
                 </tbody></table>
-              )}
-            </div>
+              </div>
+            )}
 
             {lewatKpr(skema) && hasil.angsuran.length > 0 && (
               <div className="panel">
