@@ -56,7 +56,7 @@ const bacaRupiah = (s: string) => {
 const nilaiBaris = (b: BarisUbah) => b.teks == null ? b.nilaiAsli : bacaRupiah(b.teks);
 const iso = (d: Date) => d.toISOString().slice(0, 10);
 import { formatRupiah } from "@/lib/money";
-import { BUNGA_NPV, bentukSkema, hitung, lewatKpr, type Skema,
+import { BUNGA_NPV, bentukSkema, hitung, lewatKpr, type Hasil, type Skema,
          type UnitHarga } from "@/lib/simulasi";
 
 type Pricelist = { nama: string; skema: Skema[]; unit: UnitHarga[] };
@@ -101,6 +101,14 @@ const KATA = {
     rPada: "Disimpan", rOleh: "Oleh", rTgl: "Tgl Booking", rDisk: "Diskon",
     rBunga: "Bunga KPR", rCatatan: "Catatan", rTotal: "Total Nilai",
     rBaris: "Baris", rBuka: "Buka",
+    bJudul: (w: string, o: string) => `Perbandingan jadwal · versi ${w} oleh ${o}`,
+    bSebelum: "Sebelum · jadwal standar", bSesudah: "Sesudah · versi tersimpan",
+    bBaru: "Baru", bSembunyi: "Hide", bDiubah: "Diubah",
+    bRingkas: "Ringkasan", bSelisih: "Selisih",
+    bNilai: "Total Nilai", bTotPv: "Total PV", bTagihan: "Total Tagihan",
+    bDtp: "Total DTP", bTutup: "Tutup",
+    bKet: "Sel berwarna berubah dari jadwal standar. Baris Hide tidak tampil di " +
+          "lembar cetak tetapi tetap dihitung.",
     kKet: "Keterangan", kTempo: "Tgl", kHari: "Hari",
     kJumlah: "Nilai (VALUE)", kPv: "PV", kDtp: "DTP (PPN)",
     kTagihan: "Tagihan (DTP)",
@@ -173,6 +181,14 @@ const KATA = {
     rPada: "Saved", rOleh: "By", rTgl: "Booking Date", rDisk: "Discount",
     rBunga: "Mortgage Rate", rCatatan: "Note", rTotal: "Total Value",
     rBaris: "Rows", rBuka: "Open",
+    bJudul: (w: string, o: string) => `Schedule comparison · version ${w} by ${o}`,
+    bSebelum: "Before · standard schedule", bSesudah: "After · saved version",
+    bBaru: "New", bSembunyi: "Hidden", bDiubah: "Changed",
+    bRingkas: "Summary", bSelisih: "Difference",
+    bNilai: "Total Value", bTotPv: "Total PV", bTagihan: "Total Billed",
+    bDtp: "Total VAT relief", bTutup: "Close",
+    bKet: "Highlighted cells differ from the standard schedule. Hidden rows " +
+          "are not printed but still count.",
     kKet: "Description", kTempo: "Date", kHari: "Days",
     kJumlah: "Value", kPv: "PV", kDtp: "VAT Borne by Govt",
     kTagihan: "Billed (net of VAT)",
@@ -363,7 +379,25 @@ export default function SimulasiPage() {
     }
   };
 
+  // Pop-up perbandingan: jadwal standar untuk masukan versi itu (sebelum)
+  // berdampingan dengan versi tersimpannya (sesudah).
+  const [banding, setBanding] = useState<{
+    v: Versi; sebelum: Hasil; sesudah: Hasil;
+  } | null>(null);
+
   const bukaVersi = (v: Versi) => {
+    if (unit) {
+      try {
+        const tgl = tanggalIso(v.tanggal_booking, booking);
+        const dasarV = { unit, skema, diskon: v.diskon / 100,
+                         bungaKpr: v.bunga / 100, tanggal: tgl };
+        setBanding({
+          v, sebelum: hitung(dasarV),
+          sesudah: hitung({ ...dasarV, jadwalManual: v.baris.map((b) => ({
+            ket: b.ket, tgl: tanggalIso(b.tgl, tgl), nilai: b.nilai })) }),
+        });
+      } catch { setBanding(null); }
+    }
     setTanggal(v.tanggal_booking);
     setDiskon(String(v.diskon));
     setBunga(String(v.bunga));
@@ -809,6 +843,121 @@ export default function SimulasiPage() {
           </div>
         </>
       )}
+      {banding && (() => {
+        const { v, sebelum, sesudah } = banding;
+        // Baris sesudah dicocokkan dengan baris standar menurut urutan baris
+        // yang bukan tambahan — tambahan disisipkan di antaranya.
+        let asal = -1;
+        const pasangan = v.baris.map((b, i) => {
+          const t = sesudah.termin[i];
+          const s0 = b.tambahan ? null : sebelum.termin[++asal] ?? null;
+          return { b, t, s0 };
+        });
+        const beda = (a: number, b: number) => Math.abs(a - b) >= 0.5;
+        const baris = (label: string, x: number, y: number) => (
+          <tr><td>{label}</td>
+              <td className="n">{angkaLembar(x)}</td>
+              <td className="n">{angkaLembar(y)}</td>
+              <td className={`n ${beda(x, y) ? "banding-ubah" : ""}`}>
+                {beda(x, y) ? (y - x > 0 ? "+" : "−") + angkaLembar(Math.abs(y - x)) : "-"}
+              </td></tr>
+        );
+        return (
+          <div className="tirai" onMouseDown={(e) => {
+            if (e.target === e.currentTarget) setBanding(null);
+          }}>
+            <div className="popup lebar" role="dialog" aria-modal="true"
+                 aria-label={k.bJudul(waktu(v.disimpan_pada), v.disimpan_oleh ?? "—")}
+                 style={{ maxWidth: 1120 }}>
+              <div className="popup-kepala">
+                <h2>
+                  {k.bJudul(waktu(v.disimpan_pada), v.disimpan_oleh ?? "—")}
+                  {v.catatan && <span className="pill">{v.catatan}</span>}
+                </h2>
+                <button className="tautan" aria-label={k.bTutup}
+                        onClick={() => setBanding(null)}>✕</button>
+              </div>
+              <div className="popup-isi">
+                <div className="banding-dua">
+                  <div>
+                    <h3>{k.bSebelum}</h3>
+                    <div className="tscroll">
+                      <table className="tabel-jadwal banding"><tbody>
+                        <tr><th>{k.kKet}</th><th>{k.kTempo}</th>
+                            <th>{k.kJumlah}</th><th>{k.kPv}</th></tr>
+                        {sebelum.termin.map((t, i) => (
+                          <tr key={i}>
+                            <td>{t.ket.toUpperCase()}</td>
+                            <td>{tglPendek(t.tgl)}</td>
+                            <td className="n">{angkaLembar(t.nilai)}</td>
+                            <td className="n">{angkaLembar(t.pv)}</td>
+                          </tr>
+                        ))}
+                        <tr className="baris-total"><td colSpan={2}>{k.total}</td>
+                          <td className="n">{angkaLembar(sebelum.jumlahNilai)}</td>
+                          <td className="n">{angkaLembar(sebelum.jumlahPv)}</td></tr>
+                      </tbody></table>
+                    </div>
+                  </div>
+                  <div>
+                    <h3>{k.bSesudah}</h3>
+                    <div className="tscroll">
+                      <table className="tabel-jadwal banding"><tbody>
+                        <tr><th>{k.kKet}</th><th>{k.kTempo}</th>
+                            <th>{k.kJumlah}</th><th>{k.kPv}</th><th /></tr>
+                        {pasangan.map(({ b, t, s0 }, i) => {
+                          const ubahKet = s0 && s0.ket !== t.ket;
+                          const ubahTgl = s0 && s0.tgl.getTime() !== t.tgl.getTime();
+                          const ubahNilai = s0 && beda(s0.nilai, t.nilai);
+                          return (
+                            <tr key={i} className={[b.tambahan && "banding-baru",
+                                                    b.sembunyi && "baris-sembunyi"]
+                                                   .filter(Boolean).join(" ") || undefined}>
+                              <td className={ubahKet ? "banding-ubah" : undefined}>
+                                {t.ket.toUpperCase()}</td>
+                              <td className={ubahTgl ? "banding-ubah" : undefined}>
+                                {tglPendek(t.tgl)}</td>
+                              <td className={`n ${ubahNilai ? "banding-ubah" : ""}`}>
+                                {angkaLembar(t.nilai)}</td>
+                              <td className="n">{angkaLembar(t.pv)}</td>
+                              <td>
+                                {b.tambahan && <span className="pill ok">{k.bBaru}</span>}
+                                {b.sembunyi && <span className="pill">{k.bSembunyi}</span>}
+                                {(ubahKet || ubahTgl || ubahNilai) &&
+                                  <span className="pill warn">{k.bDiubah}</span>}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                        <tr className="baris-total"><td colSpan={2}>{k.total}</td>
+                          <td className="n">{angkaLembar(sesudah.jumlahNilai)}</td>
+                          <td className="n">{angkaLembar(sesudah.jumlahPv)}</td>
+                          <td /></tr>
+                      </tbody></table>
+                    </div>
+                  </div>
+                </div>
+
+                <h3 style={{ marginTop: 16 }}>{k.bRingkas}</h3>
+                <div className="tscroll">
+                  <table className="tabel-jadwal banding"><tbody>
+                    <tr><th /><th>{k.bSebelum}</th><th>{k.bSesudah}</th>
+                        <th>{k.bSelisih}</th></tr>
+                    {baris(k.bNilai, sebelum.jumlahNilai, sesudah.jumlahNilai)}
+                    {baris(k.bTotPv, sebelum.jumlahPv, sesudah.jumlahPv)}
+                    {baris(k.bTagihan, sebelum.jumlahTagihan, sesudah.jumlahTagihan)}
+                    {baris(k.bDtp, sebelum.jumlahDtp, sesudah.jumlahDtp)}
+                  </tbody></table>
+                </div>
+                <p className="hint" style={{ textAlign: "left" }}>{k.bKet}</p>
+                <div className="row" style={{ justifyContent: "flex-end", marginBottom: 0 }}>
+                  <button className="pri" onClick={() => setBanding(null)}>{k.bTutup}</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </Kerangka>
   );
 }

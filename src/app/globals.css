@@ -2870,3 +2870,15 @@ td.sel-surel, th.sel-surel { white-space: nowrap; font-size: 11.5px; }
 .tabel-jadwal tr.baris-sembunyi td { opacity: .45; }
 .tabel-jadwal tr.baris-sembunyi td:last-child { opacity: 1; }
 .tabel-jadwal td button { padding: 2px 8px; font-size: 11.5px; }
+
+/* Pop-up perbandingan jadwal (Riwayat → Buka): sebelum dan sesudah
+   berdampingan; sel yang berubah diwarnai, baris tambahan ditandai. */
+.banding-dua { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 900px) { .banding-dua { grid-template-columns: 1fr; } }
+.banding-dua h3, .popup-isi h3 { margin: 0 0 6px; font-size: 13px; }
+.tscroll > .tabel-jadwal.banding { min-width: 0; }
+.tabel-jadwal.banding td { padding: 5px 8px; }
+.tabel-jadwal.banding td.banding-ubah { background: var(--warnbg); color: var(--warn);
+                                        font-weight: 600; }
+.tabel-jadwal.banding tr.banding-baru td { background: var(--okbg); }
+.tabel-jadwal.banding .pill + .pill { margin-left: 4px; }
