@@ -2833,8 +2833,8 @@ td.sel-surel, th.sel-surel { white-space: nowrap; font-size: 11.5px; }
 .lm-harga td:nth-child(1) { width: 60%; }
 .lm-harga td:nth-child(3) { border-left: 1px solid #000; width: 26%; }
 .lm-jadwal th { border: 1px solid #000; text-align: center; font-weight: 700; }
-.lm-jadwal td { border-left: 1px solid #000; border-right: 1px solid #000; }
-.lm-jadwal tr:last-child td { border-bottom: 1px solid #000; }
+/* Tiap baris bergaris bawah, seperti lembar Excel-nya. */
+.lm-jadwal td { border: 1px solid #000; border-top: 0; }
 .lm-jadwal .lm-kosong td { height: 9px; border-bottom: 1px solid #000; }
 .lm-jumlah { margin-top: 6px; }
 .lm-jumlah td { height: 17px; }

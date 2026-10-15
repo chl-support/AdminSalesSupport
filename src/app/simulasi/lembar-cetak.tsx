@@ -21,7 +21,7 @@ export type Jenis = "konsumen" | "management";
 
 // ── Format angka dan tanggal, sebagaimana lembar Excel-nya ────────────────
 
-const angka = (n: number, desimal = 0) =>
+export const angka = (n: number, desimal = 0) =>
   Math.round(n * 10 ** desimal) / 10 ** desimal === 0 ? "-"
     : n.toLocaleString("id-ID", { minimumFractionDigits: desimal,
                                   maximumFractionDigits: desimal });
@@ -44,7 +44,7 @@ const HARI = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday",
               "Saturday"];
 
 /** "15-Oct-26", seperti format d-mmm-yy di lembarnya. */
-const tglPendek = (d: Date) =>
+export const tglPendek = (d: Date) =>
   `${d.getUTCDate()}-${BULAN[d.getUTCMonth()].slice(0, 3)}-` +
   String(d.getUTCFullYear()).slice(2);
 

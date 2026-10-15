@@ -20,12 +20,12 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { useBahasa, useKata } from "../bahasa";
+import { useKata } from "../bahasa";
 import { Kerangka, MemeriksaSesi } from "../kerangka";
 import { useSesi } from "../session";
 import { PENGUNGGAH, UnggahPricelist } from "./unggah-pricelist";
-import { LembarKonsumen, LembarManagement, namaPdf, unduhPdf, type Jenis }
-  from "./lembar-cetak";
+import { LembarKonsumen, LembarManagement, namaPdf, tglPendek, unduhPdf,
+         angka as angkaLembar, type Jenis } from "./lembar-cetak";
 import { formatRupiah } from "@/lib/money";
 import { BUNGA_NPV, bentukSkema, hitung, lewatKpr, type Skema,
          type UnitHarga } from "@/lib/simulasi";
@@ -52,8 +52,8 @@ const KATA = {
     hargaSemua: "Harga per Cara Bayar",
     kSkema: "Cara Bayar", kHarga: "Harga",
     jadwal: "Jadwal Pembayaran",
-    kNo: "No.", kKet: "Keterangan", kTempo: "Jatuh Tempo", kHari: "Hari",
-    kJumlah: "Jumlah", kPv: "Nilai Sekarang", kDtp: "DTP (PPN)",
+    kKet: "Keterangan", kTempo: "Tgl", kHari: "Hari",
+    kJumlah: "Nilai (VALUE)", kPv: "PV", kDtp: "DTP (PPN)",
     kTagihan: "Tagihan (DTP)",
     total: "TOTAL",
     npv: "Nilai Sekarang (NPV)",
@@ -104,8 +104,8 @@ const KATA = {
     hargaSemua: "Price per Payment Scheme",
     kSkema: "Payment Scheme", kHarga: "Price",
     jadwal: "Payment Schedule",
-    kNo: "No.", kKet: "Description", kTempo: "Due Date", kHari: "Days",
-    kJumlah: "Amount", kPv: "Present Value", kDtp: "VAT Borne by Govt",
+    kKet: "Description", kTempo: "Date", kHari: "Days",
+    kJumlah: "Value", kPv: "PV", kDtp: "VAT Borne by Govt",
     kTagihan: "Billed (net of VAT)",
     total: "TOTAL",
     npv: "Net Present Value",
@@ -153,7 +153,6 @@ const persen = (n: number, desimal = 2) =>
 export default function SimulasiPage() {
   const { sesi, memuat } = useSesi();
   const k = useKata(KATA);
-  const { bahasa } = useBahasa();
 
   const [tanggal, setTanggal] = useState(hariIni);
   const [pl, setPl] = useState<Pricelist | null | undefined>(undefined);
@@ -257,11 +256,6 @@ export default function SimulasiPage() {
 
   const luas = (n: number | null) =>
     n == null ? "—" : `${n.toLocaleString("id-ID")} m²`;
-
-  const tglTeks = (d: Date) =>
-    d.toLocaleDateString(bahasa === "id" ? "id-ID" : "en-GB",
-                         { day: "numeric", month: "short", year: "numeric",
-                           timeZone: "UTC" });
 
   return (
     <Kerangka sesi={sesi} lebar judul={<div><h1>{k.judul}</h1></div>}>
@@ -386,35 +380,36 @@ export default function SimulasiPage() {
           <div className="panel sp">
             <h2>{k.jadwal}<span className="pill">{skema}</span></h2>
             <div className="tscroll">
+              {/* Susunan dan penulisannya sama dengan sisi PERMINTAAN pada
+                  lembar Management: tanpa nomor, keterangan berhuruf besar,
+                  tanggal 15-Oct-26, angka tanpa Rp, dan nol sebagai "-". */}
               <table className="tabel-jadwal"><tbody>
                 <tr>
-                  <th style={{ width: 44 }}>{k.kNo}</th>
                   <th style={{ width: 170 }}>{k.kKet}</th>
-                  <th style={{ width: 118 }}>{k.kTempo}</th>
                   <th style={{ width: 62 }}>{k.kHari}</th>
+                  <th style={{ width: 100 }}>{k.kTempo}</th>
                   <th>{k.kJumlah}</th>
                   <th>{k.kPv}</th>
-                  <th>{k.kDtp}</th>
                   <th>{k.kTagihan}</th>
+                  <th>{k.kDtp}</th>
                 </tr>
                 {hasil.termin.map((t, i) => (
                   <tr key={i}>
-                    <td className="n">{i + 1}</td>
-                    <td>{t.ket}</td>
-                    <td>{tglTeks(t.tgl)}</td>
-                    <td className="n">{t.hari}</td>
-                    <td className="n">{formatRupiah(Math.round(t.nilai))}</td>
-                    <td className="n">{formatRupiah(Math.round(t.pv))}</td>
-                    <td className="n">{formatRupiah(t.dtp)}</td>
-                    <td className="n">{formatRupiah(Math.round(t.tagihan))}</td>
+                    <td>{t.ket.toUpperCase()}</td>
+                    <td className="n">{t.hari || "-"}</td>
+                    <td>{tglPendek(t.tgl)}</td>
+                    <td className="n">{angkaLembar(t.nilai)}</td>
+                    <td className="n">{angkaLembar(t.pv)}</td>
+                    <td className="n">{angkaLembar(t.tagihan)}</td>
+                    <td className="n">{angkaLembar(t.dtp)}</td>
                   </tr>
                 ))}
                 <tr className="baris-total">
-                  <td colSpan={4}>{k.total}</td>
-                  <td className="n">{formatRupiah(Math.round(hasil.jumlahNilai))}</td>
-                  <td className="n">{formatRupiah(Math.round(hasil.jumlahPv))}</td>
-                  <td className="n">{formatRupiah(hasil.jumlahDtp)}</td>
-                  <td className="n">{formatRupiah(Math.round(hasil.jumlahTagihan))}</td>
+                  <td colSpan={3}>{k.total}</td>
+                  <td className="n">{angkaLembar(hasil.jumlahNilai)}</td>
+                  <td className="n">{angkaLembar(hasil.jumlahPv)}</td>
+                  <td className="n">{angkaLembar(hasil.jumlahTagihan)}</td>
+                  <td className="n">{angkaLembar(hasil.jumlahDtp)}</td>
                 </tr>
               </tbody></table>
             </div>
