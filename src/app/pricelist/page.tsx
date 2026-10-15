@@ -21,8 +21,6 @@ const KATA = {
     judul: "Pricelist",
     berlaku: "Pricelist yang berlaku",
     tidakAda: "Project ini belum punya pricelist. Unggah berkasnya di layar ",
-    bawaan: "Pricelist bawaan (dari berkas Simulation TOP). Unggahan pertama " +
-            "akan menggantikannya.",
     ringkas: (u: number, s: number) => `${u} unit · ${s} cara bayar`,
     keSimulasi: "Simulasi / NPV",
     unggahDi: "Pricelist baru diunggah di layar ",
@@ -39,8 +37,6 @@ const KATA = {
     judul: "Price List",
     berlaku: "Price list in force",
     tidakAda: "This project has no price list yet. Upload it on the screen ",
-    bawaan: "Built-in price list (from the Simulation TOP file). The first " +
-            "upload replaces it.",
     ringkas: (u: number, s: number) => `${u} units · ${s} payment schemes`,
     keSimulasi: "Simulation / NPV",
     unggahDi: "New price lists are uploaded on the screen ",
@@ -56,7 +52,7 @@ const KATA = {
 };
 
 type Berlaku = {
-  id: string | null; nama: string; sumber: "unggahan" | "bawaan";
+  id: string; nama: string;
   skema: string[]; unit: UnitHarga[];
 };
 type Ringkas = {
@@ -121,7 +117,6 @@ export default function PricelistPage() {
             <>
               <p className="hint" style={{ textAlign: "left", marginTop: 0 }}>
                 {k.ringkas(berlaku.unit.length, berlaku.skema.length)}
-                {berlaku.sumber === "bawaan" && <> · {k.bawaan}</>}
                 {" · "}{k.unggahDi}{keSimulasi}.
               </p>
               <TabelHarga skema={berlaku.skema} unit={berlaku.unit} />

@@ -19,7 +19,7 @@
 import ExcelJS from "exceljs";
 
 import { audit, one, query, tx } from "./db";
-import { PRICELIST, PROJECT_NARAYA, SKEMA } from "./pricelist-naraya";
+import { PRICELIST, SKEMA } from "./pricelist-naraya";
 import { bentukSkema, uraianBentuk, type UnitHarga } from "./simulasi";
 
 // ── Membaca berkas ─────────────────────────────────────────────────────────
@@ -333,10 +333,8 @@ export type RingkasPricelist = {
 };
 
 export type PricelistBerlaku = {
-  /** null untuk pricelist bawaan yang tidak tersimpan di basis data. */
-  id: string | null;
+  id: string;
   nama: string;
-  sumber: "unggahan" | "bawaan";
   skema: string[];
   unit: UnitHarga[];
 };
@@ -352,22 +350,21 @@ export async function daftarPricelist(projectId: string): Promise<RingkasPriceli
 }
 
 /**
- * Pricelist yang berlaku bagi sebuah project: unggahan yang aktif, atau —
- * khusus Naraya Serpong — pricelist bawaan selama belum ada unggahan.
+ * Pricelist yang berlaku bagi sebuah project: unggahan yang aktif, atau null.
+ *
+ * Tidak ada pricelist bawaan untuk project mana pun. Naraya Serpong sempat
+ * memakai 48 unit dari src/lib/pricelist-naraya.ts selama belum ada unggahan;
+ * atas permintaan pemakainya itu dihentikan, supaya setiap project mulai
+ * kosong dan harga yang tampil selalu harga yang diunggah bagian penjualan.
  */
 export async function pricelistBerlaku(
-  projectId: string, projectSlug: string | null | undefined,
+  projectId: string,
 ): Promise<PricelistBerlaku | null> {
   await ensureTabelPricelist();
   const row = await one<{ id: string; nama: string; skema: string[]; unit: UnitHarga[] }>(
     "SELECT id, nama, skema, unit FROM pricelists WHERE project_id=$1 AND aktif",
     [projectId]);
-  if (row) return { ...row, sumber: "unggahan" };
-  if (projectSlug === PROJECT_NARAYA) {
-    return { id: null, nama: "Pricelist bawaan Naraya Serpong", sumber: "bawaan",
-             skema: [...SKEMA], unit: PRICELIST };
-  }
-  return null;
+  return row ?? null;
 }
 
 /** Simpan hasil baca sebagai pricelist yang berlaku untuk project-nya. */

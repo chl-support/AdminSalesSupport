@@ -1,4 +1,4 @@
-import { handler, currentUser, projectAktif, requireRole } from "@/lib/api";
+import { handler, projectAktif, requireRole } from "@/lib/api";
 import { WorkflowError } from "@/lib/workflow";
 import { bacaPricelist, daftarPricelist, pricelistBerlaku,
          simpanPricelist } from "@/lib/pricelist";
@@ -9,10 +9,9 @@ import { bacaPricelist, daftarPricelist, pricelistBerlaku,
  * boleh membacanya — harga jual bukan rahasia di dalam kantor.
  */
 export const GET = handler(async (req) => {
-  const user = await currentUser(req);
   const projectId = await projectAktif(req);
   return {
-    berlaku: await pricelistBerlaku(projectId, user.project_slug),
+    berlaku: await pricelistBerlaku(projectId),
     riwayat: await daftarPricelist(projectId),
   };
 });
