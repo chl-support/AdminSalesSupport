@@ -11,7 +11,8 @@
  *
  * Unit dan cara bayarnya diambil dari pricelist yang berlaku untuk project
  * yang sedang dipilih. Pricelist itu diunggah di layar ini juga, lewat panel
- * Upload D-Pricelist di bagian atas (Admin Sales dan Admin IT).
+ * Upload D-Pricelist di bagian atas (Admin Sales dan Admin IT); tepat di
+ * bawahnya tampil pricelist yang berlaku beserta riwayat unggahannya.
  *
  * Tanggal booking dapat diubah, tidak dipatok hari ini. Simulasi dibuat
  * sebelum konsumen datang, dan jadwal yang dihitung untuk hari ini akan
@@ -24,6 +25,7 @@ import { useKata } from "../bahasa";
 import { Kerangka, MemeriksaSesi } from "../kerangka";
 import { useSesi } from "../session";
 import { PENGUNGGAH, UnggahPricelist } from "./unggah-pricelist";
+import { PanelPricelist } from "../pricelist/panel-pricelist";
 import { PanelTarifDtp } from "./tarif-dtp";
 import { LembarKonsumen, LembarManagement, kodeJadwal, namaPdf, tanggalIso,
          tglPendek, unduhPdf, angka as angkaLembar, type Jenis }
@@ -168,7 +170,6 @@ const KATA = {
     belumAdaBaca: "Project ini belum punya pricelist. Admin Sales atau Admin " +
                   "IT dapat mengunggahnya di layar ini.",
     memuatPl: "Memuat pricelist…",
-    sumber: "Pricelist",
   },
   en: {
     judul: "Simulation / NPV",
@@ -261,7 +262,6 @@ const KATA = {
     belumAdaBaca: "This project has no price list yet. Admin Sales or Admin " +
                   "IT can upload it on this screen.",
     memuatPl: "Loading price list…",
-    sumber: "Price list",
   },
 };
 
@@ -623,8 +623,17 @@ export default function SimulasiPage() {
   if (memuat || !sesi) return <MemeriksaSesi />;
 
   const bolehUnggah = PENGUNGGAH.includes(sesi.role) && !!sesi.project_slug;
-  const unggah = bolehUnggah && (
-    <UnggahPricelist onTersimpan={() => setVersiPl((v) => v + 1)} />
+  // Bagian pricelist di atas simulasi: unggah (bagi yang berwenang), lalu
+  // pricelist yang berlaku beserta riwayatnya. Keduanya saling memberi tahu
+  // lewat versiPl, sehingga simulasi di bawahnya ikut memakai yang terbaru.
+  const naikkanVersi = () => setVersiPl((v) => v + 1);
+  const unggah = (
+    <>
+      {bolehUnggah && <UnggahPricelist onTersimpan={naikkanVersi} />}
+      {sesi.project_slug && (
+        <PanelPricelist sesi={sesi} versi={versiPl} onBerubah={naikkanVersi} />
+      )}
+    </>
   );
 
   if (galatPl || !pl) {
@@ -647,10 +656,6 @@ export default function SimulasiPage() {
     <Kerangka sesi={sesi} lebar judul={<div><h1>{k.judul}</h1></div>}>
 
       {unggah}
-
-      <p className="hint" style={{ textAlign: "left", marginTop: 0 }}>
-        {k.sumber}: <a href="/pricelist">{pl.nama}</a>
-      </p>
 
       <div className="panel sp">
         <div className="filters">
