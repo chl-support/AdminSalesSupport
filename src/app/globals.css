@@ -2935,3 +2935,14 @@ td.sel-surel, th.sel-surel { white-space: nowrap; font-size: 11.5px; }
 /* Kolom Catatan pada Riwayat Perubahan Jadwal: dibungkus, tidak memanjang. */
 .tabel-ringkas td.riwayat-catatan { white-space: normal; min-width: 200px;
                                     max-width: 340px; line-height: 1.4; }
+
+/* Tabel pricelist bersusun seperti lembar Excel-nya: judul dua baris (Area
+   dipecah Land/Build, tiap cara bayar dipecah Harga/DPP/PPN DTP) yang tetap
+   terlihat saat tabel digulir ke bawah, dan garis kiri pada kolom harga
+   supaya tiap cara bayar terbaca sebagai satu kelompok. */
+.tabel-pl thead th { position: sticky; top: 0; z-index: 1; }
+.tabel-pl thead tr + tr th { top: 27px; }
+.tabel-pl th.tengah { text-align: center; }
+.tabel-pl .tabel-ringkas th.skema, .tabel-pl .tabel-ringkas td.skema {
+  border-left: 1px solid var(--line);
+}

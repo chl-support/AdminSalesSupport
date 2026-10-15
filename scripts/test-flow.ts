@@ -1774,6 +1774,9 @@ async function main() {
       "KPR DP 0% Express": '{"jenis":"kpr-dp0"}',
       "KPR DP 10%/4x": '{"jenis":"kpr-cicil","muka":0.1,"kali":4}',
       "KPR DP 20%/6x": '{"jenis":"kpr-cicil","muka":0.2,"kali":6}',
+      // Lembar Pricelist Naraya menuliskannya tanpa kata KPR.
+      "DP 10%/4x": '{"jenis":"kpr-cicil","muka":0.1,"kali":4}',
+      "DP 20%/6x": '{"jenis":"kpr-cicil","muka":0.2,"kali":6}',
     };
     for (const [nama, json] of Object.entries(harap)) {
       const b = JSON.stringify(bentukSkema(nama));
@@ -1813,6 +1816,36 @@ async function main() {
            `angka Indonesia: ${JSON.stringify(h.unit[0])}`);
     assert(h.galat.some((g) => g.includes("dua kali")), "Unit No dobel");
     assert(h.galat.some((g) => g.includes("bukan angka")), "sel bukan angka");
+
+    // Susunan lembar Pricelist Naraya: keterangan Phase/Ukuran/View/Sub-Tipe,
+    // tiap harga diikuti DPP dan Nilai Free PPN DTP, dan lembar lain berkolom
+    // "Unit No" bernomor urut dobel di depannya.
+    const wn = new ExcelJS.Workbook();
+    const wd = wn.addWorksheet("Data Pricelist");
+    wd.addRow(["Unit No", "Address", "Tipe", "Land", "Build", "Cash Keras"]);
+    wd.addRow([1, "A", 7, 85, 88, 1]); wd.addRow([1, "A", 7, 85, 88, 1]);
+    const wp = wn.addWorksheet("Pricelist");
+    wp.addRow(["PRICELIST"]);
+    wp.addRow(["No", "Address", "Unit No", "Phase", "Ukuran", "View", "Tipe",
+               "Sub-Tipe", "Area (M²)", "", "Cash Keras", "DPP",
+               "NILAI FREE PPN DTP \nCASH KERAS", "DP 10%/4x", "DPP",
+               "NILAI FREE PPN DTP \nDP 10%/4x"]);
+    wp.addRow(["", "", "", "", "", "", "", "", "Land", "Build"]);
+    wp.addRow([1, "NARAYA 1", "NS-NR1-01", 1, "8,5x18,5", "SELATAN", 7,
+               "Hoek (IRR K)", 146.5, 88, 1_817_000_000, 1_636_936_937,
+               180_063_063, 2_023_000_000, 1_822_522_523, 200_477_477]);
+    const n = await bacaPricelist(await wn.xlsx.writeBuffer() as ArrayBuffer);
+    assert(n.lembar === "Pricelist" && n.galat.length === 0,
+           `lembar ${n.lembar}: ${n.galat.join("; ")}`);
+    assert(JSON.stringify(n.skema.map((s) => s.nama)) === '["Cash Keras","DP 10%/4x"]',
+           `skema: ${n.skema.map((s) => s.nama).join(", ")}`);
+    const u = n.unit[0];
+    assert(u.kode === "NS-NR1-01" && u.phase === "1" && u.view === "SELATAN" &&
+           u.ukuran === "8,5x18,5" && u.subTipe === "Hoek (IRR K)",
+           `keterangan: ${JSON.stringify(u)}`);
+    assert(u.pajak?.["DP 10%/4x"]?.dpp === 1_822_522_523 &&
+           u.pajak?.["Cash Keras"]?.dtp === 180_063_063,
+           `pajak: ${JSON.stringify(u.pajak)}`);
   });
 
   console.log("\n" + "=".repeat(62));

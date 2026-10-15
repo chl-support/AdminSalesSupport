@@ -106,6 +106,12 @@ function bacaLembar(ws: ExcelJS.Worksheet): HasilBaca | null {
   const kTipe = cari(/^(tipe|type)$/i);
   const kLt = cari(/^(land|tanah|lt|luas tanah)$/i);
   const kLb = cari(/^(build|building|bangunan|lb|luas bangunan)$/i);
+  // Keterangan tambahan, ada pada pricelist lengkap (lembar "Pricelist"
+  // Naraya): ikut dibaca bila ada, tidak dipersoalkan bila tidak ada.
+  const kPhase = cari(/^(phase|fase|tahap)$/i);
+  const kUkuran = cari(/^(ukuran|dimensi|size)$/i);
+  const kView = cari(/^(view|hadap|arah hadap)$/i);
+  const kSub = cari(/^sub[\s-]?(tipe|type)$/i);
   const adaSub = H2.some((h) => /^(land|build|tanah|bangunan|lt|lb)$/i.test(h));
   const mulai = judul + (adaSub ? 2 : 1);
 
@@ -120,11 +126,19 @@ function bacaLembar(ws: ExcelJS.Worksheet): HasilBaca | null {
   // Kolom harga: seluruh kolom berjudul di kanan kolom identitas unit. Sel yang
   // dinaungi gabungan vertikal (mis. "CASH KERAS" yang di-merge dua baris)
   // membawa nama yang sama pada baris kedua, maka nama diambil dari baris judul.
-  const terakhir = Math.max(kUnit, kAlamat, kTipe, kLt, kLb);
-  const kolom: { i: number; nama: string }[] = [];
+  //
+  // Kolom DPP dan "NILAI FREE PPN DTP …" bukan cara bayar: keduanya milik
+  // kolom harga di sebelah kirinya, seperti susunan lembar Pricelist Naraya
+  // (Cash Keras | DPP | Nilai Free PPN DTP Cash Keras | Cicilan 12X | …).
+  const terakhir = Math.max(kUnit, kAlamat, kTipe, kLt, kLb, kPhase, kUkuran, kView, kSub);
+  const kolom: { i: number; nama: string; dpp?: number; dtp?: number }[] = [];
   for (let i = terakhir + 1; i < H.length; i++) {
     const nama = H[i] || H2[i];
-    if (nama && !kolom.some((k) => k.nama === nama)) kolom.push({ i, nama });
+    if (!nama) continue;
+    const induk = kolom[kolom.length - 1];
+    if (/^dpp\b/i.test(nama)) { if (induk && induk.dpp == null) induk.dpp = i; continue; }
+    if (/ppn\s*dtp|free\s*ppn/i.test(nama)) { if (induk && induk.dtp == null) induk.dtp = i; continue; }
+    if (!kolom.some((k) => k.nama === nama)) kolom.push({ i, nama });
   }
   if (!kolom.length) {
     galat.push("Tidak ada kolom harga di kanan kolom Build.");
@@ -176,15 +190,29 @@ function bacaLembar(ws: ExcelJS.Worksheet): HasilBaca | null {
         if (v < 1_000_000) kecil++;
       } else if (v == null) kosong++;
     });
-    const luas = (i: number) => {
-      if (i < 0) return null;
+    const luas = (i: number | undefined) => {
+      if (i == null || i < 0) return null;
       const v = angkaSel(isi[i]);
       return v == null || Number.isNaN(v) ? null : v;
     };
+    const pajak: NonNullable<UnitHarga["pajak"]> = {};
+    for (const k of kolom) {
+      if (k.dpp == null && k.dtp == null) continue;
+      const dpp = luas(k.dpp), dtp = luas(k.dtp);
+      if (dpp != null || dtp != null) {
+        pajak[k.nama] = { dpp: dpp == null ? null : Math.round(dpp),
+                          dtp: dtp == null ? null : Math.round(dtp) };
+      }
+    }
+    const ket = (i: number) => (i < 0 ? "" : teks(isi[i]));
     unit.push({
-      kode, alamat: kAlamat < 0 ? "" : teks(isi[kAlamat]),
-      tipe: kTipe < 0 ? "" : teks(isi[kTipe]),
+      kode, alamat: ket(kAlamat), tipe: ket(kTipe),
       lt: luas(kLt), lb: luas(kLb), harga,
+      ...(ket(kPhase) && { phase: ket(kPhase) }),
+      ...(ket(kUkuran) && { ukuran: ket(kUkuran) }),
+      ...(ket(kView) && { view: ket(kView) }),
+      ...(ket(kSub) && { subTipe: ket(kSub) }),
+      ...(Object.keys(pajak).length && { pajak }),
     });
   }
 
@@ -219,8 +247,12 @@ function bacaLembar(ws: ExcelJS.Worksheet): HasilBaca | null {
 }
 
 /**
- * Baca berkas pricelist. Lembar yang dipakai adalah lembar pertama yang memuat
- * baris "Unit No" — atau lembar yang disebutkan namanya.
+ * Baca berkas pricelist. Lembar yang dipakai adalah lembar yang disebutkan
+ * namanya, atau — bila tidak disebutkan — lembar pertama yang memuat baris
+ * "Unit No" dan terbaca tanpa galat. Berkas dari bagian penjualan sering
+ * memuat beberapa lembar berkolom Unit No (mis. "Data Pricelist" berisi
+ * nomor urut, di samping lembar "Pricelist" yang sebenarnya); bila semuanya
+ * bergalat, yang ditampilkan adalah yang pertama.
  */
 export async function bacaPricelist(
   isi: ArrayBuffer, namaLembar?: string,
@@ -236,10 +268,14 @@ export async function bacaPricelist(
   const calon = namaLembar
     ? wb.worksheets.filter((w) => w.name === namaLembar)
     : wb.worksheets;
+  let pertama: HasilBaca | null = null;
   for (const ws of calon) {
     const h = bacaLembar(ws);
-    if (h) return { ...h, daftarLembar };
+    if (!h) continue;
+    if (!h.galat.length) return { ...h, daftarLembar };
+    pertama ??= h;
   }
+  if (pertama) return { ...pertama, daftarLembar };
   throw new Error(namaLembar
     ? `Lembar "${namaLembar}" tidak memuat kolom Unit No.`
     : "Tidak ada lembar yang memuat kolom Unit No. Pakai template dari layar " +
