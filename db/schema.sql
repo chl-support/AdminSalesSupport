@@ -938,6 +938,8 @@ CREATE TABLE IF NOT EXISTS pricelists (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS pricelists_satu_aktif
   ON pricelists (project_id) WHERE aktif;
+-- Berkas Excel asli tiap unggahan, untuk diunduh kembali dari layar Pricelist.
+ALTER TABLE pricelists ADD COLUMN IF NOT EXISTS berkas BYTEA;
 
 
 -- Jadwal pembayaran suntingan dari layar Simulasi / NPV. Tiap simpan menambah

@@ -46,9 +46,10 @@ export const POST = handler(async (req) => {
   const nama = String(form?.get("nama") ?? "").trim().slice(0, 120)
     || f.name.replace(/\.[^.]+$/, "");
 
+  const isi = await f.arrayBuffer();
   let hasil;
   try {
-    hasil = await bacaPricelist(await f.arrayBuffer(), lembar);
+    hasil = await bacaPricelist(isi, lembar);
   } catch (e: any) {
     throw new WorkflowError(String(e?.message ?? e), "validation", 422);
   }
@@ -62,7 +63,8 @@ export const POST = handler(async (req) => {
       "validation", 422, { galat: hasil.galat });
   }
   const { id } = await simpanPricelist({
-    projectId, nama, namaBerkas: f.name, hasil, aktor: user.username,
+    projectId, nama, namaBerkas: f.name, isi: Buffer.from(isi), hasil,
+    aktor: user.username,
   });
   return { dry_run: false, id, nama, jumlah_unit: hasil.unit.length };
 });

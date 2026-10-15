@@ -2946,3 +2946,15 @@ td.sel-surel, th.sel-surel { white-space: nowrap; font-size: 11.5px; }
 .tabel-pl .tabel-ringkas th.skema, .tabel-pl .tabel-ringkas td.skema {
   border-left: 1px solid var(--line);
 }
+/* Layar Pricelist: pricelist yang berlaku sebagai berkas di dalam folder. */
+.berkas-pl { display: flex; align-items: center; justify-content: space-between;
+             gap: 12px; flex-wrap: wrap; padding: 10px 12px; margin-bottom: 12px;
+             border: 1px solid var(--line, #ddd); border-radius: 8px; }
+.berkas-pl-nama { display: flex; align-items: center; gap: 10px; background: none;
+                  border: 0; padding: 0; text-align: left; cursor: pointer;
+                  min-width: 0; text-transform: none; }
+.berkas-pl-nama b { display: block; word-break: break-word; }
+.berkas-pl-nama small { display: block; color: var(--sub); font-weight: 400; }
+.berkas-pl-ikon { font-size: 26px; line-height: 1; }
+/* Nama berkas ditulis apa adanya, tidak ikut huruf kapital tombol. */
+.tabel-ringkas button.tautan { text-transform: none; font-weight: 400; }

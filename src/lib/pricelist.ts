@@ -358,6 +358,9 @@ export function ensureTabelPricelist(): Promise<void> {
       )`);
     await query(`CREATE UNIQUE INDEX IF NOT EXISTS pricelists_satu_aktif
                    ON pricelists (project_id) WHERE aktif`);
+    // Berkas Excel asli yang diunggah, supaya dapat diunduh kembali dari
+    // layar Pricelist. Unggahan sebelum kolom ini ada tidak memilikinya.
+    await query("ALTER TABLE pricelists ADD COLUMN IF NOT EXISTS berkas BYTEA");
   })().catch((e) => { sekali = null; throw e; });
   return sekali;
 }
@@ -366,6 +369,8 @@ export type RingkasPricelist = {
   id: string; nama: string; nama_berkas: string | null; lembar: string | null;
   jumlah_unit: number; jumlah_skema: number; aktif: boolean;
   diunggah_oleh: string | null; diunggah_pada: string;
+  /** Berkas Excel aslinya tersimpan dan dapat diunduh. */
+  ada_berkas: boolean;
 };
 
 export type PricelistBerlaku = {
@@ -380,7 +385,7 @@ export async function daftarPricelist(projectId: string): Promise<RingkasPriceli
   return query<RingkasPricelist>(
     `SELECT id, nama, nama_berkas, lembar, jumlah_unit,
             jsonb_array_length(skema) AS jumlah_skema, aktif,
-            diunggah_oleh, diunggah_pada
+            diunggah_oleh, diunggah_pada, berkas IS NOT NULL AS ada_berkas
        FROM pricelists WHERE project_id=$1
       ORDER BY diunggah_pada DESC`, [projectId]);
 }
@@ -406,6 +411,8 @@ export async function pricelistBerlaku(
 /** Simpan hasil baca sebagai pricelist yang berlaku untuk project-nya. */
 export async function simpanPricelist(input: {
   projectId: string; nama: string; namaBerkas: string;
+  /** Isi berkas Excel aslinya, disimpan untuk diunduh kembali. */
+  isi?: Buffer;
   hasil: HasilBaca; aktor: string;
 }): Promise<{ id: string }> {
   const { hasil } = input;
@@ -418,11 +425,11 @@ export async function simpanPricelist(input: {
                   [input.projectId]);
     const { rows } = await c.query<{ id: string }>(
       `INSERT INTO pricelists (project_id, nama, nama_berkas, lembar, skema, unit,
-                               jumlah_unit, aktif, diunggah_oleh)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,true,$8) RETURNING id`,
+                               jumlah_unit, aktif, diunggah_oleh, berkas)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,true,$8,$9) RETURNING id`,
       [input.projectId, input.nama, input.namaBerkas, hasil.lembar,
        JSON.stringify(hasil.skema.map((s) => s.nama)), JSON.stringify(hasil.unit),
-       hasil.unit.length, input.aktor]);
+       hasil.unit.length, input.aktor, input.isi ?? null]);
     await audit({
       entityType: "pricelist", entityId: rows[0].id, action: "pricelist_uploaded",
       actor: input.aktor,
@@ -431,6 +438,19 @@ export async function simpanPricelist(input: {
     }, c);
     return { id: rows[0].id };
   });
+}
+
+/** Berkas Excel asli sebuah unggahan milik project ini, atau null. */
+export async function berkasPricelist(
+  id: string, projectId: string,
+): Promise<{ nama: string; isi: Buffer } | null> {
+  await ensureTabelPricelist();
+  if (!UUID.test(id)) return null;
+  const row = await one<{ nama_berkas: string | null; nama: string; berkas: Buffer | null }>(
+    "SELECT nama_berkas, nama, berkas FROM pricelists WHERE id=$1 AND project_id=$2",
+    [id, projectId]);
+  if (!row?.berkas) return null;
+  return { nama: row.nama_berkas || `${row.nama}.xlsx`, isi: row.berkas };
 }
 
 /** Berlakukan kembali pricelist lama milik project yang sama. */

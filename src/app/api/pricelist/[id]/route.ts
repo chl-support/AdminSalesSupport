@@ -1,6 +1,22 @@
 import { handler, projectAktif, requireRole } from "@/lib/api";
 import { WorkflowError } from "@/lib/workflow";
-import { berlakukanPricelist, hapusPricelist } from "@/lib/pricelist";
+import { berkasPricelist, berlakukanPricelist, hapusPricelist } from "@/lib/pricelist";
+
+/** Unduh berkas Excel asli sebuah unggahan. Semua peran boleh, sama dengan GET daftarnya. */
+export const GET = handler(async (req, { params }) => {
+  const { id } = await params;
+  const projectId = await projectAktif(req);
+  const b = await berkasPricelist(id, projectId);
+  if (!b) throw new WorkflowError("Berkas pricelist ini tidak tersimpan.", "not_found", 404);
+  return new Response(new Uint8Array(b.isi), {
+    headers: {
+      "content-type":
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "content-disposition":
+        `attachment; filename*=UTF-8''${encodeURIComponent(b.nama)}`,
+    },
+  });
+});
 
 /** Berlakukan kembali pricelist lama — mis. bila unggahan terbaru keliru. */
 export const POST = handler(async (req, { params }) => {

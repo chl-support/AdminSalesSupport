@@ -8,8 +8,10 @@
  * beserta DPP dan Nilai Free PPN DTP-nya), dengan saringan unit di atasnya.
  *
  * Unggahannya sendiri dilakukan di layar Simulasi / NPV (panel Upload
- * Pricelist). Di sini pricelist yang berlaku dapat dibaca utuh, dan pricelist
- * lama dapat diberlakukan kembali atau dihapus.
+ * Pricelist). Di sini pricelist yang berlaku tampil sebagai satu berkas di
+ * dalam folder: tabel harganya baru dibuka bila berkas itu diklik, dan berkas
+ * Excel aslinya dapat diunduh. Pricelist lama dapat diunduh, diberlakukan
+ * kembali, atau dihapus.
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -29,6 +31,8 @@ const KATA = {
     keSimulasi: "Simulasi / NPV",
     unggahDi: "Pricelist baru diunggah di layar ",
     riwayat: "Riwayat unggahan",
+    buka: "Buka Tabel", tutup: "Tutup Tabel", unduh: "Unduh Berkas",
+    takAdaBerkas: "Berkas asli tidak tersimpan (diunggah sebelum fitur unduh ada).",
     riwayatKosong: "Belum ada unggahan untuk project ini.",
     rNama: "Nama", rBerkas: "Berkas", rUnit: "Unit", rSkema: "Cara bayar",
     rOleh: "Diunggah oleh", rPada: "Tanggal", rStatus: "Status",
@@ -51,6 +55,8 @@ const KATA = {
     keSimulasi: "Simulation / NPV",
     unggahDi: "New price lists are uploaded on the screen ",
     riwayat: "Upload history",
+    buka: "Open Table", tutup: "Close Table", unduh: "Download File",
+    takAdaBerkas: "Original file not stored (uploaded before downloads existed).",
     riwayatKosong: "No uploads for this project yet.",
     rNama: "Name", rBerkas: "File", rUnit: "Units", rSkema: "Schemes",
     rOleh: "Uploaded by", rPada: "Date", rStatus: "Status",
@@ -79,7 +85,7 @@ const SARING_KOSONG = { alamat: "", phase: "", view: "", subTipe: "" };
 type Ringkas = {
   id: string; nama: string; nama_berkas: string | null; jumlah_unit: number;
   jumlah_skema: number; aktif: boolean; diunggah_oleh: string | null;
-  diunggah_pada: string;
+  diunggah_pada: string; ada_berkas: boolean;
 };
 
 const LABEL_SARING = {
@@ -115,6 +121,7 @@ export default function PricelistPage() {
       (!q || [u.kode, u.alamat, u.ukuran, u.view, u.subTipe]
         .some((v) => v && String(v).toLowerCase().includes(q))));
   }, [berlaku, cari, saring]);
+  const [bukaTabel, setBukaTabel] = useState(false);
 
   const muat = useCallback(async () => {
     const res = await fetch("/api/pricelist");
@@ -143,6 +150,8 @@ export default function PricelistPage() {
     bahasa === "id" ? "id-ID" : "en-GB",
     { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
   const keSimulasi = <a href="/simulasi">{k.keSimulasi}</a>;
+  const aktif = riwayat.find((r) => r.aktif);
+  const unduh = (id: string) => { location.href = `/api/pricelist/${id}`; };
 
   return (
     <Kerangka sesi={sesi} lebar judul={<div><h1>{k.judul}</h1></div>}>
@@ -161,9 +170,29 @@ export default function PricelistPage() {
           ) : (
             <>
               <p className="hint" style={{ textAlign: "left", marginTop: 0 }}>
-                {k.ringkas(berlaku.unit.length, berlaku.skema.length)}
-                {" · "}{k.unggahDi}{keSimulasi}.
+                {k.unggahDi}{keSimulasi}.
               </p>
+              {/* Pricelist tampil sebagai berkas di dalam folder; tabelnya
+                  baru dibuka bila diminta. */}
+              <div className="berkas-pl">
+                <button className="berkas-pl-nama" aria-expanded={bukaTabel}
+                        onClick={() => setBukaTabel((x) => !x)}>
+                  <span className="berkas-pl-ikon" aria-hidden>{bukaTabel ? "📂" : "📁"}</span>
+                  <span>
+                    <b>{aktif?.nama_berkas ?? berlaku.nama}</b>
+                    <small>{k.ringkas(berlaku.unit.length, berlaku.skema.length)}
+                      {aktif && ` · ${aktif.diunggah_oleh ?? "—"} · ${tgl(aktif.diunggah_pada)}`}</small>
+                  </span>
+                </button>
+                <span className="row" style={{ margin: 0 }}>
+                  <button onClick={() => setBukaTabel((x) => !x)}>
+                    {bukaTabel ? k.tutup : k.buka}</button>
+                  <button className="pri" disabled={!aktif?.ada_berkas}
+                          title={aktif?.ada_berkas ? undefined : k.takAdaBerkas}
+                          onClick={() => aktif && unduh(aktif.id)}>{k.unduh}</button>
+                </span>
+              </div>
+              {bukaTabel && (<>
               <div className="filters rapat">
                 <div>
                   <div className="lbl">{k.fCari}</div>
@@ -205,6 +234,7 @@ export default function PricelistPage() {
               ) : (
                 <div className="banner info">{k.kosongSaring}</div>
               )}
+              </>)}
             </>
           )}
         </div>
@@ -226,7 +256,12 @@ export default function PricelistPage() {
                 {riwayat.map((r) => (
                   <tr key={r.id} className={r.aktif ? "terpilih" : undefined}>
                     <td>{r.nama}</td>
-                    <td>{r.nama_berkas ?? "—"}</td>
+                    <td>
+                      {r.ada_berkas
+                        ? <button className="tautan" onClick={() => unduh(r.id)}
+                                  title={k.unduh}>{r.nama_berkas ?? r.nama}</button>
+                        : (r.nama_berkas ?? "—")}
+                    </td>
                     <td className="n">{r.jumlah_unit}</td>
                     <td className="n">{r.jumlah_skema}</td>
                     <td>{r.diunggah_oleh ?? "—"}</td>
