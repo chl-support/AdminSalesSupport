@@ -25,7 +25,7 @@ const KATA = {
   id: {
     unggah: "Upload D-Pricelist",
     template: "Unduh template .xlsx",
-    fBerkas: "Berkas .xlsx",
+    fBerkas: "Berkas Excel",
     fNama: "Referensi Dokumen",
     fNamaContoh: "mis. Pricelist Oktober 2026",
     fLembar: "Lembar",
@@ -48,7 +48,7 @@ const KATA = {
   en: {
     unggah: "Upload D-Pricelist",
     template: "Download .xlsx template",
-    fBerkas: ".xlsx file",
+    fBerkas: "Excel file",
     fNama: "Document Reference",
     fNamaContoh: "e.g. Price list October 2026",
     fLembar: "Sheet",
