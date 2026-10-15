@@ -2926,3 +2926,7 @@ td.sel-surel, th.sel-surel { white-space: nowrap; font-size: 11.5px; }
 /* Panel Tarif PPN DTP: isian selebar selnya saat disunting. */
 .tscroll > .tabel-jadwal.tarif-dtp { min-width: 980px; }
 .tabel-jadwal.tarif-dtp td input { width: 100%; }
+
+/* Kolom Catatan pada Riwayat Perubahan Jadwal: dibungkus, tidak memanjang. */
+.tabel-ringkas td.riwayat-catatan { white-space: normal; min-width: 200px;
+                                    max-width: 340px; line-height: 1.4; }
