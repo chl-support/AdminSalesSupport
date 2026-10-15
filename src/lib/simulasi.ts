@@ -48,6 +48,20 @@ export type UnitHarga = {
   lb: number | null;
   /** Harga per cara bayar. Cara bayar yang tidak tersedia tidak ada di sini. */
   harga: Record<string, number>;
+  /**
+   * Keterangan unit yang dituliskan pricelist di samping kolom wajibnya —
+   * Phase, Ukuran, View, Sub-Tipe. Hanya ditampilkan; tidak ikut menghitung.
+   */
+  phase?: string;
+  ukuran?: string;
+  view?: string;
+  subTipe?: string;
+  /**
+   * DPP dan nilai free PPN DTP per cara bayar, bila pricelist-nya menuliskan
+   * kolom itu di sebelah kanan kolom harganya. Hanya ditampilkan; simulasi
+   * menghitung PPN DTP-nya sendiri dari tarif yang berlaku.
+   */
+  pajak?: Record<string, { dpp: number | null; dtp: number | null }>;
 };
 
 /**
@@ -82,7 +96,9 @@ export function bentukSkema(nama: string): Bentuk | null {
     const kali = x ? Number(x[1]) : 0;
     return kali >= 2 ? { jenis: "cicilan", kali } : null;
   }
-  if (/\b(kpr|kpa)\b/.test(n)) {
+  // "DP 10%/4x" tanpa kata KPR: DP yang dicicil lalu pelunasan bank, sama
+  // dengan "KPR DP 10%/4x". Pricelist Naraya menuliskannya demikian.
+  if (/\b(kpr|kpa)\b/.test(n) || /^dp\s*\d+(?:[.,]\d+)?\s*%\s*\/\s*\d+\s*x\b/.test(n)) {
     const dp = /dp\s*(\d+(?:[.,]\d+)?)\s*%/.exec(n);
     const muka = dp ? Number(dp[1].replace(",", ".")) / 100 : 0.1;
     if (muka === 0) return { jenis: "kpr-dp0" };

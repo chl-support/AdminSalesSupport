@@ -43,6 +43,8 @@ const KATA = {
     tersimpan: (n: string) => `Pricelist "${n}" tersimpan dan berlaku.`,
     gagal: "Gagal",
     kUnit: "Unit No", kAlamat: "Address", kTipe: "Tipe", kLt: "Land", kLb: "Build",
+    kNo: "No", kPhase: "Phase", kUkuran: "Ukuran", kView: "View", kSub: "Sub-Tipe",
+    kArea: "Area (M²)", kHarga: "Harga", kDpp: "DPP", kDtp: "Free PPN DTP",
     sisanya: (n: number) => `… dan ${n} unit lainnya`,
   },
   en: {
@@ -66,6 +68,8 @@ const KATA = {
     tersimpan: (n: string) => `Price list "${n}" saved and in force.`,
     gagal: "Failed",
     kUnit: "Unit No", kAlamat: "Address", kTipe: "Type", kLt: "Land", kLb: "Build",
+    kNo: "No", kPhase: "Phase", kUkuran: "Size", kView: "View", kSub: "Sub-type",
+    kArea: "Area (M²)", kHarga: "Price", kDpp: "DPP", kDtp: "Free VAT (DTP)",
     sisanya: (n: number) => `… and ${n} more units`,
   },
 };
@@ -82,40 +86,85 @@ type Pratinjau = {
 const luas = (n: number | null) =>
   n == null ? "—" : n.toLocaleString("id-ID", { maximumFractionDigits: 2 });
 
-/** Tabel unit × cara bayar, dalam susunan kolom yang sama dengan berkasnya. */
-export function TabelHarga({ skema, unit, batas }: {
+/** Kolom keterangan yang hanya tampil bila pricelist-nya menuliskannya. */
+const KETERANGAN = [
+  ["phase", "kPhase"], ["ukuran", "kUkuran"], ["view", "kView"],
+] as const;
+
+/**
+ * Tabel unit × cara bayar, dalam susunan kolom yang sama dengan lembar
+ * Pricelist di Excel: No, Address, Unit No, Phase, Ukuran, View, Tipe,
+ * Sub-Tipe, Area (Land, Build), lalu harga per cara bayar — masing-masing
+ * diikuti DPP dan Nilai Free PPN DTP bila `pajak` dinyalakan dan berkasnya
+ * memuat kolom itu. Kolom keterangan yang tidak ada di berkas tidak tampil.
+ */
+export function TabelHarga({ skema, unit, batas, pajak, tinggi = 420 }: {
   skema: string[]; unit: UnitHarga[]; batas?: number;
+  pajak?: boolean; tinggi?: number;
 }) {
   const k = useKata(KATA);
   const tampil = batas ? unit.slice(0, batas) : unit;
+  const ket = KETERANGAN.filter(([f]) => unit.some((u) => u[f]));
+  const adaSub = unit.some((u) => u.subTipe);
+  const denganPajak = !!pajak && unit.some((u) => u.pajak);
+  const lebarSkema = denganPajak ? 3 : 1;
+  const jumlahKolom = 6 + ket.length + (adaSub ? 1 : 0) + skema.length * lebarSkema;
+  const rp = (n: number | null | undefined) => (n ? formatRupiah(n) : "—");
   return (
-    <div className="tscroll" style={{ maxHeight: 420, overflowY: "auto" }}>
+    <div className="tscroll tabel-pl" style={{ maxHeight: tinggi, overflowY: "auto" }}>
       {/* Tanpa pindah baris: kode unit dan rupiah yang terpotong dua baris
           sulit dibaca berderet; tabelnya digulir ke samping saja. */}
-      <table className="tabel-ringkas" style={{ whiteSpace: "nowrap" }}><tbody>
-        <tr>
-          <th>{k.kUnit}</th><th>{k.kAlamat}</th><th>{k.kTipe}</th>
-          <th>{k.kLt}</th><th>{k.kLb}</th>
-          {skema.map((s) => <th key={s}>{s}</th>)}
-        </tr>
-        {tampil.map((u) => (
-          <tr key={u.kode}>
-            <td>{u.kode}</td><td>{u.alamat}</td><td>{u.tipe}</td>
-            <td className="n">{luas(u.lt)}</td><td className="n">{luas(u.lb)}</td>
+      <table className="tabel-ringkas" style={{ whiteSpace: "nowrap" }}>
+        <thead>
+          <tr>
+            <th rowSpan={2}>{k.kNo}</th>
+            <th rowSpan={2}>{k.kAlamat}</th>
+            <th rowSpan={2}>{k.kUnit}</th>
+            {ket.map(([f, kata]) => <th key={f} rowSpan={2}>{k[kata]}</th>)}
+            <th rowSpan={2}>{k.kTipe}</th>
+            {adaSub && <th rowSpan={2}>{k.kSub}</th>}
+            <th colSpan={2} className="tengah">{k.kArea}</th>
             {skema.map((s) => (
-              <td key={s} className="n">
-                {u.harga[s] ? formatRupiah(u.harga[s]) : "—"}
-              </td>
+              <th key={s} colSpan={lebarSkema} rowSpan={denganPajak ? 1 : 2}
+                  className="tengah skema">{s}</th>
             ))}
           </tr>
-        ))}
-        {tampil.length < unit.length && (
-          <tr><td colSpan={5 + skema.length} className="hint"
-                  style={{ textAlign: "left" }}>
-            {k.sisanya(unit.length - tampil.length)}
-          </td></tr>
-        )}
-      </tbody></table>
+          <tr>
+            <th>{k.kLt}</th><th>{k.kLb}</th>
+            {denganPajak && skema.map((s) => [
+              <th key={s + "h"} className="skema">{k.kHarga}</th>,
+              <th key={s + "d"}>{k.kDpp}</th>,
+              <th key={s + "t"}>{k.kDtp}</th>,
+            ])}
+          </tr>
+        </thead>
+        <tbody>
+          {tampil.map((u, i) => (
+            <tr key={u.kode}>
+              <td className="n">{i + 1}</td>
+              <td>{u.alamat}</td>
+              <td><b>{u.kode}</b></td>
+              {ket.map(([f]) => <td key={f}>{u[f] ?? "—"}</td>)}
+              <td>{u.tipe}</td>
+              {adaSub && <td>{u.subTipe ?? "—"}</td>}
+              <td className="n">{luas(u.lt)}</td><td className="n">{luas(u.lb)}</td>
+              {skema.map((s) => denganPajak ? [
+                <td key={s + "h"} className="n skema"><b>{rp(u.harga[s])}</b></td>,
+                <td key={s + "d"} className="n">{rp(u.pajak?.[s]?.dpp)}</td>,
+                <td key={s + "t"} className="n">{rp(u.pajak?.[s]?.dtp)}</td>,
+              ] : (
+                <td key={s} className="n skema">{rp(u.harga[s])}</td>
+              ))}
+            </tr>
+          ))}
+          {tampil.length < unit.length && (
+            <tr><td colSpan={jumlahKolom} className="hint"
+                    style={{ textAlign: "left" }}>
+              {k.sisanya(unit.length - tampil.length)}
+            </td></tr>
+          )}
+        </tbody>
+      </table>
     </div>
   );
 }
