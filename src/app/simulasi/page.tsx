@@ -79,9 +79,9 @@ const KATA = {
     // Judul kedua kotak ini ditukar atas permintaan bagian penjualan: kotak
     // pertama memilih kolom pricelist yang dipakai sebagai harga dasar, dan di
     // sanalah orang mencarinya. Yang ditukar hanya judulnya — isi kotaknya,
-    // termasuk "Sesuai Cara Bayar", tetap seperti semula.
+    // termasuk pilihan bawaannya, tetap seperti semula.
     fSkema: "PL Harga Dasar",
-    fPl: "Cara Bayar", fPlSama: "Sesuai Cara Bayar",
+    fPl: "Cara Bayar", fPlSama: "Sesuai PL",
     plBeda: (pl: string, sk: string) =>
       `Harga dari PL ${pl}, jadwal mengikuti ${sk}.`,
     fDiskon: "Diskon (%)",
@@ -173,7 +173,7 @@ const KATA = {
     fTanggal: "Booking Date",
     fUnit: "Unit No.",
     fSkema: "PL Base Price",
-    fPl: "Payment Scheme", fPlSama: "Same as Scheme",
+    fPl: "Payment Scheme", fPlSama: "Same as PL",
     plBeda: (pl: string, sk: string) =>
       `Price from the ${pl} list, schedule follows ${sk}.`,
     fDiskon: "Discount (%)",
@@ -664,7 +664,7 @@ export default function SimulasiPage() {
             <div className="lbl">{k.fPl}</div>
             {/* Semua kolom pricelist ditawarkan, termasuk yang sama dengan
                 cara bayarnya (mis. CASH KERAS): memilihnya sama hasilnya
-                dengan "Sesuai Cara Bayar", tetapi orang mencarinya dengan nama. */}
+                dengan "Sesuai PL", tetapi orang mencarinya dengan nama. */}
             <select value={plHarga && (unit?.harga[plHarga] ?? 0) > 0 ? plHarga : ""}
                     onChange={(e) => setPlHarga(e.target.value as Skema)}>
               <option value="">{k.fPlSama}</option>
