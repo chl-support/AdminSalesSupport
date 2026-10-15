@@ -2811,6 +2811,8 @@ td.sel-surel, th.sel-surel { white-space: nowrap; font-size: 11.5px; }
              gap: 14px; margin-bottom: 22px; }
 .ls-kepala .ganti-lambang { font: 400 30px/1 Georgia, "Times New Roman", serif;
                             letter-spacing: .06em; color: #5a4a42; }
+/* Logo project di pojok kanan atas; judul lembar tetap di tengah. */
+.ls-kepala > :first-child { align-self: flex-end; }
 .ls-sub { font-size: 13px; }
 .ls-data { margin: 0 0 18px 30px; }
 .ls-data td { padding: 1px 0; }
