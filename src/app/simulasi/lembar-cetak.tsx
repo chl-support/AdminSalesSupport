@@ -162,11 +162,12 @@ export function LembarManagement({ h, cash, unit, slug, nama, sembunyi }: {
 
   return (
     <div className="lembar-sim management">
-      {/* Logo project di pojok kiri atas, sama dengan lembar Konsumen. */}
+      {/* Logo project di pojok kiri atas, sama dengan lembar Konsumen. Nama
+          project tidak ditulis lagi di bawahnya: logo sudah menyebutnya, dan
+          tanpa berkas logo namanya yang ditulis di tempat itu. */}
       <div className="lm-logo">
         <LogoProject slug={slug} tinggi={40} alt={nama} gantiTeks={kluster} />
       </div>
-      <h1 className="lm-judul">{kluster}</h1>
 
       <div className="lm-dua">
         {/* ── Kiri: pembanding — cara bayar yang sama, tanpa diskon, jadwal

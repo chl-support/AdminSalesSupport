@@ -2836,7 +2836,7 @@ td.sel-surel, th.sel-surel { white-space: nowrap; font-size: 11.5px; }
 .lembar-sim.management { width: 277mm; padding: 6mm; box-sizing: border-box;
                           font-size: 11px; }
 .lm-judul { font: 700 20px/1.2 Arial, sans-serif; margin: 0 0 22px; }
-.lm-logo { margin-bottom: 10px; }
+.lm-logo { margin-bottom: 20px; }
 .lm-logo .ganti-lambang { font: 400 26px/1 Georgia, "Times New Roman", serif;
                           letter-spacing: .06em; color: #5a4a42; }
 .lm-dua { display: grid; grid-template-columns: 37fr 55fr; gap: 0 10px;
