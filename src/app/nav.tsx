@@ -101,14 +101,14 @@ const MENU: Butir[] = [
   // dan ditawarkan — sedangkan seluruh isi rumpun di atasnya dikerjakan
   // sesudah penjualannya jadi. Dua pekerjaan yang berurutan, bukan sejenis.
   //
-  // Pricelist diunggah per project di layar Simulasi, yang juga membacanya;
-  // layar Pricelist menampilkan yang berlaku beserta riwayat unggahannya.
+  // Pricelist diunggah per project di layar Simulasi, yang juga membacanya
+  // dan menampilkan yang berlaku beserta riwayat unggahannya. Layar Pricelist
+  // tersendiri sudah dilebur ke sana; /pricelist kini dialihkan ke /simulasi.
   {
     label: { id: "Simulasi & Pricelist", en: "Simulation & Price List" },
     anak: [
       { href: "/simulasi",
         label: { id: "Simulasi / NPV", en: "Simulation / NPV" } },
-      { href: "/pricelist", label: { id: "Pricelist", en: "Price List" } },
     ],
   },
   // Administrasi sempat hilang dari menu saat susunannya ditata ulang, padahal

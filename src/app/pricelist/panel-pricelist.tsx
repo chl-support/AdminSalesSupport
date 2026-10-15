@@ -1,0 +1,284 @@
+"use client";
+
+/**
+ * Pricelist yang berlaku untuk project terpilih, beserta riwayat unggahannya.
+ *
+ * Ditempatkan di layar Simulasi / NPV, tepat di bawah panel Upload
+ * D-Pricelist: orang yang mengunggah langsung melihat hasilnya di layar yang
+ * sama, dan yang menyusun simulasi tahu pricelist mana yang dipakai.
+ *
+ * Pricelist yang berlaku tampil sebagai satu berkas di dalam folder: tabel
+ * harganya (bersusun seperti lembar Pricelist di Excel, dengan saringan unit
+ * di atasnya) baru dibuka bila diminta, dan berkas Excel aslinya dapat
+ * diunduh. Pricelist lama di riwayat dapat diunduh, diberlakukan kembali,
+ * atau dihapus.
+ */
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+
+import { useBahasa, useKata } from "../bahasa";
+import type { Sesi } from "../session";
+import { PENGUNGGAH, TabelHarga } from "../simulasi/unggah-pricelist";
+import type { UnitHarga } from "@/lib/simulasi";
+
+const KATA = {
+  id: {
+    berlaku: "Pricelist yang berlaku",
+    tidakAda: "Project ini belum punya pricelist.",
+    ringkas: (u: number, s: number) => `${u} unit · ${s} cara bayar`,
+    riwayat: "Riwayat unggahan",
+    buka: "Buka Tabel", tutup: "Tutup Tabel", unduh: "Unduh Berkas",
+    takAdaBerkas: "Berkas asli tidak tersimpan (diunggah sebelum fitur unduh ada).",
+    riwayatKosong: "Belum ada unggahan untuk project ini.",
+    lihatRiwayat: (n: number) => `Riwayat unggahan (${n})`,
+    rNama: "Nama", rBerkas: "Berkas", rUnit: "Unit", rSkema: "Cara bayar",
+    rOleh: "Diunggah oleh", rPada: "Tanggal", rStatus: "Status",
+    sBerlaku: "Berlaku",
+    berlakukan: "Berlakukan", hapus: "Hapus",
+    yakinHapus: "Hapus pricelist ini?", ya: "Ya, hapus", batal: "Batal",
+    fCari: "Cari unit", fCariContoh: "mis. NR1-05 atau 8,5x10",
+    fAlamat: "Address", fPhase: "Phase", fView: "View", fSub: "Sub-Tipe",
+    semua: "Semua", pajak: "Tampilkan DPP & Nilai Free PPN DTP",
+    reset: "Reset saringan",
+    tersaring: (n: number, t: number) => `${n} dari ${t} unit tampil`,
+    kosongSaring: "Tidak ada unit yang cocok dengan saringan.",
+  },
+  en: {
+    berlaku: "Price list in force",
+    tidakAda: "This project has no price list yet.",
+    ringkas: (u: number, s: number) => `${u} units · ${s} payment schemes`,
+    riwayat: "Upload history",
+    buka: "Open Table", tutup: "Close Table", unduh: "Download File",
+    takAdaBerkas: "Original file not stored (uploaded before downloads existed).",
+    riwayatKosong: "No uploads for this project yet.",
+    lihatRiwayat: (n: number) => `Upload history (${n})`,
+    rNama: "Name", rBerkas: "File", rUnit: "Units", rSkema: "Schemes",
+    rOleh: "Uploaded by", rPada: "Date", rStatus: "Status",
+    sBerlaku: "In force",
+    berlakukan: "Apply", hapus: "Delete",
+    yakinHapus: "Delete this price list?", ya: "Yes, delete", batal: "Cancel",
+    fCari: "Search unit", fCariContoh: "e.g. NR1-05 or 8,5x10",
+    fAlamat: "Address", fPhase: "Phase", fView: "View", fSub: "Sub-type",
+    semua: "All", pajak: "Show DPP & free VAT (DTP)",
+    reset: "Reset filters",
+    tersaring: (n: number, t: number) => `${n} of ${t} units shown`,
+    kosongSaring: "No units match the filters.",
+  },
+};
+
+type Berlaku = {
+  id: string; nama: string;
+  skema: string[]; unit: UnitHarga[];
+};
+/** Kolom unit yang dapat disaring, dalam urutan tampilnya. */
+const SARING = ["alamat", "phase", "view", "subTipe"] as const;
+type Saring = (typeof SARING)[number];
+const SARING_KOSONG = { alamat: "", phase: "", view: "", subTipe: "" };
+
+type Ringkas = {
+  id: string; nama: string; nama_berkas: string | null; jumlah_unit: number;
+  jumlah_skema: number; aktif: boolean; diunggah_oleh: string | null;
+  diunggah_pada: string; ada_berkas: boolean;
+};
+
+const LABEL_SARING = {
+  alamat: "fAlamat", phase: "fPhase", view: "fView", subTipe: "fSub",
+} as const;
+
+export function PanelPricelist({ sesi, versi, onBerubah }: {
+  sesi: Sesi;
+  /** Dinaikkan induknya bila ada unggahan baru, supaya dibaca ulang. */
+  versi: number;
+  /** Dipanggil sesudah pricelist lain diberlakukan atau dihapus. */
+  onBerubah?: () => void;
+}) {
+  const k = useKata(KATA);
+  const { bahasa } = useBahasa();
+
+  const [berlaku, setBerlaku] = useState<Berlaku | null>(null);
+  const [riwayat, setRiwayat] = useState<Ringkas[]>([]);
+  const [galat, setGalat] = useState<string | null>(null);
+  const [hapusId, setHapusId] = useState<string | null>(null);
+  const [cari, setCari] = useState("");
+  const [saring, setSaring] = useState<Record<Saring, string>>(SARING_KOSONG);
+  const [pajak, setPajak] = useState(false);
+
+  // Pilihan tiap saringan diambil dari isi pricelist-nya sendiri; saringan
+  // yang kolomnya tidak ada di berkas tidak ditampilkan.
+  const pilihan = useMemo(() => {
+    const unit = berlaku?.unit ?? [];
+    const ambil = (f: Saring) => [...new Set(unit.map((u) => String(u[f] ?? "").trim())
+      .filter(Boolean))].sort((a, b) => a.localeCompare(b, "id", { numeric: true }));
+    return Object.fromEntries(SARING.map((f) => [f, ambil(f)])) as Record<Saring, string[]>;
+  }, [berlaku]);
+
+  const tersaring = useMemo(() => {
+    const q = cari.trim().toLowerCase();
+    return (berlaku?.unit ?? []).filter((u) =>
+      SARING.every((f) => !saring[f] || String(u[f] ?? "").trim() === saring[f]) &&
+      (!q || [u.kode, u.alamat, u.ukuran, u.view, u.subTipe]
+        .some((v) => v && String(v).toLowerCase().includes(q))));
+  }, [berlaku, cari, saring]);
+  const [bukaTabel, setBukaTabel] = useState(false);
+
+  const muat = useCallback(async () => {
+    const res = await fetch("/api/pricelist");
+    const b = await res.json().catch(() => ({}));
+    if (res.status === 401) { location.href = "/login"; return; }
+    if (!res.ok) { setGalat(b.detail ?? b.title ?? `HTTP ${res.status}`); return; }
+    setBerlaku(b.berlaku ?? null);
+    setRiwayat(b.riwayat ?? []);
+  }, []);
+
+  // `versi` naik setiap kali layar induknya menyimpan unggahan baru.
+  useEffect(() => { void muat(); }, [muat, versi]);
+
+  const ubah = async (id: string, metode: "POST" | "DELETE") => {
+    setGalat(null);
+    const res = await fetch(`/api/pricelist/${id}`, { method: metode });
+    const b = await res.json().catch(() => ({}));
+    if (!res.ok) setGalat(b.detail ?? b.title ?? `HTTP ${res.status}`);
+    setHapusId(null);
+    await muat();
+    onBerubah?.();
+  };
+
+  const bolehUbah = PENGUNGGAH.includes(sesi.role);
+  const tgl = (s: string) => new Date(s).toLocaleString(
+    bahasa === "id" ? "id-ID" : "en-GB",
+    { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  const aktif = riwayat.find((r) => r.aktif);
+  const unduh = (id: string) => { location.href = `/api/pricelist/${id}`; };
+
+  return (
+    <div className="panel sp">
+      <h2>
+        {k.berlaku}
+        {berlaku && <span className="pill ok">{berlaku.nama}</span>}
+      </h2>
+      {galat && <div className="banner stop">{galat}</div>}
+      {!berlaku ? (
+        <div className="banner info">{k.tidakAda}</div>
+      ) : (
+        <>
+          {/* Pricelist tampil sebagai berkas di dalam folder; tabelnya
+              baru dibuka bila diminta. */}
+          <div className="berkas-pl">
+            <button className="berkas-pl-nama" aria-expanded={bukaTabel}
+                    onClick={() => setBukaTabel((x) => !x)}>
+              <span className="berkas-pl-ikon" aria-hidden>{bukaTabel ? "📂" : "📁"}</span>
+              <span>
+                <b>{aktif?.nama_berkas ?? berlaku.nama}</b>
+                <small>{k.ringkas(berlaku.unit.length, berlaku.skema.length)}
+                  {aktif && ` · ${aktif.diunggah_oleh ?? "—"} · ${tgl(aktif.diunggah_pada)}`}</small>
+              </span>
+            </button>
+            <span className="row" style={{ margin: 0 }}>
+              <button onClick={() => setBukaTabel((x) => !x)}>
+                {bukaTabel ? k.tutup : k.buka}</button>
+              <button className="pri" disabled={!aktif?.ada_berkas}
+                      title={aktif?.ada_berkas ? undefined : k.takAdaBerkas}
+                      onClick={() => aktif && unduh(aktif.id)}>{k.unduh}</button>
+            </span>
+          </div>
+          {bukaTabel && (<>
+          <div className="filters rapat">
+            <div>
+              <div className="lbl">{k.fCari}</div>
+              <input id="pl-cari" type="search" value={cari}
+                     placeholder={k.fCariContoh}
+                     onChange={(e) => setCari(e.target.value)} />
+            </div>
+            {SARING.filter((f) => pilihan[f].length > 1).map((f) => (
+              <div key={f}>
+                <div className="lbl">{k[LABEL_SARING[f]]}</div>
+                <select id={`pl-${f}`} value={saring[f]}
+                        onChange={(e) => setSaring({ ...saring, [f]: e.target.value })}>
+                  <option value="">{k.semua}</option>
+                  {pilihan[f].map((v) => <option key={v} value={v}>{v}</option>)}
+                </select>
+              </div>
+            ))}
+          </div>
+          <div className="row" style={{ alignItems: "center", margin: "10px 0" }}>
+            {berlaku.unit.some((u) => u.pajak) && (
+              <label style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                <input id="pl-pajak" type="checkbox" checked={pajak}
+                       onChange={(e) => setPajak(e.target.checked)} />
+                {k.pajak}
+              </label>
+            )}
+            <span className="hint" style={{ margin: 0 }}>
+              {k.tersaring(tersaring.length, berlaku.unit.length)}
+            </span>
+            {(cari || SARING.some((f) => saring[f])) && (
+              <button onClick={() => { setCari(""); setSaring(SARING_KOSONG); }}>
+                {k.reset}
+              </button>
+            )}
+          </div>
+          {tersaring.length ? (
+            <TabelHarga skema={berlaku.skema} unit={tersaring}
+                        pajak={pajak} tinggi={640} />
+          ) : (
+            <div className="banner info">{k.kosongSaring}</div>
+          )}
+          </>)}
+        </>
+      )}
+
+      {/* Riwayat dilipat: yang dibuka sehari-hari hanya pricelist yang
+          berlaku; riwayatnya dibuka bila hendak memberlakukan kembali
+          atau menghapus unggahan lama. */}
+      <details className="riwayat-pl">
+        <summary>{k.lihatRiwayat(riwayat.length)}</summary>
+        {riwayat.length === 0 ? (
+          <p className="hint" style={{ textAlign: "left" }}>{k.riwayatKosong}</p>
+        ) : (
+          <div className="tscroll">
+            <table className="tabel-ringkas"><tbody>
+              <tr>
+                <th>{k.rNama}</th><th>{k.rBerkas}</th><th>{k.rUnit}</th>
+                <th>{k.rSkema}</th><th>{k.rOleh}</th><th>{k.rPada}</th>
+                <th>{k.rStatus}</th>
+              </tr>
+              {riwayat.map((r) => (
+                <tr key={r.id} className={r.aktif ? "terpilih" : undefined}>
+                  <td>{r.nama}</td>
+                  <td>
+                    {r.ada_berkas
+                      ? <button className="tautan" onClick={() => unduh(r.id)}
+                                title={k.unduh}>{r.nama_berkas ?? r.nama}</button>
+                      : (r.nama_berkas ?? "—")}
+                  </td>
+                  <td className="n">{r.jumlah_unit}</td>
+                  <td className="n">{r.jumlah_skema}</td>
+                  <td>{r.diunggah_oleh ?? "—"}</td>
+                  <td>{tgl(r.diunggah_pada)}</td>
+                  <td>
+                    {r.aktif ? (
+                      <span className="pill ok">{k.sBerlaku}</span>
+                    ) : !bolehUbah ? null : hapusId === r.id ? (
+                      <span className="row" style={{ margin: 0 }}>
+                        {k.yakinHapus}
+                        <button onClick={() => void ubah(r.id, "DELETE")}>{k.ya}</button>
+                        <button onClick={() => setHapusId(null)}>{k.batal}</button>
+                      </span>
+                    ) : (
+                      <span className="row" style={{ margin: 0 }}>
+                        <button onClick={() => void ubah(r.id, "POST")}>
+                          {k.berlakukan}
+                        </button>
+                        <button onClick={() => setHapusId(r.id)}>{k.hapus}</button>
+                      </span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody></table>
+          </div>
+        )}
+      </details>
+    </div>
+  );
+}
