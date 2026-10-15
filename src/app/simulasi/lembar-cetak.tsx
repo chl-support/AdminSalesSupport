@@ -74,24 +74,29 @@ function Rp({ n, tebal }: { n: number; tebal?: boolean }) {
  *
  * Namanya sendiri diringkas menurut permintaan bagian penjualan:
  *
- *   • mengandung KPR (atau KPA) → "Special Payment KPR", berapa pun DP dan
- *     cicilan uang mukanya; yang penting bagi konsumen pelunasannya lewat bank;
- *   • cicilan → "Special Payment Cicilan [n]x", dengan n dihitung dari
- *     jadwal yang benar-benar tercetak: seluruh baris kecuali booking fee,
- *     jadi angsuran terakhir maupun pelunasan ikut terhitung. Jadwal yang
- *     disunting karenanya menyebut angka yang sesuai dengan barisnya, bukan
- *     angka pada nama kolom pricelist yang sudah tidak berlaku lagi;
+ *   • mengandung KPR (atau KPA) → "Special Payment KPR" — selalu, ada diskon
+ *     maupun tidak, dan berapa pun DP serta cicilan uang mukanya: yang penting
+ *     bagi konsumen pelunasannya lewat bank;
+ *   • cicilan → "Special Payment Cicilan [n]x" — selalu, ada diskon maupun
+ *     tidak, sebab cicilan memang bukan cara bayar yang ditawarkan terbuka.
+ *     n dihitung dari jadwal yang benar-benar tercetak: seluruh baris kecuali
+ *     booking fee, jadi angsuran terakhir maupun pelunasan ikut terhitung dan
+ *     baris yang disembunyikan tidak. Jadwal yang disunting karenanya
+ *     menyebut angka yang sesuai dengan barisnya, bukan angka pada nama kolom
+ *     pricelist yang sudah tidak berlaku lagi;
  *   • selain itu → nama kolomnya sendiri, mis. "Special Payment CASH KERAS".
  */
 function caraBayarLembar(h: Hasil, barisTampil: { ket: string }[]): string {
-  const khusus = h.diskon > 0 || h.tambahan > 0 || h.jadwalDisunting;
-  if (!khusus) return h.skema;
+  // KPR dan cicilan lebih dulu, dan tanpa syarat: keduanya selalu disebut
+  // Special Payment, sekalipun tanpa diskon, penambahan, maupun suntingan.
   if (/\b(kpr|kpa)\b/i.test(h.skema)) return "Special Payment KPR";
   if (/cicilan|angsuran|installment|bertahap/i.test(h.skema)) {
     const n = barisTampil.filter((t) => !/booking/i.test(t.ket)).length;
     return `Special Payment Cicilan ${n}x`;
   }
-  return `Special Payment ${h.skema}`;
+  // Sisanya — cash — hanya bila ada yang diubah untuk konsumen ini.
+  const khusus = h.diskon > 0 || h.tambahan > 0 || h.jadwalDisunting;
+  return khusus ? `Special Payment ${h.skema}` : h.skema;
 }
 
 // ── Lembar Konsumen ────────────────────────────────────────────────────────
