@@ -28,7 +28,8 @@ import { useKata } from "../../bahasa";
 import { MemeriksaSesi } from "../../kerangka";
 import { useSesi } from "../../session";
 import { bentukSkema, hitung, type UnitHarga } from "@/lib/simulasi";
-import { LembarKonsumen, LembarManagement, namaPdf, unduhPdf, type Jenis }
+import { LembarKonsumen, LembarManagement, bacaJadwal, namaPdf, tanggalIso, unduhPdf,
+         type BarisSunting, type Jenis }
   from "../lembar-cetak";
 
 const KATA = {
@@ -55,6 +56,8 @@ const KATA = {
 type Masukan = {
   jenis: Jenis; kode: string; skema: string; tanggal: string;
   diskon: number; bunga: number;
+  /** Jadwal suntingan dari layar Simulasi; null = jadwal bawaan. */
+  jadwal: BarisSunting[] | null;
 };
 
 // ── Halaman ────────────────────────────────────────────────────────────────
@@ -80,6 +83,7 @@ export default function CetakSimulasiPage() {
       kode: q.get("kode") ?? "", skema: q.get("skema") ?? "",
       tanggal: q.get("tanggal") ?? "",
       diskon: num(q.get("diskon"), 0), bunga: num(q.get("bunga"), 4.65),
+      jadwal: bacaJadwal(q.get("jadwal")),
     });
   }, []);
 
@@ -113,8 +117,11 @@ export default function CetakSimulasiPage() {
   const hasil = useMemo(() => {
     if (!m || !unit || !(unit.harga[m.skema] > 0)) return null;
     return hitung({ unit, skema: m.skema, diskon: m.diskon / 100,
-                    bungaKpr: m.bunga / 100, tanggal: booking });
+                    bungaKpr: m.bunga / 100, tanggal: booking,
+                    jadwalManual: m.jadwal?.map((b) => ({
+                      ket: b.ket, tgl: tanggalIso(b.tgl, booking), nilai: b.nilai })) });
   }, [m, unit, booking]);
+  const sembunyi = m?.jadwal?.map((b) => b.sembunyi);
 
   // Sisi kiri lembar Management: Cash Keras pada harga pricelist-nya, tanpa
   // diskon — begitulah lembar pembandingnya di berkas Excel.
@@ -187,8 +194,9 @@ export default function CetakSimulasiPage() {
         : jenis === "konsumen"
           ? <LembarKonsumen h={hasil} unit={unit!} slug={sesi.project_slug ?? ""}
                             nama={nama} booking={booking}
-                            bungaKpr={(m?.bunga ?? 0) / 100} />
-          : <LembarManagement h={hasil} cash={cash!} unit={unit!} nama={nama} />}
+                            bungaKpr={(m?.bunga ?? 0) / 100} sembunyi={sembunyi} />
+          : <LembarManagement h={hasil} cash={cash!} unit={unit!} nama={nama}
+                              sembunyi={sembunyi} />}
       </div>
     </div>
   );

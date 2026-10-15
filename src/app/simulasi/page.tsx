@@ -24,8 +24,27 @@ import { useKata } from "../bahasa";
 import { Kerangka, MemeriksaSesi } from "../kerangka";
 import { useSesi } from "../session";
 import { PENGUNGGAH, UnggahPricelist } from "./unggah-pricelist";
-import { LembarKonsumen, LembarManagement, namaPdf, tglPendek, unduhPdf,
-         angka as angkaLembar, type Jenis } from "./lembar-cetak";
+import { LembarKonsumen, LembarManagement, kodeJadwal, namaPdf, tanggalIso,
+         tglPendek, unduhPdf, angka as angkaLembar, type Jenis }
+  from "./lembar-cetak";
+
+/**
+ * Satu baris jadwal yang sedang disunting. `teks` adalah nilai sebagaimana
+ * diketik; selama belum diketik, nilai aslinya dipakai utuh — cicilan yang
+ * tidak bulat tidak ikut dibulatkan hanya karena jadwalnya dibuka.
+ */
+type BarisUbah = {
+  ket: string; tgl: string; nilaiAsli: number; teks: string | null;
+  sembunyi: boolean; tambahan: boolean;
+};
+
+/** "1.234.567" atau "1234567,5" menjadi angka; kosong atau keliru menjadi 0. */
+const bacaRupiah = (s: string) => {
+  const n = Number(s.replace(/[^\d,.-]/g, "").replace(/\./g, "").replace(",", "."));
+  return Number.isFinite(n) ? n : 0;
+};
+const nilaiBaris = (b: BarisUbah) => b.teks == null ? b.nilaiAsli : bacaRupiah(b.teks);
+const iso = (d: Date) => d.toISOString().slice(0, 10);
 import { formatRupiah } from "@/lib/money";
 import { BUNGA_NPV, bentukSkema, hitung, lewatKpr, type Skema,
          type UnitHarga } from "@/lib/simulasi";
@@ -52,6 +71,16 @@ const KATA = {
     hargaSemua: "Harga per Cara Bayar",
     kSkema: "Cara Bayar", kHarga: "Harga",
     jadwal: "Jadwal Pembayaran",
+    eUbah: "Edit jadwal", eSelesai: "Selesai", eStandar: "Kembalikan jadwal standar",
+    eTambah: "Tambah baris", eSisip: "+ Baris", eSembunyi: "Hide", eTampil: "Tampilkan",
+    eHapus: "Hapus", eAksi: "Aksi", eDiubah: "Jadwal diubah",
+    eBaru: "Pembayaran",
+    eCatatan: "Keterangan, tanggal, dan nilai dapat diubah. Baris yang di-hide " +
+      "tidak tampil di tabel maupun lembar cetak/PDF, tetapi tetap masuk total " +
+      "dan NPV. Jadwal kembali ke standar bila unit, cara bayar, tanggal, atau " +
+      "diskon diganti.",
+    eSelisih: (tot: string, sel: string, h: string) =>
+      `Total jadwal ${tot} berbeda ${sel} dari Harga Transaksi ${h}.`,
     kKet: "Keterangan", kTempo: "Tgl", kHari: "Hari",
     kJumlah: "Nilai (VALUE)", kPv: "PV", kDtp: "DTP (PPN)",
     kTagihan: "Tagihan (DTP)",
@@ -104,6 +133,16 @@ const KATA = {
     hargaSemua: "Price per Payment Scheme",
     kSkema: "Payment Scheme", kHarga: "Price",
     jadwal: "Payment Schedule",
+    eUbah: "Edit schedule", eSelesai: "Done", eStandar: "Restore standard schedule",
+    eTambah: "Add row", eSisip: "+ Row", eSembunyi: "Hide", eTampil: "Show",
+    eHapus: "Delete", eAksi: "Actions", eDiubah: "Schedule edited",
+    eBaru: "Payment",
+    eCatatan: "Description, date and amount can be changed. Hidden rows do " +
+      "not appear in the table or the printed sheet/PDF, but still count in " +
+      "the totals and NPV. The schedule resets when the unit, payment scheme, " +
+      "date or discount changes.",
+    eSelisih: (tot: string, sel: string, h: string) =>
+      `Schedule total ${tot} differs by ${sel} from the Transaction Price ${h}.`,
     kKet: "Description", kTempo: "Date", kHari: "Days",
     kJumlah: "Value", kPv: "PV", kDtp: "VAT Borne by Govt",
     kTagihan: "Billed (net of VAT)",
@@ -202,10 +241,29 @@ export default function SimulasiPage() {
     return Number.isFinite(n) ? n : 0;
   };
 
-  const hasil = useMemo(() => unit && unit.harga[skema] > 0 ? hitung({
+  const hasilStandar = useMemo(() => unit && unit.harga[skema] > 0 ? hitung({
     unit, skema, diskon: angka(diskon) / 100,
     bungaKpr: angka(bunga) / 100, tanggal: booking,
   }) : null, [unit, skema, diskon, bunga, booking]);
+
+  // Jadwal suntingan. null = jadwal standar cara bayarnya. Disetel ulang
+  // setiap kali dasar jadwalnya berganti: suntingan untuk unit atau cara
+  // bayar lain tidak berlaku di sini.
+  const [ubah, setUbah] = useState<BarisUbah[] | null>(null);
+  const [modeUbah, setModeUbah] = useState(false);
+  useEffect(() => { setUbah(null); setModeUbah(false); },
+            [kode, skema, tanggal, diskon]);
+
+  const hasil = useMemo(() => {
+    if (!ubah || !unit || !hasilStandar) return hasilStandar;
+    return hitung({
+      unit, skema, diskon: angka(diskon) / 100, bungaKpr: angka(bunga) / 100,
+      tanggal: booking,
+      jadwalManual: ubah.map((b) => ({
+        ket: b.ket, tgl: tanggalIso(b.tgl, booking), nilai: nilaiBaris(b) })),
+    });
+  }, [ubah, hasilStandar, unit, skema, diskon, bunga, booking]);
+  const sembunyi = ubah?.map((b) => b.sembunyi);
 
   // Pembanding tetap Cash Keras, cara bayar yang paling ringkas jadwalnya dan
   // karena itu paling tinggi nilai sekarangnya — di situlah selisih cara bayar
@@ -311,6 +369,9 @@ export default function SimulasiPage() {
                     onClick={() => window.open(`/simulasi/cetak?${new URLSearchParams({
                       jenis, kode, skema, tanggal,
                       diskon: String(angka(diskon)), bunga: String(angka(bunga)),
+                      ...(ubah ? { jadwal: kodeJadwal(ubah.map((b) => ({
+                        ket: b.ket, tgl: b.tgl, nilai: nilaiBaris(b),
+                        sembunyi: b.sembunyi }))) } : {}),
                     })}`, "_blank")}>
               {jenis === "konsumen" ? k.cetakKonsumen : k.cetakManagement}
             </button>
@@ -330,11 +391,11 @@ export default function SimulasiPage() {
           {unduh === "konsumen" && hasil && unit && (
             <LembarKonsumen h={hasil} unit={unit} slug={sesi.project_slug ?? ""}
                             nama={sesi.project_name ?? ""} booking={booking}
-                            bungaKpr={angka(bunga) / 100} />
+                            bungaKpr={angka(bunga) / 100} sembunyi={sembunyi} />
           )}
           {unduh === "management" && hasil && cashPdf && unit && (
             <LembarManagement h={hasil} cash={cashPdf} unit={unit}
-                              nama={sesi.project_name ?? ""} />
+                              nama={sesi.project_name ?? ""} sembunyi={sembunyi} />
           )}
         </div>
       </div>
@@ -378,7 +439,49 @@ export default function SimulasiPage() {
           </div>
 
           <div className="panel sp">
-            <h2>{k.jadwal}<span className="pill">{skema}</span></h2>
+            <h2>
+              {k.jadwal}
+              <span>
+                <span className="pill">{skema}</span>
+                {ubah && <span className="pill warn">{k.eDiubah}</span>}
+              </span>
+            </h2>
+            <div className="row" style={{ marginTop: 0 }}>
+              {!modeUbah ? (
+                <button onClick={() => {
+                  setUbah((u) => u ?? hasilStandar!.termin.map((t) => ({
+                    ket: t.ket, tgl: iso(t.tgl), nilaiAsli: t.nilai, teks: null,
+                    sembunyi: false, tambahan: false })));
+                  setModeUbah(true);
+                }}>{k.eUbah}</button>
+              ) : (
+                <>
+                  <button onClick={() => setUbah((u) => u && [...u, {
+                    ket: k.eBaru, tgl: u[u.length - 1]?.tgl ?? tanggal,
+                    nilaiAsli: 0, teks: "0", sembunyi: false, tambahan: true }])}>
+                    {k.eTambah}
+                  </button>
+                  <button className="pri" onClick={() => setModeUbah(false)}>
+                    {k.eSelesai}
+                  </button>
+                </>
+              )}
+              {ubah && (
+                <button onClick={() => { setUbah(null); setModeUbah(false); }}>
+                  {k.eStandar}
+                </button>
+              )}
+            </div>
+            {modeUbah && (
+              <p className="hint" style={{ textAlign: "left", marginTop: 0 }}>{k.eCatatan}</p>
+            )}
+            {Math.abs(hasil.jumlahNilai - hasil.hargaTransaksi) >= 1 && (
+              <div className="banner warn">
+                {k.eSelisih(formatRupiah(Math.round(hasil.jumlahNilai)),
+                            formatRupiah(Math.round(hasil.jumlahNilai - hasil.hargaTransaksi)),
+                            formatRupiah(Math.round(hasil.hargaTransaksi)))}
+              </div>
+            )}
             <div className="tscroll">
               {/* Susunan dan penulisannya sama dengan sisi PERMINTAAN pada
                   lembar Management: tanpa nomor, keterangan berhuruf besar,
@@ -387,29 +490,66 @@ export default function SimulasiPage() {
                 <tr>
                   <th style={{ width: 170 }}>{k.kKet}</th>
                   <th style={{ width: 62 }}>{k.kHari}</th>
-                  <th style={{ width: 100 }}>{k.kTempo}</th>
+                  <th style={{ width: modeUbah ? 140 : 100 }}>{k.kTempo}</th>
                   <th>{k.kJumlah}</th>
                   <th>{k.kPv}</th>
                   <th>{k.kTagihan}</th>
                   <th>{k.kDtp}</th>
+                  {modeUbah && <th style={{ width: 210 }}>{k.eAksi}</th>}
                 </tr>
-                {hasil.termin.map((t, i) => (
-                  <tr key={i}>
-                    <td>{t.ket.toUpperCase()}</td>
-                    <td className="n">{t.hari || "-"}</td>
-                    <td>{tglPendek(t.tgl)}</td>
-                    <td className="n">{angkaLembar(t.nilai)}</td>
-                    <td className="n">{angkaLembar(t.pv)}</td>
-                    <td className="n">{angkaLembar(t.tagihan)}</td>
-                    <td className="n">{angkaLembar(t.dtp)}</td>
-                  </tr>
-                ))}
+                {hasil.termin.map((t, i) => {
+                  const b = ubah?.[i];
+                  if (b?.sembunyi && !modeUbah) return null;
+                  const ganti = (p: Partial<BarisUbah>) =>
+                    setUbah((u) => u && u.map((x, j) => j === i ? { ...x, ...p } : x));
+                  return (
+                    <tr key={i} className={b?.sembunyi ? "baris-sembunyi" : undefined}>
+                      <td>{modeUbah && b
+                        ? <input value={b.ket} onChange={(e) => ganti({ ket: e.target.value })} />
+                        : t.ket.toUpperCase()}</td>
+                      <td className="n">{t.hari || "-"}</td>
+                      <td>{modeUbah && b
+                        ? <input type="date" value={b.tgl}
+                                 onChange={(e) => ganti({ tgl: e.target.value })} />
+                        : tglPendek(t.tgl)}</td>
+                      <td className="n">{modeUbah && b
+                        ? <input className="n" inputMode="decimal"
+                                 value={b.teks ?? Math.round(b.nilaiAsli).toLocaleString("id-ID")}
+                                 onChange={(e) => ganti({ teks: e.target.value })} />
+                        : angkaLembar(t.nilai)}</td>
+                      <td className="n">{angkaLembar(t.pv)}</td>
+                      <td className="n">{angkaLembar(t.tagihan)}</td>
+                      <td className="n">{angkaLembar(t.dtp)}</td>
+                      {modeUbah && b && (
+                        <td>
+                          <span className="row" style={{ margin: 0, flexWrap: "nowrap" }}>
+                            <button onClick={() => ganti({ sembunyi: !b.sembunyi })}>
+                              {b.sembunyi ? k.eTampil : k.eSembunyi}
+                            </button>
+                            <button onClick={() => setUbah((u) => u && [
+                              ...u.slice(0, i + 1),
+                              { ket: k.eBaru, tgl: b.tgl, nilaiAsli: 0, teks: "0",
+                                sembunyi: false, tambahan: true },
+                              ...u.slice(i + 1)])}>{k.eSisip}</button>
+                            {b.tambahan && (
+                              <button onClick={() => setUbah((u) =>
+                                u && u.length > 1 ? u.filter((_, j) => j !== i) : u)}>
+                                {k.eHapus}
+                              </button>
+                            )}
+                          </span>
+                        </td>
+                      )}
+                    </tr>
+                  );
+                })}
                 <tr className="baris-total">
                   <td colSpan={3}>{k.total}</td>
                   <td className="n">{angkaLembar(hasil.jumlahNilai)}</td>
                   <td className="n">{angkaLembar(hasil.jumlahPv)}</td>
                   <td className="n">{angkaLembar(hasil.jumlahTagihan)}</td>
                   <td className="n">{angkaLembar(hasil.jumlahDtp)}</td>
+                  {modeUbah && <td />}
                 </tr>
               </tbody></table>
             </div>
