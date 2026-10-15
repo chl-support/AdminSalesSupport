@@ -2809,8 +2809,10 @@ td.sel-surel, th.sel-surel { white-space: nowrap; font-size: 11.5px; }
                border-bottom: 1px solid #000; }
 .ls-tabel td.rp { min-width: 105px; }
 .rp-isi { display: flex; justify-content: space-between; gap: 6px; }
-.ls-total td { border-top: 2px solid #000; border-bottom: 2px solid #000; }
-.ls-total td:first-child { border-left: 0; }
+/* Baris TOTAL tertutup penuh seperti baris lainnya, dengan garis tebal di
+   atas dan bawahnya. */
+.ls-total td { border: 1px solid #000; border-top: 2px solid #000;
+               border-bottom: 2px solid #000; }
 
 /* Management */
 .lembar-sim.management { width: 277mm; padding: 6mm; box-sizing: border-box;
