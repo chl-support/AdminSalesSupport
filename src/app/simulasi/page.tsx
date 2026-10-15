@@ -76,8 +76,12 @@ const KATA = {
     judul: "Simulasi / NPV",
     fTanggal: "Tanggal Booking",
     fUnit: "No. Unit",
-    fSkema: "Cara Bayar",
-    fPl: "PL Harga Permintaan", fPlSama: "Sesuai Cara Bayar",
+    // Judul kedua kotak ini ditukar atas permintaan bagian penjualan: kotak
+    // pertama memilih kolom pricelist yang dipakai sebagai harga dasar, dan di
+    // sanalah orang mencarinya. Yang ditukar hanya judulnya — isi kotaknya,
+    // termasuk "Sesuai Cara Bayar", tetap seperti semula.
+    fSkema: "PL Harga Dasar",
+    fPl: "Cara Bayar", fPlSama: "Sesuai Cara Bayar",
     plBeda: (pl: string, sk: string) =>
       `Harga dari PL ${pl}, jadwal mengikuti ${sk}.`,
     fDiskon: "Diskon (%)",
@@ -168,8 +172,8 @@ const KATA = {
     judul: "Simulation / NPV",
     fTanggal: "Booking Date",
     fUnit: "Unit No.",
-    fSkema: "Payment Scheme",
-    fPl: "Requested Price List", fPlSama: "Same as Scheme",
+    fSkema: "PL Base Price",
+    fPl: "Payment Scheme", fPlSama: "Same as Scheme",
     plBeda: (pl: string, sk: string) =>
       `Price from the ${pl} list, schedule follows ${sk}.`,
     fDiskon: "Discount (%)",
