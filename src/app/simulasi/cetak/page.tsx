@@ -6,7 +6,8 @@
  *   - Konsumen: "Simulasi Hitungan Rumah" — data unit, harga, dan jadwal
  *     pembayaran beserta tagihan setelah PPN DTP. Tanpa nilai sekarang:
  *     yang dibaca konsumen adalah berapa dan kapan ia membayar.
- *   - Management: lembar NPV berdampingan — Cash Keras di kiri sebagai
+ *   - Management: lembar NPV berdampingan — cara bayar yang sama pada harga
+ *     pricelist-nya (tanpa diskon) di kiri sebagai pembanding,
  *     pembanding, cara bayar yang diminta di kanan — lengkap dengan PV,
  *     PPN DTP, dan selisihnya terhadap Cash Keras.
  *
@@ -27,7 +28,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useKata } from "../../bahasa";
 import { MemeriksaSesi } from "../../kerangka";
 import { useSesi } from "../../session";
-import { bentukSkema, hitung, type UnitHarga } from "@/lib/simulasi";
+import { hitung, type UnitHarga } from "@/lib/simulasi";
 import { LembarKonsumen, LembarManagement, bacaJadwal, namaPdf, tanggalIso, unduhPdf,
          type BarisSunting, type Jenis }
   from "../lembar-cetak";
@@ -56,6 +57,8 @@ const KATA = {
 type Masukan = {
   jenis: Jenis; kode: string; skema: string; tanggal: string;
   diskon: number; bunga: number;
+  /** Kolom pricelist asal harga permintaan; "" = harga cara bayarnya. */
+  pl: string;
   /** Jadwal suntingan dari layar Simulasi; null = jadwal bawaan. */
   jadwal: BarisSunting[] | null;
 };
@@ -68,7 +71,6 @@ export default function CetakSimulasiPage() {
 
   const [m, setM] = useState<Masukan | null>(null);
   const [unit, setUnit] = useState<UnitHarga | null | undefined>(undefined);
-  const [skemaPl, setSkemaPl] = useState<string[]>([]);
   const [galat, setGalat] = useState<string | null>(null);
 
   // Masukan dibaca dari alamat setelah terpasang.
@@ -84,6 +86,7 @@ export default function CetakSimulasiPage() {
       tanggal: q.get("tanggal") ?? "",
       diskon: num(q.get("diskon"), 0), bunga: num(q.get("bunga"), 4.65),
       jadwal: bacaJadwal(q.get("jadwal")),
+      pl: q.get("pl") ?? "",
     });
   }, []);
 
@@ -94,7 +97,6 @@ export default function CetakSimulasiPage() {
       const b = await res.json().catch(() => ({}));
       if (res.status === 401) { location.href = "/login"; return; }
       if (!res.ok) { setGalat(b.detail ?? b.title ?? `HTTP ${res.status}`); return; }
-      setSkemaPl(b.berlaku?.skema ?? []);
       setUnit((b.berlaku?.unit ?? []).find((u: UnitHarga) => u.kode === m.kode) ?? null);
     })();
   }, [sesi, m]);
@@ -112,24 +114,27 @@ export default function CetakSimulasiPage() {
   const [muat, setMuat] = useState(1);
   const [menyusun, setMenyusun] = useState(false);
   const [galatPdf, setGalatPdf] = useState(false);
-  const tunai = skemaPl.find((s) => bentukSkema(s)?.jenis === "cash") ?? "";
 
   const hasil = useMemo(() => {
-    if (!m || !unit || !(unit.harga[m.skema] > 0)) return null;
-    return hitung({ unit, skema: m.skema, diskon: m.diskon / 100,
+    if (!m || !unit || !(unit.harga[m.pl || m.skema] > 0)) return null;
+    return hitung({ unit, skema: m.skema, skemaHarga: m.pl || undefined,
+                    diskon: m.diskon / 100,
                     bungaKpr: m.bunga / 100, tanggal: booking,
                     jadwalManual: m.jadwal?.map((b) => ({
                       ket: b.ket, tgl: tanggalIso(b.tgl, booking), nilai: b.nilai })) });
   }, [m, unit, booking]);
   const sembunyi = m?.jadwal?.map((b) => b.sembunyi);
 
-  // Sisi kiri lembar Management: Cash Keras pada harga pricelist-nya, tanpa
-  // diskon — begitulah lembar pembandingnya di berkas Excel.
+  // Sisi kiri lembar Management: cara bayar yang sama pada harga
+  // pricelist-nya, tanpa diskon dan dengan jadwal standarnya — begitulah
+  // lembar pembandingnya di berkas Excel. Selisih di sisi kanan karenanya
+  // terbaca sebagai akibat diskon dan suntingan jadwal, bukan akibat cara
+  // bayarnya.
   const cash = useMemo(() => {
-    if (!unit || !(unit.harga[tunai] > 0)) return null;
-    return hitung({ unit, skema: tunai, diskon: 0,
-                    bungaKpr: (m?.bunga ?? 0) / 100, tanggal: booking });
-  }, [unit, tunai, m, booking]);
+    if (!unit || !m || !(unit.harga[m.skema] > 0)) return null;
+    return hitung({ unit, skema: m.skema, diskon: 0,
+                    bungaKpr: m.bunga / 100, tanggal: booking });
+  }, [unit, m, booking]);
 
   const jenis = m?.jenis ?? "konsumen";
 

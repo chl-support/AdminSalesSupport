@@ -152,6 +152,8 @@ export type Termin = {
 export type Hasil = {
   unit: UnitHarga;
   skema: Skema;
+  /** Kolom pricelist asal harganya; sama dengan `skema` kecuali diminta lain. */
+  skemaHarga: Skema;
   hargaPricelist: number;
   diskon: number;
   hargaTransaksi: number;
@@ -311,9 +313,16 @@ export function angsuranBulanan(pokok: number, bungaSetahun: number, tahun: numb
 }
 
 export function hitung(
-  { unit, skema, diskon, bungaKpr, tanggal, jadwalManual }: {
+  { unit, skema, skemaHarga, diskon, bungaKpr, tanggal, jadwalManual }: {
     unit: UnitHarga;
+    /** Cara bayar yang menentukan bentuk jadwalnya. */
     skema: Skema;
+    /**
+     * Kolom pricelist yang harganya dipakai, bila berbeda dari cara bayarnya —
+     * mis. konsumen meminta jadwal BANK KPR dengan harga PL Cash Keras.
+     * Kosong berarti harga cara bayar itu sendiri.
+     */
+    skemaHarga?: Skema;
     /** Potongan atas harga pricelist, sebagai pecahan: 0,05 berarti 5%. */
     diskon: number;
     /** Bunga KPR setahun, dipakai hanya untuk simulasi angsuran. */
@@ -329,9 +338,10 @@ export function hitung(
   },
 ): Hasil {
   const booking = hari0(tanggal);
-  const hargaPricelist = unit.harga[skema];
+  const kolomHarga = skemaHarga || skema;
+  const hargaPricelist = unit.harga[kolomHarga];
   if (!(hargaPricelist > 0)) {
-    throw new Error(`Unit ${unit.kode} tidak punya harga untuk ${skema}.`);
+    throw new Error(`Unit ${unit.kode} tidak punya harga untuk ${kolomHarga}.`);
   }
   const potongan = hargaPricelist * diskon;
   const h = hargaPricelist - potongan;
@@ -376,7 +386,8 @@ export function hitung(
     : [];
 
   return {
-    unit, skema, hargaPricelist, diskon: potongan, hargaTransaksi: h,
+    unit, skema, skemaHarga: kolomHarga, hargaPricelist, diskon: potongan,
+    hargaTransaksi: h,
     bungaNpv: BUNGA_NPV,
     tarifDtp: pagu.tarif, dasarDtp: pagu.dasar, totalDtp: pagu.total,
     termin, jumlahNilai, jumlahPv,

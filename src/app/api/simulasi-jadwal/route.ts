@@ -26,6 +26,7 @@ export const POST = handler(async (req) => {
     return await simpanJadwal({
       projectId, aktor: user.username, catatan,
       kodeUnit: String(p.kode ?? ""), skema: String(p.skema ?? ""),
+      skemaHarga: String(p.skemaHarga ?? "").trim() || null,
       tanggal: String(p.tanggal ?? ""),
       diskon: Number(p.diskon) || 0, bunga: Number(p.bunga) || 0,
       baris: periksaBaris(p.baris),
