@@ -142,8 +142,8 @@ export function LembarKonsumen({ h, unit, slug, nama, booking, bungaKpr, sembuny
 
 // ── Lembar Management ──────────────────────────────────────────────────────
 
-export function LembarManagement({ h, cash, unit, nama, sembunyi }: {
-  h: Hasil; cash: Hasil; unit: UnitHarga; nama: string;
+export function LembarManagement({ h, cash, unit, slug, nama, sembunyi }: {
+  h: Hasil; cash: Hasil; unit: UnitHarga; slug: string; nama: string;
   /** Termin sisi PERMINTAAN yang disembunyikan; tetap masuk total. */
   sembunyi?: boolean[];
 }) {
@@ -162,6 +162,10 @@ export function LembarManagement({ h, cash, unit, nama, sembunyi }: {
 
   return (
     <div className="lembar-sim management">
+      {/* Logo project di pojok kiri atas, sama dengan lembar Konsumen. */}
+      <div className="lm-logo">
+        <LogoProject slug={slug} tinggi={40} alt={nama} gantiTeks={kluster} />
+      </div>
       <h1 className="lm-judul">{kluster}</h1>
 
       <div className="lm-dua">
