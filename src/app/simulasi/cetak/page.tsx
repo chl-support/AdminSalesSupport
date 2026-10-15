@@ -56,6 +56,8 @@ const KATA = {
 
 type Masukan = {
   jenis: Jenis; kode: string; skema: string; tanggal: string;
+  /** Penambahan harga di luar pricelist, dalam rupiah. */
+  tambah: number;
   diskon: number; bunga: number;
   /** Kolom pricelist asal harga permintaan; "" = harga cara bayarnya. */
   pl: string;
@@ -84,6 +86,7 @@ export default function CetakSimulasiPage() {
       jenis: q.get("jenis") === "management" ? "management" : "konsumen",
       kode: q.get("kode") ?? "", skema: q.get("skema") ?? "",
       tanggal: q.get("tanggal") ?? "",
+      tambah: num(q.get("tambah"), 0),
       diskon: num(q.get("diskon"), 0), bunga: num(q.get("bunga"), 4.65),
       jadwal: bacaJadwal(q.get("jadwal")),
       pl: q.get("pl") ?? "",
@@ -128,7 +131,7 @@ export default function CetakSimulasiPage() {
   const hasil = useMemo(() => {
     if (!tarifSiap || !m || !unit || !(unit.harga[m.pl || m.skema] > 0)) return null;
     return hitung({ unit, skema: m.skema, skemaHarga: m.pl || undefined,
-                    diskon: m.diskon / 100,
+                    tambahan: m.tambah, diskon: m.diskon / 100,
                     bungaKpr: m.bunga / 100, tanggal: booking, tarifDtp,
                     jadwalManual: m.jadwal?.map((b) => ({
                       ket: b.ket, tgl: tanggalIso(b.tgl, booking), nilai: b.nilai })) });

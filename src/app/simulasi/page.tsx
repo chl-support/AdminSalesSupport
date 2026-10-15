@@ -79,9 +79,10 @@ const KATA = {
     // Judul kedua kotak ini ditukar atas permintaan bagian penjualan: kotak
     // pertama memilih kolom pricelist yang dipakai sebagai harga dasar, dan di
     // sanalah orang mencarinya. Yang ditukar hanya judulnya — isi kotaknya,
-    // termasuk "Sesuai Cara Bayar", tetap seperti semula.
+    // termasuk pilihan bawaannya, tetap seperti semula.
     fSkema: "PL Harga Dasar",
-    fPl: "Cara Bayar", fPlSama: "Sesuai Cara Bayar",
+    fPl: "Cara Bayar", fPlSama: "Sesuai PL",
+    fTambah: "Penambahan Harga",
     plBeda: (pl: string, sk: string) =>
       `Harga dari PL ${pl}, jadwal mengikuti ${sk}.`,
     fDiskon: "Diskon (%)",
@@ -93,7 +94,8 @@ const KATA = {
     menyusun: "Menyusun PDF…",
     gagalPdf: "PDF tidak dapat disusun. Coba lagi, atau pakai Preview & Print Out lalu Simpan sebagai PDF.",
     rTipe: "Tipe", rLt: "Luas Tanah", rLb: "Luas Bangunan",
-    rPricelist: "Harga Price List", rDiskon: "Diskon",
+    rPricelist: "Harga Price List", rTambah: "Penambahan Harga",
+    rDiskon: "Diskon",
     rTransaksi: "Harga Transaksi (Include PPN)",
     hargaSemua: "Harga per Cara Bayar",
     kSkema: "Cara Bayar", kHarga: "Harga",
@@ -173,7 +175,8 @@ const KATA = {
     fTanggal: "Booking Date",
     fUnit: "Unit No.",
     fSkema: "PL Base Price",
-    fPl: "Payment Scheme", fPlSama: "Same as Scheme",
+    fPl: "Payment Scheme", fPlSama: "Same as PL",
+    fTambah: "Price Addition",
     plBeda: (pl: string, sk: string) =>
       `Price from the ${pl} list, schedule follows ${sk}.`,
     fDiskon: "Discount (%)",
@@ -185,7 +188,8 @@ const KATA = {
     menyusun: "Building PDF…",
     gagalPdf: "The PDF could not be built. Try again, or use Preview & Print Out and Save as PDF.",
     rTipe: "Type", rLt: "Land Area", rLb: "Building Area",
-    rPricelist: "List Price", rDiskon: "Discount",
+    rPricelist: "List Price", rTambah: "Price Addition",
+    rDiskon: "Discount",
     rTransaksi: "Transaction Price (Incl. VAT)",
     hargaSemua: "Price per Payment Scheme",
     kSkema: "Payment Scheme", kHarga: "Price",
@@ -285,6 +289,10 @@ export default function SimulasiPage() {
   const [skema, setSkema] = useState<Skema>("");
   // Kolom pricelist asal harga permintaan; "" = harga cara bayar itu sendiri.
   const [plHarga, setPlHarga] = useState<Skema>("");
+  // Penambahan harga di luar pricelist, dalam rupiah. Ditulis dengan titik
+  // ribuan seperti kolom Nilai (VALUE) pada jadwal, sebab angkanya berpuluh
+  // juta dan deretan nol tanpa pemisah salah dibaca.
+  const [tambah, setTambah] = useState("0");
   const [diskon, setDiskon] = useState("0");
   const [bunga, setBunga] = useState("4.65");
 
@@ -338,11 +346,14 @@ export default function SimulasiPage() {
   // Harga permintaan dari kolom lain hanya bila unit punya harga di kolom itu.
   const skemaHarga = plHarga && plHarga !== skema && unit && unit.harga[plHarga] > 0
     ? plHarga : undefined;
+  const nilaiTambah = bacaRupiah(tambah);
   const hasilStandar = useMemo(() => unit && unit.harga[skemaHarga ?? skema] > 0
     ? hitung({
-        unit, skema, skemaHarga, diskon: angka(diskon) / 100,
+        unit, skema, skemaHarga, tambahan: nilaiTambah,
+        diskon: angka(diskon) / 100,
         bungaKpr: angka(bunga) / 100, tanggal: booking, tarifDtp,
-      }) : null, [unit, skema, skemaHarga, diskon, bunga, booking, tarifDtp]);
+      }) : null,
+    [unit, skema, skemaHarga, nilaiTambah, diskon, bunga, booking, tarifDtp]);
 
   // Jadwal suntingan. null = jadwal standar cara bayarnya. Disetel ulang
   // setiap kali dasar jadwalnya berganti: suntingan untuk unit atau cara
@@ -351,7 +362,8 @@ export default function SimulasiPage() {
   // Suntingan melekat pada kuncinya — unit, cara bayar, tanggal, diskon. Bila
   // salah satunya diganti, layar kembali ke jadwal standar; membuka versi
   // tersimpan mengisi keempatnya sekaligus beserta barisnya.
-  const kunciKini = `${kode}|${skema}|${skemaHarga ?? ""}|${tanggal}|${angka(diskon)}`;
+  const kunciKini =
+    `${kode}|${skema}|${skemaHarga ?? ""}|${tanggal}|${nilaiTambah}|${angka(diskon)}`;
   const [ubahKunci, setUbahKunci] =
     useState<{ kunci: string; baris: BarisUbah[] } | null>(null);
   const ubah = ubahKunci?.kunci === kunciKini ? ubahKunci.baris : null;
@@ -377,7 +389,8 @@ export default function SimulasiPage() {
 
   // Riwayat versi tersimpan untuk unit dan cara bayar ini.
   type Versi = {
-    id: string; tanggal_booking: string; diskon: number; bunga: number;
+    id: string; tanggal_booking: string; tambahan: number;
+    diskon: number; bunga: number;
     baris: { ket: string; tgl: string; nilai: number; sembunyi: boolean;
              tambahan: boolean }[];
     catatan: string | null; disimpan_oleh: string | null; disimpan_pada: string;
@@ -428,7 +441,8 @@ export default function SimulasiPage() {
         method: "POST", headers: { "content-type": "application/json" },
         body: JSON.stringify({
           kode, skema, skemaHarga: skemaHarga ?? null,
-          tanggal, diskon: angka(diskon), bunga: angka(bunga),
+          tanggal, tambahan: nilaiTambah,
+          diskon: angka(diskon), bunga: angka(bunga),
           catatan, baris: ubah.map((b) => ({
             ket: b.ket, tgl: b.tgl, nilai: nilaiBaris(b),
             sembunyi: b.sembunyi, tambahan: b.tambahan })),
@@ -462,7 +476,7 @@ export default function SimulasiPage() {
       try {
         const tgl = tanggalIso(v.tanggal_booking, booking);
         const dasarV = { unit, skema, skemaHarga: v.skema_harga || undefined,
-                         diskon: v.diskon / 100,
+                         tambahan: v.tambahan ?? 0, diskon: v.diskon / 100,
                          bungaKpr: v.bunga / 100, tanggal: tgl, tarifDtp };
         setBanding({
           v, sebelum: hitung(dasarV),
@@ -473,11 +487,13 @@ export default function SimulasiPage() {
     }
     setTanggal(v.tanggal_booking);
     setPlHarga(v.skema_harga ?? "");
+    setTambah(rapikanRupiah(String(Math.round(v.tambahan ?? 0))));
     setDiskon(String(v.diskon));
     setBunga(String(v.bunga));
     setCatatan(v.catatan ?? "");
     setUbahKunci({
-      kunci: `${kode}|${skema}|${v.skema_harga ?? ""}|${v.tanggal_booking}|${v.diskon}`,
+      kunci: `${kode}|${skema}|${v.skema_harga ?? ""}|${v.tanggal_booking}` +
+             `|${v.tambahan ?? 0}|${v.diskon}`,
       baris: v.baris.map((b) => ({ ket: b.ket, tgl: b.tgl, nilaiAsli: b.nilai,
                                    teks: null, sembunyi: b.sembunyi,
                                    tambahan: b.tambahan })),
@@ -493,12 +509,14 @@ export default function SimulasiPage() {
   const hasil = useMemo(() => {
     if (!ubah || !unit || !hasilStandar) return hasilStandar;
     return hitung({
-      unit, skema, skemaHarga, diskon: angka(diskon) / 100,
+      unit, skema, skemaHarga, tambahan: nilaiTambah,
+      diskon: angka(diskon) / 100,
       bungaKpr: angka(bunga) / 100, tanggal: booking, tarifDtp,
       jadwalManual: ubah.map((b) => ({
         ket: b.ket, tgl: tanggalIso(b.tgl, booking), nilai: nilaiBaris(b) })),
     });
-  }, [ubah, hasilStandar, unit, skema, skemaHarga, diskon, bunga, booking, tarifDtp]);
+  }, [ubah, hasilStandar, unit, skema, skemaHarga, nilaiTambah, diskon, bunga,
+      booking, tarifDtp]);
   const sembunyi = ubah?.map((b) => b.sembunyi);
 
   /**
@@ -579,9 +597,9 @@ export default function SimulasiPage() {
   // karena itu paling tinggi nilai sekarangnya — di situlah selisih cara bayar
   // lain terbaca sebagai biaya menunggu.
   const dasar = useMemo(() => unit && unit.harga[tunai] > 0 ? hitung({
-    unit, skema: tunai, diskon: angka(diskon) / 100,
+    unit, skema: tunai, tambahan: nilaiTambah, diskon: angka(diskon) / 100,
     bungaKpr: angka(bunga) / 100, tanggal: booking, tarifDtp,
-  }) : null, [unit, tunai, diskon, bunga, booking, tarifDtp]);
+  }) : null, [unit, tunai, nilaiTambah, diskon, bunga, booking, tarifDtp]);
 
   // Unduh PDF: lembar cetaknya digambar di luar layar, dipotret, lalu
   // diunduh — lembar yang sama dengan halaman pratinjau, tanpa membuka tab.
@@ -664,7 +682,7 @@ export default function SimulasiPage() {
             <div className="lbl">{k.fPl}</div>
             {/* Semua kolom pricelist ditawarkan, termasuk yang sama dengan
                 cara bayarnya (mis. CASH KERAS): memilihnya sama hasilnya
-                dengan "Sesuai Cara Bayar", tetapi orang mencarinya dengan nama. */}
+                dengan "Sesuai PL", tetapi orang mencarinya dengan nama. */}
             <select value={plHarga && (unit?.harga[plHarga] ?? 0) > 0 ? plHarga : ""}
                     onChange={(e) => setPlHarga(e.target.value as Skema)}>
               <option value="">{k.fPlSama}</option>
@@ -672,6 +690,14 @@ export default function SimulasiPage() {
                 <option key={s} value={s} disabled={!((unit?.harga[s] ?? 0) > 0)}>{s}</option>
               ))}
             </select>
+          </div>
+          {/* Penambahan harga berdiri di kiri Diskon: keduanya menggeser
+              harga transaksi, dan dibaca berurutan — ditambah dulu, baru
+              dipotong. */}
+          <div>
+            <div className="lbl">{k.fTambah}</div>
+            <input value={tambah} inputMode="decimal"
+                   onChange={(e) => setTambah(rapikanRupiah(e.target.value))} />
           </div>
           <div>
             <div className="lbl">{k.fDiskon}</div>
@@ -692,6 +718,7 @@ export default function SimulasiPage() {
                     onClick={() => window.open(`/simulasi/cetak?${new URLSearchParams({
                       jenis, kode, skema, tanggal,
                       ...(skemaHarga ? { pl: skemaHarga } : {}),
+                      ...(nilaiTambah ? { tambah: String(nilaiTambah) } : {}),
                       diskon: String(angka(diskon)), bunga: String(angka(bunga)),
                       ...(ubah ? { jadwal: kodeJadwal(ubah.map((b) => ({
                         ket: b.ket, tgl: b.tgl, nilai: nilaiBaris(b),
@@ -767,6 +794,8 @@ export default function SimulasiPage() {
                       <td className="n">{luas(unit.lb)}</td></tr>
                   <tr><td>{k.rPricelist}</td>
                       <td className="n">{formatRupiah(hasil.hargaPricelist)}</td></tr>
+                  <tr><td>{k.rTambah}</td>
+                      <td className="n">{formatRupiah(hasil.tambahan)}</td></tr>
                   <tr><td>{k.rDiskon}</td>
                       <td className="n">{formatRupiah(hasil.diskon)}</td></tr>
                   <tr><td><b>{k.rTransaksi}</b></td>

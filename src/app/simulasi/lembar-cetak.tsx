@@ -64,6 +64,41 @@ function Rp({ n, tebal }: { n: number; tebal?: boolean }) {
                                    : <span className="rp-isi">{isi}</span>}</td>;
 }
 
+/**
+ * Nama cara bayar pada lembar Konsumen.
+ *
+ * Jadwal yang keluar dari pricelist apa adanya disebut dengan nama kolomnya.
+ * Begitu ada yang diubah untuk konsumen ini — diskon, penambahan harga, atau
+ * jadwal yang disunting tangan — yang dicetak bukan lagi cara bayar baku itu,
+ * melainkan kesepakatan tersendiri, dan diberi nama "Special Payment".
+ *
+ * Namanya sendiri diringkas menurut permintaan bagian penjualan:
+ *
+ *   • mengandung KPR (atau KPA) → "Special Payment KPR" — selalu, ada diskon
+ *     maupun tidak, dan berapa pun DP serta cicilan uang mukanya: yang penting
+ *     bagi konsumen pelunasannya lewat bank;
+ *   • cicilan → "Special Payment Cicilan [n]x" — selalu, ada diskon maupun
+ *     tidak, sebab cicilan memang bukan cara bayar yang ditawarkan terbuka.
+ *     n dihitung dari jadwal yang benar-benar tercetak: seluruh baris kecuali
+ *     booking fee, jadi angsuran terakhir maupun pelunasan ikut terhitung dan
+ *     baris yang disembunyikan tidak. Jadwal yang disunting karenanya
+ *     menyebut angka yang sesuai dengan barisnya, bukan angka pada nama kolom
+ *     pricelist yang sudah tidak berlaku lagi;
+ *   • selain itu → nama kolomnya sendiri, mis. "Special Payment CASH KERAS".
+ */
+function caraBayarLembar(h: Hasil, barisTampil: { ket: string }[]): string {
+  // KPR dan cicilan lebih dulu, dan tanpa syarat: keduanya selalu disebut
+  // Special Payment, sekalipun tanpa diskon, penambahan, maupun suntingan.
+  if (/\b(kpr|kpa)\b/i.test(h.skema)) return "Special Payment KPR";
+  if (/cicilan|angsuran|installment|bertahap/i.test(h.skema)) {
+    const n = barisTampil.filter((t) => !/booking/i.test(t.ket)).length;
+    return `Special Payment Cicilan ${n}x`;
+  }
+  // Sisanya — cash — hanya bila ada yang diubah untuk konsumen ini.
+  const khusus = h.diskon > 0 || h.tambahan > 0 || h.jadwalDisunting;
+  return khusus ? `Special Payment ${h.skema}` : h.skema;
+}
+
 // ── Lembar Konsumen ────────────────────────────────────────────────────────
 
 export function LembarKonsumen({ h, unit, slug, nama, booking, bungaKpr, sembunyi }: {
@@ -73,6 +108,7 @@ export function LembarKonsumen({ h, unit, slug, nama, booking, bungaKpr, sembuny
   /** Bunga KPR setahun, sebagai pecahan — untuk judul blok angsuran. */
   bungaKpr: number;
 }) {
+  const tampil = h.termin.filter((_, i) => !sembunyi?.[i]);
   return (
     <div className="lembar-sim konsumen">
       <div className="ls-kepala">
@@ -89,9 +125,14 @@ export function LembarKonsumen({ h, unit, slug, nama, booking, bungaKpr, sembuny
         <tr><td>Address</td><td>: {unit.alamat}</td>
             <td>Luas Bangunan</td><td>: {luas(unit.lb, 0)} M²</td></tr>
         <tr><td>No. Unit</td><td>: {unit.kode}</td><td /><td /></tr>
-        <tr><td>Cara Bayar</td><td>: {h.skema}</td><td /><td /></tr>
+        <tr><td>Cara Bayar</td>
+            <td>: {caraBayarLembar(h, tampil)}</td><td /><td /></tr>
         <tr><td>Harga Price List{h.skemaHarga !== h.skema && ` (PL ${h.skemaHarga})`}</td>
             <td>: Rp {angka(h.hargaPricelist)}</td><td /><td /></tr>
+        {h.tambahan > 0 && (
+          <tr><td>Penambahan Harga</td>
+              <td>: Rp {angka(h.tambahan)}</td><td /><td /></tr>
+        )}
         <tr><td>Diskon</td>
             <td>: Rp {angka(h.diskon)}</td>
             <td className="n">{persen(h.hargaPricelist ? h.diskon / h.hargaPricelist : 0)}</td>
@@ -105,7 +146,7 @@ export function LembarKonsumen({ h, unit, slug, nama, booking, bungaKpr, sembuny
           <th>No.</th><th>Keterangan</th><th>Jatuh Tempo</th>
           <th>Jumlah</th><th>Tagihan (DTP)</th><th>DTP (PPN)</th>
         </tr>
-        {h.termin.filter((_, i) => !sembunyi?.[i]).map((t, i) => (
+        {tampil.map((t, i) => (
           <tr key={i}>
             <td className="c">{i + 1}</td>
             <td>{t.ket}</td>
@@ -224,6 +265,10 @@ export function LembarManagement({ h, cash, unit, slug, nama, sembunyi }: {
           <table className="lm-harga"><tbody>
             <tr><td>HARGA PRICE LIST{h.skemaHarga !== h.skema && ` (PL ${h.skemaHarga})`}</td>
                 <td /><td className="n"><b>{angka(h.hargaPricelist)}</b></td></tr>
+            {h.tambahan > 0 && (
+              <tr><td>PENAMBAHAN HARGA</td>
+                  <td /><td className="n">{angka(h.tambahan)}</td></tr>
+            )}
             <tr><td>DISKON</td>
                 <td className="n">{persen(h.hargaPricelist ? h.diskon / h.hargaPricelist : 0)}</td>
                 <td className="n">{angka(h.diskon)}</td></tr>
