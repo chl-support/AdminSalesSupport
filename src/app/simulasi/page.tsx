@@ -885,7 +885,9 @@ export default function SimulasiPage() {
                       <td>{tglPendek(tanggalIso(v.tanggal_booking, booking))}</td>
                       <td className="n">{v.diskon.toLocaleString("id-ID")}%</td>
                       <td className="n">{v.bunga.toLocaleString("id-ID")}%</td>
-                      <td>{v.catatan ?? "—"}</td>
+                      {/* Catatan boleh panjang: dibungkus ke beberapa baris
+                          dalam kolom yang sempit, bukan memanjangkan tabel. */}
+                      <td className="riwayat-catatan">{v.catatan ?? "—"}</td>
                       <td className="n">
                         {angkaLembar(v.baris.reduce((a, b) => a + b.nilai, 0))}
                       </td>
