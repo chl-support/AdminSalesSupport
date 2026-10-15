@@ -92,6 +92,10 @@ export function LembarKonsumen({ h, unit, slug, nama, booking, bungaKpr, sembuny
         <tr><td>Cara Bayar</td><td>: {h.skema}</td><td /><td /></tr>
         <tr><td>Harga Price List{h.skemaHarga !== h.skema && ` (PL ${h.skemaHarga})`}</td>
             <td>: Rp {angka(h.hargaPricelist)}</td><td /><td /></tr>
+        {h.tambahan > 0 && (
+          <tr><td>Penambahan Harga</td>
+              <td>: Rp {angka(h.tambahan)}</td><td /><td /></tr>
+        )}
         <tr><td>Diskon</td>
             <td>: Rp {angka(h.diskon)}</td>
             <td className="n">{persen(h.hargaPricelist ? h.diskon / h.hargaPricelist : 0)}</td>
@@ -224,6 +228,10 @@ export function LembarManagement({ h, cash, unit, slug, nama, sembunyi }: {
           <table className="lm-harga"><tbody>
             <tr><td>HARGA PRICE LIST{h.skemaHarga !== h.skema && ` (PL ${h.skemaHarga})`}</td>
                 <td /><td className="n"><b>{angka(h.hargaPricelist)}</b></td></tr>
+            {h.tambahan > 0 && (
+              <tr><td>PENAMBAHAN HARGA</td>
+                  <td /><td className="n">{angka(h.tambahan)}</td></tr>
+            )}
             <tr><td>DISKON</td>
                 <td className="n">{persen(h.hargaPricelist ? h.diskon / h.hargaPricelist : 0)}</td>
                 <td className="n">{angka(h.diskon)}</td></tr>

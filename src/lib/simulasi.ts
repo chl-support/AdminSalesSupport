@@ -168,6 +168,8 @@ export type Hasil = {
   /** Kolom pricelist asal harganya; sama dengan `skema` kecuali diminta lain. */
   skemaHarga: Skema;
   hargaPricelist: number;
+  /** Penambahan harga dalam rupiah, di luar pricelist. */
+  tambahan: number;
   diskon: number;
   hargaTransaksi: number;
   bungaNpv: number;
@@ -326,8 +328,8 @@ export function angsuranBulanan(pokok: number, bungaSetahun: number, tahun: numb
 }
 
 export function hitung(
-  { unit, skema, skemaHarga, diskon, bungaKpr, tanggal, jadwalManual,
-    tarifDtp = TARIF_PPN_DTP }: {
+  { unit, skema, skemaHarga, tambahan = 0, diskon, bungaKpr, tanggal,
+    jadwalManual, tarifDtp = TARIF_PPN_DTP }: {
     unit: UnitHarga;
     /** Cara bayar yang menentukan bentuk jadwalnya. */
     skema: Skema;
@@ -337,6 +339,18 @@ export function hitung(
      * Kosong berarti harga cara bayar itu sendiri.
      */
     skemaHarga?: Skema;
+    /**
+     * Penambahan harga dalam rupiah — biaya di luar pricelist yang disepakati
+     * pada unit ini. Ditambahkan pada harga pricelist, sedangkan diskon tetap
+     * dihitung dari harga pricelist saja:
+     *
+     *     harga transaksi = harga PL + penambahan − (harga PL × diskon)
+     *
+     * Urutan itu diminta bagian penjualan: persentase diskon yang dijanjikan
+     * kepada konsumen melekat pada harga pricelist, dan tidak boleh ikut
+     * membesar hanya karena ada penambahan harga.
+     */
+    tambahan?: number;
     /** Potongan atas harga pricelist, sebagai pecahan: 0,05 berarti 5%. */
     diskon: number;
     /** Bunga KPR setahun, dipakai hanya untuk simulasi angsuran. */
@@ -360,7 +374,7 @@ export function hitung(
     throw new Error(`Unit ${unit.kode} tidak punya harga untuk ${kolomHarga}.`);
   }
   const potongan = hargaPricelist * diskon;
-  const h = hargaPricelist - potongan;
+  const h = hargaPricelist + tambahan - potongan;
 
   const kasar = jadwalManual?.length
     ? jadwalManual.map((k) => ({ ...k, tgl: hari0utc(k.tgl) }))
@@ -402,8 +416,8 @@ export function hitung(
     : [];
 
   return {
-    unit, skema, skemaHarga: kolomHarga, hargaPricelist, diskon: potongan,
-    hargaTransaksi: h,
+    unit, skema, skemaHarga: kolomHarga, hargaPricelist, tambahan,
+    diskon: potongan, hargaTransaksi: h,
     bungaNpv: BUNGA_NPV,
     tarifDtp: pagu.tarif, dasarDtp: pagu.dasar, totalDtp: pagu.total,
     termin, jumlahNilai, jumlahPv,

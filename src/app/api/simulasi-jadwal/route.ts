@@ -28,6 +28,7 @@ export const POST = handler(async (req) => {
       kodeUnit: String(p.kode ?? ""), skema: String(p.skema ?? ""),
       skemaHarga: String(p.skemaHarga ?? "").trim() || null,
       tanggal: String(p.tanggal ?? ""),
+      tambahan: Number(p.tambahan) || 0,
       diskon: Number(p.diskon) || 0, bunga: Number(p.bunga) || 0,
       baris: periksaBaris(p.baris),
     });
