@@ -28,6 +28,8 @@ export type VersiJadwal = {
   id: string;
   kode_unit: string;
   skema: string;
+  /** Kolom pricelist asal harganya; null = harga cara bayar itu sendiri. */
+  skema_harga: string | null;
   tanggal_booking: string;
   diskon: number;
   bunga: number;
@@ -59,6 +61,7 @@ export function ensureTabelJadwal(): Promise<void> {
         disimpan_oleh   TEXT,
         disimpan_pada   TIMESTAMPTZ NOT NULL DEFAULT now()
       )`);
+    await query(`ALTER TABLE simulasi_jadwal ADD COLUMN IF NOT EXISTS skema_harga TEXT`);
     await query(`CREATE INDEX IF NOT EXISTS simulasi_jadwal_unit
                    ON simulasi_jadwal (project_id, kode_unit, skema, disimpan_pada DESC)`);
   })().catch((e) => { sekali = null; throw e; });
@@ -92,7 +95,7 @@ export async function riwayatJadwal(
 ): Promise<VersiJadwal[]> {
   await ensureTabelJadwal();
   return query<VersiJadwal>(
-    `SELECT id, kode_unit, skema, to_char(tanggal_booking, 'YYYY-MM-DD') AS tanggal_booking,
+    `SELECT id, kode_unit, skema, skema_harga, to_char(tanggal_booking, 'YYYY-MM-DD') AS tanggal_booking,
             diskon::float8 AS diskon, bunga::float8 AS bunga, baris, catatan,
             disimpan_oleh, disimpan_pada
        FROM simulasi_jadwal
@@ -103,8 +106,8 @@ export async function riwayatJadwal(
 
 /** Tambahkan satu versi baru. Versi lama tidak pernah diubah. */
 export async function simpanJadwal(input: {
-  projectId: string; kodeUnit: string; skema: string; tanggal: string;
-  diskon: number; bunga: number; baris: BarisJadwal[]; catatan: string | null;
+  projectId: string; kodeUnit: string; skema: string; skemaHarga: string | null;
+  tanggal: string; diskon: number; bunga: number; baris: BarisJadwal[]; catatan: string | null;
   aktor: string;
 }): Promise<{ id: string }> {
   if (!input.kodeUnit || !input.skema) throw new Error("Unit dan cara bayar wajib diisi.");
@@ -113,11 +116,12 @@ export async function simpanJadwal(input: {
   return tx(async (c) => {
     const { rows } = await c.query<{ id: string }>(
       `INSERT INTO simulasi_jadwal (project_id, kode_unit, skema, tanggal_booking,
-                                    diskon, bunga, baris, catatan, disimpan_oleh)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id`,
+                                    diskon, bunga, baris, catatan, disimpan_oleh,
+                                    skema_harga)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id`,
       [input.projectId, input.kodeUnit, input.skema, input.tanggal,
        input.diskon, input.bunga, JSON.stringify(input.baris),
-       input.catatan, input.aktor]);
+       input.catatan, input.aktor, input.skemaHarga]);
     await audit({
       entityType: "simulasi_jadwal", entityId: rows[0].id,
       action: "simulasi_jadwal_saved", actor: input.aktor,

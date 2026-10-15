@@ -67,6 +67,9 @@ const KATA = {
     fTanggal: "Tanggal Booking",
     fUnit: "No. Unit",
     fSkema: "Cara Bayar",
+    fPl: "PL Harga Permintaan", fPlSama: "Sesuai Cara Bayar",
+    plBeda: (pl: string, sk: string) =>
+      `Harga dari PL ${pl}, jadwal mengikuti ${sk}.`,
     fDiskon: "Diskon (%)",
     fBunga: "Bunga KPR (%)",
     cetakKonsumen: "Preview & Print Out — Konsumen",
@@ -155,6 +158,9 @@ const KATA = {
     fTanggal: "Booking Date",
     fUnit: "Unit No.",
     fSkema: "Payment Scheme",
+    fPl: "Requested Price List", fPlSama: "Same as Scheme",
+    plBeda: (pl: string, sk: string) =>
+      `Price from the ${pl} list, schedule follows ${sk}.`,
     fDiskon: "Discount (%)",
     fBunga: "Mortgage Rate (%)",
     cetakKonsumen: "Preview & Print Out — Customer",
@@ -262,6 +268,8 @@ export default function SimulasiPage() {
   const [versiPl, setVersiPl] = useState(0);
   const [kode, setKode] = useState("");
   const [skema, setSkema] = useState<Skema>("");
+  // Kolom pricelist asal harga permintaan; "" = harga cara bayar itu sendiri.
+  const [plHarga, setPlHarga] = useState<Skema>("");
   const [diskon, setDiskon] = useState("0");
   const [bunga, setBunga] = useState("4.65");
 
@@ -303,10 +311,14 @@ export default function SimulasiPage() {
     return Number.isFinite(n) ? n : 0;
   };
 
-  const hasilStandar = useMemo(() => unit && unit.harga[skema] > 0 ? hitung({
-    unit, skema, diskon: angka(diskon) / 100,
-    bungaKpr: angka(bunga) / 100, tanggal: booking,
-  }) : null, [unit, skema, diskon, bunga, booking]);
+  // Harga permintaan dari kolom lain hanya bila unit punya harga di kolom itu.
+  const skemaHarga = plHarga && plHarga !== skema && unit && unit.harga[plHarga] > 0
+    ? plHarga : undefined;
+  const hasilStandar = useMemo(() => unit && unit.harga[skemaHarga ?? skema] > 0
+    ? hitung({
+        unit, skema, skemaHarga, diskon: angka(diskon) / 100,
+        bungaKpr: angka(bunga) / 100, tanggal: booking,
+      }) : null, [unit, skema, skemaHarga, diskon, bunga, booking]);
 
   // Jadwal suntingan. null = jadwal standar cara bayarnya. Disetel ulang
   // setiap kali dasar jadwalnya berganti: suntingan untuk unit atau cara
@@ -315,7 +327,7 @@ export default function SimulasiPage() {
   // Suntingan melekat pada kuncinya — unit, cara bayar, tanggal, diskon. Bila
   // salah satunya diganti, layar kembali ke jadwal standar; membuka versi
   // tersimpan mengisi keempatnya sekaligus beserta barisnya.
-  const kunciKini = `${kode}|${skema}|${tanggal}|${angka(diskon)}`;
+  const kunciKini = `${kode}|${skema}|${skemaHarga ?? ""}|${tanggal}|${angka(diskon)}`;
   const [ubahKunci, setUbahKunci] =
     useState<{ kunci: string; baris: BarisUbah[] } | null>(null);
   const ubah = ubahKunci?.kunci === kunciKini ? ubahKunci.baris : null;
@@ -345,6 +357,7 @@ export default function SimulasiPage() {
     baris: { ket: string; tgl: string; nilai: number; sembunyi: boolean;
              tambahan: boolean }[];
     catatan: string | null; disimpan_oleh: string | null; disimpan_pada: string;
+    skema_harga: string | null;
   };
   const [riwayat, setRiwayat] = useState<Versi[]>([]);
   const [versiRiwayat, setVersiRiwayat] = useState(0);
@@ -390,7 +403,8 @@ export default function SimulasiPage() {
       const res = await fetch("/api/simulasi-jadwal", {
         method: "POST", headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          kode, skema, tanggal, diskon: angka(diskon), bunga: angka(bunga),
+          kode, skema, skemaHarga: skemaHarga ?? null,
+          tanggal, diskon: angka(diskon), bunga: angka(bunga),
           catatan, baris: ubah.map((b) => ({
             ket: b.ket, tgl: b.tgl, nilai: nilaiBaris(b),
             sembunyi: b.sembunyi, tambahan: b.tambahan })),
@@ -423,7 +437,8 @@ export default function SimulasiPage() {
     if (unit) {
       try {
         const tgl = tanggalIso(v.tanggal_booking, booking);
-        const dasarV = { unit, skema, diskon: v.diskon / 100,
+        const dasarV = { unit, skema, skemaHarga: v.skema_harga || undefined,
+                         diskon: v.diskon / 100,
                          bungaKpr: v.bunga / 100, tanggal: tgl };
         setBanding({
           v, sebelum: hitung(dasarV),
@@ -433,11 +448,12 @@ export default function SimulasiPage() {
       } catch { setBanding(null); }
     }
     setTanggal(v.tanggal_booking);
+    setPlHarga(v.skema_harga ?? "");
     setDiskon(String(v.diskon));
     setBunga(String(v.bunga));
     setCatatan(v.catatan ?? "");
     setUbahKunci({
-      kunci: `${kode}|${skema}|${v.tanggal_booking}|${v.diskon}`,
+      kunci: `${kode}|${skema}|${v.skema_harga ?? ""}|${v.tanggal_booking}|${v.diskon}`,
       baris: v.baris.map((b) => ({ ket: b.ket, tgl: b.tgl, nilaiAsli: b.nilai,
                                    teks: null, sembunyi: b.sembunyi,
                                    tambahan: b.tambahan })),
@@ -453,12 +469,12 @@ export default function SimulasiPage() {
   const hasil = useMemo(() => {
     if (!ubah || !unit || !hasilStandar) return hasilStandar;
     return hitung({
-      unit, skema, diskon: angka(diskon) / 100, bungaKpr: angka(bunga) / 100,
-      tanggal: booking,
+      unit, skema, skemaHarga, diskon: angka(diskon) / 100,
+      bungaKpr: angka(bunga) / 100, tanggal: booking,
       jadwalManual: ubah.map((b) => ({
         ket: b.ket, tgl: tanggalIso(b.tgl, booking), nilai: nilaiBaris(b) })),
     });
-  }, [ubah, hasilStandar, unit, skema, diskon, bunga, booking]);
+  }, [ubah, hasilStandar, unit, skema, skemaHarga, diskon, bunga, booking]);
   const sembunyi = ubah?.map((b) => b.sembunyi);
 
   // Pembanding tetap Cash Keras, cara bayar yang paling ringkas jadwalnya dan
@@ -471,14 +487,14 @@ export default function SimulasiPage() {
 
   // Unduh PDF: lembar cetaknya digambar di luar layar, dipotret, lalu
   // diunduh — lembar yang sama dengan halaman pratinjau, tanpa membuka tab.
-  // Sisi kiri lembar Management adalah Cash Keras tanpa diskon, seperti di
-  // halaman pratinjaunya.
+  // Sisi kiri lembar Management adalah cara bayar yang sama tanpa diskon dan
+  // dengan jadwal standarnya, seperti di halaman pratinjaunya.
   const [unduh, setUnduh] = useState<Jenis | null>(null);
   const [galatPdf, setGalatPdf] = useState(false);
   const lembarPdf = useRef<HTMLDivElement | null>(null);
-  const cashPdf = useMemo(() => unit && unit.harga[tunai] > 0 ? hitung({
-    unit, skema: tunai, diskon: 0, bungaKpr: angka(bunga) / 100, tanggal: booking,
-  }) : null, [unit, tunai, bunga, booking]);
+  const cashPdf = useMemo(() => unit && unit.harga[skema] > 0 ? hitung({
+    unit, skema, diskon: 0, bungaKpr: angka(bunga) / 100, tanggal: booking,
+  }) : null, [unit, skema, bunga, booking]);
   useEffect(() => {
     if (!unduh) return;
     const el = lembarPdf.current?.firstElementChild as HTMLElement | null;
@@ -547,6 +563,16 @@ export default function SimulasiPage() {
             </select>
           </div>
           <div>
+            <div className="lbl">{k.fPl}</div>
+            <select value={skemaHarga ?? ""}
+                    onChange={(e) => setPlHarga(e.target.value as Skema)}>
+              <option value="">{k.fPlSama}</option>
+              {pl.skema.filter((s) => s !== skema).map((s) => (
+                <option key={s} value={s} disabled={!((unit?.harga[s] ?? 0) > 0)}>{s}</option>
+              ))}
+            </select>
+          </div>
+          <div>
             <div className="lbl">{k.fDiskon}</div>
             <input value={diskon} inputMode="decimal"
                    onChange={(e) => setDiskon(e.target.value)} />
@@ -564,6 +590,7 @@ export default function SimulasiPage() {
             <button key={jenis} disabled={!hasil}
                     onClick={() => window.open(`/simulasi/cetak?${new URLSearchParams({
                       jenis, kode, skema, tanggal,
+                      ...(skemaHarga ? { pl: skemaHarga } : {}),
                       diskon: String(angka(diskon)), bunga: String(angka(bunga)),
                       ...(ubah ? { jadwal: kodeJadwal(ubah.map((b) => ({
                         ket: b.ket, tgl: b.tgl, nilai: nilaiBaris(b),
@@ -606,7 +633,7 @@ export default function SimulasiPage() {
             <div className="sim-kotak">
               <span className="lbl">{k.ksHarga}</span>
               <b>{formatRupiah(Math.round(hasil.hargaTransaksi))}</b>
-              <small>{skema}{hasil.diskon > 0 &&
+              <small>{skemaHarga ? k.plBeda(skemaHarga, skema) : skema}{hasil.diskon > 0 &&
                 ` · ${k.ksDiskon(persen(hasil.diskon / hasil.hargaPricelist))}`}</small>
             </div>
             <div className="sim-kotak">

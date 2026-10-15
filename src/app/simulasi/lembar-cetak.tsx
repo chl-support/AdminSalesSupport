@@ -90,7 +90,7 @@ export function LembarKonsumen({ h, unit, slug, nama, booking, bungaKpr, sembuny
             <td>Luas Bangunan</td><td>: {luas(unit.lb, 0)} M²</td></tr>
         <tr><td>No. Unit</td><td>: {unit.kode}</td><td /><td /></tr>
         <tr><td>Cara Bayar</td><td>: {h.skema}</td><td /><td /></tr>
-        <tr><td>Harga Price List</td>
+        <tr><td>Harga Price List{h.skemaHarga !== h.skema && ` (PL ${h.skemaHarga})`}</td>
             <td>: Rp {angka(h.hargaPricelist)}</td><td /><td /></tr>
         <tr><td>Diskon</td>
             <td>: Rp {angka(h.diskon)}</td>
@@ -165,7 +165,8 @@ export function LembarManagement({ h, cash, unit, nama, sembunyi }: {
       <h1 className="lm-judul">{kluster}</h1>
 
       <div className="lm-dua">
-        {/* ── Kiri: Cash Keras, pembanding ── */}
+        {/* ── Kiri: pembanding — cara bayar yang sama, tanpa diskon, jadwal
+            standar. ── */}
         <div className="lm-sisi kiri">
           <Identitas label={cash.skema} />
           <table className="lm-luas"><tbody>
@@ -216,7 +217,8 @@ export function LembarManagement({ h, cash, unit, nama, sembunyi }: {
             </tr>
           </tbody></table>
           <table className="lm-harga"><tbody>
-            <tr><td>HARGA PRICE LIST</td><td /><td className="n"><b>{angka(h.hargaPricelist)}</b></td></tr>
+            <tr><td>HARGA PRICE LIST{h.skemaHarga !== h.skema && ` (PL ${h.skemaHarga})`}</td>
+                <td /><td className="n"><b>{angka(h.hargaPricelist)}</b></td></tr>
             <tr><td>DISKON</td>
                 <td className="n">{persen(h.hargaPricelist ? h.diskon / h.hargaPricelist : 0)}</td>
                 <td className="n">{angka(h.diskon)}</td></tr>
@@ -252,7 +254,7 @@ export function LembarManagement({ h, cash, unit, nama, sembunyi }: {
                 <td className="n">{persen(selisih(h.jumlahTagihan, cash.jumlahNilai))}</td>
                 <td /></tr>
             <tr className="lm-banding">
-              <td className="n"><b>Perbandingan terhadap Cash Keras</b></td>
+              <td className="n"><b>Perbandingan terhadap {cash.skema}</b></td>
               <td className="n kotak">{akuntansi(h.jumlahNilai - cash.jumlahNilai)}</td>
               <td className="n kotak">{akuntansi(h.jumlahPv - cash.jumlahPv)}</td>
               <td className="n kotak">{akuntansi(h.jumlahTagihan - cash.jumlahNilai)}</td>

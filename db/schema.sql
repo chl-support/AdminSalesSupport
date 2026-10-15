@@ -956,6 +956,9 @@ CREATE TABLE IF NOT EXISTS simulasi_jadwal (
   disimpan_oleh   TEXT,
   disimpan_pada   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+-- Kolom pricelist asal harga, bila konsumen meminta harga dari kolom lain
+-- (mis. jadwal BANK KPR dengan harga PL Cash Keras). NULL = harga cara bayarnya.
+ALTER TABLE simulasi_jadwal ADD COLUMN IF NOT EXISTS skema_harga TEXT;
 CREATE INDEX IF NOT EXISTS simulasi_jadwal_unit
   ON simulasi_jadwal (project_id, kode_unit, skema, disimpan_pada DESC);
 
