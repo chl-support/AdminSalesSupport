@@ -13,7 +13,7 @@ import { useEffect, useState } from "react";
 
 import { formatRupiah } from "@/lib/money";
 import {
-  FAKTOR, HARGA_KAS_AWAL, namaTahap, unitKosong,
+  FAKTOR, hargaKasIrr, hargaSesuaiSkema, namaTahap, unitKosong,
   type HasilSusun, type SusunPricelist, type UnitData,
 } from "@/lib/susun-pricelist";
 import type { UnitHarga } from "@/lib/simulasi";
@@ -53,9 +53,11 @@ function bacaAngka(s: string, jenis: Jenis): number | null {
  * dibaca saat kotak ditinggalkan atau Enter ditekan — supaya "9," yang baru
  * setengah diketik tidak langsung dibulatkan menjadi 9.
  */
-export function Isian({ nilai, ubah, jenis = "angka", lebar = 90, disabled, id }: {
+export function Isian({ nilai, ubah, jenis = "angka", lebar = 90, disabled, id, kosongNol }: {
   nilai: number; ubah: (n: number) => void; jenis?: Jenis; lebar?: number;
   disabled?: boolean; id?: string;
+  /** Tampilkan 0 sebagai kotak kosong (kolom yang biasanya tidak diisi). */
+  kosongNol?: boolean;
 }) {
   const [teks, setTeks] = useState<string | null>(null);
   const [salah, setSalah] = useState(false);
@@ -68,12 +70,13 @@ export function Isian({ nilai, ubah, jenis = "angka", lebar = 90, disabled, id }
   };
   return (
     <span className="isian-angka">
-      <input id={id} value={teks ?? tampilAngka(nilai, jenis)} disabled={disabled}
+      <input id={id} value={teks ?? (kosongNol && nilai === 0 ? "" : tampilAngka(nilai, jenis))}
+             disabled={disabled}
              inputMode="decimal" aria-invalid={salah || undefined}
              style={{ width: lebar }}
              onChange={(e) => setTeks(e.target.value)} onBlur={simpan}
              onKeyDown={(e) => { if (e.key === "Enter") simpan(); }} />
-      {jenis === "persen" && <span className="satuan">%</span>}
+      {jenis === "persen" && <span className="satuan">{kosongNol && nilai === 0 && teks == null ? "" : "%"}</span>}
     </span>
   );
 }
@@ -187,18 +190,20 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
                   {editKas ? "Selesai" : "Edit"}</button>
               )}
             </td>
-            {irr.skema.map((s, i) => (
-              <td key={i} className="n">
-                {editKas && bolehUbah
-                  ? <Isian id={`irr-kas-${i}`} jenis="rp" nilai={s.hargaKas ?? HARGA_KAS_AWAL} lebar={120}
-                           ubah={(n) => ubahArus(i, (x) => ({ ...x, hargaKas: n }))} />
-                  : rp(s.hargaKas ?? HARGA_KAS_AWAL)}
-              </td>))}
+            {/* Satu Cash Price untuk semua cara bayar; Adjusted Price tiap
+                cara bayar = angka ini × koefisiennya. */}
+            <td colSpan={irr.skema.length} className="kas-tunggal">
+              {editKas && bolehUbah
+                ? <Isian id="irr-kas" jenis="rp" nilai={hargaKasIrr(irr)} lebar={160}
+                         ubah={(n) => ubah((d) => ({ ...d, irr: { ...d.irr, hargaKas: n } }))} />
+                : <b>{rp(hargaKasIrr(irr))}</b>}
+              <span className="hint" style={{ margin: "0 0 0 10px" }}>
+                dipakai semua cara bayar · Adjusted Price = Cash Price × Coefficient
+              </span>
+            </td>
           </tr>
-          <tr><td>Acuan (Cash Keras)</td>{irr.skema.map((s, i) => (
-            <td key={i}><input type="radio" name="acuan" checked={!!s.acuan} disabled={ro}
-                               onChange={() => ubah((d) => ({ ...d, irr: { ...d.irr,
-                                 skema: d.irr.skema.map((x, j) => ({ ...x, acuan: j === i || undefined })) } }))} /></td>))}</tr>
+          {/* Baris pilihan acuan dihapus atas permintaan pemakai: acuannya selalu
+              Cash Keras (koefisien 1), dan baris IRR sudah menandainya. */}
           <tr className="hasil"><td>Coefficient</td>{irr.skema.map((s, i) => (
             <td key={i} className="n"><b>{Number.isFinite(hasil.irr.koef[s.nama])
               ? hasil.irr.koef[s.nama].toFixed(5) : "—"}</b></td>))}</tr>
@@ -207,7 +212,7 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
           <tr className="hasil"><td>Adjusted Price</td>{irr.skema.map((s, i) => (
             <td key={i} className="n"
                 title={s.hargaSesuai && !s.acuan ? "Tersimpan dari Excel (hasil Goal Seek)" : "Dihitung tepat dari target"}>
-              <b>{rp(Math.round((s.hargaKas ?? HARGA_KAS_AWAL) * hasil.irr.koef[s.nama]))}</b>
+              <b>{rp(hargaSesuaiSkema(irr, hasil.irr.koef[s.nama]))}</b>
               {s.hargaSesuai && !s.acuan ? <small className="asal">Excel</small> : null}
             </td>))}</tr>
           {bolehUbah && (
@@ -225,7 +230,8 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
           Adjusted Price bertanda <b>Excel</b> diambil apa adanya dari berkas Excel (hasil
           Goal Seek), sehingga koefisien dan harganya sama persis dengan Excel; IRR-nya
           karena itu sedikit di bawah target, sama seperti di Excel. Mengubah DP, cicilan,
-          bulan, Cash Price, target atau porsi menghitungnya ulang tepat pada target.
+          bulan, target atau porsi menghitungnya ulang tepat pada target; mengubah Cash
+          Price hanya mengubah Adjusted Price, koefisiennya tetap.
         </p>
       )}
       <div className="row" style={{ marginTop: 10 }}>
@@ -445,14 +451,14 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
                 <td><Isian jenis="rp" nilai={u.hargaTanah} lebar={95} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, hargaTanah: n }))} /></td>
                 <td><Isian nilai={u.lb} lebar={60} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, lb: n }))} /></td>
                 <td><Isian jenis="rp" nilai={u.hargaBangunan} lebar={95} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, hargaBangunan: n }))} /></td>
-                <td><Isian jenis="persen" nilai={u.kenaikan} lebar={55} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, kenaikan: n }))} /></td>
+                <td><Isian jenis="persen" kosongNol nilai={u.kenaikan} lebar={55} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, kenaikan: n }))} /></td>
                 {FAKTOR.map(([k]) => (
-                  <td key={k}><Isian jenis="persen" nilai={u.faktor[k] ?? 0} lebar={55} disabled={ro}
+                  <td key={k}><Isian jenis="persen" kosongNol nilai={u.faktor[k] ?? 0} lebar={55} disabled={ro}
                                      ubah={(n) => ubahUnit(i, (x) => ({ ...x, faktor: { ...x.faktor, [k]: n } }))} /></td>
                 ))}
                 <td><Isian jenis="persen" nilai={u.faktorTambah} lebar={55} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, faktorTambah: n }))} /></td>
-                <td><Isian jenis="rp" nilai={u.special} lebar={95} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, special: n }))} /></td>
-                <td><Isian jenis="rp" nilai={u.showUnit} lebar={95} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, showUnit: n }))} /></td>
+                <td><Isian jenis="rp" kosongNol nilai={u.special} lebar={95} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, special: n }))} /></td>
+                <td><Isian jenis="rp" kosongNol nilai={u.showUnit} lebar={95} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, showUnit: n }))} /></td>
                 <td className="n">{rp(b?.hasilUnit.base ?? NaN)}</td>
                 <td className="n"><b>{rp(b?.hasilUnit.factored ?? NaN)}</b></td>
               </tr>

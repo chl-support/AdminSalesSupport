@@ -22,6 +22,7 @@ const teks = z.string().max(2000);
 const SKEMA = z.object({
   irr: z.object({
     target: angka,
+    hargaKas: angka.optional(),
     porsiTahap: z.tuple([angka, angka, angka, angka]),
     namaTahap: z.tuple([teks, teks, teks, teks]).optional(),
     periode: z.number().int().min(1).max(240),

@@ -1983,6 +1983,14 @@ async function main() {
     const h = hitungIrr(s.irr);
     assert(h.koef["Cicilan 12x"] === 1.049417521571675, `koef: ${h.koef["Cicilan 12x"]}`);
     assert(Math.abs(h.irr["Cicilan 12x"] - 0.08999964119269688) < 1e-9, `irr: ${h.irr["Cicilan 12x"]}`);
+    // Satu Cash Price untuk semua cara bayar: Adjusted = Cash × koefisien,
+    // koefisien tidak berubah.
+    const { hargaSesuaiSkema } = await import("../src/lib/susun-pricelist");
+    assert(hargaSesuaiSkema(s.irr, h.koef["Cicilan 12x"]) === 2_098_835_043, "adjusted 2 M");
+    s.irr.hargaKas = 1_500_000_000;
+    assert(hitungIrr(s.irr).koef["Cicilan 12x"] === h.koef["Cicilan 12x"], "koef tetap");
+    assert(hargaSesuaiSkema(s.irr, h.koef["Cicilan 12x"]) === Math.round(1_500_000_000 * 1.049417521571675),
+           `adjusted 1,5 M: ${hargaSesuaiSkema(s.irr, h.koef["Cicilan 12x"])}`);
     const tepat = koefisienTepat(c12, s.irr);
     assert(Math.abs(tepat - 1.049417521571675) < 1e-6 && tepat !== h.koef["Cicilan 12x"],
            `tepat: ${tepat}`);
