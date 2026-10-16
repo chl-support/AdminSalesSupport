@@ -196,6 +196,8 @@ export type SusunPricelist = {
    * supaya perubahan tarif dari pemerintah cukup diubah di satu tempat.
    */
   ppn?: number;
+  /** Catatan bebas di langkah 2 Unit Data, ikut tersimpan bersama draf. */
+  catatanUnit?: string;
   irr: DataIrr;
   unit: UnitData[];
   dataPricelist: {
