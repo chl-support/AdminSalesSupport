@@ -76,7 +76,7 @@ export function Isian({ nilai, ubah, jenis = "angka", lebar = 90, disabled, id, 
              style={{ width: lebar }}
              onChange={(e) => setTeks(e.target.value)} onBlur={simpan}
              onKeyDown={(e) => { if (e.key === "Enter") simpan(); }} />
-      {jenis === "persen" && <span className="satuan">{kosongNol && nilai === 0 && teks == null ? "" : "%"}</span>}
+      <span className="satuan">{jenis === "persen" && !(kosongNol && nilai === 0 && teks == null) ? "%" : ""}</span>
     </span>
   );
 }
@@ -203,9 +203,23 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
         <div className="banner warn">Jumlah porsi keempat tahap harus 100%.</div>
       )}
 
-      <div className="tscroll sp">
-        <table className="tabel-ringkas tabel-isian"><tbody>
-          <tr>
+      {bolehUbah && (
+        <div className="row" style={{ justifyContent: "flex-end", margin: "12px 0 6px" }}>
+          <button className="pri" onClick={tambahSkema}
+                  title="Tambah kolom cara bayar baru di Data (IRR), Data Pricelist, Pricelist dan T&C">
+            + Tambah cara bayar</button>
+        </div>
+      )}
+      {/* Grid tetap: setiap cara bayar selebar sama, kotak isian memenuhi
+          kolomnya, tanda % sejajar, dan baris dikelompokkan. */}
+      <div className="tscroll">
+        <table className="tabel-ringkas tabel-isian tabel-irr">
+          <colgroup>
+            <col className="k-label" />
+            {irr.skema.map((_, i) => <col key={i} className="k-skema" />)}
+          </colgroup>
+          <tbody>
+          <tr className="kepala-skema">
             <th />
             {irr.skema.map((s, i) => (
               <th key={i}>
@@ -213,14 +227,8 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
                            ubah={(v) => ganti(i, v)} />
               </th>
             ))}
-            {bolehUbah && (
-              <th rowSpan={2} className="tambah-kolom">
-                <button className="pri" onClick={tambahSkema}
-                        title="Tambah kolom cara bayar baru di Data (IRR), Data Pricelist, Pricelist dan T&C">
-                  + Tambah<br />cara bayar</button>
-              </th>
-            )}
           </tr>
+          <tr className="grup"><td colSpan={irr.skema.length + 1}>Parameter cara bayar</td></tr>
           <tr><td>Kelompok</td>{irr.skema.map((s, i) => (
             <td key={i}><IsianTeks nilai={s.kelompok} lebar={70} disabled={ro}
                                    ubah={(v) => ubahSkema(i, (x) => ({ ...x, kelompok: v }))} /></td>))}</tr>
@@ -233,14 +241,17 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
           <tr><td>Installments (x)</td>{irr.skema.map((s, i) => (
             <td key={i}><Isian nilai={s.kali} lebar={60} disabled={ro}
                                ubah={(n) => ubahArus(i, (x) => ({ ...x, kali: Math.max(1, Math.round(n)) }))} /></td>))}</tr>
+          <tr className="grup"><td colSpan={irr.skema.length + 1}>
+            Bulan pencairan sisa (1 − DP) per tahap</td></tr>
           {TAHAP.map((t, ti) => (
-            <tr key={t}><td>Bulan {t}</td>{irr.skema.map((s, i) => (
+            <tr key={t}><td>{t}</td>{irr.skema.map((s, i) => (
               <td key={i}><Isian nilai={s.bulan[ti]} lebar={60} disabled={ro}
                                  ubah={(n) => ubahArus(i, (x) => {
                                    const b = [...x.bulan] as typeof x.bulan; b[ti] = Math.round(n);
                                    return { ...x, bulan: b };
                                  })} /></td>))}</tr>
           ))}
+          <tr className="grup"><td colSpan={irr.skema.length + 1}>Hasil</td></tr>
           <tr>
             <td>
               Cash Price
