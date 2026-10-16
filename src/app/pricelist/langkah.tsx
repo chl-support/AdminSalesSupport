@@ -193,6 +193,8 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
           <Isian id="irr-target" jenis="persen" nilai={irr.target} disabled={ro}
                  ubah={(n) => ubah((d) => ({ ...d, irr: { ...d.irr, target: n, skema: tanpaSimpanan(d) } }))} />
         </div>
+      </div>
+      <div className="filters rapat param-irr">
         {TAHAP.map((t, i) => (
           <div key={t}>
             <div className="lbl">Porsi {t}</div>
