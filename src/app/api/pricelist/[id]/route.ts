@@ -1,6 +1,8 @@
 import { handler, projectAktif, requireRole } from "@/lib/api";
 import { WorkflowError } from "@/lib/workflow";
-import { berkasPricelist, berlakukanPricelist, hapusPricelist } from "@/lib/pricelist";
+import {
+  berkasPricelist, berlakukanPricelist, gantiNamaPricelist, hapusPricelist,
+} from "@/lib/pricelist";
 
 /** Unduh berkas Excel asli sebuah unggahan. Semua peran boleh, sama dengan GET daftarnya. */
 export const GET = handler(async (req, { params }) => {
@@ -40,6 +42,20 @@ export const DELETE = handler(async (req, { params }) => {
     await hapusPricelist(id, projectId, user.username);
   } catch (e: any) {
     throw new WorkflowError(String(e?.message ?? e), "validation", 409);
+  }
+  return { ok: true };
+});
+
+/** Ganti nama pricelist (dan nama berkas unduhannya). */
+export const PATCH = handler(async (req, { params }) => {
+  const { id } = await params;
+  const user = await requireRole(req, "admin_sales", "admin_system");
+  const projectId = await projectAktif(req);
+  const body = await req.json().catch(() => ({}));
+  try {
+    await gantiNamaPricelist(id, projectId, String(body?.nama ?? ""), user.username);
+  } catch (e: any) {
+    throw new WorkflowError(String(e?.message ?? e), "validation", 422);
   }
   return { ok: true };
 });

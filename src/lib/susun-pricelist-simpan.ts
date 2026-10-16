@@ -173,8 +173,10 @@ export async function berlakukanSusun(
   if (hasil.galat.length) {
     throw new Error(`Pricelist belum dapat diberlakukan: ${hasil.galat[0]}`);
   }
-  const namaBerkas = namaBerkasSusun(draf.data);
-  const judul = nama.trim() || namaBerkas.replace(/\.xlsx$/, "");
+  // Nama yang diketik orang saat memberlakukan menjadi nama pricelist
+  // sekaligus nama berkasnya; bila kosong, dari Judul + Tanggal langkah 4.
+  const judul = nama.replace(/\s+/g, " ").trim() || namaBerkasSusun(draf.data).replace(/\.xlsx$/, "");
+  const namaBerkas = `${judul.replace(/[\\/:*?"<>|]+/g, "-")}.xlsx`;
   const { id } = await simpanPricelist({
     projectId, nama: judul, namaBerkas, isi, hasil, aktor,
   });

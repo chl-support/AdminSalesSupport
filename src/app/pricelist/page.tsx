@@ -18,6 +18,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useKata } from "../bahasa";
 import { Kerangka, MemeriksaSesi } from "../kerangka";
 import { PilihBerkas } from "../pilih-berkas";
+import { PanelPricelist } from "./panel-pricelist";
 import { useSesi } from "../session";
 import { PENGUNGGAH } from "../simulasi/unggah-pricelist";
 import { hitungSemua, type SusunPricelist } from "@/lib/susun-pricelist";
@@ -50,7 +51,7 @@ const KATA = {
     galatJudul: "Belum dapat diberlakukan",
     berlakuJudul: "Berlakukan pricelist",
     berlakuInfo: "Pricelist ini menggantikan pricelist yang berlaku dan langsung dipakai layar Simulasi / NPV. Pricelist lama tetap ada di riwayatnya.",
-    fNama: "Referensi dokumen", berlakukan: "Simpan & berlakukan", memberlakukan: "Memberlakukan…",
+    fNama: "Nama pricelist (juga nama file Excel-nya)", berlakukan: "Simpan & berlakukan", memberlakukan: "Memberlakukan…",
     diberlakukan: (n: string) => `Pricelist "${n}" berlaku. Buka Simulasi / NPV untuk memakainya.`,
     keSimulasi: "Buka Simulasi / NPV",
   },
@@ -78,7 +79,7 @@ const KATA = {
     galatJudul: "Cannot be applied yet",
     berlakuJudul: "Apply price list",
     berlakuInfo: "This price list replaces the one in force and is used by Simulation / NPV right away. The old one stays in the history.",
-    fNama: "Document reference", berlakukan: "Save & apply", memberlakukan: "Applying…",
+    fNama: "Price list name (also its Excel file name)", berlakukan: "Save & apply", memberlakukan: "Applying…",
     diberlakukan: (n: string) => `Price list "${n}" is in force. Open Simulation / NPV to use it.`,
     keSimulasi: "Open Simulation / NPV",
   },
@@ -94,6 +95,8 @@ export default function PricelistPage() {
   const k = useKata(KATA);
 
   const [draf, setDraf] = useState<Draf | null>(null);
+  // Dinaikkan sesudah memberlakukan, supaya daftar pricelist tersimpan dibaca ulang.
+  const [versiPl, setVersiPl] = useState(0);
   const [data, setData] = useState<SusunPricelist | null>(null);
   const [langkah, setLangkah] = useState(0);
   const [galat, setGalat] = useState<string | null>(null);
@@ -169,7 +172,7 @@ export default function PricelistPage() {
       body: JSON.stringify({ nama: namaPl }),
     });
     setSibuk(null);
-    if (b) setBerlaku(b.nama);
+    if (b) { setBerlaku(b.nama); setVersiPl((v) => v + 1); }
   };
 
   const ubah = (f: (d: SusunPricelist) => SusunPricelist) => {
@@ -191,6 +194,7 @@ export default function PricelistPage() {
       ) : (
         <>
           <p className="hint kiri" style={{ marginTop: 0 }}>{k.berlakuInfo}</p>
+          <label className="lbl" htmlFor="pl-nama">{k.fNama}</label>
           <div className="row">
             <input id="pl-nama" value={namaPl} maxLength={120} style={{ width: 320 }}
                    placeholder={`${data!.pricelist.judul} ${data!.pricelist.tanggal}`.trim()}
@@ -256,6 +260,10 @@ export default function PricelistPage() {
               </div>
             )}
           </div>
+
+          {/* Pricelist yang sudah diberlakukan beserta riwayatnya: dapat
+              dibuka, diunduh, dan diganti namanya dari sini. */}
+          {sesi.project_slug && <PanelPricelist sesi={sesi} versi={versiPl} />}
 
           {/* Kelima langkah tampil sekaligus, berurutan seperti lembar-lembar
               Excel-nya, supaya dapat disunting dan diperiksa tanpa berpindah
