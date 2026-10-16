@@ -21,8 +21,8 @@ import { hapusMarketing, tambahMarketing, ubahEmail,
 import { rekapOverriding } from "../src/lib/overriding";
 import { penandatanganRekap } from "../src/lib/penandatangan";
 import { skemaXlsx } from "../src/lib/memo-xlsx";
-import { berlakukan, cabut, daftarRujukan, nominal, persenDesimal }
-  from "../src/lib/rujukan";
+import { berlakukan, cabut, daftarRujukan, ensureKolomRujukan, nominal,
+         persenDesimal } from "../src/lib/rujukan";
 import { seed } from "./seed";
 import { signaturePng, strokes } from "./synthetic-signature";
 
@@ -127,7 +127,9 @@ async function main() {
     for (const k of ["gross_amount", "vat", "withholding_tax", "net_amount"] as const) {
       assert(Number.isInteger(r[k]), `${k} bukan integer: ${r[k]}`);
     }
-    assert(r.gross_amount === 4_625_000, String(r.gross_amount));
+    // Memo 002/SBL-BD/SM/XI/2025 (berlaku sejak Nov 2025): komisi agent 3%
+    // dari Rp 185.000.000.
+    assert(r.gross_amount === 5_550_000, String(r.gross_amount));
     assert(r.vat === 0, "penerima Non-PKP tidak dikenai PPN");
     assert(r.withholding_tax_type === "pph23", r.withholding_tax_type);
     assert(r.net_amount === r.gross_amount + r.vat - r.withholding_tax, "net keliru");
@@ -136,9 +138,13 @@ async function main() {
   await check("matriks tarif memilih baris paling spesifik", async () => {
     const m = await one("SELECT * FROM marketings WHERE id=$1", [inhouseId]);
     const ctx = calc.recipientContext(m, null);
+    // PPh final 0,5% sengaja tidak lagi dikonfigurasi (lihat calc.ts): ia
+    // memenangi PPh 21 sehingga penerima ber-NPWP pribadi dipotong seperlima
+    // dari seharusnya. Finance menetapkan PPh 21 2,5%.
     const final = await calc.findTaxRate("pph_final", ctx, "2026-06-14");
-    assert(final && Number(final.rate) === 0.005,
-           "NPWP pribadi seharusnya PPh final 0,5%");
+    assert(!final, "PPh final tidak boleh dikonfigurasi");
+    const pph21 = await calc.findTaxRate("pph21", ctx, "2026-06-14");
+    assert(pph21 && Number(pph21.rate) === 0.025, "NPWP pribadi seharusnya PPh 21 2,5%");
     const vat2021 = await calc.findTaxRate("vat", ctx, "2021-01-01");
     assert(Number(vat2021.rate) === 0.1, "kontrak 2021 seharusnya PPN 10%");
     const vat2026 = await calc.findTaxRate("vat", ctx, "2026-01-01");
@@ -305,7 +311,7 @@ async function main() {
     const c = await wf.createClaim({ unitId: unit, marketingId: agentId,
       claimType: "commission", recipientRole: "agent", actor: "admin" });
     claims.kms = c.id;
-    assert(c.net_amount === 4_625_000 - 92_500, String(c.net_amount));
+    assert(c.net_amount === 5_550_000 - 111_000, String(c.net_amount));
   });
 
   await check("CHECK constraint menolak nilai bersih yang tidak konsisten",
@@ -355,11 +361,11 @@ async function main() {
   await check("verifikasi pajak mengunci nilai dan mencatat koreksi", async () => {
     const c = await wf.taxVerify({
       claimId: cid, decision: "approve_with_correction", actor: "ratna",
-      corrected: { withholding_tax: 231_250 },
+      corrected: { withholding_tax: 277_500 },
       reason: "Penerima tidak memiliki NPWP aktif, tarif PPh menyesuaikan." });
     assert(c.status === "tax_verified", c.status);
     assert(c.tax_corrected === true, "flag koreksi tidak terpasang");
-    assert(c.net_amount === 4_393_750, String(c.net_amount));
+    assert(c.net_amount === 5_272_500, String(c.net_amount));
     assert(Boolean(c.tax_verification_valid_until), "masa berlaku tidak diisi");
   });
 
@@ -513,7 +519,7 @@ async function main() {
       assert(c.status === "awaiting_settlement_date", c.status);
       const inst = await one("SELECT * FROM payment_instructions WHERE claim_id=$1",
                              [cid]);
-      assert(inst && inst.amount === 4_393_750, JSON.stringify(inst));
+      assert(inst && inst.amount === 5_272_500, JSON.stringify(inst));
     });
 
   // ─────────── Settlement ───────────
@@ -1117,7 +1123,7 @@ async function main() {
 
   await check("rekap memakai tanggal transfer, bukan tanggal input", async () => {
     const rec = await settlement.paymentRecap("2020-01-01", "2100-01-01");
-    assert(rec.totals.net_amount === 4_393_750, JSON.stringify(rec.totals));
+    assert(rec.totals.net_amount === 5_272_500, JSON.stringify(rec.totals));
     assert(rec.totals.claim_count === 1, String(rec.totals.claim_count));
   });
 
@@ -1128,7 +1134,7 @@ async function main() {
       const c2 = await wf.createClaim({ unitId: unit, marketingId: inhouseId,
         claimType: "cash_reward", recipientRole: "sales_inhouse", actor: "admin" });
       await runToSettlement(c2.id, 2,
-        ["fpu", "spu", "ppjb", "kwitansi", "ktp", "npwp", "bank_account"]);
+        ["fpu", "spu", "ktp", "npwp", "booking_fee_proof"]);
       const inst2 = (await one(
         "SELECT id FROM payment_instructions WHERE claim_id=$1", [c2.id]))!.id;
       const r = await settlement.settle({
@@ -1543,6 +1549,9 @@ async function main() {
   });
 
   await check("baris memo baru menjadi tarif setelah diberlakukan", async () => {
+    // Tabel memo_skema dipasang dari sisi aplikasi (src/lib/memo.ts) saat
+    // layar memo pertama dibuka; uji ini menulis ke sana sebelum itu terjadi.
+    await ensureKolomRujukan();
     const project = await one<any>(
       "SELECT id FROM projects WHERE slug='bio-district'");
     const memo = await one<any>(
