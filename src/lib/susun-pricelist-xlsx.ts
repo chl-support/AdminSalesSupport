@@ -75,6 +75,89 @@ function cari(ws: ExcelJS.Worksheet, re: RegExp, maks = 40): { r: number; c: num
 /** Lembar tersembunyi berisi isian lengkap, untuk impor ulang tanpa kehilangan. */
 const LEMBAR_ISIAN = "_isian";
 
+/**
+ * Judul kolom kode unit. Berkas PL lama menulis "Code"; lembar UNIT DATA
+ * terbaru menulis "Code Unit" (dengan kolom "No" urut di depannya).
+ */
+const KODE = /^(code|code unit|kode|kode unit)$/i;
+
+/**
+ * Baris unit pada lembar UNIT DATA. Judul kolomnya dicari, bukan dipatok:
+ * berkas lama menulis "Code", berkas terbaru "Code Unit" dengan kolom "No"
+ * urut di depannya.
+ */
+function bacaLembarUnit(ws: ExcelJS.Worksheet, peringatan: string[]): UnitData[] {
+  const unit: UnitData[] = [];
+  const j = cari(ws, KODE);
+  if (!j) {
+    peringatan.push("Lembar Unit Data: kolom Code tidak ditemukan.");
+  } else {
+    const H = (c: number) => teks(ws.getCell(j.r, c)).toLowerCase();
+    const H2 = (c: number) => teks(ws.getCell(j.r + 1, c)).toLowerCase();
+    const kol: Record<string, number> = {};
+    let view = 0;
+    for (let c = 1; c <= ws.columnCount; c++) {
+      const h = H(c), h2 = H2(c);
+      if (KODE.test(h)) kol.kode = c;
+      else if (h === "address") kol.alamat = c;
+      else if (h === "view") { if (view++ === 0) kol.view = c; else kol.bentuk = c; }
+      else if (h === "no" && kol.kode) kol.no = c;
+      else if (h === "ukuran") kol.ukuran = c;
+      else if (h === "type") kol.tipeBangunan = c;
+      else if (h === "sub-tipe") kol.subTipe = c;
+      else if (h === "phase") kol.phase = c;
+      else if (h.startsWith("increase")) kol.kenaikan = c;
+      else if (h.startsWith("(+) factor")) kol.faktorTambah = c;
+      else if (h.startsWith("special")) kol.special = c;
+      else if (h.startsWith("show unit")) kol.showUnit = c;
+      if (h2 === "land") kol.lt = c;
+      else if (h2.startsWith("land price (base)")) kol.hargaTanah = c;
+      else if (h2 === "gfa") kol.lb = c;
+      else if (h2.startsWith("gfa (base)")) kol.hargaBangunan = c;
+      for (const [k, label] of FAKTOR) if (h === label.toLowerCase()) kol[k] = c;
+    }
+    for (let r = j.r + 2; r <= ws.rowCount; r++) {
+      const kode = teks(ws.getCell(r, kol.kode));
+      if (!kode) break;
+      const t = (k: string) => kol[k] ? teks(ws.getCell(r, kol[k])) : "";
+      const n = (k: string) => kol[k] ? angka(ws.getCell(r, kol[k])) : 0;
+      const u: UnitData = {
+        ...unitKosong(), kode, alamat: t("alamat"), view: t("view"), no: t("no"),
+        ukuran: t("ukuran"), phase: t("phase"), tipeBangunan: t("tipeBangunan"),
+        bentuk: t("bentuk"), subTipe: t("subTipe"), lt: n("lt"), hargaTanah: n("hargaTanah"),
+        lb: n("lb"), hargaBangunan: n("hargaBangunan"), kenaikan: n("kenaikan"),
+        faktorTambah: n("faktorTambah"), special: n("special"), showUnit: n("showUnit"),
+        faktor: Object.fromEntries(FAKTOR.map(([k]) => [k, n(k)]).filter(([, v]) => v)),
+      };
+      unit.push(u);
+    }
+  }
+  return unit;
+}
+
+/**
+ * Lembar UNIT DATA saja, untuk tombol "Impor Unit Data" di langkah 2.
+ *
+ * Hanya lembar yang terbuka (tidak disembunyikan) yang dibaca, atas
+ * permintaan pemakainya: berkas Data Pricelist terbaru menyembunyikan lembar
+ * lain dan hanya membiarkan UNIT DATA terlihat sebagai sumber data unit.
+ */
+export async function imporUnitData(isi: ArrayBuffer): Promise<{ unit: UnitData[]; peringatan: string[] }> {
+  const wb = new ExcelJS.Workbook();
+  try {
+    await wb.xlsx.load(isi as any);
+  } catch {
+    throw new Error("Berkas tidak dapat dibaca sebagai Excel .xlsx.");
+  }
+  const ws = wb.worksheets.find((w) => w.state === "visible" && /^unit data$/i.test(w.name.trim()));
+  if (!ws) {
+    throw new Error("Berkas ini tidak punya lembar UNIT DATA yang terbuka. " +
+                    "Buka (unhide) lembar UNIT DATA di Excel, lalu unggah ulang.");
+  }
+  const peringatan: string[] = [];
+  return { unit: bacaLembarUnit(ws, peringatan), peringatan };
+}
+
 // ── Impor ──────────────────────────────────────────────────────────────────
 
 export type HasilImpor = { susun: SusunPricelist; peringatan: string[] };
@@ -148,64 +231,23 @@ export async function imporSusun(isi: ArrayBuffer): Promise<HasilImpor> {
   if (!wsUnit) {
     peringatan.push("Lembar Unit Data tidak ada; daftar unit kosong.");
   } else {
-    const j = cari(wsUnit, /^code$/i);
-    if (!j) {
-      peringatan.push("Lembar Unit Data: kolom Code tidak ditemukan.");
-    } else {
-      const H = (c: number) => teks(wsUnit.getCell(j.r, c)).toLowerCase();
-      const H2 = (c: number) => teks(wsUnit.getCell(j.r + 1, c)).toLowerCase();
-      const kol: Record<string, number> = {};
-      let view = 0;
-      for (let c = 1; c <= wsUnit.columnCount; c++) {
-        const h = H(c), h2 = H2(c);
-        if (h === "code") kol.kode = c;
-        else if (h === "address") kol.alamat = c;
-        else if (h === "view") { if (view++ === 0) kol.view = c; else kol.bentuk = c; }
-        else if (h === "no") kol.no = c;
-        else if (h === "ukuran") kol.ukuran = c;
-        else if (h === "type") kol.tipeBangunan = c;
-        else if (h === "sub-tipe") kol.subTipe = c;
-        else if (h === "phase") kol.phase = c;
-        else if (h.startsWith("increase")) kol.kenaikan = c;
-        else if (h.startsWith("(+) factor")) kol.faktorTambah = c;
-        else if (h.startsWith("special")) kol.special = c;
-        else if (h.startsWith("show unit")) kol.showUnit = c;
-        if (h2 === "land") kol.lt = c;
-        else if (h2.startsWith("land price (base)")) kol.hargaTanah = c;
-        else if (h2 === "gfa") kol.lb = c;
-        else if (h2.startsWith("gfa (base)")) kol.hargaBangunan = c;
-        for (const [k, label] of FAKTOR) if (h === label.toLowerCase()) kol[k] = c;
-      }
-      for (let r = j.r + 2; r <= wsUnit.rowCount; r++) {
-        const kode = teks(wsUnit.getCell(r, kol.kode));
-        if (!kode) break;
-        const t = (k: string) => kol[k] ? teks(wsUnit.getCell(r, kol[k])) : "";
-        const n = (k: string) => kol[k] ? angka(wsUnit.getCell(r, kol[k])) : 0;
-        const u: UnitData = {
-          ...unitKosong(), kode, alamat: t("alamat"), view: t("view"), no: t("no"),
-          ukuran: t("ukuran"), phase: t("phase") || "1", tipeBangunan: t("tipeBangunan"),
-          bentuk: t("bentuk"), subTipe: t("subTipe"), lt: n("lt"), hargaTanah: n("hargaTanah"),
-          lb: n("lb"), hargaBangunan: n("hargaBangunan"), kenaikan: n("kenaikan"),
-          faktorTambah: n("faktorTambah"), special: n("special"), showUnit: n("showUnit"),
-          faktor: Object.fromEntries(FAKTOR.map(([k]) => [k, n(k)]).filter(([, v]) => v)),
-        };
-        unitPerKode.set(kode, u);
-        susun.unit.push(u);
-      }
+    for (const u of bacaLembarUnit(wsUnit, peringatan)) {
+      unitPerKode.set(u.kode, u);
+      susun.unit.push(u);
     }
   }
 
   // 3. Data Pricelist: Phase dan Tipe per unit, susunan kolom, tambahan.
   const wsDp = lembar(wb, /^data pricelist$/i);
   if (wsDp) {
-    const j = cari(wsDp, /^code$/i);
+    const j = cari(wsDp, KODE);
     if (j) {
       const hdr = (c: number) => teks(wsDp.getCell(j.r, c));
       const kol = (re: RegExp) => {
         for (let c = 1; c <= wsDp.columnCount; c++) if (re.test(hdr(c))) return c;
         return 0;
       };
-      const kKode = kol(/^code$/i), kPhase = kol(/^phase$/i), kTipe = kol(/^tipe$/i),
+      const kKode = kol(KODE), kPhase = kol(/^phase$/i), kTipe = kol(/^tipe$/i),
             kBuild = kol(/^build$/i);
       for (let r = j.r + 1; r <= wsDp.rowCount; r++) {
         const u = unitPerKode.get(teks(wsDp.getCell(r, kKode)));
@@ -241,6 +283,9 @@ export async function imporSusun(isi: ArrayBuffer): Promise<HasilImpor> {
     peringatan.push("Lembar Data Pricelist tidak ada; susunan kolomnya memakai isian awal.");
   }
 
+  // Phase yang tidak tertulis di Unit Data maupun Data Pricelist: phase 1.
+  for (const u of susun.unit) u.phase ||= "1";
+
   // 4. Pricelist: judul, tanggal, catatan, susunan kolom harga, pagu DTP.
   const wsPl = lembar(wb, /^pricelist$/i);
   if (wsPl) {
@@ -265,7 +310,7 @@ export async function imporSusun(isi: ArrayBuffer): Promise<HasilImpor> {
         const ref = /'?Data Pricelist'?!\$?([A-Z]+)\$?\d+(\s*\*\s*([\d.]+)%)?/i.exec(f);
         if (!ref || !nama || /^(dpp|address|unit no|phase|ukuran|view|tipe|sub-tipe)/i.test(nama)) continue;
         if (wsDp) {
-          const j2 = cari(wsDp, /^code$/i);
+          const j2 = cari(wsDp, KODE);
           const dari = j2 ? teks(wsDp.getCell(j2.r, noKolom(ref[1]))) : "";
           if (dari) kolom.push({ nama, dari, kali: ref[3] ? Number(ref[3]) / 100 : 1 });
         }

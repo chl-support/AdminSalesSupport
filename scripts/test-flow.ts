@@ -1911,6 +1911,32 @@ async function main() {
            `impor ulang: ${imp.susun.unit.length}`);
   });
 
+  await check("impor Unit Data: judul Code Unit, hanya lembar terbuka", async () => {
+    const ExcelJS = (await import("exceljs")).default;
+    const { imporUnitData } = await import("../src/lib/susun-pricelist-xlsx");
+    const buat = async (state: "visible" | "hidden") => {
+      const wb = new ExcelJS.Workbook();
+      const ws = wb.addWorksheet("UNIT DATA", { state });
+      ws.addRow([]); ws.addRow([]);
+      ws.addRow(["No", "Code Unit", "Address", "View", "No", "Ukuran", "Type", "View",
+                 "Sub-Tipe", "Area (M²)", "", "", "", "", "", "", "", "Phase"]);
+      ws.addRow(["", "", "", "", "", "", "", "", "", "Land", "Land Price (base)", "", "",
+                 "GFA", "GFA (base)"]);
+      ws.addRow([1, "NS-NR1-01", "NARAYA 1", "SELATAN", 1, "8,5x18,5", 70, "Irregullar",
+                 "Hoek (IRR K)", 146.5, 7_000_000, null, null, 88, 6_500_000]);
+      ws.addRow([2, "", "", "", "", "", "", "", "", 0]);
+      const x = await wb.xlsx.writeBuffer() as ArrayBuffer;
+      return imporUnitData(x);
+    };
+    const r = await buat("visible");
+    assert(r.unit.length === 1 && r.unit[0].kode === "NS-NR1-01" && r.unit[0].no === "1" &&
+           r.unit[0].lt === 146.5 && r.unit[0].hargaBangunan === 6_500_000,
+           `unit: ${JSON.stringify(r.unit)}`);
+    let ditolak = false;
+    try { await buat("hidden"); } catch { ditolak = true; }
+    assert(ditolak, "lembar UNIT DATA tersembunyi harus ditolak");
+  });
+
   console.log("\n" + "=".repeat(62));
   console.log(`  LULUS ${pass.length}   GAGAL ${fail.length}`);
   if (fail.length) {

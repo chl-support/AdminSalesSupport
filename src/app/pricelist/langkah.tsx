@@ -17,6 +17,7 @@ import {
   type HasilSusun, type SusunPricelist, type UnitData,
 } from "@/lib/susun-pricelist";
 import type { UnitHarga } from "@/lib/simulasi";
+import { PilihBerkas } from "../pilih-berkas";
 import { TabelHarga } from "../simulasi/unggah-pricelist";
 
 export type PropsLangkah = {
@@ -223,6 +224,45 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
     .filter(({ u }) => !q || [u.kode, u.alamat, u.view, u.subTipe].join(" ").toLowerCase().includes(q));
   const total = hasil.baris.reduce((a, b) => a + b.hasilUnit.factored, 0);
 
+  // Impor lembar UNIT DATA saja: daftar unit diganti seluruhnya dengan isi
+  // berkas, sedangkan Data (IRR), susunan kolom, dan T&C tetap seperti di layar.
+  const [buka, setBuka] = useState(false);
+  const [berkas, setBerkas] = useState<File | null>(null);
+  const [sibuk, setSibuk] = useState(false);
+  const [pesan, setPesan] = useState<{ ok: boolean; teks: string } | null>(null);
+  const imporUnit = async () => {
+    if (!berkas) return;
+    setSibuk(true); setPesan(null);
+    try {
+      const fd = new FormData(); fd.append("file", berkas);
+      const res = await fetch("/api/pricelist/susun/impor?bagian=unit", { method: "POST", body: fd });
+      const b = await res.json().catch(() => ({}));
+      if (res.status === 401) { location.href = "/login"; return; }
+      if (!res.ok) { setPesan({ ok: false, teks: b.detail ?? b.title ?? `HTTP ${res.status}` }); return; }
+      const unit: UnitData[] = b.unit ?? [];
+      if (!unit.length) {
+        setPesan({ ok: false, teks: (b.peringatan ?? []).join(" ") ||
+          "Tidak ada unit di lembar UNIT DATA berkas ini." });
+        return;
+      }
+      // Phase dan Tipe pricelist tidak selalu tertulis di UNIT DATA; untuk
+      // unit yang sudah ada di tabel, isian lamanya dipertahankan.
+      ubah((d) => {
+        const lama = new Map(d.unit.map((u) => [u.kode, u]));
+        return { ...d, unit: unit.map((u) => ({
+          ...u,
+          phase: u.phase || lama.get(u.kode)?.phase || "1",
+          tipe: u.tipe || lama.get(u.kode)?.tipe || "",
+        })) };
+      });
+      setPesan({ ok: true, teks: `${unit.length} unit dimuat dari lembar UNIT DATA ${berkas.name}. ` +
+        "Periksa tabelnya, lalu Simpan." });
+      setBuka(false); setBerkas(null);
+    } finally {
+      setSibuk(false);
+    }
+  };
+
   return (
     <>
       <p className="hint kiri">
@@ -249,10 +289,31 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
               phase: d.unit[d.unit.length - 1].phase,
             }) }] }))}>+ Tambah unit</button>
         )}
+        {bolehUbah && (
+          <button onClick={() => { setBuka((x) => !x); setPesan(null); }}>
+            Impor Unit Data dari Excel</button>
+        )}
       </div>
+      {buka && (
+        <div className="form-blok">
+          <p className="hint kiri" style={{ marginTop: 0 }}>
+            Berkas Excel dengan lembar <b>UNIT DATA</b> (kolom Code Unit, Address,
+            View, Ukuran, Land, Land Price, GFA, dan seterusnya). Seluruh unit di
+            tabel ini diganti dengan isi berkas; langkah lain tidak berubah.
+          </p>
+          <div className="row" style={{ marginBottom: 0 }}>
+            <PilihBerkas accept=".xlsx" onChange={(e) => setBerkas(e.target.files?.[0] ?? null)} />
+            <button className="pri" disabled={!berkas || sibuk} onClick={() => void imporUnit()}>
+              {sibuk ? "Membaca…" : "Muat unit"}</button>
+            <button onClick={() => { setBuka(false); setBerkas(null); }}>Batal</button>
+          </div>
+        </div>
+      )}
+      {pesan && <div className={`banner ${pesan.ok ? "ok" : "stop"}`}>{pesan.teks}</div>}
       {!data.unit.length ? (
         <div className="banner info">
-          Belum ada unit. Tambahkan unit satu per satu, atau isi seluruh langkah
+          Belum ada unit. Muat dari lembar UNIT DATA dengan <b>Impor Unit Data
+          dari Excel</b>, tambahkan satu per satu, atau isi seluruh langkah
           sekaligus dengan <b>Impor dari Excel</b> di atas.
         </div>
       ) : (
