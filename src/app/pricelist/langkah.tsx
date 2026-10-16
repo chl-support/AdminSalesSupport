@@ -13,7 +13,7 @@ import { useEffect, useState } from "react";
 
 import { formatRupiah } from "@/lib/money";
 import {
-  FAKTOR, unitKosong,
+  FAKTOR, HARGA_KAS_AWAL, namaTahap, unitKosong,
   type HasilSusun, type SusunPricelist, type UnitData,
 } from "@/lib/susun-pricelist";
 import type { UnitHarga } from "@/lib/simulasi";
@@ -91,10 +91,12 @@ const persen = (n: number, d = 2) =>
 
 // ── 1. Data (IRR) ──────────────────────────────────────────────────────────
 
-const TAHAP = ["Foundation", "Tutup Atap", "BAST", "AJB + SPHTB"] as const;
 
 export function LangkahIrr({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
   const irr = data.irr;
+  const TAHAP = namaTahap(irr);
+  // Cash Price diubah lewat tombol Edit, supaya tidak tergeser tanpa sengaja.
+  const [editKas, setEditKas] = useState(false);
   const ro = !bolehUbah;
   const ubahSkema = (i: number, f: (s: SusunPricelist["irr"]["skema"][0]) => typeof s) =>
     ubah((d) => ({ ...d, irr: { ...d.irr, skema: d.irr.skema.map((s, j) => j === i ? f(s) : s) } }));
@@ -108,7 +110,6 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
         k.skema === lama ? { ...k, skema: nama } : k) },
     };
   });
-  const CONTOH = 2_000_000_000;
 
   return (
     <>
@@ -169,6 +170,23 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
                                    return { ...x, bulan: b };
                                  })} /></td>))}</tr>
           ))}
+          <tr>
+            <td>
+              Cash Price
+              {bolehUbah && (
+                <button className="kecil" style={{ display: "block", marginTop: 4 }}
+                        onClick={() => setEditKas((x) => !x)}>
+                  {editKas ? "Selesai" : "Edit"}</button>
+              )}
+            </td>
+            {irr.skema.map((s, i) => (
+              <td key={i} className="n">
+                {editKas && bolehUbah
+                  ? <Isian id={`irr-kas-${i}`} jenis="rp" nilai={s.hargaKas ?? HARGA_KAS_AWAL} lebar={120}
+                           ubah={(n) => ubahSkema(i, (x) => ({ ...x, hargaKas: n }))} />
+                  : rp(s.hargaKas ?? HARGA_KAS_AWAL)}
+              </td>))}
+          </tr>
           <tr><td>Acuan (Cash Keras)</td>{irr.skema.map((s, i) => (
             <td key={i}><input type="radio" name="acuan" checked={!!s.acuan} disabled={ro}
                                onChange={() => ubah((d) => ({ ...d, irr: { ...d.irr,
@@ -178,8 +196,8 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
               ? hasil.irr.koef[s.nama].toFixed(5) : "—"}</b></td>))}</tr>
           <tr className="hasil"><td>IRR</td>{irr.skema.map((s, i) => (
             <td key={i} className="n">{s.acuan ? "acuan" : persen(hasil.irr.irr[s.nama])}</td>))}</tr>
-          <tr className="hasil"><td>Adjusted price (Rp 2 M)</td>{irr.skema.map((s, i) => (
-            <td key={i} className="n">{rp(Math.round(CONTOH * hasil.irr.koef[s.nama]))}</td>))}</tr>
+          <tr className="hasil"><td>Adjusted Price</td>{irr.skema.map((s, i) => (
+            <td key={i} className="n"><b>{rp(Math.round((s.hargaKas ?? HARGA_KAS_AWAL) * hasil.irr.koef[s.nama]))}</b></td>))}</tr>
           {bolehUbah && (
             <tr><td />{irr.skema.map((s, i) => (
               <td key={i}>
