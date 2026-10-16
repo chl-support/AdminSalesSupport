@@ -556,7 +556,7 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
               </tr>
             ))}
           </tbody><tfoot>
-            {/* Jumlah unit yang tampil (ikut pencarian) beserta total luas dan harganya. */}
+            {/* Jumlah unit yang tampil (ikut pencarian), total Land, GFA, Base dan Factored Price. */}
             <tr className="total-unit">
               <td className="aksi-unit">
                 Total {tampil.length} unit{q ? ` (dari ${data.unit.length})` : ""}</td>
@@ -565,8 +565,7 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
               <td className="n">{luas(tampil.reduce((a, { u }) => a + u.lb, 0))}</td><td /><td />
               {FAKTOR.map(([k]) => <td key={k} />)}
               <td />
-              <td className="n">{rp(tampil.reduce((a, { u }) => a + u.special, 0))}</td>
-              <td className="n">{rp(tampil.reduce((a, { u }) => a + u.showUnit, 0))}</td>
+              <td /><td />
               <td className="n">{rp(tampil.reduce((a, { b }) => a + (b?.hasilUnit.base ?? 0), 0))}</td>
               <td className="n">{rp(tampil.reduce((a, { b }) => a + (b?.hasilUnit.factored ?? 0), 0))}</td>
             </tr>
