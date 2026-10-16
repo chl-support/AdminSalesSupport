@@ -53,9 +53,11 @@ function bacaAngka(s: string, jenis: Jenis): number | null {
  * dibaca saat kotak ditinggalkan atau Enter ditekan — supaya "9," yang baru
  * setengah diketik tidak langsung dibulatkan menjadi 9.
  */
-export function Isian({ nilai, ubah, jenis = "angka", lebar = 90, disabled, id }: {
+export function Isian({ nilai, ubah, jenis = "angka", lebar = 90, disabled, id, kosongNol }: {
   nilai: number; ubah: (n: number) => void; jenis?: Jenis; lebar?: number;
   disabled?: boolean; id?: string;
+  /** Tampilkan 0 sebagai kotak kosong (kolom yang biasanya tidak diisi). */
+  kosongNol?: boolean;
 }) {
   const [teks, setTeks] = useState<string | null>(null);
   const [salah, setSalah] = useState(false);
@@ -68,12 +70,13 @@ export function Isian({ nilai, ubah, jenis = "angka", lebar = 90, disabled, id }
   };
   return (
     <span className="isian-angka">
-      <input id={id} value={teks ?? tampilAngka(nilai, jenis)} disabled={disabled}
+      <input id={id} value={teks ?? (kosongNol && nilai === 0 ? "" : tampilAngka(nilai, jenis))}
+             disabled={disabled}
              inputMode="decimal" aria-invalid={salah || undefined}
              style={{ width: lebar }}
              onChange={(e) => setTeks(e.target.value)} onBlur={simpan}
              onKeyDown={(e) => { if (e.key === "Enter") simpan(); }} />
-      {jenis === "persen" && <span className="satuan">%</span>}
+      {jenis === "persen" && <span className="satuan">{kosongNol && nilai === 0 && teks == null ? "" : "%"}</span>}
     </span>
   );
 }
@@ -450,14 +453,14 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
                 <td><Isian jenis="rp" nilai={u.hargaTanah} lebar={95} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, hargaTanah: n }))} /></td>
                 <td><Isian nilai={u.lb} lebar={60} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, lb: n }))} /></td>
                 <td><Isian jenis="rp" nilai={u.hargaBangunan} lebar={95} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, hargaBangunan: n }))} /></td>
-                <td><Isian jenis="persen" nilai={u.kenaikan} lebar={55} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, kenaikan: n }))} /></td>
+                <td><Isian jenis="persen" kosongNol nilai={u.kenaikan} lebar={55} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, kenaikan: n }))} /></td>
                 {FAKTOR.map(([k]) => (
-                  <td key={k}><Isian jenis="persen" nilai={u.faktor[k] ?? 0} lebar={55} disabled={ro}
+                  <td key={k}><Isian jenis="persen" kosongNol nilai={u.faktor[k] ?? 0} lebar={55} disabled={ro}
                                      ubah={(n) => ubahUnit(i, (x) => ({ ...x, faktor: { ...x.faktor, [k]: n } }))} /></td>
                 ))}
                 <td><Isian jenis="persen" nilai={u.faktorTambah} lebar={55} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, faktorTambah: n }))} /></td>
-                <td><Isian jenis="rp" nilai={u.special} lebar={95} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, special: n }))} /></td>
-                <td><Isian jenis="rp" nilai={u.showUnit} lebar={95} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, showUnit: n }))} /></td>
+                <td><Isian jenis="rp" kosongNol nilai={u.special} lebar={95} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, special: n }))} /></td>
+                <td><Isian jenis="rp" kosongNol nilai={u.showUnit} lebar={95} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, showUnit: n }))} /></td>
                 <td className="n">{rp(b?.hasilUnit.base ?? NaN)}</td>
                 <td className="n"><b>{rp(b?.hasilUnit.factored ?? NaN)}</b></td>
               </tr>

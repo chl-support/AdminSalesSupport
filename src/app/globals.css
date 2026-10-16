@@ -2988,7 +2988,7 @@ td.sel-surel, th.sel-surel { white-space: nowrap; font-size: 11.5px; }
 .isian-angka { display: inline-flex; align-items: center; gap: 3px; }
 .isian-angka input { text-align: right; font-variant-numeric: tabular-nums; }
 .isian-angka input[aria-invalid] { border-color: var(--stop); background: var(--stopbg); }
-.isian-angka .satuan { font-size: 11px; color: var(--mut); }
+.isian-angka .satuan { font-size: 11px; color: var(--mut); min-width: 1.1em; }
 button.kecil { padding: 3px 8px; font-size: 11.5px; }
 .kepala-pl { display: flex; flex-wrap: wrap; gap: 4px 16px; align-items: baseline;
              margin: 16px 0 8px; padding-top: 12px; border-top: 1px solid var(--line); }
