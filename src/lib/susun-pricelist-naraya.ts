@@ -1,6 +1,7 @@
 /**
  * Isian awal penyusunan pricelist Naraya Serpong, dibaca dari berkas
- * Data_Pricelist.xlsx (PL Naraya revisi 21 Juli 2026): parameter Data (IRR),
+ * Data_Pricelist.xlsx (PL Naraya revisi 21 Juli 2026): parameter Data (IRR)
+ * — dengan porsi tahap pembangunan 25/25/40/10 atas permintaan pemakainya —,
  * 48 unit dari lembar UNIT DATA, susunan kolom Data Pricelist dan Pricelist,
  * serta T&C.
  *
@@ -8,7 +9,8 @@
  * belum punya draf berisi unit — atas permintaan pemakainya, supaya datanya
  * langsung ada di layar tanpa harus diimpor lebih dulu. Sesudah tersimpan,
  * yang dibaca selalu draf di basis data; berkas ini tidak menimpanya lagi.
- * Hitungannya cocok persis dengan Excel-nya (diuji di scripts/test-flow.ts).
+ * Dengan porsi tahap 40/40/10/10 seperti rumus Excel-nya, hitungannya cocok
+ * persis dengan Excel (diuji di scripts/test-flow.ts).
  */
 
 import type { SusunPricelist } from "./susun-pricelist";
@@ -16,12 +18,10 @@ import type { SusunPricelist } from "./susun-pricelist";
 export const SUSUN_NARAYA: SusunPricelist = {
   irr: {
     "target": 0.09,
-    "porsiTahap": [
-      0.4,
-      0.4,
-      0.1,
-      0.1
-    ],
+    // Porsi tahap bagian penjualan: Greenfield 25%, Foundation 25%,
+    // Tutup Atap 40%, BAST + AJB 10% (rumus Excel memakai 40/40/10/10).
+    "porsiTahap": [0.25, 0.25, 0.4, 0.1],
+    "namaTahap": ["Greenfield", "Foundation", "Tutup Atap", "BAST + AJB"],
     "periode": 36,
     "skema": [
       {

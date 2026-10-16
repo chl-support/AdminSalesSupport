@@ -13,7 +13,7 @@ import { useEffect, useState } from "react";
 
 import { formatRupiah } from "@/lib/money";
 import {
-  FAKTOR, unitKosong,
+  FAKTOR, namaTahap, unitKosong,
   type HasilSusun, type SusunPricelist, type UnitData,
 } from "@/lib/susun-pricelist";
 import type { UnitHarga } from "@/lib/simulasi";
@@ -91,10 +91,10 @@ const persen = (n: number, d = 2) =>
 
 // ── 1. Data (IRR) ──────────────────────────────────────────────────────────
 
-const TAHAP = ["Foundation", "Tutup Atap", "BAST", "AJB + SPHTB"] as const;
 
 export function LangkahIrr({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
   const irr = data.irr;
+  const TAHAP = namaTahap(irr);
   const ro = !bolehUbah;
   const ubahSkema = (i: number, f: (s: SusunPricelist["irr"]["skema"][0]) => typeof s) =>
     ubah((d) => ({ ...d, irr: { ...d.irr, skema: d.irr.skema.map((s, j) => j === i ? f(s) : s) } }));
