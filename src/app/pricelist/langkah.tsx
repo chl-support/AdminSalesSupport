@@ -343,7 +343,7 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
 const TEKS_UNIT = [
   ["kode", "Code", 100], ["alamat", "Address", 130], ["view", "View", 85],
   ["no", "No", 40], ["ukuran", "Ukuran", 75], ["phase", "Phase", 45],
-  ["tipe", "Tipe PL", 45], ["tipeBangunan", "Type", 45], ["bentuk", "Bentuk", 85],
+  ["tipe", "Tipe PL", 45], ["tipeBangunan", "Type", 45], ["view2", "View", 85], ["bentuk", "Sub-Tipe Kavling/Irr/Irr Hoek", 110],
   ["subTipe", "Sub-Tipe", 110],
 ] as const;
 
@@ -499,7 +499,7 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
                 </th>
               )}
               <th>#</th>
-              {TEKS_UNIT.map(([, l]) => <th key={l}>{l}</th>)}
+              {TEKS_UNIT.map(([k, l]) => <th key={k}>{l}</th>)}
               <th>Land (m²)</th><th>Harga tanah /m²</th><th>GFA (m²)</th>
               <th>Harga bangunan /m²</th><th>Increase</th>
               {FAKTOR.map(([, l]) => <th key={l}>{l}</th>)}
@@ -532,7 +532,7 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
                 <td className="n">{i + 1}</td>
                 {TEKS_UNIT.map(([k, , w]) => (
                   <td key={k}><IsianTeks id={k === "kode" ? `unit-kode-${i}` : undefined}
-                                         nilai={u[k]} lebar={w} disabled={ro}
+                                         nilai={u[k] ?? ""} lebar={w} disabled={ro}
                                          ubah={(v) => ubahUnit(i, (x) => ({ ...x, [k]: v }))} /></td>
                 ))}
                 <td><Isian nilai={u.lt} lebar={70} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, lt: n }))} /></td>
