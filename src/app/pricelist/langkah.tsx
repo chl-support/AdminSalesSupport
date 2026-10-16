@@ -592,7 +592,7 @@ export function LangkahDataPl({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
       </div>
 
       <div className="tscroll sp">
-        <table className="tabel-ringkas tabel-isian"><tbody>
+        <table className="tabel-ringkas tabel-isian tabel-rapat"><tbody>
           <tr><th>Kolom</th><th>Dihitung dari</th><th>Koefisien / pengali</th></tr>
           {kolom.map((k, i) => (
             <tr key={i}>
@@ -702,7 +702,7 @@ export function LangkahPricelist({ data, hasil, ubah, bolehUbah, aksi }: PropsLa
       <details className="sp" style={{ marginTop: 12 }}>
         <summary className="hint kiri" style={{ cursor: "pointer" }}>Susunan kolom harga ({pl.kolom.length})</summary>
         <div className="tscroll" style={{ marginTop: 8 }}>
-          <table className="tabel-ringkas tabel-isian"><tbody>
+          <table className="tabel-ringkas tabel-isian tabel-rapat"><tbody>
             <tr><th>Kolom Pricelist</th><th>Dari kolom Data Pricelist</th><th>Pengali</th>{bolehUbah && <th />}</tr>
             {pl.kolom.map((k, i) => (
               <tr key={i}>
