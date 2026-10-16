@@ -618,7 +618,6 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
         <label className="lbl" htmlFor="unit-catatan">Catatan</label>
         <textarea id="unit-catatan" className="catatan-unit" rows={3} maxLength={5000}
                   disabled={ro} value={data.catatanUnit ?? ""}
-                  placeholder="Tulis catatan penting untuk Unit Data, mis. perubahan harga, unit yang ditahan…"
                   onChange={(e) => { const v = e.target.value; ubah((d) => ({ ...d, catatanUnit: v })); }} />
         <span className="hint" style={{ margin: 0 }}>Catatan ikut tersimpan setelah <b>Simpan</b>.</span>
       </div>
