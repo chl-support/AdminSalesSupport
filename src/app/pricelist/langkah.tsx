@@ -89,6 +89,7 @@ function IsianTeks({ nilai, ubah, lebar = 110, disabled, id }: {
 }
 
 const rp = (n: number) => (Number.isFinite(n) ? formatRupiah(n) : "—");
+const luas = (n: number) => `${n.toLocaleString("id-ID", { maximumFractionDigits: 2 })} m²`;
 const persen = (n: number, d = 2, min = 0) =>
   Number.isFinite(n)
     ? `${(n * 100).toLocaleString("id-ID", { minimumFractionDigits: min, maximumFractionDigits: d })}%`
@@ -554,7 +555,22 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
                 <td className="n"><b>{rp(b?.hasilUnit.factored ?? NaN)}</b></td>
               </tr>
             ))}
-          </tbody></table>
+          </tbody><tfoot>
+            {/* Jumlah unit yang tampil (ikut pencarian) beserta total luas dan harganya. */}
+            <tr className="total-unit">
+              <td className="aksi-unit">
+                Total {tampil.length} unit{q ? ` (dari ${data.unit.length})` : ""}</td>
+              <td colSpan={(bolehUbah ? 0 : -1) + 1 + TEKS_UNIT.length} />
+              <td className="n">{luas(tampil.reduce((a, { u }) => a + u.lt, 0))}</td><td />
+              <td className="n">{luas(tampil.reduce((a, { u }) => a + u.lb, 0))}</td><td /><td />
+              {FAKTOR.map(([k]) => <td key={k} />)}
+              <td />
+              <td className="n">{rp(tampil.reduce((a, { u }) => a + u.special, 0))}</td>
+              <td className="n">{rp(tampil.reduce((a, { u }) => a + u.showUnit, 0))}</td>
+              <td className="n">{rp(tampil.reduce((a, { b }) => a + (b?.hasilUnit.base ?? 0), 0))}</td>
+              <td className="n">{rp(tampil.reduce((a, { b }) => a + (b?.hasilUnit.factored ?? 0), 0))}</td>
+            </tr>
+          </tfoot></table>
         </div>
       )}
       {bolehUbah && data.unit.length > 0 && (
