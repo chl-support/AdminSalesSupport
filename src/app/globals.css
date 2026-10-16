@@ -3049,3 +3049,9 @@ button.bahaya { border-color: var(--stop); color: #fff; background: var(--stop);
 .tabel-irr td.kas-tunggal { text-align: left !important; }
 .isian-angka .satuan:empty { display: none; }
 .tabel-irr .isian-angka .satuan:empty { display: inline-block; }
+/* Kotak teks (nama cara bayar, Kelompok) selebar kotak angka di bawahnya,
+   yang menyisakan lajur tanda % (14px + jarak 3px). */
+.tabel-irr td > input, .tabel-irr th > input { width: calc(100% - 17px) !important; }
+/* Sel terakhir tabel-ringkas dirata-kanan; di tabel Data (IRR) kotak
+   isiannya tetap rata kiri seperti kolom lainnya. */
+.tabel-irr td:last-child:not(.n), .tabel-irr th:last-child { text-align: left; }
