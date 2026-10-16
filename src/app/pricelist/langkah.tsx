@@ -424,7 +424,8 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
         })) };
       });
       setPesan({ ok: true, teks: `${unit.length} unit dimuat dari lembar UNIT DATA ${berkas.name}. ` +
-        "Periksa tabelnya, lalu Simpan." });
+        "Periksa tabelnya, lalu Simpan." +
+        (b.peringatan?.length ? ` Perhatikan: ${b.peringatan.join(" ")}` : "") });
       setBuka(false); setBerkas(null);
     } finally {
       setSibuk(false);
@@ -459,6 +460,8 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
           <button onClick={() => { setBuka((x) => !x); setPesan(null); }}>
             Impor Unit Data dari Excel</button>
         )}
+        <button onClick={() => { location.href = "/api/pricelist/susun/template-unit"; }}>
+          Unduh Template Unit Data</button>
       </div>
       {buka && (
         <div className="form-blok">
@@ -466,6 +469,8 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
             Berkas Excel dengan lembar <b>UNIT DATA</b> (kolom Code Unit, Address,
             View, Ukuran, Land, Land Price, GFA, dan seterusnya). Seluruh unit di
             tabel ini diganti dengan isi berkas; langkah lain tidak berubah.
+            Untuk project baru, isi <a href="/api/pricelist/susun/template-unit" download>template
+            Unit Data</a> supaya kolomnya pasti terbaca.
           </p>
           <div className="row" style={{ marginBottom: 0 }}>
             <PilihBerkas accept=".xlsx" onChange={(e) => setBerkas(e.target.files?.[0] ?? null)} />
