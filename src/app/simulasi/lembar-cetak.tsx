@@ -70,33 +70,33 @@ function Rp({ n, tebal }: { n: number; tebal?: boolean }) {
  * Jadwal yang keluar dari pricelist apa adanya disebut dengan nama kolomnya.
  * Begitu ada yang diubah untuk konsumen ini — diskon, penambahan harga, atau
  * jadwal yang disunting tangan — yang dicetak bukan lagi cara bayar baku itu,
- * melainkan kesepakatan tersendiri, dan diberi nama "Special Payment".
+ * melainkan kesepakatan tersendiri, dan diberi nama "SPECIAL PAYMENT".
  *
  * Namanya sendiri diringkas menurut permintaan bagian penjualan:
  *
- *   • mengandung KPR (atau KPA) → "Special Payment KPR" — selalu, ada diskon
+ *   • mengandung KPR (atau KPA) → "SPECIAL PAYMENT KPR" — selalu, ada diskon
  *     maupun tidak, dan berapa pun DP serta cicilan uang mukanya: yang penting
  *     bagi konsumen pelunasannya lewat bank;
- *   • cicilan → "Special Payment Cicilan [n]x" — selalu, ada diskon maupun
+ *   • cicilan → "SPECIAL PAYMENT Cicilan [n]x" — selalu, ada diskon maupun
  *     tidak, sebab cicilan memang bukan cara bayar yang ditawarkan terbuka.
  *     n dihitung dari jadwal yang benar-benar tercetak: seluruh baris kecuali
  *     booking fee, jadi angsuran terakhir maupun pelunasan ikut terhitung dan
  *     baris yang disembunyikan tidak. Jadwal yang disunting karenanya
  *     menyebut angka yang sesuai dengan barisnya, bukan angka pada nama kolom
  *     pricelist yang sudah tidak berlaku lagi;
- *   • selain itu → nama kolomnya sendiri, mis. "Special Payment CASH KERAS".
+ *   • selain itu → nama kolomnya sendiri, mis. "SPECIAL PAYMENT CASH KERAS".
  */
 function caraBayarLembar(h: Hasil, barisTampil: { ket: string }[]): string {
   // KPR dan cicilan lebih dulu, dan tanpa syarat: keduanya selalu disebut
-  // Special Payment, sekalipun tanpa diskon, penambahan, maupun suntingan.
-  if (/\b(kpr|kpa)\b/i.test(h.skema)) return "Special Payment KPR";
+  // SPECIAL PAYMENT, sekalipun tanpa diskon, penambahan, maupun suntingan.
+  if (/\b(kpr|kpa)\b/i.test(h.skema)) return "SPECIAL PAYMENT KPR";
   if (/cicilan|angsuran|installment|bertahap/i.test(h.skema)) {
     const n = barisTampil.filter((t) => !/booking/i.test(t.ket)).length;
-    return `Special Payment Cicilan ${n}x`;
+    return `SPECIAL PAYMENT Cicilan ${n}x`;
   }
   // Sisanya — cash — hanya bila ada yang diubah untuk konsumen ini.
   const khusus = h.diskon > 0 || h.tambahan > 0 || h.jadwalDisunting;
-  return khusus ? `Special Payment ${h.skema}` : h.skema;
+  return khusus ? `SPECIAL PAYMENT ${h.skema}` : h.skema;
 }
 
 // ── Lembar Konsumen ────────────────────────────────────────────────────────
