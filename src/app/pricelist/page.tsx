@@ -1,28 +1,288 @@
 "use client";
 
 /**
- * Pricelist — butir menunya saja, halamannya sengaja masih kosong.
+ * Pricelist — penyusunan pricelist dalam lima langkah yang saling terhubung,
+ * mengikuti lembar-lembar berkas Excel PL bagian penjualan:
  *
- * Isi pricelist (yang berlaku beserta riwayat unggahannya) tampil di layar
- * Simulasi / NPV, di bawah panel Upload D-Pricelist (lihat
- * ./panel-pricelist.tsx). Atas permintaan pemakainya, menu Pricelist tetap
- * ada sebagai tempat dan halamannya dibiarkan kosong sampai nanti diisi.
+ *   1. Data (IRR)  2. Unit Data  3. Data Pricelist  4. Pricelist  5. T&C
+ *
+ * Isiannya dapat diketik langsung atau diisi sekaligus dari berkas Excel
+ * (Impor dari Excel). Setiap perubahan dihitung ulang seketika di layar
+ * (src/lib/susun-pricelist.ts); "Simpan" menyimpannya sebagai draf project.
+ * Pricelist baru dipakai layar Simulasi / NPV sesudah diberlakukan di langkah
+ * 4 — sebelum itu, pricelist yang berlaku tetap yang lama.
  */
+
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { useKata } from "../bahasa";
 import { Kerangka, MemeriksaSesi } from "../kerangka";
+import { PilihBerkas } from "../pilih-berkas";
 import { useSesi } from "../session";
+import { PENGUNGGAH } from "../simulasi/unggah-pricelist";
+import { hitungSemua, type SusunPricelist } from "@/lib/susun-pricelist";
+import {
+  LangkahDataPl, LangkahIrr, LangkahPricelist, LangkahTnc, LangkahUnit,
+} from "./langkah";
 
 const KATA = {
-  id: { judul: "Pricelist" },
-  en: { judul: "Price List" },
+  id: {
+    judul: "Pricelist",
+    langkah: ["Data (IRR)", "Unit Data", "Data Pricelist", "Pricelist", "Terms & Conditions"],
+    uraian: [
+      "Koefisien harga tiap cara bayar",
+      "Harga dasar tiap unit",
+      "Harga per cara bayar",
+      "Harga jual, DPP & PPN DTP",
+      "Ketentuan pembayaran",
+    ],
+    pilihProject: "Pilih project lebih dulu.",
+    memuat: "Memuat…",
+    impor: "Impor dari Excel", imporInfo: "Berkas PL dengan lembar Data (IRR), Unit Data, Data Pricelist, Pricelist dan T&C.",
+    membaca: "Membaca…", baca: "Baca berkas", batal: "Batal",
+    terimpor: (u: number) => `${u} unit dan seluruh langkah terisi dari berkas. Periksa tiap langkah, lalu Simpan.`,
+    simpan: "Simpan", menyimpan: "Menyimpan…", tersimpan: "Tersimpan",
+    belumSimpan: "Ada perubahan yang belum disimpan",
+    drafBaru: "Belum ada draf untuk project ini. Isi langkah-langkahnya atau impor dari Excel.",
+    terakhir: (o: string, t: string) => `Disimpan ${o} · ${t}`,
+    unduh: "Unduh Excel", unduhSyarat: "Simpan dulu supaya berkasnya berisi perubahan terakhir.",
+    sebelum: "← Sebelumnya", lanjut: "Lanjut →",
+    hanyaBaca: "Hanya Admin Sales dan Admin IT yang dapat mengubah pricelist.",
+    galatJudul: "Belum dapat diberlakukan",
+    berlakuJudul: "Berlakukan pricelist",
+    berlakuInfo: "Pricelist ini menggantikan pricelist yang berlaku dan langsung dipakai layar Simulasi / NPV. Pricelist lama tetap ada di riwayatnya.",
+    fNama: "Referensi dokumen", berlakukan: "Simpan & berlakukan", memberlakukan: "Memberlakukan…",
+    diberlakukan: (n: string) => `Pricelist "${n}" berlaku. Buka Simulasi / NPV untuk memakainya.`,
+    keSimulasi: "Buka Simulasi / NPV",
+  },
+  en: {
+    judul: "Price List",
+    langkah: ["Data (IRR)", "Unit Data", "Price Data", "Price List", "Terms & Conditions"],
+    uraian: [
+      "Price coefficient per payment scheme",
+      "Base price per unit",
+      "Price per payment scheme",
+      "Selling price, DPP & VAT DTP",
+      "Payment terms",
+    ],
+    pilihProject: "Select a project first.",
+    memuat: "Loading…",
+    impor: "Import from Excel", imporInfo: "A PL file with the sheets Data (IRR), Unit Data, Data Pricelist, Pricelist and T&C.",
+    membaca: "Reading…", baca: "Read file", batal: "Cancel",
+    terimpor: (u: number) => `${u} units and every step filled from the file. Review each step, then Save.`,
+    simpan: "Save", menyimpan: "Saving…", tersimpan: "Saved",
+    belumSimpan: "Unsaved changes",
+    drafBaru: "No draft for this project yet. Fill in the steps or import from Excel.",
+    terakhir: (o: string, t: string) => `Saved by ${o} · ${t}`,
+    unduh: "Download Excel", unduhSyarat: "Save first so the file contains the latest changes.",
+    sebelum: "← Previous", lanjut: "Next →",
+    hanyaBaca: "Only Sales Admin and IT Admin can change the price list.",
+    galatJudul: "Cannot be applied yet",
+    berlakuJudul: "Apply price list",
+    berlakuInfo: "This price list replaces the one in force and is used by Simulation / NPV right away. The old one stays in the history.",
+    fNama: "Document reference", berlakukan: "Save & apply", memberlakukan: "Applying…",
+    diberlakukan: (n: string) => `Price list "${n}" is in force. Open Simulation / NPV to use it.`,
+    keSimulasi: "Open Simulation / NPV",
+  },
+};
+
+type Draf = {
+  baru: boolean; data: SusunPricelist;
+  diubah_oleh: string | null; diubah_pada: string | null;
 };
 
 export default function PricelistPage() {
   const { sesi, memuat } = useSesi();
   const k = useKata(KATA);
 
-  if (memuat || !sesi) return <MemeriksaSesi />;
+  const [draf, setDraf] = useState<Draf | null>(null);
+  const [data, setData] = useState<SusunPricelist | null>(null);
+  const [langkah, setLangkah] = useState(0);
+  const [galat, setGalat] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
+  const [sibuk, setSibuk] = useState<"simpan" | "impor" | "berlaku" | null>(null);
+  const [bukaImpor, setBukaImpor] = useState(false);
+  const [berkas, setBerkas] = useState<File | null>(null);
+  const [peringatan, setPeringatan] = useState<string[]>([]);
+  const [namaPl, setNamaPl] = useState("");
+  const [berlaku, setBerlaku] = useState<string | null>(null);
 
-  return <Kerangka sesi={sesi} lebar judul={<div><h1>{k.judul}</h1></div>}>{null}</Kerangka>;
+  const muat = useCallback(async () => {
+    const res = await fetch("/api/pricelist/susun");
+    const b = await res.json().catch(() => ({}));
+    if (res.status === 401) { location.href = "/login"; return; }
+    if (!res.ok) { setGalat(b.detail ?? b.title ?? `HTTP ${res.status}`); return; }
+    setDraf(b); setData(b.data);
+  }, []);
+
+  useEffect(() => { if (sesi?.project_slug) void muat(); }, [sesi, muat]);
+
+  const hasil = useMemo(() => (data ? hitungSemua(data) : null), [data]);
+  const berubah = !!data && !!draf && (draf.baru || JSON.stringify(data) !== JSON.stringify(draf.data));
+
+  // Peringatan sebelum meninggalkan halaman dengan perubahan yang belum disimpan.
+  useEffect(() => {
+    if (!berubah) return;
+    const tahan = (e: BeforeUnloadEvent) => { e.preventDefault(); };
+    addEventListener("beforeunload", tahan);
+    return () => removeEventListener("beforeunload", tahan);
+  }, [berubah]);
+
+  if (memuat || !sesi) return <MemeriksaSesi />;
+  const bolehUbah = PENGUNGGAH.includes(sesi.role);
+
+  const kirim = async (url: string, init: RequestInit) => {
+    const res = await fetch(url, init);
+    const b = await res.json().catch(() => ({}));
+    if (res.status === 401) { location.href = "/login"; return null; }
+    if (!res.ok) { setGalat(b.detail ?? b.title ?? `HTTP ${res.status}`); return null; }
+    return b;
+  };
+
+  const simpan = async () => {
+    if (!data) return false;
+    setSibuk("simpan"); setGalat(null); setInfo(null);
+    const b = await kirim("/api/pricelist/susun", {
+      method: "PUT", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ data }),
+    });
+    setSibuk(null);
+    if (b) { setDraf(b); setData(b.data); }
+    return !!b;
+  };
+
+  const impor = async () => {
+    if (!berkas) return;
+    setSibuk("impor"); setGalat(null); setInfo(null);
+    const fd = new FormData(); fd.append("file", berkas);
+    const b = await kirim("/api/pricelist/susun/impor", { method: "POST", body: fd });
+    setSibuk(null);
+    if (!b) return;
+    setData(b.susun); setPeringatan(b.peringatan ?? []);
+    setInfo(k.terimpor(b.susun.unit.length));
+    setBukaImpor(false); setBerkas(null); setLangkah(0);
+  };
+
+  const berlakukan = async () => {
+    if (berubah && !(await simpan())) return;
+    setSibuk("berlaku"); setGalat(null); setBerlaku(null);
+    const b = await kirim("/api/pricelist/susun/berlakukan", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ nama: namaPl }),
+    });
+    setSibuk(null);
+    if (b) setBerlaku(b.nama);
+  };
+
+  const ubah = (f: (d: SusunPricelist) => SusunPricelist) => {
+    setInfo(null); setBerlaku(null);
+    setData((d) => (d ? f(d) : d));
+  };
+
+  const tgl = (s: string) => new Date(s).toLocaleString("id-ID",
+    { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+
+  const panelBerlaku = bolehUbah && hasil && (
+    <div className="form-blok sp" style={{ marginTop: 16 }}>
+      <h3>{k.berlakuJudul}</h3>
+      {hasil.galat.length > 0 ? (
+        <div className="banner stop">
+          <b>{k.galatJudul}</b>
+          <ul style={{ margin: "4px 0 0 16px" }}>{hasil.galat.map((g) => <li key={g}>{g}</li>)}</ul>
+        </div>
+      ) : (
+        <>
+          <p className="hint kiri" style={{ marginTop: 0 }}>{k.berlakuInfo}</p>
+          <div className="row">
+            <input id="pl-nama" value={namaPl} maxLength={120} style={{ width: 320 }}
+                   placeholder={`${data!.pricelist.judul} ${data!.pricelist.tanggal}`.trim()}
+                   aria-label={k.fNama} onChange={(e) => setNamaPl(e.target.value)} />
+            <button className="pri" disabled={!!sibuk} onClick={() => void berlakukan()}>
+              {sibuk === "berlaku" ? k.memberlakukan : k.berlakukan}</button>
+          </div>
+          {berlaku && (
+            <div className="banner ok">{k.diberlakukan(berlaku)}{" "}
+              <a href="/simulasi">{k.keSimulasi}</a></div>
+          )}
+        </>
+      )}
+    </div>
+  );
+
+  const props = data && hasil ? { data, hasil, ubah, bolehUbah } : null;
+
+  return (
+    <Kerangka sesi={sesi} lebar judul={<div><h1>{k.judul}</h1></div>}>
+      {!sesi.project_slug && <div className="banner warn">{k.pilihProject}</div>}
+      {galat && <div className="banner stop">{galat}</div>}
+
+      {sesi.project_slug && !props && !galat && <p className="hint">{k.memuat}</p>}
+
+      {props && (
+        <>
+          <div className="panel sp susun-alat">
+            <div className="row" style={{ margin: 0 }}>
+              {bolehUbah && (
+                <>
+                  <button onClick={() => setBukaImpor((x) => !x)}>{k.impor}</button>
+                  <button className="pri" disabled={!berubah || !!sibuk} onClick={() => void simpan()}>
+                    {sibuk === "simpan" ? k.menyimpan : k.simpan}</button>
+                </>
+              )}
+              <button disabled={draf!.baru || berubah}
+                      title={berubah ? k.unduhSyarat : undefined}
+                      onClick={() => { location.href = "/api/pricelist/susun/excel"; }}>{k.unduh}</button>
+              <span className={`pill ${berubah ? "warn" : "ok"}`}>
+                {berubah ? k.belumSimpan : k.tersimpan}</span>
+              <span className="hint" style={{ margin: 0 }}>
+                {draf!.baru ? k.drafBaru
+                  : draf!.diubah_pada && k.terakhir(draf!.diubah_oleh ?? "—", tgl(draf!.diubah_pada))}
+              </span>
+            </div>
+            {!bolehUbah && <p className="hint kiri" style={{ marginBottom: 0 }}>{k.hanyaBaca}</p>}
+            {bukaImpor && (
+              <div className="form-blok" style={{ marginTop: 12 }}>
+                <p className="hint kiri" style={{ marginTop: 0 }}>{k.imporInfo}</p>
+                <div className="row" style={{ marginBottom: 0 }}>
+                  <PilihBerkas accept=".xlsx" onChange={(e) => setBerkas(e.target.files?.[0] ?? null)} />
+                  <button className="pri" disabled={!berkas || !!sibuk} onClick={() => void impor()}>
+                    {sibuk === "impor" ? k.membaca : k.baca}</button>
+                  <button onClick={() => { setBukaImpor(false); setBerkas(null); }}>{k.batal}</button>
+                </div>
+              </div>
+            )}
+            {info && <div className="banner ok" style={{ marginTop: 12, marginBottom: 0 }}>{info}</div>}
+            {peringatan.length > 0 && (
+              <div className="banner warn" style={{ marginTop: 12, marginBottom: 0 }}>
+                <ul style={{ margin: 0, paddingLeft: 16 }}>{peringatan.map((p) => <li key={p}>{p}</li>)}</ul>
+              </div>
+            )}
+          </div>
+
+          <nav className="langkah langkah-pl" aria-label={k.judul}>
+            {k.langkah.map((l, i) => (
+              <button key={l} className={`lk ${i === langkah ? "kini" : ""}`}
+                      aria-current={i === langkah ? "step" : undefined}
+                      onClick={() => setLangkah(i)}>
+                <b>{i + 1}. {l}</b>{k.uraian[i]}
+              </button>
+            ))}
+          </nav>
+
+          <div className="panel">
+            <h2>{langkah + 1}. {k.langkah[langkah]}</h2>
+            {langkah === 0 && <LangkahIrr {...props} />}
+            {langkah === 1 && <LangkahUnit {...props} />}
+            {langkah === 2 && <LangkahDataPl {...props} />}
+            {langkah === 3 && <LangkahPricelist {...props} aksi={panelBerlaku} />}
+            {langkah === 4 && <LangkahTnc {...props} />}
+            <div className="row" style={{ marginTop: 16, marginBottom: 0, justifyContent: "space-between" }}>
+              <button disabled={langkah === 0} onClick={() => setLangkah((x) => x - 1)}>{k.sebelum}</button>
+              <button disabled={langkah === 4} onClick={() => setLangkah((x) => x + 1)}>{k.lanjut}</button>
+            </div>
+          </div>
+        </>
+      )}
+    </Kerangka>
+  );
 }

@@ -1848,6 +1848,69 @@ async function main() {
            `pajak: ${JSON.stringify(u.pajak)}`);
   });
 
+  // Penyusunan pricelist lima langkah: Data (IRR) → Unit Data → Data
+  // Pricelist → Pricelist harus menghasilkan angka yang sama persis dengan
+  // berkas Excel PL Naraya (revisi 21 Juli 2026) untuk unit-unit yang
+  // mewakili setiap jenis faktor: Hoek (IRR K), Badan tanpa faktor, dan unit
+  // depan + hoek garden + show unit.
+  await check("susun pricelist lima langkah sama dengan Excel", async () => {
+    const { hitungSemua, susunAwal, unitKosong, roundUp } =
+      await import("../src/lib/susun-pricelist");
+    const s = susunAwal();
+    const dasar = { ...unitKosong(), alamat: "NARAYA", hargaTanah: 7_000_000,
+                    lb: 88, hargaBangunan: 6_500_000, faktorTambah: 0.02, tipe: "7" };
+    s.unit = [
+      { ...dasar, kode: "NS-NR1-01", lt: 146.5, faktor: { hoek: 0.001 } },
+      { ...dasar, kode: "NS-NR1-03", lt: 70 },
+      { ...dasar, kode: "NS-NRB-10", lt: 110.62, showUnit: 400_000_000,
+        faktor: { unitDepan: 0.003, hoekGarden: 0.002 } },
+    ];
+    const h = hitungSemua(s);
+    assert(h.galat.length === 0, h.galat.join("; "));
+    const koef = Object.values(h.irr.koef).map((x) => x.toFixed(5)).join(" ");
+    assert(koef === "1.00000 1.04942 1.07276 1.09643 1.12044 1.01430 1.12582 1.11412 1.10443",
+           `koefisien: ${koef}`);
+    assert(Object.entries(h.irr.irr).every(([n, v]) => n === "Cash Keras" || Math.abs(v - 0.09) < 1e-9),
+           "IRR tiap cara bayar harus 9%");
+    assert(h.baris[0].hasilUnit.base === 1_774_000_000, `base: ${h.baris[0].hasilUnit.base}`);
+    const harap: Record<string, number[]> = {
+      "NS-NR1-01": [1817, 1906, 1949, 1991, 2035, 2055, 2302, 2045, 2023, 2006],
+      "NS-NR1-03": [1208, 1268, 1296, 1324, 1353, 1366, 1530, 1359, 1345, 1334],
+      "NS-NRB-10": [1938, 2034, 2079, 2124, 2171, 2192, 2455, 2181, 2159, 2140],
+    };
+    for (const b of h.baris) {
+      const dapat = s.pricelist.kolom.map((k) => b.pricelist[k.nama].harga / 1e6);
+      assert(JSON.stringify(dapat) === JSON.stringify(harap[b.unit.kode]),
+             `${b.unit.kode}: ${dapat.join(", ")}`);
+    }
+    const kpr = h.baris[1].pricelist["BANK KPR - DP 10% (KPR REGULAR)"];
+    assert(kpr.dpp === 1_378_378_378 && kpr.dtp === 151_621_622, `DPP/DTP: ${JSON.stringify(kpr)}`);
+    // Di atas pagu, PPN DTP berhenti di 220 juta.
+    assert(h.baris[0].pricelist["BANK KPR - DP 10% (KPR REGULAR)"].dtp === 220_000_000, "pagu DTP");
+    // ROUNDUP tidak boleh naik satu juta hanya karena galat biner.
+    assert(roundUp(1_811_289_480 * 1, 6) === 1_812_000_000 && roundUp(2_000_000_000.0000002, 6) === 2_000_000_000,
+           "roundUp");
+  });
+
+  await check("susun pricelist: ekspor Excel terbaca kembali sebagai pricelist", async () => {
+    const { susunAwal, unitKosong } = await import("../src/lib/susun-pricelist");
+    const { eksporSusun, imporSusun } = await import("../src/lib/susun-pricelist-xlsx");
+    const { bacaPricelist } = await import("../src/lib/pricelist");
+    const s = susunAwal();
+    s.pricelist.tanggal = "21 Juli 2026";
+    s.unit = [{ ...unitKosong(), kode: "X-01", alamat: "A", lt: 70, hargaTanah: 7_000_000,
+                lb: 88, hargaBangunan: 6_500_000, tipe: "7" }];
+    const x = await eksporSusun(s);
+    const ab = x.buffer.slice(x.byteOffset, x.byteOffset + x.byteLength) as ArrayBuffer;
+    const r = await bacaPricelist(ab);
+    assert(r.lembar === "Pricelist" && r.galat.length === 0 && r.skema.length === 10,
+           `ekspor: ${r.lembar} ${r.galat.join("; ")}`);
+    assert(r.unit[0].harga["Cash Keras"] === 1_208_000_000, JSON.stringify(r.unit[0].harga));
+    const imp = await imporSusun(ab);
+    assert(imp.susun.unit.length === 1 && imp.susun.unit[0].kode === "X-01",
+           `impor ulang: ${imp.susun.unit.length}`);
+  });
+
   console.log("\n" + "=".repeat(62));
   console.log(`  LULUS ${pass.length}   GAGAL ${fail.length}`);
   if (fail.length) {
