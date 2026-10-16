@@ -477,6 +477,32 @@ export async function berlakukanPricelist(
  * dihapus — layar simulasi project itu akan kosong seketika; berlakukan
  * pricelist lain lebih dulu.
  */
+/**
+ * Ganti nama pricelist (yang berlaku maupun di riwayat), supaya mudah
+ * dikenali dan dibuka kembali. Nama berkas unduhannya ikut berganti.
+ */
+export async function gantiNamaPricelist(
+  id: string, projectId: string, nama: string, aktor: string,
+): Promise<void> {
+  await ensureTabelPricelist();
+  const baru = nama.replace(/\s+/g, " ").trim();
+  if (!baru) throw new Error("Nama pricelist tidak boleh kosong.");
+  if (baru.length > 120) throw new Error("Nama pricelist paling banyak 120 huruf.");
+  if (!UUID.test(id)) throw new Error("Pricelist tidak ditemukan pada project ini.");
+  await tx(async (c) => {
+    const { rows } = await c.query<{ nama: string; nama_berkas: string | null }>(
+      "SELECT nama, nama_berkas FROM pricelists WHERE id=$1 AND project_id=$2",
+      [id, projectId]);
+    if (!rows.length) throw new Error("Pricelist tidak ditemukan pada project ini.");
+    const berkas = `${baru.replace(/[\\/:*?"<>|]+/g, "-")}.xlsx`;
+    await c.query("UPDATE pricelists SET nama=$2, nama_berkas=$3 WHERE id=$1",
+                  [id, baru, berkas]);
+    await audit({ entityType: "pricelist", entityId: id, action: "pricelist_renamed",
+                  actor: aktor, before: { nama: rows[0].nama, berkas: rows[0].nama_berkas },
+                  after: { nama: baru, berkas } }, c);
+  });
+}
+
 export async function hapusPricelist(
   id: string, projectId: string, aktor: string,
 ): Promise<void> {

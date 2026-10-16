@@ -36,6 +36,7 @@ const KATA = {
     sBerlaku: "Berlaku",
     berlakukan: "Berlakukan", hapus: "Hapus",
     yakinHapus: "Hapus pricelist ini?", ya: "Ya, hapus", batal: "Batal",
+    gantiNama: "Ganti nama", simpanNama: "Simpan nama",
     fCari: "Cari unit", fCariContoh: "mis. NR1-05 atau 8,5x10",
     fAlamat: "Address", fPhase: "Phase", fView: "View", fSub: "Sub-Tipe",
     semua: "Semua", pajak: "Tampilkan DPP & Nilai Free PPN DTP",
@@ -57,6 +58,7 @@ const KATA = {
     sBerlaku: "In force",
     berlakukan: "Apply", hapus: "Delete",
     yakinHapus: "Delete this price list?", ya: "Yes, delete", batal: "Cancel",
+    gantiNama: "Rename", simpanNama: "Save name",
     fCari: "Search unit", fCariContoh: "e.g. NR1-05 or 8,5x10",
     fAlamat: "Address", fPhase: "Phase", fView: "View", fSub: "Sub-type",
     semua: "All", pajak: "Show DPP & free VAT (DTP)",
@@ -99,6 +101,8 @@ export function PanelPricelist({ sesi, versi, onBerubah }: {
   const [riwayat, setRiwayat] = useState<Ringkas[]>([]);
   const [galat, setGalat] = useState<string | null>(null);
   const [hapusId, setHapusId] = useState<string | null>(null);
+  const [namaId, setNamaId] = useState<string | null>(null);
+  const [namaBaru, setNamaBaru] = useState("");
   const [cari, setCari] = useState("");
   const [saring, setSaring] = useState<Record<Saring, string>>(SARING_KOSONG);
   const [pajak, setPajak] = useState(false);
@@ -143,6 +147,34 @@ export function PanelPricelist({ sesi, versi, onBerubah }: {
     onBerubah?.();
   };
 
+  const gantiNama = async (id: string) => {
+    setGalat(null);
+    const res = await fetch(`/api/pricelist/${id}`, {
+      method: "PATCH", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ nama: namaBaru }),
+    });
+    const b = await res.json().catch(() => ({}));
+    if (!res.ok) { setGalat(b.detail ?? b.title ?? `HTTP ${res.status}`); return; }
+    setNamaId(null);
+    await muat();
+    onBerubah?.();
+  };
+  const mulaiGanti = (r: { id: string; nama: string }) => { setNamaId(r.id); setNamaBaru(r.nama); };
+  /** Kotak nama yang sedang diganti, atau null bila baris ini tidak sedang diganti. */
+  const kotakNama = (id: string) => namaId !== id ? null : (
+    <span className="row" style={{ margin: 0, flexWrap: "nowrap" }}>
+      <input id={`pl-nama-${id}`} value={namaBaru} maxLength={120} autoFocus style={{ width: 260 }}
+             onChange={(e) => setNamaBaru(e.target.value)}
+             onKeyDown={(e) => {
+               if (e.key === "Enter") void gantiNama(id);
+               if (e.key === "Escape") setNamaId(null);
+             }} />
+      <button className="pri" disabled={!namaBaru.trim()} onClick={() => void gantiNama(id)}>
+        {k.simpanNama}</button>
+      <button onClick={() => setNamaId(null)}>{k.batal}</button>
+    </span>
+  );
+
   const bolehUbah = PENGUNGGAH.includes(sesi.role);
   const tgl = (s: string) => new Date(s).toLocaleString(
     bahasa === "id" ? "id-ID" : "en-GB",
@@ -163,7 +195,8 @@ export function PanelPricelist({ sesi, versi, onBerubah }: {
         <>
           {/* Pricelist tampil sebagai berkas di dalam folder; tabelnya
               baru dibuka bila diminta. */}
-          <div className="berkas-pl">
+          {aktif && kotakNama(aktif.id)}
+          <div className="berkas-pl" hidden={!!aktif && namaId === aktif.id}>
             <button className="berkas-pl-nama" aria-expanded={bukaTabel}
                     onClick={() => setBukaTabel((x) => !x)}>
               <span className="berkas-pl-ikon" aria-hidden>{bukaTabel ? "📂" : "📁"}</span>
@@ -176,6 +209,8 @@ export function PanelPricelist({ sesi, versi, onBerubah }: {
             <span className="row" style={{ margin: 0 }}>
               <button onClick={() => setBukaTabel((x) => !x)}>
                 {bukaTabel ? k.tutup : k.buka}</button>
+              {bolehUbah && aktif && (
+                <button onClick={() => mulaiGanti(aktif)}>{k.gantiNama}</button>)}
               <button className="pri" disabled={!aktif?.ada_berkas}
                       title={aktif?.ada_berkas ? undefined : k.takAdaBerkas}
                       onClick={() => aktif && unduh(aktif.id)}>{k.unduh}</button>
@@ -244,7 +279,12 @@ export function PanelPricelist({ sesi, versi, onBerubah }: {
               </tr>
               {riwayat.map((r) => (
                 <tr key={r.id} className={r.aktif ? "terpilih" : undefined}>
-                  <td>{r.nama}</td>
+                  <td>{kotakNama(r.id) ?? (
+                    <span className="row" style={{ margin: 0, flexWrap: "nowrap" }}>
+                      {r.nama}
+                      {bolehUbah && (
+                        <button className="kecil" onClick={() => mulaiGanti(r)}>{k.gantiNama}</button>)}
+                    </span>)}</td>
                   <td>
                     {r.ada_berkas
                       ? <button className="tautan" onClick={() => unduh(r.id)}
