@@ -47,11 +47,32 @@ export type SkemaIrr = {
   acuan?: boolean;
 };
 
+/** Nama baris tahap pada lembar Data (IRR) Excel. */
+export const TAHAP_EXCEL: [string, string, string, string] =
+  ["Foundation", "Tutup Atap", "BAST", "AJB + SPHTB"];
+
+/**
+ * Tahap pembangunan yang dipakai bagian penjualan: Greenfield (tanah
+ * matang), Foundation, Tutup Atap, BAST + AJB — porsinya 25/25/40/10, seperti
+ * tabel tahap di samping lembar Data (IRR).
+ */
+export const TAHAP_AWAL: [string, string, string, string] =
+  ["Greenfield", "Foundation", "Tutup Atap", "BAST + AJB"];
+export const PORSI_AWAL: [number, number, number, number] = [0.25, 0.25, 0.4, 0.1];
+
+export const namaTahap = (irr: { namaTahap?: [string, string, string, string] }) =>
+  irr.namaTahap ?? TAHAP_EXCEL;
+
 export type DataIrr = {
   /** Bunga target setahun, mis. 0,09. */
   target: number;
   /** Porsi sisa (1 − DP) yang cair pada keempat tahap; jumlahnya 1. */
   porsiTahap: [number, number, number, number];
+  /**
+   * Nama keempat tahap. Kosong pada isian lama: nama baris lembar Data (IRR)
+   * Excel (Foundation, Tutup Atap, BAST, AJB + SPHTB); lihat `namaTahap`.
+   */
+  namaTahap?: [string, string, string, string];
   /** Panjang arus kas dalam bulan (lembar Excel: bulan 0 sampai 36). */
   periode: number;
   skema: SkemaIrr[];
@@ -423,7 +444,7 @@ export function susunAwal(): SusunPricelist {
     "Angsuran (DP) 1", `Angsuran 2 - ${n}`);
   return {
     irr: {
-      target: 0.09, porsiTahap: [0.4, 0.4, 0.1, 0.1], periode: 36,
+      target: 0.09, porsiTahap: [...PORSI_AWAL], namaTahap: [...TAHAP_AWAL], periode: 36,
       skema: [
         sk("Cash Keras", "Cash", 0.07, 1, 1, bangun, true),
         sk("Cicilan 12x", "Cash", 0.04, 1, 12, bangun),

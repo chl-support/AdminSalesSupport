@@ -17,7 +17,7 @@
 import ExcelJS from "exceljs";
 
 import {
-  FAKTOR, hitungSemua, susunAwal, unitKosong,
+  FAKTOR, hitungSemua, namaTahap, susunAwal, unitKosong,
   type KolomDataPl, type KolomPricelist, type SkemaIrr, type SusunPricelist,
   type Tnc, type UnitData,
 } from "./susun-pricelist";
@@ -183,6 +183,11 @@ export async function imporSusun(isi: ArrayBuffer): Promise<HasilImpor> {
 
   const susun = susunAwal();
   const peringatan: string[] = [];
+  // Rumus arus kas lembar Data (IRR) memakai baris Foundation / Tutup Atap /
+  // BAST / AJB + SPHTB dengan porsi 40/40/10/10; berkas Excel dibaca apa
+  // adanya supaya hasilnya sama dengan Excel-nya.
+  susun.irr.porsiTahap = [0.4, 0.4, 0.1, 0.1];
+  delete susun.irr.namaTahap;
 
   // 1. Data (IRR)
   const wsIrr = lembar(wb, /irr/i);
@@ -409,7 +414,7 @@ export async function eksporSusun(susun: SusunPricelist): Promise<Buffer> {
   w1.addRow(["Allocation", ...sk.map((s) => s.alokasi)]);
   w1.addRow(["DP", ...sk.map((s) => s.dp)]);
   w1.addRow(["Installments", ...sk.map((s) => s.kali)]);
-  ["Foundation", "Tutup Atap", "BAST", "AJB + SPHTB"].forEach((l, i) =>
+  namaTahap(susun.irr).forEach((l, i) =>
     w1.addRow([l, ...sk.map((s) => s.bulan[i])]));
   w1.addRow(["IRR", ...sk.map((s) => h.irr.irr[s.nama])]);
   w1.addRow(["Coefficient", ...sk.map((s) => h.irr.koef[s.nama])]);

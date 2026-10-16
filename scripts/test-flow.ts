@@ -1857,6 +1857,8 @@ async function main() {
     const { hitungSemua, susunAwal, unitKosong, roundUp } =
       await import("../src/lib/susun-pricelist");
     const s = susunAwal();
+    // Rumus lembar Data (IRR) Excel memakai porsi tahap 40/40/10/10.
+    s.irr.porsiTahap = [0.4, 0.4, 0.1, 0.1];
     const dasar = { ...unitKosong(), alamat: "NARAYA", hargaTanah: 7_000_000,
                     lb: 88, hargaBangunan: 6_500_000, faktorTambah: 0.02, tipe: "7" };
     s.unit = [
@@ -1942,7 +1944,9 @@ async function main() {
   await check("isian awal pricelist Naraya sama dengan Excel 21.07.2026", async () => {
     const { SUSUN_NARAYA } = await import("../src/lib/susun-pricelist-naraya");
     const { hitungSemua } = await import("../src/lib/susun-pricelist");
-    const h = hitungSemua(SUSUN_NARAYA);
+    // Porsi tahap Excel (40/40/10/10) → harga sama persis dengan Excel.
+    const h = hitungSemua({ ...SUSUN_NARAYA,
+      irr: { ...SUSUN_NARAYA.irr, porsiTahap: [0.4, 0.4, 0.1, 0.1] } });
     assert(h.galat.length === 0 && h.baris.length === 48, `${h.baris.length} unit; ${h.galat.join("; ")}`);
     const harap: Record<string, number[]> = {
       "NS-NR1-01": [1817, 1906, 1949, 1991, 2035, 2055, 2302, 2045, 2023, 2006],
@@ -1955,6 +1959,13 @@ async function main() {
       assert(JSON.stringify(dapat) === JSON.stringify(nilai), `${kode}: ${dapat.join(", ")}`);
     }
     assert(SUSUN_NARAYA.tnc.rekening.length === 2, "rekening T&C");
+    // Porsi bagian penjualan (Greenfield 25, Foundation 25, Tutup Atap 40,
+    // BAST + AJB 10) hanya menggeser cara bayar yang sisanya cair per tahap.
+    const baru = hitungSemua(SUSUN_NARAYA);
+    const nr1 = baru.baris.find((x) => x.unit.kode === "NS-NR1-01")!;
+    const dapat = SUSUN_NARAYA.pricelist.kolom.map((k) => nr1.pricelist[k.nama].harga / 1e6);
+    assert(JSON.stringify(dapat) === JSON.stringify([1817, 1906, 1949, 1991, 2035, 2055, 2302, 2063, 2040, 2020]),
+           `porsi 25/25/40/10: ${dapat.join(", ")}`);
   });
 
   console.log("\n" + "=".repeat(62));
