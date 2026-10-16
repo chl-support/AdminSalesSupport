@@ -224,6 +224,41 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
     .filter(({ u }) => !q || [u.kode, u.alamat, u.view, u.subTipe].join(" ").toLowerCase().includes(q));
   const total = hasil.baris.reduce((a, b) => a + b.hasilUnit.factored, 0);
 
+  // Menambah dan mengurangi unit. Unit baru disisipkan tepat di bawah baris
+  // asalnya (Salin) atau di akhir tabel (Tambah unit), dengan isian yang
+  // biasanya sama untuk satu cluster sudah terisi; kotak Code-nya langsung
+  // disorot supaya kode unit barunya dapat segera diketik.
+  const [pilih, setPilih] = useState<Set<number>>(new Set());
+  const [yakin, setYakin] = useState<number | "pilihan" | null>(null);
+  const [fokus, setFokus] = useState<number | null>(null);
+  useEffect(() => {
+    if (fokus == null) return;
+    const el = document.getElementById(`unit-kode-${fokus}`) as HTMLInputElement | null;
+    el?.scrollIntoView({ block: "center", behavior: "smooth" });
+    el?.focus();
+    setFokus(null);
+  }, [fokus, data.unit.length]);
+  const tambah = (dari?: number) => {
+    const asal = dari != null ? data.unit[dari] : data.unit[data.unit.length - 1];
+    const baru: UnitData = dari != null
+      ? { ...asal, kode: "", no: "", faktor: { ...asal.faktor } }
+      : { ...unitKosong(), ...(asal && {
+          alamat: asal.alamat, hargaTanah: asal.hargaTanah, hargaBangunan: asal.hargaBangunan,
+          lb: asal.lb, tipe: asal.tipe, tipeBangunan: asal.tipeBangunan, phase: asal.phase,
+          kenaikan: asal.kenaikan, faktorTambah: asal.faktorTambah }) };
+    const posisi = dari != null ? dari + 1 : data.unit.length;
+    setCari(""); setPilih(new Set()); setYakin(null);
+    ubah((d) => ({ ...d, unit: [...d.unit.slice(0, posisi), baru, ...d.unit.slice(posisi)] }));
+    setFokus(posisi);
+  };
+  const hapus = (hapusIni: Set<number>) => {
+    ubah((d) => ({ ...d, unit: d.unit.filter((_, j) => !hapusIni.has(j)) }));
+    setPilih(new Set()); setYakin(null);
+  };
+  const tandai = (i: number, on: boolean) => setPilih((p) => {
+    const n = new Set(p); if (on) n.add(i); else n.delete(i); return n;
+  });
+
   // Impor lembar UNIT DATA saja: daftar unit diganti seluruhnya dengan isi
   // berkas, sedangkan Data (IRR), susunan kolom, dan T&C tetap seperti di layar.
   const [buka, setBuka] = useState(false);
@@ -277,18 +312,16 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
         <span className="hint" style={{ margin: 0 }}>
           {data.unit.length} unit · total Factored Price <b>{rp(total)}</b>
         </span>
-        {bolehUbah && (
-          <button onClick={() => ubah((d) => ({ ...d, unit: [...d.unit, {
-            ...unitKosong(), ...(d.unit.length && {
-              alamat: d.unit[d.unit.length - 1].alamat,
-              hargaTanah: d.unit[d.unit.length - 1].hargaTanah,
-              hargaBangunan: d.unit[d.unit.length - 1].hargaBangunan,
-              lb: d.unit[d.unit.length - 1].lb,
-              tipe: d.unit[d.unit.length - 1].tipe,
-              tipeBangunan: d.unit[d.unit.length - 1].tipeBangunan,
-              phase: d.unit[d.unit.length - 1].phase,
-            }) }] }))}>+ Tambah unit</button>
-        )}
+        {bolehUbah && <button className="pri" onClick={() => tambah()}>+ Tambah unit</button>}
+        {bolehUbah && pilih.size > 0 && (yakin === "pilihan" ? (
+          <span className="yakin-hapus">
+            Hapus {pilih.size} unit terpilih?
+            <button className="kecil bahaya" onClick={() => hapus(pilih)}>Ya, hapus</button>
+            <button className="kecil" onClick={() => setYakin(null)}>Batal</button>
+          </span>
+        ) : (
+          <button onClick={() => setYakin("pilihan")}>− Hapus terpilih ({pilih.size})</button>
+        ))}
         {bolehUbah && (
           <button onClick={() => { setBuka((x) => !x); setPesan(null); }}>
             Impor Unit Data dari Excel</button>
@@ -320,20 +353,48 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
         <div className="tscroll" style={{ maxHeight: 620, overflowY: "auto" }}>
           <table className="tabel-ringkas tabel-isian kepala-lekat"><thead>
             <tr>
+              {bolehUbah && (
+                <th className="aksi-unit">
+                  <input type="checkbox" aria-label="Pilih semua unit yang tampil"
+                         checked={tampil.length > 0 && tampil.every(({ i }) => pilih.has(i))}
+                         onChange={(e) => setPilih(e.target.checked ? new Set(tampil.map(({ i }) => i)) : new Set())} />
+                </th>
+              )}
               <th>#</th>
               {TEKS_UNIT.map(([, l]) => <th key={l}>{l}</th>)}
               <th>Land (m²)</th><th>Harga tanah /m²</th><th>GFA (m²)</th>
               <th>Harga bangunan /m²</th><th>Increase</th>
               {FAKTOR.map(([, l]) => <th key={l}>{l}</th>)}
               <th>(+) Factor</th><th>Special (Rp)</th><th>Show Unit (Rp)</th>
-              <th>Base Price</th><th>Factored Price</th>{bolehUbah && <th />}
+              <th>Base Price</th><th>Factored Price</th>
             </tr>
           </thead><tbody>
             {tampil.map(({ u, i, b }) => (
-              <tr key={i}>
+              <tr key={i} className={pilih.has(i) ? "terpilih" : undefined}>
+                {bolehUbah && (
+                  <td className="aksi-unit">
+                    <span className="row" style={{ margin: 0, flexWrap: "nowrap", gap: 4 }}>
+                      <input type="checkbox" aria-label={`Pilih ${u.kode || `baris ${i + 1}`}`}
+                             checked={pilih.has(i)} onChange={(e) => tandai(i, e.target.checked)} />
+                      {yakin === i ? (
+                        <>
+                          <button className="kecil bahaya" onClick={() => hapus(new Set([i]))}>Ya, hapus</button>
+                          <button className="kecil" onClick={() => setYakin(null)}>Batal</button>
+                        </>
+                      ) : (
+                        <>
+                          <button className="kecil" title="Tambah unit baru di bawah baris ini dengan isian yang sama"
+                                  onClick={() => tambah(i)}>Salin</button>
+                          <button className="kecil" title="Hapus unit ini" onClick={() => setYakin(i)}>Hapus</button>
+                        </>
+                      )}
+                    </span>
+                  </td>
+                )}
                 <td className="n">{i + 1}</td>
                 {TEKS_UNIT.map(([k, , w]) => (
-                  <td key={k}><IsianTeks nilai={u[k]} lebar={w} disabled={ro}
+                  <td key={k}><IsianTeks id={k === "kode" ? `unit-kode-${i}` : undefined}
+                                         nilai={u[k]} lebar={w} disabled={ro}
                                          ubah={(v) => ubahUnit(i, (x) => ({ ...x, [k]: v }))} /></td>
                 ))}
                 <td><Isian nilai={u.lt} lebar={70} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, lt: n }))} /></td>
@@ -350,13 +411,18 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
                 <td><Isian jenis="rp" nilai={u.showUnit} lebar={95} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, showUnit: n }))} /></td>
                 <td className="n">{rp(b?.hasilUnit.base ?? NaN)}</td>
                 <td className="n"><b>{rp(b?.hasilUnit.factored ?? NaN)}</b></td>
-                {bolehUbah && (
-                  <td><button className="kecil" onClick={() => ubah((d) => ({
-                    ...d, unit: d.unit.filter((_, j) => j !== i) }))}>Hapus</button></td>
-                )}
               </tr>
             ))}
           </tbody></table>
+        </div>
+      )}
+      {bolehUbah && data.unit.length > 0 && (
+        <div className="row" style={{ marginTop: 10, marginBottom: 0 }}>
+          <button onClick={() => tambah()}>+ Tambah unit di akhir tabel</button>
+          <span className="hint" style={{ margin: 0 }}>
+            Unit yang ditambah atau dihapus baru tersimpan setelah <b>Simpan</b>, dan baru
+            dipakai Simulasi setelah diberlakukan di langkah 4.
+          </span>
         </div>
       )}
     </>
