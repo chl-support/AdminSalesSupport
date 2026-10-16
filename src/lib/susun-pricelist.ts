@@ -190,6 +190,12 @@ export type KolomPricelist = {
 };
 
 export type SusunPricelist = {
+  /**
+   * Tarif PPN, pecahan; kosong = 11% (PPN). Dipakai untuk harga per m²
+   * termasuk PPN di Unit Data serta DPP dan Nilai Free PPN DTP di Pricelist,
+   * supaya perubahan tarif dari pemerintah cukup diubah di satu tempat.
+   */
+  ppn?: number;
   irr: DataIrr;
   unit: UnitData[];
   dataPricelist: {
@@ -324,6 +330,14 @@ export function hitungIrr(irr: DataIrr): HasilIrr {
 
 export const PPN = 0.11;
 
+/** Tarif PPN yang berlaku untuk susunan ini. */
+export const tarifPpn = (s: Pick<SusunPricelist, "ppn">) =>
+  s.ppn != null && Number.isFinite(s.ppn) ? s.ppn : PPN;
+
+/** "11%", "12%", "11,5%" — untuk judul kolom dan keterangan. */
+export const labelPpn = (ppn: number) =>
+  `${(ppn * 100).toLocaleString("id-ID", { maximumFractionDigits: 2 })}%`;
+
 export type HasilUnit = {
   /** Harga tanah dan bangunan per m² termasuk PPN 11%. */
   hargaTanahPpn: number;
@@ -336,9 +350,9 @@ export type HasilUnit = {
   factored: number;
 };
 
-export function hitungUnit(u: UnitData): HasilUnit {
-  const hargaTanahPpn = u.hargaTanah * (1 + PPN);
-  const hargaBangunanPpn = u.hargaBangunan * (1 + PPN);
+export function hitungUnit(u: UnitData, ppn = PPN): HasilUnit {
+  const hargaTanahPpn = u.hargaTanah * (1 + ppn);
+  const hargaBangunanPpn = u.hargaBangunan * (1 + ppn);
   const base = roundUp((u.lt * hargaTanahPpn + u.lb * hargaBangunanPpn)
                        * (1 + u.kenaikan), 6);
   const faktor = FAKTOR.reduce((a, [k]) => a + (u.faktor[k] ?? 0), 0);
@@ -375,11 +389,13 @@ export type HargaPl = { harga: number; dpp: number; dtp: number };
  * DPP = harga / 1,11; Nilai Free PPN DTP = harga − DPP, paling banyak PPN
  * atas pagu (Excel: 2.220.000.000 / 1,11 × 11% = 220.000.000).
  */
-export function pajakDtp(harga: number, batasDtp: number): { dpp: number; dtp: number } {
-  const dpp = roundExcel(harga / (1 + PPN), 0);
-  const pagu = batasDtp / (1 + PPN);
+export function pajakDtp(
+  harga: number, batasDtp: number, ppn = PPN,
+): { dpp: number; dtp: number } {
+  const dpp = roundExcel(harga / (1 + ppn), 0);
+  const pagu = batasDtp / (1 + ppn);
   // Dibulatkan ke rupiah: 2 M × 11% tertulis 220000000,00000003 di sini.
-  return { dpp, dtp: roundExcel(dpp < pagu ? harga - dpp : pagu * PPN, 0) };
+  return { dpp, dtp: roundExcel(dpp < pagu ? harga - dpp : pagu * ppn, 0) };
 }
 
 export function hitungPricelist(
@@ -390,7 +406,7 @@ export function hitungPricelist(
     const asal = dataPl[k.dari];
     const harga = asal == null || !Number.isFinite(asal) ? NaN
       : k.kali === 1 ? asal : roundExcel(asal * k.kali, 6);
-    hasil[k.nama] = { harga, ...pajakDtp(harga, susun.pricelist.batasDtp) };
+    hasil[k.nama] = { harga, ...pajakDtp(harga, susun.pricelist.batasDtp, tarifPpn(susun)) };
   }
   return hasil;
 }
@@ -414,7 +430,7 @@ export type HasilSusun = {
 export function hitungSemua(susun: SusunPricelist): HasilSusun {
   const irr = hitungIrr(susun.irr);
   const baris = susun.unit.map((unit) => {
-    const hasilUnit = hitungUnit(unit);
+    const hasilUnit = hitungUnit(unit, tarifPpn(susun));
     const dataPl = hitungDataPl(susun, hasilUnit.factored, irr.koef);
     return { unit, hasilUnit, dataPl, pricelist: hitungPricelist(susun, dataPl) };
   });
