@@ -3014,3 +3014,10 @@ button.kecil { padding: 3px 8px; font-size: 11.5px; }
 button.bahaya { border-color: var(--stop); color: #fff; background: var(--stop); }
 .yakin-hapus { display: inline-flex; gap: 6px; align-items: center; font-size: 12.5px;
                color: var(--stop); font-weight: 600; }
+
+/* Kelima langkah tampil sekaligus; bilah langkahnya menempel di atas layar
+   sebagai penunjuk, dan lompatan ke tiap bagian berhenti di bawahnya. */
+.langkah-pl.lekat { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5;
+                    background: var(--bg); padding: 8px 0 4px; margin: 8px 0 12px; }
+.bagian-langkah { scroll-margin-top: 90px; }
+.bagian-langkah > h2 { align-items: baseline; }

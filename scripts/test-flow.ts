@@ -1937,6 +1937,26 @@ async function main() {
     assert(ditolak, "lembar UNIT DATA tersembunyi harus ditolak");
   });
 
+  // Isian awal Naraya Serpong (dari Data_Pricelist.xlsx) harus menghasilkan
+  // harga yang sama dengan lembar Pricelist Excel-nya.
+  await check("isian awal pricelist Naraya sama dengan Excel 21.07.2026", async () => {
+    const { SUSUN_NARAYA } = await import("../src/lib/susun-pricelist-naraya");
+    const { hitungSemua } = await import("../src/lib/susun-pricelist");
+    const h = hitungSemua(SUSUN_NARAYA);
+    assert(h.galat.length === 0 && h.baris.length === 48, `${h.baris.length} unit; ${h.galat.join("; ")}`);
+    const harap: Record<string, number[]> = {
+      "NS-NR1-01": [1817, 1906, 1949, 1991, 2035, 2055, 2302, 2045, 2023, 2006],
+      "NS-NR1-03": [1208, 1268, 1296, 1324, 1353, 1366, 1530, 1359, 1345, 1334],
+      "NS-NRB-10": [1938, 2034, 2079, 2124, 2171, 2192, 2455, 2181, 2159, 2140],
+    };
+    for (const [kode, nilai] of Object.entries(harap)) {
+      const b = h.baris.find((x) => x.unit.kode === kode)!;
+      const dapat = SUSUN_NARAYA.pricelist.kolom.map((k) => b.pricelist[k.nama].harga / 1e6);
+      assert(JSON.stringify(dapat) === JSON.stringify(nilai), `${kode}: ${dapat.join(", ")}`);
+    }
+    assert(SUSUN_NARAYA.tnc.rekening.length === 2, "rekening T&C");
+  });
+
   console.log("\n" + "=".repeat(62));
   console.log(`  LULUS ${pass.length}   GAGAL ${fail.length}`);
   if (fail.length) {
