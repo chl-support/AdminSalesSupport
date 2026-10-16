@@ -113,9 +113,11 @@ function bacaLembarUnit(ws: ExcelJS.Worksheet, peringatan: string[]): UnitData[]
       else if (h.startsWith("special")) kol.special = c;
       else if (h.startsWith("show unit")) kol.showUnit = c;
       if (h2 === "land") kol.lt = c;
-      else if (h2.startsWith("land price (base)")) kol.hargaTanah = c;
+      // Kolom harga sesudah PPN (Incl PPN) hanya hasil hitungan; yang dibaca
+      // harga sebelum PPN.
+      else if (h2.startsWith("land price (base)") && !h2.includes("incl")) kol.hargaTanah = c;
       else if (h2 === "gfa") kol.lb = c;
-      else if (h2.startsWith("gfa (base)")) kol.hargaBangunan = c;
+      else if (h2.startsWith("gfa (base)") && !h2.includes("incl")) kol.hargaBangunan = c;
       for (const [k, label] of FAKTOR) if (h === label.toLowerCase()) kol[k] = c;
     }
     // View pertama adalah arah (UTARA/SELATAN). Berkas Data Pricelist lama
@@ -176,8 +178,8 @@ export async function templatUnitData(): Promise<Buffer> {
     ["tipe", "Tipe PL", "", 8], ["tipeBangunan", "Type", "", 7], ["view2", "View", "", 11],
     ["bentuk", "Sub-Tipe Kavling/Irr/Irr Hoek", "", 16],
     ["subTipe", "Sub-Tipe", "", 14],
-    ["lt", "Tanah", "Land", 9], ["hargaTanah", "", "Land Price (base)", 16],
-    ["lb", "Bangunan", "GFA", 9], ["hargaBangunan", "", "GFA (base)", 16],
+    ["lt", "Tanah", "Land", 9], ["hargaTanah", "", "Land Price (base) (Excl PPN. 11%)", 18],
+    ["lb", "Bangunan", "GFA", 9], ["hargaBangunan", "", "GFA (base) (Excl PPN. 11%)", 18],
     ["kenaikan", "Increase (%)", "", 11],
     ...FAKTOR.map(([k, l]) => [k, l, "", 11] as [string, string, string, number]),
     ["faktorTambah", "(+) Factor", "", 11], ["special", "Special", "", 14],
@@ -536,13 +538,15 @@ export async function eksporSusun(susun: SusunPricelist): Promise<Buffer> {
   // 2. Unit Data
   const w2 = wb.addWorksheet("Unit Data");
   tebal(w2.addRow(["Code", "Address", "View", "No", "Ukuran", "Type", "View", "Sub-Tipe Kavling/Irr/Irr Hoek", "Sub-Tipe",
-    "Phase", "Land", "Land Price (base)", "GFA", "GFA (base)", "Increase (%)",
+    "Phase", "Land", "Land Price (base) (Excl PPN. 11%)", "Land Price (base) (Incl PPN. 11%)",
+    "GFA", "GFA (base) (Excl PPN. 11%)", "GFA (base) (Incl PPN. 11%)", "Increase (%)",
     ...FAKTOR.map(([, l]) => l), "(+) Factor", "Special", "Show Unit",
     "Base Price", "Factored Price"]));
   for (const b of h.baris) {
     const u = b.unit;
     w2.addRow([u.kode, u.alamat, u.view, u.no, u.ukuran, u.tipeBangunan, u.view2 ?? "", u.bentuk, u.subTipe,
-      u.phase, u.lt, u.hargaTanah, u.lb, u.hargaBangunan, u.kenaikan,
+      u.phase, u.lt, u.hargaTanah, b.hasilUnit.hargaTanahPpn,
+      u.lb, u.hargaBangunan, b.hasilUnit.hargaBangunanPpn, u.kenaikan,
       ...FAKTOR.map(([k]) => u.faktor[k] ?? 0), u.faktorTambah, u.special, u.showUnit,
       b.hasilUnit.base, b.hasilUnit.factored]);
   }

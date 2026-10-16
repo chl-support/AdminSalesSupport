@@ -3081,3 +3081,4 @@ button.bahaya { border-color: var(--stop); color: #fff; background: var(--stop);
 .tabel-unit tfoot tr.total-unit td.aksi-unit { z-index: 3; background: var(--fill); }
 /* Base Price dan Factored Price satu baris, tidak terpotong "Rp" di atasnya. */
 .tabel-unit td.n { white-space: nowrap; }
+.tabel-unit th.incl { min-width: 115px; }
