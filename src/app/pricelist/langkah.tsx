@@ -89,8 +89,10 @@ function IsianTeks({ nilai, ubah, lebar = 110, disabled, id }: {
 }
 
 const rp = (n: number) => (Number.isFinite(n) ? formatRupiah(n) : "—");
-const persen = (n: number, d = 2) =>
-  Number.isFinite(n) ? `${(n * 100).toLocaleString("id-ID", { maximumFractionDigits: d })}%` : "—";
+const persen = (n: number, d = 2, min = 0) =>
+  Number.isFinite(n)
+    ? `${(n * 100).toLocaleString("id-ID", { minimumFractionDigits: min, maximumFractionDigits: d })}%`
+    : "—";
 
 // ── 1. Data (IRR) ──────────────────────────────────────────────────────────
 
@@ -288,7 +290,8 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
           <tr className="hasil"><td>IRR</td>{irr.skema.map((s, i) => (
             <td key={i} className={`n${belumSesuai.has(s.nama) ? " belum-sesuai" : ""}`}
                 title={belumSesuai.has(s.nama) ? "Belum tepat sesuai target" : undefined}>
-              {s.acuan ? "acuan" : persen(hasil.irr.irr[s.nama], belumSesuai.has(s.nama) ? 5 : 2)}
+              {s.acuan ? "0,0%" : belumSesuai.has(s.nama) ? persen(hasil.irr.irr[s.nama], 5)
+                : persen(hasil.irr.irr[s.nama], 1, 1)}
             </td>))}</tr>
           <tr className="hasil"><td>Adjusted Price</td>{irr.skema.map((s, i) => (
             <td key={i} className="n"
