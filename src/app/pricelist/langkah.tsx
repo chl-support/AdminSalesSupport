@@ -53,11 +53,17 @@ function bacaAngka(s: string, jenis: Jenis): number | null {
  * dibaca saat kotak ditinggalkan atau Enter ditekan — supaya "9," yang baru
  * setengah diketik tidak langsung dibulatkan menjadi 9.
  */
-export function Isian({ nilai, ubah, jenis = "angka", lebar = 90, disabled, id, kosongNol }: {
+export function Isian({ nilai, ubah, jenis = "angka", lebar = 90, disabled, id, kosongNol, desimal }: {
   nilai: number; ubah: (n: number) => void; jenis?: Jenis; lebar?: number;
   disabled?: boolean; id?: string;
   /** Tampilkan 0 sebagai kotak kosong (kolom yang biasanya tidak diisi). */
   kosongNol?: boolean;
+  /**
+   * Jumlah angka di belakang koma saat kotak tidak sedang disunting. Hanya
+   * tampilan: nilainya tetap utuh, dan saat kotak diklik angka lengkapnya
+   * muncul untuk disunting.
+   */
+  desimal?: number;
 }) {
   const [teks, setTeks] = useState<string | null>(null);
   const [salah, setSalah] = useState(false);
@@ -70,8 +76,12 @@ export function Isian({ nilai, ubah, jenis = "angka", lebar = 90, disabled, id, 
   };
   return (
     <span className="isian-angka">
-      <input id={id} value={teks ?? (kosongNol && nilai === 0 ? "" : tampilAngka(nilai, jenis))}
+      <input id={id} value={teks ?? (kosongNol && nilai === 0 ? ""
+               : desimal != null && Number.isFinite(nilai)
+                 ? nilai.toLocaleString("id-ID", { minimumFractionDigits: desimal, maximumFractionDigits: desimal })
+                 : tampilAngka(nilai, jenis))}
              disabled={disabled}
+             onFocus={desimal != null ? () => setTeks(tampilAngka(nilai, jenis)) : undefined}
              inputMode="decimal" aria-invalid={salah || undefined}
              style={{ width: lebar }}
              onChange={(e) => setTeks(e.target.value)} onBlur={simpan}
@@ -92,7 +102,9 @@ const rp = (n: number) => (Number.isFinite(n) ? formatRupiah(n) : "—");
 /** Harga per m² tanpa "Rp", sejajar dengan kotak isian harga di sebelahnya. */
 const rpPolos = (n?: number) =>
   n != null && Number.isFinite(n) ? Math.round(n).toLocaleString("id-ID") : "—";
-const luas = (n: number) => `${n.toLocaleString("id-ID", { maximumFractionDigits: 2 })} m²`;
+const luas = (n: number, d?: number) =>
+  `${n.toLocaleString("id-ID", d == null ? { maximumFractionDigits: 2 }
+    : { minimumFractionDigits: d, maximumFractionDigits: d })} m²`;
 const persen = (n: number, d = 2, min = 0) =>
   Number.isFinite(n)
     ? `${(n * 100).toLocaleString("id-ID", { minimumFractionDigits: min, maximumFractionDigits: d })}%`
@@ -557,7 +569,7 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
                                          nilai={u[k] ?? ""} lebar={w} disabled={ro}
                                          ubah={(v) => ubahUnit(i, (x) => ({ ...x, [k]: v }))} /></td>
                 ))}
-                <td><Isian nilai={u.lt} lebar={70} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, lt: n }))} /></td>
+                <td><Isian nilai={u.lt} desimal={1} lebar={70} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, lt: n }))} /></td>
                 <td><Isian jenis="rp" nilai={u.hargaTanah} lebar={95} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, hargaTanah: n }))} /></td>
                 <td className="n">{rpPolos(b?.hasilUnit.hargaTanahPpn)}</td>
                 <td><Isian nilai={u.lb} lebar={60} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, lb: n }))} /></td>
@@ -581,7 +593,7 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
               <td className="aksi-unit">
                 Total {tampil.length} unit{q ? ` (dari ${data.unit.length})` : ""}</td>
               <td colSpan={(bolehUbah ? 0 : -1) + 1 + TEKS_UNIT.length} />
-              <td className="n">{luas(tampil.reduce((a, { u }) => a + u.lt, 0))}</td><td /><td />
+              <td className="n">{luas(tampil.reduce((a, { u }) => a + u.lt, 0), 1)}</td><td /><td />
               <td className="n">{luas(tampil.reduce((a, { u }) => a + u.lb, 0))}</td><td /><td /><td />
               {FAKTOR.map(([k]) => <td key={k} />)}
               <td />
