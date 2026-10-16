@@ -284,7 +284,7 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
               Cash Keras (koefisien 1), dan baris IRR sudah menandainya. */}
           <tr className="hasil"><td>Coefficient</td>{irr.skema.map((s, i) => (
             <td key={i} className="n" title={hasil.irr.koef[s.nama]?.toFixed(5)}><b>{Number.isFinite(hasil.irr.koef[s.nama])
-              ? hasil.irr.koef[s.nama].toFixed(2) : "—"}</b></td>))}</tr>
+              ? hasil.irr.koef[s.nama].toFixed(3) : "—"}</b></td>))}</tr>
           <tr className="hasil"><td>IRR</td>{irr.skema.map((s, i) => (
             <td key={i} className={`n${belumSesuai.has(s.nama) ? " belum-sesuai" : ""}`}
                 title={belumSesuai.has(s.nama) ? "Belum tepat sesuai target" : undefined}>
@@ -330,7 +330,7 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
       <div className="row" style={{ marginTop: 10 }}>
         <span className="hint" style={{ margin: 0 }}>
           Total alokasi <b>{persen(hasil.irr.totalAlokasi)}</b> · WA coefficient{" "}
-          <b>{hasil.irr.koefRata.toFixed(2)}</b>
+          <b>{hasil.irr.koefRata.toFixed(3)}</b>
         </span>
         {bolehUbah && <button onClick={tambahSkema}>+ Tambah cara bayar</button>}
       </div>
@@ -621,7 +621,7 @@ export function LangkahDataPl({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
                 </select>
               </td>
               <td className="n">
-                {k.skema ? (Number.isFinite(hasil.irr.koef[k.skema]) ? hasil.irr.koef[k.skema].toFixed(2) : "—")
+                {k.skema ? (Number.isFinite(hasil.irr.koef[k.skema]) ? hasil.irr.koef[k.skema].toFixed(3) : "—")
                   : <Isian jenis="persen" nilai={k.kali ?? 1} lebar={70} disabled={ro}
                            ubah={(n) => ubahKolom(i, (x) => ({ ...x, kali: n }))} />}
               </td>
