@@ -1953,11 +1953,16 @@ async function main() {
   await check("isian awal pricelist Naraya sama dengan Excel 21.07.2026", async () => {
     const { SUSUN_NARAYA } = await import("../src/lib/susun-pricelist-naraya");
     const { hitungSemua } = await import("../src/lib/susun-pricelist");
-    // Porsi rumus Excel 40/40/10/10 dan Adjusted Price Excel → sama persis.
+    // Porsi rumus Excel 40/40/10/10 → harga sama persis dengan Excel.
     const h = hitungSemua(SUSUN_NARAYA);
     assert(JSON.stringify(SUSUN_NARAYA.irr.porsiTahap) === "[0.4,0.4,0.1,0.1]", "porsi 40/40/10/10");
-    assert(h.irr.koef["Cicilan12x"] === 1.049417521571675 && h.irr.koef["DP 20%/6x"] === 1.104426573831013,
-           `koef: ${JSON.stringify(h.irr.koef)}`);
+    // Adjusted Price dihitung dengan rumus tepat pada target (bukan angka
+    // Goal Seek Excel): IRR tepat 9%, harga unit tetap sama dengan Excel.
+    const { hargaSesuaiSkema } = await import("../src/lib/susun-pricelist");
+    assert(Object.entries(h.irr.irr).every(([n, v]) => n === "Cash Keras" || Math.abs(v - 0.09) < 1e-9),
+           `IRR: ${JSON.stringify(h.irr.irr)}`);
+    assert(hargaSesuaiSkema(SUSUN_NARAYA.irr, h.irr.koef["Cicilan12x"]) === 2_098_835_442,
+           "Adjusted Price 12x = rumus Excel");
     assert(h.galat.length === 0 && h.baris.length === 48, `${h.baris.length} unit; ${h.galat.join("; ")}`);
     const harap: Record<string, number[]> = {
       "NS-NR1-01": [1817, 1906, 1949, 1991, 2035, 2055, 2302, 2045, 2023, 2006],
