@@ -104,6 +104,8 @@ function bacaLembarUnit(ws: ExcelJS.Worksheet, peringatan: string[]): UnitData[]
       else if (h === "no" && kol.kode) kol.no = c;
       else if (h === "ukuran") kol.ukuran = c;
       else if (h === "type") kol.tipeBangunan = c;
+      else if (h === "tipe pl") kol.tipe = c;
+      else if (h === "bentuk") kol.bentuk = c;
       else if (h === "sub-tipe") kol.subTipe = c;
       else if (h === "phase") kol.phase = c;
       else if (h.startsWith("increase")) kol.kenaikan = c;
@@ -129,10 +131,104 @@ function bacaLembarUnit(ws: ExcelJS.Worksheet, peringatan: string[]): UnitData[]
         faktorTambah: n("faktorTambah"), special: n("special"), showUnit: n("showUnit"),
         faktor: Object.fromEntries(FAKTOR.map(([k]) => [k, n(k)]).filter(([, v]) => v)),
       };
+      if (kol.tipe) u.tipe = t("tipe");
+      for (const k of ANGKA_UNIT) {
+        const v = kol[k] ? nilai(ws.getCell(r, kol[k])) : null;
+        if (typeof v === "string" && !/^\s*-?[\d.,]+\s*%?\s*$/.test(v)) {
+          peringatan.push(`Baris ${r} (${kode}): isian "${v}" bukan angka, dibaca 0.`);
+        }
+      }
       unit.push(u);
+    }
+    const kembar = unit.map((u) => u.kode).filter((k, i, a) => a.indexOf(k) !== i);
+    if (kembar.length) {
+      peringatan.push(`Code ganda: ${[...new Set(kembar)].join(", ")}.`);
     }
   }
   return unit;
+}
+
+/** Kolom angka pada lembar UNIT DATA; isian teks di sana dibaca 0. */
+const ANGKA_UNIT = ["lt", "hargaTanah", "lb", "hargaBangunan", "kenaikan",
+  "faktorTambah", "special", "showUnit", ...FAKTOR.map(([k]) => k)];
+
+/**
+ * Template kosong lembar UNIT DATA untuk tombol "Unduh Template" di langkah 2.
+ * Judulnya persis yang dicari `bacaLembarUnit` (dua baris judul: baris kedua
+ * memuat Land, Land Price (base), GFA, GFA (base)), sehingga berkas yang diisi
+ * dari template ini selalu terbaca. Kolom angka diberi validasi Excel supaya
+ * isian teks ditolak sejak diketik, dan Code ganda ditolak.
+ */
+export async function templatUnitData(): Promise<Buffer> {
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet("UNIT DATA", { views: [{ state: "frozen", xSplit: 1, ySplit: 2 }] });
+  const persen = new Set(["kenaikan", "faktorTambah", ...FAKTOR.map(([k]) => k)]);
+  // [kunci, judul baris 1, judul baris 2, lebar]
+  const kolom: [string, string, string, number][] = [
+    ["kode", "Code", "", 14], ["alamat", "Address", "", 16], ["view", "View", "", 11],
+    ["no", "No", "", 6], ["ukuran", "Ukuran", "", 10], ["phase", "Phase", "", 7],
+    ["tipe", "Tipe PL", "", 8], ["tipeBangunan", "Type", "", 7], ["bentuk", "Bentuk", "", 11],
+    ["subTipe", "Sub-Tipe", "", 14],
+    ["lt", "Tanah", "Land", 9], ["hargaTanah", "", "Land Price (base)", 16],
+    ["lb", "Bangunan", "GFA", 9], ["hargaBangunan", "", "GFA (base)", 16],
+    ["kenaikan", "Increase (%)", "", 11],
+    ...FAKTOR.map(([k, l]) => [k, l, "", 11] as [string, string, string, number]),
+    ["faktorTambah", "(+) Factor", "", 11], ["special", "Special", "", 14],
+    ["showUnit", "Show Unit", "", 14],
+  ];
+  const r1 = ws.getRow(1), r2 = ws.getRow(2);
+  kolom.forEach(([k, j1, j2, lebar], i) => {
+    const c = i + 1;
+    r1.getCell(c).value = j1 || null;
+    r2.getCell(c).value = j2 || null;
+    ws.getColumn(c).width = lebar;
+    if (!j2 && j1) ws.mergeCells(1, c, 2, c);
+    const huruf = ws.getColumn(c).letter, rentang = `${huruf}3:${huruf}2002`;
+    if (persen.has(k)) ws.getColumn(c).numFmt = "0.00%";
+    else if (["hargaTanah", "hargaBangunan", "special", "showUnit"].includes(k)) ws.getColumn(c).numFmt = "#,##0";
+    if (ANGKA_UNIT.includes(k)) {
+      (ws as any).dataValidations.add(rentang, {
+        type: "decimal", operator: "between", allowBlank: true,
+        formulae: [-1e15, 1e15], showErrorMessage: true, errorStyle: "stop",
+        errorTitle: "Harus angka", error: persen.has(k)
+          ? "Isi angka persen, mis. 5% (bukan teks)." : "Isi angka saja, tanpa huruf atau Rp.",
+      });
+    }
+    if (k === "kode") {
+      (ws as any).dataValidations.add(rentang, {
+        type: "custom", allowBlank: true, formulae: [`COUNTIF($A$3:$A$2002,A3)=1`],
+        showErrorMessage: true, errorStyle: "stop",
+        errorTitle: "Code ganda", error: "Code ini sudah dipakai unit lain.",
+      });
+    }
+  });
+  ws.mergeCells(1, 11, 1, 12); ws.mergeCells(1, 13, 1, 14);
+  for (const r of [r1, r2]) {
+    r.font = { bold: true };
+    r.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+    r.eachCell((c) => {
+      c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFE8E8E8" } };
+      c.border = { bottom: { style: "thin" }, right: { style: "thin" } };
+    });
+  }
+
+  const p = wb.addWorksheet("PETUNJUK");
+  p.getColumn(1).width = 4; p.getColumn(2).width = 110;
+  p.addRow(["", "Cara mengisi lembar UNIT DATA"]).getCell(2).font = { bold: true, size: 14 };
+  [
+    "Isi satu unit per baris mulai baris 3. Jangan mengubah, memindah, atau menghapus dua baris judul.",
+    "Code wajib diisi dan tidak boleh sama. Pembacaan berhenti pada baris pertama yang Code-nya kosong, jadi jangan ada baris kosong di tengah.",
+    "Land dan GFA dalam m². Land Price (base) dan GFA (base) adalah harga per m² sebelum PPN 11%, angka saja tanpa \"Rp\" atau titik ketik manual.",
+    "Increase, faktor posisi (Single Row s.d. Side Garden) dan (+) Factor diisi persen, mis. ketik 5% atau 0,05. Kosongkan bila tidak ada.",
+    "Special dan Show Unit dalam rupiah. Kosongkan bila tidak ada.",
+    "Phase dan Tipe PL boleh kosong: Phase dianggap 1, dan untuk unit yang Code-nya sudah ada di tabel, isian lamanya dipakai.",
+    "Jangan ganti nama lembar UNIT DATA dan jangan sembunyikan (hide) lembarnya. Lembar PETUNJUK ini boleh dibiarkan.",
+    "Unggah lewat langkah 2. Unit Data → Impor Unit Data dari Excel. Hasilnya tampil di tabel untuk diperiksa sebelum Simpan.",
+  ].forEach((t, i) => {
+    const row = p.addRow([`${i + 1}.`, t]);
+    row.alignment = { wrapText: true, vertical: "top" };
+  });
+  return Buffer.from(await wb.xlsx.writeBuffer());
 }
 
 /**
