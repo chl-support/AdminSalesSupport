@@ -489,7 +489,7 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
         </div>
       ) : (
         <div className="tscroll" style={{ maxHeight: 620, overflowY: "auto" }}>
-          <table className="tabel-ringkas tabel-isian kepala-lekat"><thead>
+          <table className="tabel-ringkas tabel-isian kepala-lekat tabel-unit"><thead>
             <tr>
               {bolehUbah && (
                 <th className="aksi-unit">
