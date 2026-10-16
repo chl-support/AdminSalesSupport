@@ -202,10 +202,8 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
               </span>
             </td>
           </tr>
-          <tr><td>Acuan (Cash Keras)</td>{irr.skema.map((s, i) => (
-            <td key={i}><input type="radio" name="acuan" checked={!!s.acuan} disabled={ro}
-                               onChange={() => ubah((d) => ({ ...d, irr: { ...d.irr,
-                                 skema: d.irr.skema.map((x, j) => ({ ...x, acuan: j === i || undefined })) } }))} /></td>))}</tr>
+          {/* Baris pilihan acuan dihapus atas permintaan pemakai: acuannya selalu
+              Cash Keras (koefisien 1), dan baris IRR sudah menandainya. */}
           <tr className="hasil"><td>Coefficient</td>{irr.skema.map((s, i) => (
             <td key={i} className="n"><b>{Number.isFinite(hasil.irr.koef[s.nama])
               ? hasil.irr.koef[s.nama].toFixed(5) : "—"}</b></td>))}</tr>
