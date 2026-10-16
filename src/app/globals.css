@@ -3061,3 +3061,4 @@ button.bahaya { border-color: var(--stop); color: #fff; background: var(--stop);
    dan berjajar rapat dalam satu baris, bukan dibagi rata selebar halaman. */
 .filters.param-irr { display: flex; flex-wrap: wrap; gap: 8px 20px; }
 .filters.param-irr > div { flex: 0 0 auto; }
+.filters.param-irr + .filters.param-irr { margin-top: 8px; }
