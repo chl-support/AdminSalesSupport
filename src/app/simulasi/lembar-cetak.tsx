@@ -77,7 +77,7 @@ function Rp({ n, tebal }: { n: number; tebal?: boolean }) {
  *   • mengandung KPR (atau KPA) → "SPECIAL PAYMENT KPR" — selalu, ada diskon
  *     maupun tidak, dan berapa pun DP serta cicilan uang mukanya: yang penting
  *     bagi konsumen pelunasannya lewat bank;
- *   • cicilan → "SPECIAL PAYMENT Cicilan [n]x" — selalu, ada diskon maupun
+ *   • cicilan → "SPECIAL PAYMENT CICILAN [n]X" — selalu, ada diskon maupun
  *     tidak, sebab cicilan memang bukan cara bayar yang ditawarkan terbuka.
  *     n dihitung dari jadwal yang benar-benar tercetak: seluruh baris kecuali
  *     booking fee, jadi angsuran terakhir maupun pelunasan ikut terhitung dan
@@ -92,7 +92,7 @@ function caraBayarLembar(h: Hasil, barisTampil: { ket: string }[]): string {
   if (/\b(kpr|kpa)\b/i.test(h.skema)) return "SPECIAL PAYMENT KPR";
   if (/cicilan|angsuran|installment|bertahap/i.test(h.skema)) {
     const n = barisTampil.filter((t) => !/booking/i.test(t.ket)).length;
-    return `SPECIAL PAYMENT Cicilan ${n}x`;
+    return `SPECIAL PAYMENT CICILAN ${n}X`;
   }
   // Sisanya — cash — hanya bila ada yang diubah untuk konsumen ini.
   const khusus = h.diskon > 0 || h.tambahan > 0 || h.jadwalDisunting;
@@ -109,6 +109,18 @@ export function LembarKonsumen({ h, unit, slug, nama, booking, bungaKpr, sembuny
   bungaKpr: number;
 }) {
   const tampil = h.termin.filter((_, i) => !sembunyi?.[i]);
+  /**
+   * Dua kolom DTP hanya ditampilkan bila memang ada PPN yang ditanggung
+   * pemerintah.
+   *
+   * Cara bayar yang tidak memenuhi syarat PMK — mis. pelunasannya jatuh di
+   * luar masa berlakunya — menghasilkan kolom "DTP (PPN)" yang seluruhnya
+   * bergaris datar, dan kolom "Tagihan (DTP)" yang angkanya persis sama
+   * dengan kolom Jumlah di sebelahnya. Dua kolom tanpa kabar, dan yang
+   * membacanya justru bertanya-tanya apa yang kurang. Lebih baik keduanya
+   * tidak ada: jadwalnya tinggal Jumlah, dan tidak ada yang hilang.
+   */
+  const adaDtp = h.jumlahDtp > 0;
   return (
     <div className="lembar-sim konsumen">
       <div className="ls-kepala">
@@ -144,20 +156,23 @@ export function LembarKonsumen({ h, unit, slug, nama, booking, bungaKpr, sembuny
       <table className="ls-tabel"><tbody>
         <tr>
           <th>No.</th><th>Keterangan</th><th>Jatuh Tempo</th>
-          <th>Jumlah</th><th>Tagihan (DTP)</th><th>DTP (PPN)</th>
+          <th>Jumlah</th>
+          {adaDtp && <><th>Tagihan (DTP)</th><th>DTP (PPN)</th></>}
         </tr>
         {tampil.map((t, i) => (
           <tr key={i}>
             <td className="c">{i + 1}</td>
             <td>{t.ket}</td>
             <td className="c">{tglPendek(t.tgl)}</td>
-            <Rp n={t.nilai} /><Rp n={t.tagihan} /><Rp n={t.dtp} />
+            <Rp n={t.nilai} />
+            {adaDtp && <><Rp n={t.tagihan} /><Rp n={t.dtp} /></>}
           </tr>
         ))}
         <tr className="ls-total">
           <td colSpan={3} className="n"><b>TOTAL</b></td>
-          <Rp n={h.jumlahNilai} tebal /><Rp n={h.jumlahTagihan} tebal />
-          <Rp n={h.jumlahDtp} tebal />
+          <Rp n={h.jumlahNilai} tebal />
+          {adaDtp && <><Rp n={h.jumlahTagihan} tebal />
+                       <Rp n={h.jumlahDtp} tebal /></>}
         </tr>
       </tbody></table>
 
