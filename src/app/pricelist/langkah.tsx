@@ -76,7 +76,7 @@ export function Isian({ nilai, ubah, jenis = "angka", lebar = 90, disabled, id, 
              style={{ width: lebar }}
              onChange={(e) => setTeks(e.target.value)} onBlur={simpan}
              onKeyDown={(e) => { if (e.key === "Enter") simpan(); }} />
-      {jenis === "persen" && <span className="satuan">{kosongNol && nilai === 0 && teks == null ? "" : "%"}</span>}
+      <span className="satuan">{jenis === "persen" && !(kosongNol && nilai === 0 && teks == null) ? "%" : ""}</span>
     </span>
   );
 }
@@ -113,14 +113,67 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
     ubah((d) => ({ ...d, irr: { ...d.irr, skema: d.irr.skema.map((s, j) => j === i ? f(s) : s) } }));
   const ganti = (i: number, nama: string) => ubah((d) => {
     const lama = d.irr.skema[i].nama;
+    // Kolom Data Pricelist yang merujuk cara bayar ini ikut berganti; bila
+    // namanya sama dengan nama cara bayarnya (kolom yang dibuat bersama
+    // cara bayar itu), namanya juga berganti, begitu pula rujukan kolom
+    // Pricelist dan kolom turunan kepadanya.
+    const ubahNamaDp = new Set(d.dataPricelist.kolom
+      .filter((k) => k.skema === lama && k.nama === lama).map((k) => k.nama));
+    const n = (x: string) => (ubahNamaDp.has(x) ? nama : x);
     return {
       ...d,
       irr: { ...d.irr, skema: d.irr.skema.map((s, j) => j === i ? { ...s, nama } : s) },
-      // Kolom Data Pricelist yang merujuk cara bayar ini ikut berganti nama.
-      dataPricelist: { ...d.dataPricelist, kolom: d.dataPricelist.kolom.map((k) =>
-        k.skema === lama ? { ...k, skema: nama } : k) },
+      dataPricelist: { ...d.dataPricelist, kolom: d.dataPricelist.kolom.map((k) => ({
+        ...k, nama: n(k.nama),
+        ...(k.skema === lama && { skema: nama }),
+        ...(k.dari && { dari: n(k.dari) }),
+      })) },
+      pricelist: { ...d.pricelist, kolom: d.pricelist.kolom.map((k) => ({
+        ...k, dari: n(k.dari), nama: k.nama === lama && ubahNamaDp.has(lama) ? nama : k.nama,
+      })) },
     };
   });
+
+  /**
+   * Cara bayar baru: kolom di Data (IRR), dan kolomnya langsung ikut di Data
+   * Pricelist (Factored Price × koefisien + tambahan), di Pricelist (pengali
+   * 100%), dan satu blok ketentuan di T&C — supaya tidak ada langkah yang
+   * tertinggal. Isiannya dapat diubah sesudahnya.
+   */
+  const [yakinHapus, setYakinHapus] = useState<number | null>(null);
+  const tambahSkema = () => ubah((d) => {
+    const ada = new Set([...d.irr.skema.map((x) => x.nama), ...d.dataPricelist.kolom.map((k) => k.nama)]);
+    let no = d.irr.skema.length + 1;
+    while (ada.has(`Cara bayar ${no}`)) no++;
+    const nama = `Cara bayar ${no}`;
+    return {
+      ...d,
+      irr: { ...d.irr, skema: [...d.irr.skema, {
+        nama, kelompok: "Cash", alokasi: 0, dp: 1, kali: 1,
+        bulan: [...(d.irr.skema[0]?.bulan ?? [12, 18, 19, 20])] as [number, number, number, number],
+      }] },
+      dataPricelist: { ...d.dataPricelist, kolom: [...d.dataPricelist.kolom, { nama, skema: nama }] },
+      pricelist: { ...d.pricelist, kolom: [...d.pricelist.kolom, { nama, dari: nama, kali: 1 }] },
+      tnc: { ...d.tnc, caraBayar: [...d.tnc.caraBayar, { judul: nama.toUpperCase(),
+        baris: [{ label: "Booking Fee", nilai: "10 Juta", waktu: "" }] }] },
+    };
+  });
+  /** Hapus cara bayar beserta kolom Data Pricelist dan Pricelist yang bersumber darinya. */
+  const hapusSkema = (i: number) => {
+    setYakinHapus(null);
+    ubah((d) => {
+      const nama = d.irr.skema[i].nama;
+      const hilang = new Set(d.dataPricelist.kolom.filter((k) => k.skema === nama).map((k) => k.nama));
+      // Kolom turunan dari kolom yang hilang ikut hilang.
+      d.dataPricelist.kolom.forEach((k) => { if (k.dari && hilang.has(k.dari)) hilang.add(k.nama); });
+      return {
+        ...d,
+        irr: { ...d.irr, skema: d.irr.skema.filter((_, j) => j !== i) },
+        dataPricelist: { ...d.dataPricelist, kolom: d.dataPricelist.kolom.filter((k) => !hilang.has(k.nama)) },
+        pricelist: { ...d.pricelist, kolom: d.pricelist.kolom.filter((k) => !hilang.has(k.dari)) },
+      };
+    });
+  };
 
   return (
     <>
@@ -150,9 +203,23 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
         <div className="banner warn">Jumlah porsi keempat tahap harus 100%.</div>
       )}
 
-      <div className="tscroll sp">
-        <table className="tabel-ringkas tabel-isian"><tbody>
-          <tr>
+      {bolehUbah && (
+        <div className="row" style={{ justifyContent: "flex-end", margin: "12px 0 6px" }}>
+          <button className="pri" onClick={tambahSkema}
+                  title="Tambah kolom cara bayar baru di Data (IRR), Data Pricelist, Pricelist dan T&C">
+            + Tambah cara bayar</button>
+        </div>
+      )}
+      {/* Grid tetap: setiap cara bayar selebar sama, kotak isian memenuhi
+          kolomnya, tanda % sejajar, dan baris dikelompokkan. */}
+      <div className="tscroll">
+        <table className="tabel-ringkas tabel-isian tabel-irr">
+          <colgroup>
+            <col className="k-label" />
+            {irr.skema.map((_, i) => <col key={i} className="k-skema" />)}
+          </colgroup>
+          <tbody>
+          <tr className="kepala-skema">
             <th />
             {irr.skema.map((s, i) => (
               <th key={i}>
@@ -161,6 +228,7 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
               </th>
             ))}
           </tr>
+          <tr className="grup"><td colSpan={irr.skema.length + 1}>Parameter cara bayar</td></tr>
           <tr><td>Kelompok</td>{irr.skema.map((s, i) => (
             <td key={i}><IsianTeks nilai={s.kelompok} lebar={70} disabled={ro}
                                    ubah={(v) => ubahSkema(i, (x) => ({ ...x, kelompok: v }))} /></td>))}</tr>
@@ -173,14 +241,17 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
           <tr><td>Installments (x)</td>{irr.skema.map((s, i) => (
             <td key={i}><Isian nilai={s.kali} lebar={60} disabled={ro}
                                ubah={(n) => ubahArus(i, (x) => ({ ...x, kali: Math.max(1, Math.round(n)) }))} /></td>))}</tr>
+          <tr className="grup"><td colSpan={irr.skema.length + 1}>
+            Bulan pencairan sisa (1 − DP) per tahap</td></tr>
           {TAHAP.map((t, ti) => (
-            <tr key={t}><td>Bulan {t}</td>{irr.skema.map((s, i) => (
+            <tr key={t}><td>{t}</td>{irr.skema.map((s, i) => (
               <td key={i}><Isian nilai={s.bulan[ti]} lebar={60} disabled={ro}
                                  ubah={(n) => ubahArus(i, (x) => {
                                    const b = [...x.bulan] as typeof x.bulan; b[ti] = Math.round(n);
                                    return { ...x, bulan: b };
                                  })} /></td>))}</tr>
           ))}
+          <tr className="grup"><td colSpan={irr.skema.length + 1}>Hasil</td></tr>
           <tr>
             <td>
               Cash Price
@@ -218,9 +289,16 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
           {bolehUbah && (
             <tr><td />{irr.skema.map((s, i) => (
               <td key={i}>
-                <button className="kecil" disabled={irr.skema.length <= 1 || !!s.acuan}
-                        onClick={() => ubah((d) => ({ ...d, irr: { ...d.irr,
-                          skema: d.irr.skema.filter((_, j) => j !== i) } }))}>Hapus</button>
+                {yakinHapus === i ? (
+                  <span className="row" style={{ margin: 0, gap: 4, flexWrap: "nowrap" }}>
+                    <button className="kecil bahaya" onClick={() => hapusSkema(i)}>Ya, hapus</button>
+                    <button className="kecil" onClick={() => setYakinHapus(null)}>Batal</button>
+                  </span>
+                ) : (
+                  <button className="kecil" disabled={irr.skema.length <= 1 || !!s.acuan}
+                          title="Hapus cara bayar ini beserta kolomnya di Data Pricelist dan Pricelist"
+                          onClick={() => setYakinHapus(i)}>Hapus</button>
+                )}
               </td>))}</tr>
           )}
         </tbody></table>
@@ -245,11 +323,7 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
                   onClick={() => ubah((d) => ({ ...d, irr: { ...d.irr, skema: tanpaSimpanan(d) } }))}>
             Goal Seek ulang</button>
         )}
-        {bolehUbah && (
-          <button onClick={() => ubah((d) => ({ ...d, irr: { ...d.irr, skema: [...d.irr.skema, {
-            nama: `Cara bayar ${d.irr.skema.length + 1}`, kelompok: "Cash", alokasi: 0,
-            dp: 1, kali: 1, bulan: [12, 18, 19, 20] }] } }))}>+ Tambah cara bayar</button>
-        )}
+        {bolehUbah && <button onClick={tambahSkema}>+ Tambah cara bayar</button>}
       </div>
     </>
   );

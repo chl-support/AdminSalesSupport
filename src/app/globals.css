@@ -3024,3 +3024,34 @@ button.bahaya { border-color: var(--stop); color: #fff; background: var(--stop);
 .tabel-isian td small.asal { display: block; font-size: 9.5px; font-weight: 600; color: var(--note);
                              text-transform: uppercase; letter-spacing: .05em; }
 .tabel-isian td.kas-tunggal { text-align: left; }
+.tabel-isian th.tambah-kolom { vertical-align: middle; background: var(--bg); }
+.tabel-isian th.tambah-kolom button { white-space: nowrap; line-height: 1.25; }
+
+/* Tabel Data (IRR): grid tetap. Semua kolom cara bayar selebar sama, kotak
+   isian memenuhi kolomnya, angka rata kanan dengan tanda % pada lajur
+   sendiri, dan baris dikelompokkan (Parameter / Bulan pencairan / Hasil). */
+.tabel-irr { table-layout: fixed; width: auto; border-collapse: collapse; }
+.tabel-irr col.k-label { width: 150px; }
+.tabel-irr col.k-skema { width: 142px; }
+.tabel-irr td, .tabel-irr th { padding: 4px 6px; }
+.tabel-irr td:first-child { color: var(--sub); white-space: nowrap; overflow: hidden;
+                            text-overflow: ellipsis; }
+.tabel-irr input { width: 100% !important; box-sizing: border-box; }
+.tabel-irr tr.kepala-skema input { font-weight: 650; text-align: center; }
+.tabel-irr tbody tr:not(.kepala-skema):not(.grup) td:not(:first-child) > input { text-align: center; }
+.tabel-irr .isian-angka { display: flex; width: 100%; }
+.tabel-irr .isian-angka input { flex: 1; min-width: 0; }
+.tabel-irr .isian-angka .satuan { flex: 0 0 14px; text-align: right; }
+.tabel-irr tr.grup td { text-align: left !important; background: var(--fill); color: var(--sub); font-size: 10.5px;
+                        font-weight: 700; text-transform: uppercase; letter-spacing: .06em;
+                        padding: 5px 8px; }
+.tabel-irr tr.hasil td { padding-right: 20px; white-space: nowrap; }
+.tabel-irr td.kas-tunggal { text-align: left !important; }
+.isian-angka .satuan:empty { display: none; }
+.tabel-irr .isian-angka .satuan:empty { display: inline-block; }
+/* Kotak teks (nama cara bayar, Kelompok) selebar kotak angka di bawahnya,
+   yang menyisakan lajur tanda % (14px + jarak 3px). */
+.tabel-irr td > input, .tabel-irr th > input { width: calc(100% - 17px) !important; }
+/* Sel terakhir tabel-ringkas dirata-kanan; di tabel Data (IRR) kotak
+   isiannya tetap rata kiri seperti kolom lainnya. */
+.tabel-irr td:last-child:not(.n), .tabel-irr th:last-child { text-align: left; }
