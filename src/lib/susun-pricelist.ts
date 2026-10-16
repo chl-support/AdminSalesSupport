@@ -45,6 +45,12 @@ export type SkemaIrr = {
    * dibandingkan terhadapnya.
    */
   acuan?: boolean;
+  /**
+   * Cash Price pada lembar Data (IRR) (Excel: Rp 2.000.000.000). Hanya untuk
+   * ditampilkan bersama Adjusted Price = Cash Price × koefisien; koefisiennya
+   * sendiri tidak bergantung pada angka ini. Kosong berarti Rp 2 M.
+   */
+  hargaKas?: number;
 };
 
 /** Nama baris tahap pada lembar Data (IRR) Excel. */
@@ -62,6 +68,8 @@ export const PORSI_AWAL: [number, number, number, number] = [0.25, 0.25, 0.4, 0.
 
 export const namaTahap = (irr: { namaTahap?: [string, string, string, string] }) =>
   irr.namaTahap ?? TAHAP_EXCEL;
+
+export const HARGA_KAS_AWAL = 2_000_000_000;
 
 export type DataIrr = {
   /** Bunga target setahun, mis. 0,09. */

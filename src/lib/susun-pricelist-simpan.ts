@@ -30,6 +30,7 @@ const SKEMA = z.object({
       kali: z.number().int().min(1).max(240),
       bulan: z.tuple([angka, angka, angka, angka]),
       acuan: z.boolean().optional(),
+      hargaKas: angka.optional(),
     })).min(1).max(30),
   }),
   unit: z.array(z.object({

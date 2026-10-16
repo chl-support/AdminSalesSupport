@@ -17,7 +17,7 @@
 import ExcelJS from "exceljs";
 
 import {
-  FAKTOR, hitungSemua, namaTahap, susunAwal, unitKosong,
+  FAKTOR, HARGA_KAS_AWAL, hitungSemua, namaTahap, susunAwal, unitKosong,
   type KolomDataPl, type KolomPricelist, type SkemaIrr, type SusunPricelist,
   type Tnc, type UnitData,
 } from "./susun-pricelist";
@@ -217,6 +217,7 @@ export async function imporSusun(isi: ArrayBuffer): Promise<HasilImpor> {
         alokasi: rAlok ? angka(wsIrr.getCell(rAlok, c)) : 0,
         dp: angka(wsIrr.getCell(rDp, c)),
         kali: angka(wsIrr.getCell(rKali, c)) || 1,
+        ...(kas && kas !== HARGA_KAS_AWAL ? { hargaKas: kas } : {}),
         bulan: rTahap.map((r, i) => r ? angka(wsIrr.getCell(r, c))
                                       : susun.irr.skema[0].bulan[i]) as SkemaIrr["bulan"],
         // Acuan: harga yang tidak disesuaikan (Adjusted = Cash Price).
@@ -414,6 +415,8 @@ export async function eksporSusun(susun: SusunPricelist): Promise<Buffer> {
   w1.addRow(["Allocation", ...sk.map((s) => s.alokasi)]);
   w1.addRow(["DP", ...sk.map((s) => s.dp)]);
   w1.addRow(["Installments", ...sk.map((s) => s.kali)]);
+  w1.addRow(["Cash Price", ...sk.map((s) => s.hargaKas ?? HARGA_KAS_AWAL)]);
+  w1.addRow(["Adjusted Price", ...sk.map((s) => Math.round((s.hargaKas ?? HARGA_KAS_AWAL) * h.irr.koef[s.nama]))]);
   namaTahap(susun.irr).forEach((l, i) =>
     w1.addRow([l, ...sk.map((s) => s.bulan[i])]));
   w1.addRow(["IRR", ...sk.map((s) => h.irr.irr[s.nama])]);
