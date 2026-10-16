@@ -3056,3 +3056,8 @@ button.bahaya { border-color: var(--stop); color: #fff; background: var(--stop);
    isiannya tetap rata kiri seperti kolom lainnya. */
 .tabel-irr td:last-child:not(.n), .tabel-irr th:last-child { text-align: left; }
 .tabel-irr tr.hasil td.belum-sesuai { background: var(--warnbg); color: var(--warn); font-weight: 650; }
+
+/* Parameter Data (IRR): kotaknya pendek, jadi petaknya mengikuti lebar isinya
+   dan berjajar rapat dalam satu baris, bukan dibagi rata selebar halaman. */
+.filters.param-irr { display: flex; flex-wrap: wrap; gap: 8px 20px; }
+.filters.param-irr > div { flex: 0 0 auto; }
