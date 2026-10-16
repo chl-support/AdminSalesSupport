@@ -17,6 +17,7 @@ import {
   type HasilSusun, type SusunPricelist, type UnitData,
 } from "@/lib/susun-pricelist";
 import type { UnitHarga } from "@/lib/simulasi";
+import { PilihBerkas } from "../pilih-berkas";
 import { TabelHarga } from "../simulasi/unggah-pricelist";
 
 export type PropsLangkah = {
@@ -223,6 +224,80 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
     .filter(({ u }) => !q || [u.kode, u.alamat, u.view, u.subTipe].join(" ").toLowerCase().includes(q));
   const total = hasil.baris.reduce((a, b) => a + b.hasilUnit.factored, 0);
 
+  // Menambah dan mengurangi unit. Unit baru disisipkan tepat di bawah baris
+  // asalnya (Salin) atau di akhir tabel (Tambah unit), dengan isian yang
+  // biasanya sama untuk satu cluster sudah terisi; kotak Code-nya langsung
+  // disorot supaya kode unit barunya dapat segera diketik.
+  const [pilih, setPilih] = useState<Set<number>>(new Set());
+  const [yakin, setYakin] = useState<number | "pilihan" | null>(null);
+  const [fokus, setFokus] = useState<number | null>(null);
+  useEffect(() => {
+    if (fokus == null) return;
+    const el = document.getElementById(`unit-kode-${fokus}`) as HTMLInputElement | null;
+    el?.scrollIntoView({ block: "center", behavior: "smooth" });
+    el?.focus();
+    setFokus(null);
+  }, [fokus, data.unit.length]);
+  const tambah = (dari?: number) => {
+    const asal = dari != null ? data.unit[dari] : data.unit[data.unit.length - 1];
+    const baru: UnitData = dari != null
+      ? { ...asal, kode: "", no: "", faktor: { ...asal.faktor } }
+      : { ...unitKosong(), ...(asal && {
+          alamat: asal.alamat, hargaTanah: asal.hargaTanah, hargaBangunan: asal.hargaBangunan,
+          lb: asal.lb, tipe: asal.tipe, tipeBangunan: asal.tipeBangunan, phase: asal.phase,
+          kenaikan: asal.kenaikan, faktorTambah: asal.faktorTambah }) };
+    const posisi = dari != null ? dari + 1 : data.unit.length;
+    setCari(""); setPilih(new Set()); setYakin(null);
+    ubah((d) => ({ ...d, unit: [...d.unit.slice(0, posisi), baru, ...d.unit.slice(posisi)] }));
+    setFokus(posisi);
+  };
+  const hapus = (hapusIni: Set<number>) => {
+    ubah((d) => ({ ...d, unit: d.unit.filter((_, j) => !hapusIni.has(j)) }));
+    setPilih(new Set()); setYakin(null);
+  };
+  const tandai = (i: number, on: boolean) => setPilih((p) => {
+    const n = new Set(p); if (on) n.add(i); else n.delete(i); return n;
+  });
+
+  // Impor lembar UNIT DATA saja: daftar unit diganti seluruhnya dengan isi
+  // berkas, sedangkan Data (IRR), susunan kolom, dan T&C tetap seperti di layar.
+  const [buka, setBuka] = useState(false);
+  const [berkas, setBerkas] = useState<File | null>(null);
+  const [sibuk, setSibuk] = useState(false);
+  const [pesan, setPesan] = useState<{ ok: boolean; teks: string } | null>(null);
+  const imporUnit = async () => {
+    if (!berkas) return;
+    setSibuk(true); setPesan(null);
+    try {
+      const fd = new FormData(); fd.append("file", berkas);
+      const res = await fetch("/api/pricelist/susun/impor?bagian=unit", { method: "POST", body: fd });
+      const b = await res.json().catch(() => ({}));
+      if (res.status === 401) { location.href = "/login"; return; }
+      if (!res.ok) { setPesan({ ok: false, teks: b.detail ?? b.title ?? `HTTP ${res.status}` }); return; }
+      const unit: UnitData[] = b.unit ?? [];
+      if (!unit.length) {
+        setPesan({ ok: false, teks: (b.peringatan ?? []).join(" ") ||
+          "Tidak ada unit di lembar UNIT DATA berkas ini." });
+        return;
+      }
+      // Phase dan Tipe pricelist tidak selalu tertulis di UNIT DATA; untuk
+      // unit yang sudah ada di tabel, isian lamanya dipertahankan.
+      ubah((d) => {
+        const lama = new Map(d.unit.map((u) => [u.kode, u]));
+        return { ...d, unit: unit.map((u) => ({
+          ...u,
+          phase: u.phase || lama.get(u.kode)?.phase || "1",
+          tipe: u.tipe || lama.get(u.kode)?.tipe || "",
+        })) };
+      });
+      setPesan({ ok: true, teks: `${unit.length} unit dimuat dari lembar UNIT DATA ${berkas.name}. ` +
+        "Periksa tabelnya, lalu Simpan." });
+      setBuka(false); setBerkas(null);
+    } finally {
+      setSibuk(false);
+    }
+  };
+
   return (
     <>
       <p className="hint kiri">
@@ -237,42 +312,89 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
         <span className="hint" style={{ margin: 0 }}>
           {data.unit.length} unit · total Factored Price <b>{rp(total)}</b>
         </span>
+        {bolehUbah && <button className="pri" onClick={() => tambah()}>+ Tambah unit</button>}
+        {bolehUbah && pilih.size > 0 && (yakin === "pilihan" ? (
+          <span className="yakin-hapus">
+            Hapus {pilih.size} unit terpilih?
+            <button className="kecil bahaya" onClick={() => hapus(pilih)}>Ya, hapus</button>
+            <button className="kecil" onClick={() => setYakin(null)}>Batal</button>
+          </span>
+        ) : (
+          <button onClick={() => setYakin("pilihan")}>− Hapus terpilih ({pilih.size})</button>
+        ))}
         {bolehUbah && (
-          <button onClick={() => ubah((d) => ({ ...d, unit: [...d.unit, {
-            ...unitKosong(), ...(d.unit.length && {
-              alamat: d.unit[d.unit.length - 1].alamat,
-              hargaTanah: d.unit[d.unit.length - 1].hargaTanah,
-              hargaBangunan: d.unit[d.unit.length - 1].hargaBangunan,
-              lb: d.unit[d.unit.length - 1].lb,
-              tipe: d.unit[d.unit.length - 1].tipe,
-              tipeBangunan: d.unit[d.unit.length - 1].tipeBangunan,
-              phase: d.unit[d.unit.length - 1].phase,
-            }) }] }))}>+ Tambah unit</button>
+          <button onClick={() => { setBuka((x) => !x); setPesan(null); }}>
+            Impor Unit Data dari Excel</button>
         )}
       </div>
+      {buka && (
+        <div className="form-blok">
+          <p className="hint kiri" style={{ marginTop: 0 }}>
+            Berkas Excel dengan lembar <b>UNIT DATA</b> (kolom Code Unit, Address,
+            View, Ukuran, Land, Land Price, GFA, dan seterusnya). Seluruh unit di
+            tabel ini diganti dengan isi berkas; langkah lain tidak berubah.
+          </p>
+          <div className="row" style={{ marginBottom: 0 }}>
+            <PilihBerkas accept=".xlsx" onChange={(e) => setBerkas(e.target.files?.[0] ?? null)} />
+            <button className="pri" disabled={!berkas || sibuk} onClick={() => void imporUnit()}>
+              {sibuk ? "Membaca…" : "Muat unit"}</button>
+            <button onClick={() => { setBuka(false); setBerkas(null); }}>Batal</button>
+          </div>
+        </div>
+      )}
+      {pesan && <div className={`banner ${pesan.ok ? "ok" : "stop"}`}>{pesan.teks}</div>}
       {!data.unit.length ? (
         <div className="banner info">
-          Belum ada unit. Tambahkan unit satu per satu, atau isi seluruh langkah
+          Belum ada unit. Muat dari lembar UNIT DATA dengan <b>Impor Unit Data
+          dari Excel</b>, tambahkan satu per satu, atau isi seluruh langkah
           sekaligus dengan <b>Impor dari Excel</b> di atas.
         </div>
       ) : (
         <div className="tscroll" style={{ maxHeight: 620, overflowY: "auto" }}>
           <table className="tabel-ringkas tabel-isian kepala-lekat"><thead>
             <tr>
+              {bolehUbah && (
+                <th className="aksi-unit">
+                  <input type="checkbox" aria-label="Pilih semua unit yang tampil"
+                         checked={tampil.length > 0 && tampil.every(({ i }) => pilih.has(i))}
+                         onChange={(e) => setPilih(e.target.checked ? new Set(tampil.map(({ i }) => i)) : new Set())} />
+                </th>
+              )}
               <th>#</th>
               {TEKS_UNIT.map(([, l]) => <th key={l}>{l}</th>)}
               <th>Land (m²)</th><th>Harga tanah /m²</th><th>GFA (m²)</th>
               <th>Harga bangunan /m²</th><th>Increase</th>
               {FAKTOR.map(([, l]) => <th key={l}>{l}</th>)}
               <th>(+) Factor</th><th>Special (Rp)</th><th>Show Unit (Rp)</th>
-              <th>Base Price</th><th>Factored Price</th>{bolehUbah && <th />}
+              <th>Base Price</th><th>Factored Price</th>
             </tr>
           </thead><tbody>
             {tampil.map(({ u, i, b }) => (
-              <tr key={i}>
+              <tr key={i} className={pilih.has(i) ? "terpilih" : undefined}>
+                {bolehUbah && (
+                  <td className="aksi-unit">
+                    <span className="row" style={{ margin: 0, flexWrap: "nowrap", gap: 4 }}>
+                      <input type="checkbox" aria-label={`Pilih ${u.kode || `baris ${i + 1}`}`}
+                             checked={pilih.has(i)} onChange={(e) => tandai(i, e.target.checked)} />
+                      {yakin === i ? (
+                        <>
+                          <button className="kecil bahaya" onClick={() => hapus(new Set([i]))}>Ya, hapus</button>
+                          <button className="kecil" onClick={() => setYakin(null)}>Batal</button>
+                        </>
+                      ) : (
+                        <>
+                          <button className="kecil" title="Tambah unit baru di bawah baris ini dengan isian yang sama"
+                                  onClick={() => tambah(i)}>Salin</button>
+                          <button className="kecil" title="Hapus unit ini" onClick={() => setYakin(i)}>Hapus</button>
+                        </>
+                      )}
+                    </span>
+                  </td>
+                )}
                 <td className="n">{i + 1}</td>
                 {TEKS_UNIT.map(([k, , w]) => (
-                  <td key={k}><IsianTeks nilai={u[k]} lebar={w} disabled={ro}
+                  <td key={k}><IsianTeks id={k === "kode" ? `unit-kode-${i}` : undefined}
+                                         nilai={u[k]} lebar={w} disabled={ro}
                                          ubah={(v) => ubahUnit(i, (x) => ({ ...x, [k]: v }))} /></td>
                 ))}
                 <td><Isian nilai={u.lt} lebar={70} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, lt: n }))} /></td>
@@ -289,13 +411,18 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
                 <td><Isian jenis="rp" nilai={u.showUnit} lebar={95} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, showUnit: n }))} /></td>
                 <td className="n">{rp(b?.hasilUnit.base ?? NaN)}</td>
                 <td className="n"><b>{rp(b?.hasilUnit.factored ?? NaN)}</b></td>
-                {bolehUbah && (
-                  <td><button className="kecil" onClick={() => ubah((d) => ({
-                    ...d, unit: d.unit.filter((_, j) => j !== i) }))}>Hapus</button></td>
-                )}
               </tr>
             ))}
           </tbody></table>
+        </div>
+      )}
+      {bolehUbah && data.unit.length > 0 && (
+        <div className="row" style={{ marginTop: 10, marginBottom: 0 }}>
+          <button onClick={() => tambah()}>+ Tambah unit di akhir tabel</button>
+          <span className="hint" style={{ margin: 0 }}>
+            Unit yang ditambah atau dihapus baru tersimpan setelah <b>Simpan</b>, dan baru
+            dipakai Simulasi setelah diberlakukan di langkah 4.
+          </span>
         </div>
       )}
     </>
