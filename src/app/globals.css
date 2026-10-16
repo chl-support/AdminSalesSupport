@@ -3066,3 +3066,9 @@ button.bahaya { border-color: var(--stop); color: #fff; background: var(--stop);
 
 /* Judul kolom tabel Unit Data di tengah petaknya. */
 .tabel-unit thead th { text-align: center !important; }
+
+/* Tabel susunan kolom (Data Pricelist, Pricelist): selebar isinya saja,
+   bukan selebar halaman, supaya nama, sumber, dan pengali berdekatan. */
+.tabel-isian.tabel-rapat { width: auto; }
+.tabel-isian.tabel-rapat td, .tabel-isian.tabel-rapat th { padding-right: 18px; }
+.tabel-isian.tabel-rapat select { width: 210px; }
