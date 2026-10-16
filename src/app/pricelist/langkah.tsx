@@ -13,7 +13,7 @@ import { useEffect, useState } from "react";
 
 import { formatRupiah } from "@/lib/money";
 import {
-  FAKTOR, hargaKasIrr, hargaSesuaiSkema, namaTahap, unitKosong,
+  FAKTOR, hargaKasIrr, hargaSesuaiSkema, labelPpn, namaTahap, tarifPpn, unitKosong,
   type HasilSusun, type SusunPricelist, type UnitData,
 } from "@/lib/susun-pricelist";
 import type { UnitHarga } from "@/lib/simulasi";
@@ -356,6 +356,7 @@ const TEKS_UNIT = [
 
 export function LangkahUnit({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
   const ro = !bolehUbah;
+  const ppn = tarifPpn(data), lp = labelPpn(ppn);
   const [cari, setCari] = useState("");
   const ubahUnit = (i: number, f: (u: UnitData) => UnitData) =>
     ubah((d) => ({ ...d, unit: d.unit.map((u, j) => j === i ? f(u) : u) }));
@@ -442,11 +443,22 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
   return (
     <>
       <p className="hint kiri">
-        Base Price = ROUNDUP((Land × harga tanah + GFA × harga bangunan) × 1,11 ×
+        Base Price = ROUNDUP((Land × harga tanah + GFA × harga bangunan) × (1 + PPN) ×
         (1 + kenaikan), juta). Factored Price = Base × (1 + jumlah faktor posisi)
         × (1 + (+) Factor) + Special + Show Unit × (1 + kenaikan). Harga per m²
-        ditulis sebelum PPN 11%; faktor dan kenaikan dalam persen.
+        ditulis sebelum PPN {lp}; faktor dan kenaikan dalam persen.
       </p>
+      <div className="filters rapat param-irr" style={{ marginBottom: 12 }}>
+        <div>
+          <div className="lbl">Tarif PPN</div>
+          <Isian id="unit-ppn" jenis="persen" nilai={ppn} lebar={70} disabled={ro}
+                 ubah={(n) => ubah((d) => ({ ...d, ppn: n }))} />
+        </div>
+        <p className="hint kiri" style={{ margin: 0, alignSelf: "flex-end", maxWidth: 520 }}>
+          Ubah bila tarif PPN dari pemerintah berubah. Dipakai untuk kolom Incl PPN
+          di sini serta DPP dan Nilai Free PPN DTP di langkah 4.
+        </p>
+      </div>
       <div className="row">
         <input id="unit-cari" type="search" placeholder="Cari code, address, view…"
                value={cari} onChange={(e) => setCari(e.target.value)} style={{ width: 240 }} />
@@ -508,9 +520,9 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
               <th>#</th>
               {TEKS_UNIT.map(([k, l]) => <th key={k}>{l}</th>)}
               <th>Land (m²)</th>
-              <th>Land Price (base)<br />(Excl PPN. 11%)</th><th className="incl">Land Price (base)<br />(Incl PPN. 11%)</th>
+              <th>Land Price (base)<br />(Excl PPN. {lp})</th><th className="incl">Land Price (base)<br />(Incl PPN. {lp})</th>
               <th>GFA (m²)</th>
-              <th>GFA (base)<br />(Excl PPN. 11%)</th><th className="incl">GFA (base)<br />(Incl PPN. 11%)</th>
+              <th>GFA (base)<br />(Excl PPN. {lp})</th><th className="incl">GFA (base)<br />(Incl PPN. {lp})</th>
               <th>Increase</th>
               {FAKTOR.map(([, l]) => <th key={l}>{l}</th>)}
               <th>(+) Factor</th><th>Special (Rp)</th><th>Show Unit (Rp)</th>
@@ -707,8 +719,8 @@ export function LangkahPricelist({ data, hasil, ubah, bolehUbah, aksi }: PropsLa
       <p className="hint kiri">
         Kolom dengan pengali 100% mengambil harga Data Pricelist apa adanya; selain
         itu ROUND(harga × pengali, juta) — di Excel 111,5% untuk kolom KPR.
-        DPP = harga / 1,11; Nilai Free PPN DTP = harga − DPP, paling banyak PPN
-        atas pagu harga.
+        DPP = harga / (1 + PPN {labelPpn(tarifPpn(data))}); Nilai Free PPN DTP = harga − DPP,
+        paling banyak PPN atas pagu harga. Tarif PPN diubah di langkah 2.
       </p>
       <div className="filters rapat">
         <div><div className="lbl">Judul</div>

@@ -17,7 +17,7 @@
 import ExcelJS from "exceljs";
 
 import {
-  FAKTOR, HARGA_KAS_AWAL, hargaKasIrr, hargaSesuaiSkema, hitungSemua, namaTahap, susunAwal, unitKosong,
+  FAKTOR, HARGA_KAS_AWAL, labelPpn, tarifPpn, hargaKasIrr, hargaSesuaiSkema, hitungSemua, namaTahap, susunAwal, unitKosong,
   type KolomDataPl, type KolomPricelist, type SkemaIrr, type SusunPricelist,
   type Tnc, type UnitData,
 } from "./susun-pricelist";
@@ -537,9 +537,10 @@ export async function eksporSusun(susun: SusunPricelist): Promise<Buffer> {
 
   // 2. Unit Data
   const w2 = wb.addWorksheet("Unit Data");
+  const lp = labelPpn(tarifPpn(susun));
   tebal(w2.addRow(["Code", "Address", "View", "No", "Ukuran", "Type", "View", "Sub-Tipe Kavling/Irr/Irr Hoek", "Sub-Tipe",
-    "Phase", "Land", "Land Price (base) (Excl PPN. 11%)", "Land Price (base) (Incl PPN. 11%)",
-    "GFA", "GFA (base) (Excl PPN. 11%)", "GFA (base) (Incl PPN. 11%)", "Increase (%)",
+    "Phase", "Land", `Land Price (base) (Excl PPN. ${lp})`, `Land Price (base) (Incl PPN. ${lp})`,
+    "GFA", `GFA (base) (Excl PPN. ${lp})`, `GFA (base) (Incl PPN. ${lp})`, "Increase (%)",
     ...FAKTOR.map(([, l]) => l), "(+) Factor", "Special", "Show Unit",
     "Base Price", "Factored Price"]));
   for (const b of h.baris) {
