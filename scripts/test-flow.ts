@@ -1968,6 +1968,22 @@ async function main() {
            `porsi 25/25/40/10: ${dapat.join(", ")}`);
   });
 
+  // Data (IRR): Adjusted Price tersimpan (hasil Goal Seek Excel) menentukan
+  // koefisien persis seperti Excel (Adjusted / Cash); mengubah arus kasnya
+  // kembali ke perhitungan tepat pada target.
+  await check("Data (IRR): koefisien dari Adjusted Price sama dengan Excel", async () => {
+    const { susunAwal, hitungIrr, koefisienTepat } = await import("../src/lib/susun-pricelist");
+    const s = susunAwal();
+    const c12 = s.irr.skema.find((x) => x.nama === "Cicilan 12x")!;
+    c12.hargaSesuai = 2098835043.1433501;
+    const h = hitungIrr(s.irr);
+    assert(h.koef["Cicilan 12x"] === 1.049417521571675, `koef: ${h.koef["Cicilan 12x"]}`);
+    assert(Math.abs(h.irr["Cicilan 12x"] - 0.08999964119269688) < 1e-9, `irr: ${h.irr["Cicilan 12x"]}`);
+    const tepat = koefisienTepat(c12, s.irr);
+    assert(Math.abs(tepat - 1.049417521571675) < 1e-6 && tepat !== h.koef["Cicilan 12x"],
+           `tepat: ${tepat}`);
+  });
+
   console.log("\n" + "=".repeat(62));
   console.log(`  LULUS ${pass.length}   GAGAL ${fail.length}`);
   if (fail.length) {

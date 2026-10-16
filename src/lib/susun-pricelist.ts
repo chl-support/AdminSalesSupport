@@ -51,6 +51,15 @@ export type SkemaIrr = {
    * sendiri tidak bergantung pada angka ini. Kosong berarti Rp 2 M.
    */
   hargaKas?: number;
+  /**
+   * Adjusted Price tersimpan, seperti baris 8 lembar Data (IRR) Excel: di
+   * sana angkanya hasil Goal Seek yang ditulis sebagai nilai, dan koefisien =
+   * Adjusted Price / Cash Price. Dengan angka yang sama, koefisien dan harga
+   * di sini sama persis dengan Excel. Kosong berarti dihitung tepat dari
+   * bunga target (setara Goal Seek tanpa sisa iterasi) — terjadi saat
+   * parameter cara bayar diubah atau tombol Goal Seek ditekan.
+   */
+  hargaSesuai?: number;
 };
 
 /** Nama baris tahap pada lembar Data (IRR) Excel. */
@@ -246,6 +255,14 @@ export function arusKas(s: SkemaIrr, irr: DataIrr): number[] {
  * selisih pembulatan iterasi.
  */
 export function koefisien(s: SkemaIrr, irr: DataIrr): number {
+  if (s.acuan) return 1;
+  const kas = s.hargaKas ?? HARGA_KAS_AWAL;
+  if (s.hargaSesuai && kas) return s.hargaSesuai / kas;
+  return koefisienTepat(s, irr);
+}
+
+/** Koefisien dari bunga target, tanpa Adjusted Price tersimpan. */
+export function koefisienTepat(s: SkemaIrr, irr: DataIrr): number {
   if (s.acuan) return 1;
   const r = irr.target / 12;
   const nilai = arusKas(s, irr).reduce((a, v, i) => a + v / (1 + r) ** (i + 1), 0);

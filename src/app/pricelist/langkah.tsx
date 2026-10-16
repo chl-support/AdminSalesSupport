@@ -98,6 +98,14 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
   // Cash Price diubah lewat tombol Edit, supaya tidak tergeser tanpa sengaja.
   const [editKas, setEditKas] = useState(false);
   const ro = !bolehUbah;
+  // Mengubah arus kas cara bayar (DP, cicilan, bulan, Cash Price) membuat
+  // Adjusted Price tersimpan tidak berlaku lagi — seperti di Excel yang
+  // harus di-Goal Seek ulang; di sini langsung dihitung ulang tepat.
+  const ubahArus = (i: number, f: (s: SusunPricelist["irr"]["skema"][0]) => typeof s) =>
+    ubahSkema(i, (x) => ({ ...f(x), hargaSesuai: undefined }));
+  const tanpaSimpanan = (d: SusunPricelist) =>
+    d.irr.skema.map((x) => ({ ...x, hargaSesuai: undefined }));
+  const tersimpan = irr.skema.filter((s) => s.hargaSesuai && !s.acuan).length;
   const ubahSkema = (i: number, f: (s: SusunPricelist["irr"]["skema"][0]) => typeof s) =>
     ubah((d) => ({ ...d, irr: { ...d.irr, skema: d.irr.skema.map((s, j) => j === i ? f(s) : s) } }));
   const ganti = (i: number, nama: string) => ubah((d) => {
@@ -122,7 +130,7 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
         <div>
           <div className="lbl">Target interest rate (setahun)</div>
           <Isian id="irr-target" jenis="persen" nilai={irr.target} disabled={ro}
-                 ubah={(n) => ubah((d) => ({ ...d, irr: { ...d.irr, target: n } }))} />
+                 ubah={(n) => ubah((d) => ({ ...d, irr: { ...d.irr, target: n, skema: tanpaSimpanan(d) } }))} />
         </div>
         {TAHAP.map((t, i) => (
           <div key={t}>
@@ -130,7 +138,7 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
             <Isian id={`irr-porsi-${i}`} jenis="persen" nilai={irr.porsiTahap[i]} disabled={ro}
                    ubah={(n) => ubah((d) => {
                      const p = [...d.irr.porsiTahap] as typeof irr.porsiTahap; p[i] = n;
-                     return { ...d, irr: { ...d.irr, porsiTahap: p } };
+                     return { ...d, irr: { ...d.irr, porsiTahap: p, skema: tanpaSimpanan(d) } };
                    })} />
           </div>
         ))}
@@ -158,14 +166,14 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
                                ubah={(n) => ubahSkema(i, (x) => ({ ...x, alokasi: n }))} /></td>))}</tr>
           <tr><td>DP</td>{irr.skema.map((s, i) => (
             <td key={i}><Isian jenis="persen" nilai={s.dp} lebar={60} disabled={ro}
-                               ubah={(n) => ubahSkema(i, (x) => ({ ...x, dp: n }))} /></td>))}</tr>
+                               ubah={(n) => ubahArus(i, (x) => ({ ...x, dp: n }))} /></td>))}</tr>
           <tr><td>Installments (x)</td>{irr.skema.map((s, i) => (
             <td key={i}><Isian nilai={s.kali} lebar={60} disabled={ro}
-                               ubah={(n) => ubahSkema(i, (x) => ({ ...x, kali: Math.max(1, Math.round(n)) }))} /></td>))}</tr>
+                               ubah={(n) => ubahArus(i, (x) => ({ ...x, kali: Math.max(1, Math.round(n)) }))} /></td>))}</tr>
           {TAHAP.map((t, ti) => (
             <tr key={t}><td>Bulan {t}</td>{irr.skema.map((s, i) => (
               <td key={i}><Isian nilai={s.bulan[ti]} lebar={60} disabled={ro}
-                                 ubah={(n) => ubahSkema(i, (x) => {
+                                 ubah={(n) => ubahArus(i, (x) => {
                                    const b = [...x.bulan] as typeof x.bulan; b[ti] = Math.round(n);
                                    return { ...x, bulan: b };
                                  })} /></td>))}</tr>
@@ -183,7 +191,7 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
               <td key={i} className="n">
                 {editKas && bolehUbah
                   ? <Isian id={`irr-kas-${i}`} jenis="rp" nilai={s.hargaKas ?? HARGA_KAS_AWAL} lebar={120}
-                           ubah={(n) => ubahSkema(i, (x) => ({ ...x, hargaKas: n }))} />
+                           ubah={(n) => ubahArus(i, (x) => ({ ...x, hargaKas: n }))} />
                   : rp(s.hargaKas ?? HARGA_KAS_AWAL)}
               </td>))}
           </tr>
@@ -197,7 +205,11 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
           <tr className="hasil"><td>IRR</td>{irr.skema.map((s, i) => (
             <td key={i} className="n">{s.acuan ? "acuan" : persen(hasil.irr.irr[s.nama])}</td>))}</tr>
           <tr className="hasil"><td>Adjusted Price</td>{irr.skema.map((s, i) => (
-            <td key={i} className="n"><b>{rp(Math.round((s.hargaKas ?? HARGA_KAS_AWAL) * hasil.irr.koef[s.nama]))}</b></td>))}</tr>
+            <td key={i} className="n"
+                title={s.hargaSesuai && !s.acuan ? "Tersimpan dari Excel (hasil Goal Seek)" : "Dihitung tepat dari target"}>
+              <b>{rp(Math.round((s.hargaKas ?? HARGA_KAS_AWAL) * hasil.irr.koef[s.nama]))}</b>
+              {s.hargaSesuai && !s.acuan ? <small className="asal">Excel</small> : null}
+            </td>))}</tr>
           {bolehUbah && (
             <tr><td />{irr.skema.map((s, i) => (
               <td key={i}>
@@ -208,11 +220,25 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
           )}
         </tbody></table>
       </div>
+      {tersimpan > 0 && (
+        <p className="hint kiri" style={{ marginBottom: 0 }}>
+          Adjusted Price bertanda <b>Excel</b> diambil apa adanya dari berkas Excel (hasil
+          Goal Seek), sehingga koefisien dan harganya sama persis dengan Excel; IRR-nya
+          karena itu sedikit di bawah target, sama seperti di Excel. Mengubah DP, cicilan,
+          bulan, Cash Price, target atau porsi menghitungnya ulang tepat pada target.
+        </p>
+      )}
       <div className="row" style={{ marginTop: 10 }}>
         <span className="hint" style={{ margin: 0 }}>
           Total alokasi <b>{persen(hasil.irr.totalAlokasi)}</b> · WA coefficient{" "}
           <b>{hasil.irr.koefRata.toFixed(5)}</b>
         </span>
+        {bolehUbah && (
+          <button disabled={!tersimpan}
+                  title="Hitung ulang Adjusted Price semua cara bayar tepat pada target interest rate"
+                  onClick={() => ubah((d) => ({ ...d, irr: { ...d.irr, skema: tanpaSimpanan(d) } }))}>
+            Goal Seek ulang</button>
+        )}
         {bolehUbah && (
           <button onClick={() => ubah((d) => ({ ...d, irr: { ...d.irr, skema: [...d.irr.skema, {
             nama: `Cara bayar ${d.irr.skema.length + 1}`, kelompok: "Cash", alokasi: 0,

@@ -31,6 +31,7 @@ const SKEMA = z.object({
       bulan: z.tuple([angka, angka, angka, angka]),
       acuan: z.boolean().optional(),
       hargaKas: angka.optional(),
+      hargaSesuai: angka.optional(),
     })).min(1).max(30),
   }),
   unit: z.array(z.object({

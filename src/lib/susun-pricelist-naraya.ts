@@ -9,8 +9,11 @@
  * belum punya draf berisi unit — atas permintaan pemakainya, supaya datanya
  * langsung ada di layar tanpa harus diimpor lebih dulu. Sesudah tersimpan,
  * yang dibaca selalu draf di basis data; berkas ini tidak menimpanya lagi.
- * Dengan porsi tahap 40/40/10/10 seperti rumus Excel-nya, hitungannya cocok
- * persis dengan Excel (diuji di scripts/test-flow.ts).
+ * Adjusted Price hasil Goal Seek Excel disimpan untuk cara bayar yang tidak
+ * terpengaruh porsi tahap (DP 100% dan KPR Express), sehingga koefisiennya
+ * sama persis dengan Excel; tiga cara bayar lain dihitung tepat pada porsi
+ * 25/25/40/10. Dengan porsi Excel 40/40/10/10, harga unitnya cocok persis
+ * dengan Excel (diuji di scripts/test-flow.ts).
  */
 
 import type { SusunPricelist } from "./susun-pricelist";
@@ -44,6 +47,7 @@ export const SUSUN_NARAYA: SusunPricelist = {
         "alokasi": 0.04,
         "dp": 1,
         "kali": 12,
+        "hargaSesuai": 2098835043.1433501,
         "bulan": [
           12,
           18,
@@ -57,6 +61,7 @@ export const SUSUN_NARAYA: SusunPricelist = {
         "alokasi": 0.05,
         "dp": 1,
         "kali": 18,
+        "hargaSesuai": 2145515617.2706635,
         "bulan": [
           12,
           18,
@@ -70,6 +75,7 @@ export const SUSUN_NARAYA: SusunPricelist = {
         "alokasi": 0.08,
         "dp": 1,
         "kali": 24,
+        "hargaSesuai": 2192866884.3272357,
         "bulan": [
           12,
           18,
@@ -83,6 +89,7 @@ export const SUSUN_NARAYA: SusunPricelist = {
         "alokasi": 0.25,
         "dp": 1,
         "kali": 30,
+        "hargaSesuai": 2240888378.584534,
         "bulan": [
           12,
           18,
@@ -96,6 +103,7 @@ export const SUSUN_NARAYA: SusunPricelist = {
         "alokasi": 0.33,
         "dp": 0.1,
         "kali": 1,
+        "hargaSesuai": 2028590805.69366,
         "bulan": [
           2,
           2,
