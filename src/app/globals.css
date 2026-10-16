@@ -3023,3 +3023,4 @@ button.bahaya { border-color: var(--stop); color: #fff; background: var(--stop);
 .bagian-langkah > h2 { align-items: baseline; }
 .tabel-isian td small.asal { display: block; font-size: 9.5px; font-weight: 600; color: var(--note);
                              text-transform: uppercase; letter-spacing: .05em; }
+.tabel-isian td.kas-tunggal { text-align: left; }

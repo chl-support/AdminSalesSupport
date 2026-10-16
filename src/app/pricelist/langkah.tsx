@@ -13,7 +13,7 @@ import { useEffect, useState } from "react";
 
 import { formatRupiah } from "@/lib/money";
 import {
-  FAKTOR, HARGA_KAS_AWAL, namaTahap, unitKosong,
+  FAKTOR, hargaKasIrr, hargaSesuaiSkema, namaTahap, unitKosong,
   type HasilSusun, type SusunPricelist, type UnitData,
 } from "@/lib/susun-pricelist";
 import type { UnitHarga } from "@/lib/simulasi";
@@ -187,13 +187,17 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
                   {editKas ? "Selesai" : "Edit"}</button>
               )}
             </td>
-            {irr.skema.map((s, i) => (
-              <td key={i} className="n">
-                {editKas && bolehUbah
-                  ? <Isian id={`irr-kas-${i}`} jenis="rp" nilai={s.hargaKas ?? HARGA_KAS_AWAL} lebar={120}
-                           ubah={(n) => ubahArus(i, (x) => ({ ...x, hargaKas: n }))} />
-                  : rp(s.hargaKas ?? HARGA_KAS_AWAL)}
-              </td>))}
+            {/* Satu Cash Price untuk semua cara bayar; Adjusted Price tiap
+                cara bayar = angka ini × koefisiennya. */}
+            <td colSpan={irr.skema.length} className="kas-tunggal">
+              {editKas && bolehUbah
+                ? <Isian id="irr-kas" jenis="rp" nilai={hargaKasIrr(irr)} lebar={160}
+                         ubah={(n) => ubah((d) => ({ ...d, irr: { ...d.irr, hargaKas: n } }))} />
+                : <b>{rp(hargaKasIrr(irr))}</b>}
+              <span className="hint" style={{ margin: "0 0 0 10px" }}>
+                dipakai semua cara bayar · Adjusted Price = Cash Price × Coefficient
+              </span>
+            </td>
           </tr>
           <tr><td>Acuan (Cash Keras)</td>{irr.skema.map((s, i) => (
             <td key={i}><input type="radio" name="acuan" checked={!!s.acuan} disabled={ro}
@@ -207,7 +211,7 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
           <tr className="hasil"><td>Adjusted Price</td>{irr.skema.map((s, i) => (
             <td key={i} className="n"
                 title={s.hargaSesuai && !s.acuan ? "Tersimpan dari Excel (hasil Goal Seek)" : "Dihitung tepat dari target"}>
-              <b>{rp(Math.round((s.hargaKas ?? HARGA_KAS_AWAL) * hasil.irr.koef[s.nama]))}</b>
+              <b>{rp(hargaSesuaiSkema(irr, hasil.irr.koef[s.nama]))}</b>
               {s.hargaSesuai && !s.acuan ? <small className="asal">Excel</small> : null}
             </td>))}</tr>
           {bolehUbah && (
@@ -225,7 +229,8 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
           Adjusted Price bertanda <b>Excel</b> diambil apa adanya dari berkas Excel (hasil
           Goal Seek), sehingga koefisien dan harganya sama persis dengan Excel; IRR-nya
           karena itu sedikit di bawah target, sama seperti di Excel. Mengubah DP, cicilan,
-          bulan, Cash Price, target atau porsi menghitungnya ulang tepat pada target.
+          bulan, target atau porsi menghitungnya ulang tepat pada target; mengubah Cash
+          Price hanya mengubah Adjusted Price, koefisiennya tetap.
         </p>
       )}
       <div className="row" style={{ marginTop: 10 }}>

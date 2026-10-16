@@ -46,9 +46,10 @@ export type SkemaIrr = {
    */
   acuan?: boolean;
   /**
-   * Cash Price pada lembar Data (IRR) (Excel: Rp 2.000.000.000). Hanya untuk
-   * ditampilkan bersama Adjusted Price = Cash Price × koefisien; koefisiennya
-   * sendiri tidak bergantung pada angka ini. Kosong berarti Rp 2 M.
+   * Cash Price cara bayar ini pada lembar Data (IRR) Excel — pembagi
+   * Adjusted Price tersimpan (koefisien = hargaSesuai / hargaKas). Yang
+   * tampil dan dapat diubah di layar adalah satu Cash Price bersama,
+   * `DataIrr.hargaKas`. Kosong berarti Rp 2 M.
    */
   hargaKas?: number;
   /**
@@ -80,9 +81,23 @@ export const namaTahap = (irr: { namaTahap?: [string, string, string, string] })
 
 export const HARGA_KAS_AWAL = 2_000_000_000;
 
+/**
+ * Cash Price yang dipakai bersama semua cara bayar: Adjusted Price tiap
+ * cara bayar = Cash Price ini × koefisiennya. Kosong pada isian lama: Cash
+ * Price cara bayar pertama, atau Rp 2 M.
+ */
+export const hargaKasIrr = (irr: { hargaKas?: number; skema: { hargaKas?: number }[] }) =>
+  irr.hargaKas ?? irr.skema[0]?.hargaKas ?? HARGA_KAS_AWAL;
+
+/** Adjusted Price satu cara bayar: Cash Price × koefisien. */
+export const hargaSesuaiSkema = (irr: Parameters<typeof hargaKasIrr>[0], koef: number) =>
+  Math.round(hargaKasIrr(irr) * koef);
+
 export type DataIrr = {
   /** Bunga target setahun, mis. 0,09. */
   target: number;
+  /** Cash Price bersama semua cara bayar; lihat `hargaKasIrr`. */
+  hargaKas?: number;
   /** Porsi sisa (1 − DP) yang cair pada keempat tahap; jumlahnya 1. */
   porsiTahap: [number, number, number, number];
   /**
