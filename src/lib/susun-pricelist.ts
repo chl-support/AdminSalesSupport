@@ -51,6 +51,15 @@ export type SkemaIrr = {
    * sendiri tidak bergantung pada angka ini. Kosong berarti Rp 2 M.
    */
   hargaKas?: number;
+  /**
+   * Adjusted Price tersimpan, seperti baris 8 lembar Data (IRR) Excel: di
+   * sana angkanya hasil Goal Seek yang ditulis sebagai nilai, dan koefisien =
+   * Adjusted Price / Cash Price. Dengan angka yang sama, koefisien dan harga
+   * di sini sama persis dengan Excel. Kosong berarti dihitung tepat dari
+   * bunga target (setara Goal Seek tanpa sisa iterasi) — terjadi saat
+   * parameter cara bayar diubah atau tombol Goal Seek ditekan.
+   */
+  hargaSesuai?: number;
 };
 
 /** Nama baris tahap pada lembar Data (IRR) Excel. */
@@ -58,13 +67,13 @@ export const TAHAP_EXCEL: [string, string, string, string] =
   ["Foundation", "Tutup Atap", "BAST", "AJB + SPHTB"];
 
 /**
- * Tahap pembangunan yang dipakai bagian penjualan: Greenfield (tanah
- * matang), Foundation, Tutup Atap, BAST + AJB — porsinya 25/25/40/10, seperti
- * tabel tahap di samping lembar Data (IRR).
+ * Tahap dan porsi yang dipakai rumus arus kas lembar Data (IRR) (sel
+ * B22:J57: 40%, 40%, 10%, 10%) — dan karena itu harga di lembar Pricelist.
+ * Tabel 25/25/40/10 di samping lembar itu (T2:W5) tidak dipakai rumus mana
+ * pun; atas keputusan pemakainya, yang dipakai porsi rumusnya.
  */
-export const TAHAP_AWAL: [string, string, string, string] =
-  ["Greenfield", "Foundation", "Tutup Atap", "BAST + AJB"];
-export const PORSI_AWAL: [number, number, number, number] = [0.25, 0.25, 0.4, 0.1];
+export const TAHAP_AWAL: [string, string, string, string] = [...TAHAP_EXCEL];
+export const PORSI_AWAL: [number, number, number, number] = [0.4, 0.4, 0.1, 0.1];
 
 export const namaTahap = (irr: { namaTahap?: [string, string, string, string] }) =>
   irr.namaTahap ?? TAHAP_EXCEL;
@@ -246,6 +255,14 @@ export function arusKas(s: SkemaIrr, irr: DataIrr): number[] {
  * selisih pembulatan iterasi.
  */
 export function koefisien(s: SkemaIrr, irr: DataIrr): number {
+  if (s.acuan) return 1;
+  const kas = s.hargaKas ?? HARGA_KAS_AWAL;
+  if (s.hargaSesuai && kas) return s.hargaSesuai / kas;
+  return koefisienTepat(s, irr);
+}
+
+/** Koefisien dari bunga target, tanpa Adjusted Price tersimpan. */
+export function koefisienTepat(s: SkemaIrr, irr: DataIrr): number {
   if (s.acuan) return 1;
   const r = irr.target / 12;
   const nilai = arusKas(s, irr).reduce((a, v, i) => a + v / (1 + r) ** (i + 1), 0);

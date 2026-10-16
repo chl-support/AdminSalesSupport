@@ -218,6 +218,9 @@ export async function imporSusun(isi: ArrayBuffer): Promise<HasilImpor> {
         dp: angka(wsIrr.getCell(rDp, c)),
         kali: angka(wsIrr.getCell(rKali, c)) || 1,
         ...(kas && kas !== HARGA_KAS_AWAL ? { hargaKas: kas } : {}),
+        // Adjusted Price hasil Goal Seek Excel, disimpan apa adanya supaya
+        // koefisiennya (Adjusted / Cash) sama persis dengan Excel.
+        ...(kas && adj && adj !== kas ? { hargaSesuai: adj } : {}),
         bulan: rTahap.map((r, i) => r ? angka(wsIrr.getCell(r, c))
                                       : susun.irr.skema[0].bulan[i]) as SkemaIrr["bulan"],
         // Acuan: harga yang tidak disesuaikan (Adjusted = Cash Price).

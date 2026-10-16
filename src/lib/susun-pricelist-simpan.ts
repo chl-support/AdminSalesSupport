@@ -31,6 +31,7 @@ const SKEMA = z.object({
       bulan: z.tuple([angka, angka, angka, angka]),
       acuan: z.boolean().optional(),
       hargaKas: angka.optional(),
+      hargaSesuai: angka.optional(),
     })).min(1).max(30),
   }),
   unit: z.array(z.object({
@@ -110,7 +111,7 @@ const ISIAN_AWAL: Record<string, SusunPricelist> = { "naraya-serpong": SUSUN_NAR
 export async function bacaAtauIsiSusun(projectId: string): Promise<DrafSusun | null> {
   const draf = await bacaSusun(projectId);
   // Isian awal yang belum pernah disunting orang mengikuti isian awal
-  // terbaru (mis. porsi tahap Greenfield 25/25/40/10). Draf yang sudah
+  // terbaru (mis. porsi tahap atau Adjusted Price Excel). Draf yang sudah
   // disimpan seseorang tidak pernah ditimpa.
   if (draf?.data.unit.length && draf.diubah_oleh === AKTOR_AWAL) {
     const p = await one<{ slug: string }>("SELECT slug FROM projects WHERE id=$1", [projectId]);

@@ -1,16 +1,16 @@
 /**
  * Isian awal penyusunan pricelist Naraya Serpong, dibaca dari berkas
  * Data_Pricelist.xlsx (PL Naraya revisi 21 Juli 2026): parameter Data (IRR)
- * — dengan porsi tahap pembangunan 25/25/40/10 atas permintaan pemakainya —,
- * 48 unit dari lembar UNIT DATA, susunan kolom Data Pricelist dan Pricelist,
- * serta T&C.
+ * dengan porsi tahap rumus Excel 40/40/10/10 dan Adjusted Price hasil Goal
+ * Seek Excel, 48 unit dari lembar UNIT DATA, susunan kolom Data Pricelist
+ * dan Pricelist, serta T&C.
  *
  * Dipakai saat layar Pricelist project Naraya Serpong dibuka dan project itu
  * belum punya draf berisi unit — atas permintaan pemakainya, supaya datanya
  * langsung ada di layar tanpa harus diimpor lebih dulu. Sesudah tersimpan,
  * yang dibaca selalu draf di basis data; berkas ini tidak menimpanya lagi.
- * Dengan porsi tahap 40/40/10/10 seperti rumus Excel-nya, hitungannya cocok
- * persis dengan Excel (diuji di scripts/test-flow.ts).
+ * Seluruh hitungannya sama persis dengan Excel (diuji di
+ * scripts/test-flow.ts).
  */
 
 import type { SusunPricelist } from "./susun-pricelist";
@@ -18,10 +18,9 @@ import type { SusunPricelist } from "./susun-pricelist";
 export const SUSUN_NARAYA: SusunPricelist = {
   irr: {
     "target": 0.09,
-    // Porsi tahap bagian penjualan: Greenfield 25%, Foundation 25%,
-    // Tutup Atap 40%, BAST + AJB 10% (rumus Excel memakai 40/40/10/10).
-    "porsiTahap": [0.25, 0.25, 0.4, 0.1],
-    "namaTahap": ["Greenfield", "Foundation", "Tutup Atap", "BAST + AJB"],
+    // Porsi tahap rumus arus kas Excel (sel B22:J57): 40/40/10/10.
+    "porsiTahap": [0.4, 0.4, 0.1, 0.1],
+    "namaTahap": ["Foundation", "Tutup Atap", "BAST", "AJB + SPHTB"],
     "periode": 36,
     "skema": [
       {
@@ -44,6 +43,7 @@ export const SUSUN_NARAYA: SusunPricelist = {
         "alokasi": 0.04,
         "dp": 1,
         "kali": 12,
+        "hargaSesuai": 2098835043.1433501,
         "bulan": [
           12,
           18,
@@ -57,6 +57,7 @@ export const SUSUN_NARAYA: SusunPricelist = {
         "alokasi": 0.05,
         "dp": 1,
         "kali": 18,
+        "hargaSesuai": 2145515617.2706635,
         "bulan": [
           12,
           18,
@@ -70,6 +71,7 @@ export const SUSUN_NARAYA: SusunPricelist = {
         "alokasi": 0.08,
         "dp": 1,
         "kali": 24,
+        "hargaSesuai": 2192866884.3272357,
         "bulan": [
           12,
           18,
@@ -83,6 +85,7 @@ export const SUSUN_NARAYA: SusunPricelist = {
         "alokasi": 0.25,
         "dp": 1,
         "kali": 30,
+        "hargaSesuai": 2240888378.584534,
         "bulan": [
           12,
           18,
@@ -96,6 +99,7 @@ export const SUSUN_NARAYA: SusunPricelist = {
         "alokasi": 0.33,
         "dp": 0.1,
         "kali": 1,
+        "hargaSesuai": 2028590805.69366,
         "bulan": [
           2,
           2,
@@ -109,6 +113,7 @@ export const SUSUN_NARAYA: SusunPricelist = {
         "alokasi": 0.08,
         "dp": 0,
         "kali": 1,
+        "hargaSesuai": 2251637205.288633,
         "bulan": [
           12,
           18,
@@ -122,6 +127,7 @@ export const SUSUN_NARAYA: SusunPricelist = {
         "alokasi": 0.05,
         "dp": 0.1,
         "kali": 4,
+        "hargaSesuai": 2228236513.019287,
         "bulan": [
           12,
           18,
@@ -135,6 +141,7 @@ export const SUSUN_NARAYA: SusunPricelist = {
         "alokasi": 0.05,
         "dp": 0.2,
         "kali": 6,
+        "hargaSesuai": 2208853147.662026,
         "bulan": [
           12,
           18,

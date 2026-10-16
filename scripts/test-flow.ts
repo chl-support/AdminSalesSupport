@@ -1944,9 +1944,11 @@ async function main() {
   await check("isian awal pricelist Naraya sama dengan Excel 21.07.2026", async () => {
     const { SUSUN_NARAYA } = await import("../src/lib/susun-pricelist-naraya");
     const { hitungSemua } = await import("../src/lib/susun-pricelist");
-    // Porsi tahap Excel (40/40/10/10) → harga sama persis dengan Excel.
-    const h = hitungSemua({ ...SUSUN_NARAYA,
-      irr: { ...SUSUN_NARAYA.irr, porsiTahap: [0.4, 0.4, 0.1, 0.1] } });
+    // Porsi rumus Excel 40/40/10/10 dan Adjusted Price Excel → sama persis.
+    const h = hitungSemua(SUSUN_NARAYA);
+    assert(JSON.stringify(SUSUN_NARAYA.irr.porsiTahap) === "[0.4,0.4,0.1,0.1]", "porsi 40/40/10/10");
+    assert(h.irr.koef["Cicilan12x"] === 1.049417521571675 && h.irr.koef["DP 20%/6x"] === 1.104426573831013,
+           `koef: ${JSON.stringify(h.irr.koef)}`);
     assert(h.galat.length === 0 && h.baris.length === 48, `${h.baris.length} unit; ${h.galat.join("; ")}`);
     const harap: Record<string, number[]> = {
       "NS-NR1-01": [1817, 1906, 1949, 1991, 2035, 2055, 2302, 2045, 2023, 2006],
@@ -1959,13 +1961,22 @@ async function main() {
       assert(JSON.stringify(dapat) === JSON.stringify(nilai), `${kode}: ${dapat.join(", ")}`);
     }
     assert(SUSUN_NARAYA.tnc.rekening.length === 2, "rekening T&C");
-    // Porsi bagian penjualan (Greenfield 25, Foundation 25, Tutup Atap 40,
-    // BAST + AJB 10) hanya menggeser cara bayar yang sisanya cair per tahap.
-    const baru = hitungSemua(SUSUN_NARAYA);
-    const nr1 = baru.baris.find((x) => x.unit.kode === "NS-NR1-01")!;
-    const dapat = SUSUN_NARAYA.pricelist.kolom.map((k) => nr1.pricelist[k.nama].harga / 1e6);
-    assert(JSON.stringify(dapat) === JSON.stringify([1817, 1906, 1949, 1991, 2035, 2055, 2302, 2063, 2040, 2020]),
-           `porsi 25/25/40/10: ${dapat.join(", ")}`);
+  });
+
+  // Data (IRR): Adjusted Price tersimpan (hasil Goal Seek Excel) menentukan
+  // koefisien persis seperti Excel (Adjusted / Cash); mengubah arus kasnya
+  // kembali ke perhitungan tepat pada target.
+  await check("Data (IRR): koefisien dari Adjusted Price sama dengan Excel", async () => {
+    const { susunAwal, hitungIrr, koefisienTepat } = await import("../src/lib/susun-pricelist");
+    const s = susunAwal();
+    const c12 = s.irr.skema.find((x) => x.nama === "Cicilan 12x")!;
+    c12.hargaSesuai = 2098835043.1433501;
+    const h = hitungIrr(s.irr);
+    assert(h.koef["Cicilan 12x"] === 1.049417521571675, `koef: ${h.koef["Cicilan 12x"]}`);
+    assert(Math.abs(h.irr["Cicilan 12x"] - 0.08999964119269688) < 1e-9, `irr: ${h.irr["Cicilan 12x"]}`);
+    const tepat = koefisienTepat(c12, s.irr);
+    assert(Math.abs(tepat - 1.049417521571675) < 1e-6 && tepat !== h.koef["Cicilan 12x"],
+           `tepat: ${tepat}`);
   });
 
   console.log("\n" + "=".repeat(62));
