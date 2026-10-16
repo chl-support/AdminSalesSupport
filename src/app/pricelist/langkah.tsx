@@ -187,7 +187,7 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
         dengan bunga target, dibagi harga Cash Keras. DP dicicil rata pada bulan
         1 sampai n; sisanya (1 − DP) cair pada bulan tiap tahap pembangunan.
       </p>
-      <div className="filters rapat" style={{ maxWidth: 760 }}>
+      <div className="filters rapat param-irr">
         <div>
           <div className="lbl">Target interest rate (setahun)</div>
           <Isian id="irr-target" jenis="persen" nilai={irr.target} disabled={ro}
