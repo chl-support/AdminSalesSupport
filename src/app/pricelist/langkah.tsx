@@ -113,14 +113,67 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
     ubah((d) => ({ ...d, irr: { ...d.irr, skema: d.irr.skema.map((s, j) => j === i ? f(s) : s) } }));
   const ganti = (i: number, nama: string) => ubah((d) => {
     const lama = d.irr.skema[i].nama;
+    // Kolom Data Pricelist yang merujuk cara bayar ini ikut berganti; bila
+    // namanya sama dengan nama cara bayarnya (kolom yang dibuat bersama
+    // cara bayar itu), namanya juga berganti, begitu pula rujukan kolom
+    // Pricelist dan kolom turunan kepadanya.
+    const ubahNamaDp = new Set(d.dataPricelist.kolom
+      .filter((k) => k.skema === lama && k.nama === lama).map((k) => k.nama));
+    const n = (x: string) => (ubahNamaDp.has(x) ? nama : x);
     return {
       ...d,
       irr: { ...d.irr, skema: d.irr.skema.map((s, j) => j === i ? { ...s, nama } : s) },
-      // Kolom Data Pricelist yang merujuk cara bayar ini ikut berganti nama.
-      dataPricelist: { ...d.dataPricelist, kolom: d.dataPricelist.kolom.map((k) =>
-        k.skema === lama ? { ...k, skema: nama } : k) },
+      dataPricelist: { ...d.dataPricelist, kolom: d.dataPricelist.kolom.map((k) => ({
+        ...k, nama: n(k.nama),
+        ...(k.skema === lama && { skema: nama }),
+        ...(k.dari && { dari: n(k.dari) }),
+      })) },
+      pricelist: { ...d.pricelist, kolom: d.pricelist.kolom.map((k) => ({
+        ...k, dari: n(k.dari), nama: k.nama === lama && ubahNamaDp.has(lama) ? nama : k.nama,
+      })) },
     };
   });
+
+  /**
+   * Cara bayar baru: kolom di Data (IRR), dan kolomnya langsung ikut di Data
+   * Pricelist (Factored Price × koefisien + tambahan), di Pricelist (pengali
+   * 100%), dan satu blok ketentuan di T&C — supaya tidak ada langkah yang
+   * tertinggal. Isiannya dapat diubah sesudahnya.
+   */
+  const [yakinHapus, setYakinHapus] = useState<number | null>(null);
+  const tambahSkema = () => ubah((d) => {
+    const ada = new Set([...d.irr.skema.map((x) => x.nama), ...d.dataPricelist.kolom.map((k) => k.nama)]);
+    let no = d.irr.skema.length + 1;
+    while (ada.has(`Cara bayar ${no}`)) no++;
+    const nama = `Cara bayar ${no}`;
+    return {
+      ...d,
+      irr: { ...d.irr, skema: [...d.irr.skema, {
+        nama, kelompok: "Cash", alokasi: 0, dp: 1, kali: 1,
+        bulan: [...(d.irr.skema[0]?.bulan ?? [12, 18, 19, 20])] as [number, number, number, number],
+      }] },
+      dataPricelist: { ...d.dataPricelist, kolom: [...d.dataPricelist.kolom, { nama, skema: nama }] },
+      pricelist: { ...d.pricelist, kolom: [...d.pricelist.kolom, { nama, dari: nama, kali: 1 }] },
+      tnc: { ...d.tnc, caraBayar: [...d.tnc.caraBayar, { judul: nama.toUpperCase(),
+        baris: [{ label: "Booking Fee", nilai: "10 Juta", waktu: "" }] }] },
+    };
+  });
+  /** Hapus cara bayar beserta kolom Data Pricelist dan Pricelist yang bersumber darinya. */
+  const hapusSkema = (i: number) => {
+    setYakinHapus(null);
+    ubah((d) => {
+      const nama = d.irr.skema[i].nama;
+      const hilang = new Set(d.dataPricelist.kolom.filter((k) => k.skema === nama).map((k) => k.nama));
+      // Kolom turunan dari kolom yang hilang ikut hilang.
+      d.dataPricelist.kolom.forEach((k) => { if (k.dari && hilang.has(k.dari)) hilang.add(k.nama); });
+      return {
+        ...d,
+        irr: { ...d.irr, skema: d.irr.skema.filter((_, j) => j !== i) },
+        dataPricelist: { ...d.dataPricelist, kolom: d.dataPricelist.kolom.filter((k) => !hilang.has(k.nama)) },
+        pricelist: { ...d.pricelist, kolom: d.pricelist.kolom.filter((k) => !hilang.has(k.dari)) },
+      };
+    });
+  };
 
   return (
     <>
@@ -160,6 +213,13 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
                            ubah={(v) => ganti(i, v)} />
               </th>
             ))}
+            {bolehUbah && (
+              <th rowSpan={2} className="tambah-kolom">
+                <button className="pri" onClick={tambahSkema}
+                        title="Tambah kolom cara bayar baru di Data (IRR), Data Pricelist, Pricelist dan T&C">
+                  + Tambah<br />cara bayar</button>
+              </th>
+            )}
           </tr>
           <tr><td>Kelompok</td>{irr.skema.map((s, i) => (
             <td key={i}><IsianTeks nilai={s.kelompok} lebar={70} disabled={ro}
@@ -218,9 +278,16 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
           {bolehUbah && (
             <tr><td />{irr.skema.map((s, i) => (
               <td key={i}>
-                <button className="kecil" disabled={irr.skema.length <= 1 || !!s.acuan}
-                        onClick={() => ubah((d) => ({ ...d, irr: { ...d.irr,
-                          skema: d.irr.skema.filter((_, j) => j !== i) } }))}>Hapus</button>
+                {yakinHapus === i ? (
+                  <span className="row" style={{ margin: 0, gap: 4, flexWrap: "nowrap" }}>
+                    <button className="kecil bahaya" onClick={() => hapusSkema(i)}>Ya, hapus</button>
+                    <button className="kecil" onClick={() => setYakinHapus(null)}>Batal</button>
+                  </span>
+                ) : (
+                  <button className="kecil" disabled={irr.skema.length <= 1 || !!s.acuan}
+                          title="Hapus cara bayar ini beserta kolomnya di Data Pricelist dan Pricelist"
+                          onClick={() => setYakinHapus(i)}>Hapus</button>
+                )}
               </td>))}</tr>
           )}
         </tbody></table>
@@ -245,11 +312,7 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
                   onClick={() => ubah((d) => ({ ...d, irr: { ...d.irr, skema: tanpaSimpanan(d) } }))}>
             Goal Seek ulang</button>
         )}
-        {bolehUbah && (
-          <button onClick={() => ubah((d) => ({ ...d, irr: { ...d.irr, skema: [...d.irr.skema, {
-            nama: `Cara bayar ${d.irr.skema.length + 1}`, kelompok: "Cash", alokasi: 0,
-            dp: 1, kali: 1, bulan: [12, 18, 19, 20] }] } }))}>+ Tambah cara bayar</button>
-        )}
+        {bolehUbah && <button onClick={tambahSkema}>+ Tambah cara bayar</button>}
       </div>
     </>
   );
