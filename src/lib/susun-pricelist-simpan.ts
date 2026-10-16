@@ -13,6 +13,7 @@ import { z } from "zod";
 import { audit, one, query } from "./db";
 import { bacaPricelist, simpanPricelist } from "./pricelist";
 import { hitungSemua, type SusunPricelist } from "./susun-pricelist";
+import { SUSUN_NARAYA } from "./susun-pricelist-naraya";
 import { eksporSusun } from "./susun-pricelist-xlsx";
 
 const angka = z.number().finite();
@@ -91,6 +92,24 @@ export async function bacaSusun(projectId: string): Promise<DrafSusun | null> {
   return one<DrafSusun>(
     "SELECT data, diubah_oleh, diubah_pada FROM pricelist_susun WHERE project_id=$1",
     [projectId]);
+}
+
+/** Isian awal per project (slug), bila ada; lihat src/lib/susun-pricelist-naraya.ts. */
+const ISIAN_AWAL: Record<string, SusunPricelist> = { "naraya-serpong": SUSUN_NARAYA };
+
+/**
+ * Draf project, atau — bila belum ada draf berisi unit dan project itu punya
+ * isian awal — isian awal itu, langsung disimpan sebagai drafnya. Dengan
+ * begitu layar Pricelist Naraya Serpong terbuka dengan data PL-nya tanpa
+ * orang harus mengimpor berkas Excel lebih dulu.
+ */
+export async function bacaAtauIsiSusun(projectId: string): Promise<DrafSusun | null> {
+  const draf = await bacaSusun(projectId);
+  if (draf?.data.unit.length) return draf;
+  const p = await one<{ slug: string }>("SELECT slug FROM projects WHERE id=$1", [projectId]);
+  const awal = p && ISIAN_AWAL[p.slug];
+  if (!awal) return draf;
+  return simpanSusun(projectId, structuredClone(awal), "isian awal (Data_Pricelist.xlsx)");
 }
 
 export async function simpanSusun(

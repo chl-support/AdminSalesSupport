@@ -46,7 +46,6 @@ const KATA = {
     drafBaru: "Belum ada draf untuk project ini. Isi langkah-langkahnya atau impor dari Excel.",
     terakhir: (o: string, t: string) => `Disimpan ${o} · ${t}`,
     unduh: "Unduh Excel", unduhSyarat: "Simpan dulu supaya berkasnya berisi perubahan terakhir.",
-    sebelum: "← Sebelumnya", lanjut: "Lanjut →",
     hanyaBaca: "Hanya Admin Sales dan Admin IT yang dapat mengubah pricelist.",
     galatJudul: "Belum dapat diberlakukan",
     berlakuJudul: "Berlakukan pricelist",
@@ -75,7 +74,6 @@ const KATA = {
     drafBaru: "No draft for this project yet. Fill in the steps or import from Excel.",
     terakhir: (o: string, t: string) => `Saved by ${o} · ${t}`,
     unduh: "Download Excel", unduhSyarat: "Save first so the file contains the latest changes.",
-    sebelum: "← Previous", lanjut: "Next →",
     hanyaBaca: "Only Sales Admin and IT Admin can change the price list.",
     galatJudul: "Cannot be applied yet",
     berlakuJudul: "Apply price list",
@@ -160,7 +158,7 @@ export default function PricelistPage() {
     if (!b) return;
     setData(b.susun); setPeringatan(b.peringatan ?? []);
     setInfo(k.terimpor(b.susun.unit.length));
-    setBukaImpor(false); setBerkas(null); setLangkah(0);
+    setBukaImpor(false); setBerkas(null);
   };
 
   const berlakukan = async () => {
@@ -259,28 +257,37 @@ export default function PricelistPage() {
             )}
           </div>
 
-          <nav className="langkah langkah-pl" aria-label={k.judul}>
+          {/* Kelima langkah tampil sekaligus, berurutan seperti lembar-lembar
+              Excel-nya, supaya dapat disunting dan diperiksa tanpa berpindah
+              layar. Bilah langkah di atas hanya menunjuk dan melompat ke
+              bagiannya; ia ikut menempel di atas saat halaman digulir. */}
+          <nav className="langkah langkah-pl lekat" aria-label={k.judul}>
             {k.langkah.map((l, i) => (
               <button key={l} className={`lk ${i === langkah ? "kini" : ""}`}
                       aria-current={i === langkah ? "step" : undefined}
-                      onClick={() => setLangkah(i)}>
+                      onClick={() => {
+                        setLangkah(i);
+                        document.getElementById(`langkah-${i + 1}`)
+                          ?.scrollIntoView({ behavior: "smooth", block: "start" });
+                      }}>
                 <b>{i + 1}. {l}</b>{k.uraian[i]}
               </button>
             ))}
           </nav>
 
-          <div className="panel">
-            <h2>{langkah + 1}. {k.langkah[langkah]}</h2>
-            {langkah === 0 && <LangkahIrr {...props} />}
-            {langkah === 1 && <LangkahUnit {...props} />}
-            {langkah === 2 && <LangkahDataPl {...props} />}
-            {langkah === 3 && <LangkahPricelist {...props} aksi={panelBerlaku} />}
-            {langkah === 4 && <LangkahTnc {...props} />}
-            <div className="row" style={{ marginTop: 16, marginBottom: 0, justifyContent: "space-between" }}>
-              <button disabled={langkah === 0} onClick={() => setLangkah((x) => x - 1)}>{k.sebelum}</button>
-              <button disabled={langkah === 4} onClick={() => setLangkah((x) => x + 1)}>{k.lanjut}</button>
-            </div>
-          </div>
+          {[
+            <LangkahIrr key={0} {...props} />,
+            <LangkahUnit key={1} {...props} />,
+            <LangkahDataPl key={2} {...props} />,
+            <LangkahPricelist key={3} {...props} aksi={panelBerlaku} />,
+            <LangkahTnc key={4} {...props} />,
+          ].map((isi, i) => (
+            <section key={i} id={`langkah-${i + 1}`} className="panel sp bagian-langkah"
+                     onFocusCapture={() => setLangkah(i)} onMouseEnter={() => setLangkah(i)}>
+              <h2>{i + 1}. {k.langkah[i]}<span className="hint" style={{ margin: 0 }}>{k.uraian[i]}</span></h2>
+              {isi}
+            </section>
+          ))}
         </>
       )}
     </Kerangka>

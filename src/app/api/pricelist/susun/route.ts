@@ -1,18 +1,20 @@
 import { body, handler, projectAktif, requireRole } from "@/lib/api";
 import { WorkflowError } from "@/lib/workflow";
 import { susunAwal } from "@/lib/susun-pricelist";
-import { bacaSusun, periksaSusun, simpanSusun } from "@/lib/susun-pricelist-simpan";
+import { bacaAtauIsiSusun, periksaSusun, simpanSusun } from "@/lib/susun-pricelist-simpan";
 
 /**
  * Penyusunan pricelist lima langkah (Data (IRR), Unit Data, Data Pricelist,
  * Pricelist, T&C) untuk project yang sedang dipilih.
  *
- * GET mengembalikan draf yang tersimpan, atau isian awal bila belum ada
- * (`baru: true`). Semua peran boleh membaca, sama dengan pricelist-nya.
+ * GET mengembalikan draf yang tersimpan. Project yang punya isian awal
+ * (Naraya Serpong: data PL Excel-nya) langsung diisi dan disimpan saat
+ * pertama dibuka; project lain mendapat isian kosong (`baru: true`). Semua
+ * peran boleh membaca, sama dengan pricelist-nya.
  */
 export const GET = handler(async (req) => {
   const projectId = await projectAktif(req);
-  const draf = await bacaSusun(projectId);
+  const draf = await bacaAtauIsiSusun(projectId);
   return draf ? { baru: false, ...draf }
     : { baru: true, data: susunAwal(), diubah_oleh: null, diubah_pada: null };
 });
