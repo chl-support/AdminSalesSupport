@@ -78,12 +78,11 @@ const KATA = {
     judul: "Simulasi / NPV",
     fTanggal: "Tanggal Booking",
     fUnit: "No. Unit",
-    // Judul kedua kotak ini ditukar atas permintaan bagian penjualan: kotak
-    // pertama memilih kolom pricelist yang dipakai sebagai harga dasar, dan di
-    // sanalah orang mencarinya. Yang ditukar hanya judulnya — isi kotaknya,
-    // termasuk pilihan bawaannya, tetap seperti semula.
-    fSkema: "PL Harga Dasar",
-    fPl: "Cara Bayar", fPlSama: "Sesuai PL",
+    // PL Harga Dasar berdiri lebih dulu, lalu Cara Bayar — urutan yang
+    // diminta bagian penjualan, dan urutan kerjanya juga: harga dasarnya
+    // ditentukan, baru cara membayarnya disusun.
+    fSkema: "Cara Bayar",
+    fPl: "PL Harga Dasar", fPlSama: "Sesuai Cara Bayar",
     fTambah: "Penambahan Harga",
     plBeda: (pl: string, sk: string) =>
       `Harga dari PL ${pl}, jadwal mengikuti ${sk}.`,
@@ -175,8 +174,8 @@ const KATA = {
     judul: "Simulation / NPV",
     fTanggal: "Booking Date",
     fUnit: "Unit No.",
-    fSkema: "PL Base Price",
-    fPl: "Payment Scheme", fPlSama: "Same as PL",
+    fSkema: "Payment Scheme",
+    fPl: "PL Base Price", fPlSama: "Same as Scheme",
     fTambah: "Price Addition",
     plBeda: (pl: string, sk: string) =>
       `Price from the ${pl} list, schedule follows ${sk}.`,
@@ -674,23 +673,33 @@ export default function SimulasiPage() {
               ))}
             </select>
           </div>
+          {/* Dua kotak berurutan, dan urutannya mengikuti cara orang
+              menyusun simulasi: harga dasarnya dulu, baru cara membayarnya.
+
+              Keduanya sempat bertukar nama tanpa bertukar isi, dan akibatnya
+              memilih "CICILAN 24x" pada kotak Cara Bayar hanya mengganti
+              kolom harganya — jadwalnya tetap jadwal cash. Sekarang tiap
+              nama melekat pada kotak yang memang mengerjakannya: PL Harga
+              Dasar menentukan harga yang dipakai sebagai dasar perhitungan,
+              Cara Bayar menyusun jadwal pembayarannya. */}
           <div>
-            <div className="lbl">{k.fSkema}</div>
-            <select value={skema}
-                    onChange={(e) => setSkema(e.target.value as Skema)}>
+            <div className="lbl">{k.fPl}</div>
+            {/* Semua kolom pricelist ditawarkan, termasuk yang sama dengan
+                cara bayarnya (mis. CASH KERAS): memilihnya sama hasilnya
+                dengan "Sesuai Cara Bayar", tetapi orang mencarinya dengan
+                nama. */}
+            <select value={plHarga && (unit?.harga[plHarga] ?? 0) > 0 ? plHarga : ""}
+                    onChange={(e) => setPlHarga(e.target.value as Skema)}>
+              <option value="">{k.fPlSama}</option>
               {pl.skema.map((s) => (
                 <option key={s} value={s} disabled={!((unit?.harga[s] ?? 0) > 0)}>{s}</option>
               ))}
             </select>
           </div>
           <div>
-            <div className="lbl">{k.fPl}</div>
-            {/* Semua kolom pricelist ditawarkan, termasuk yang sama dengan
-                cara bayarnya (mis. CASH KERAS): memilihnya sama hasilnya
-                dengan "Sesuai PL", tetapi orang mencarinya dengan nama. */}
-            <select value={plHarga && (unit?.harga[plHarga] ?? 0) > 0 ? plHarga : ""}
-                    onChange={(e) => setPlHarga(e.target.value as Skema)}>
-              <option value="">{k.fPlSama}</option>
+            <div className="lbl">{k.fSkema}</div>
+            <select value={skema}
+                    onChange={(e) => setSkema(e.target.value as Skema)}>
               {pl.skema.map((s) => (
                 <option key={s} value={s} disabled={!((unit?.harga[s] ?? 0) > 0)}>{s}</option>
               ))}
