@@ -136,6 +136,8 @@ export type UnitData = {
   tipe: string;
   /** Tipe bangunan pada lembar Unit Data, mis. 70. */
   tipeBangunan: string;
+  /** Kolom View kedua, sesudah Type; bebas diisi. */
+  view2?: string;
   /** Keterangan bentuk kaveling, mis. "Irregullar". */
   bentuk: string;
   subTipe: string;
@@ -568,7 +570,7 @@ export function susunAwal(): SusunPricelist {
 export function unitKosong(): UnitData {
   return {
     kode: "", alamat: "", view: "", no: "", ukuran: "", phase: "1", tipe: "",
-    tipeBangunan: "", bentuk: "", subTipe: "", lt: 0, hargaTanah: 0, lb: 0,
+    tipeBangunan: "", view2: "", bentuk: "", subTipe: "", lt: 0, hargaTanah: 0, lb: 0,
     hargaBangunan: 0, kenaikan: 0, faktor: {}, faktorTambah: 0.02,
     special: 0, showUnit: 0,
   };

@@ -37,7 +37,7 @@ const SKEMA = z.object({
   }),
   unit: z.array(z.object({
     kode: teks, alamat: teks, view: teks, no: teks, ukuran: teks, phase: teks,
-    tipe: teks, tipeBangunan: teks, bentuk: teks, subTipe: teks,
+    tipe: teks, tipeBangunan: teks, view2: teks.optional(), bentuk: teks, subTipe: teks,
     lt: angka, hargaTanah: angka, lb: angka, hargaBangunan: angka, kenaikan: angka,
     faktor: z.record(angka), faktorTambah: angka, special: angka, showUnit: angka,
   })).max(5000),

@@ -95,17 +95,17 @@ function bacaLembarUnit(ws: ExcelJS.Worksheet, peringatan: string[]): UnitData[]
     const H = (c: number) => teks(ws.getCell(j.r, c)).toLowerCase();
     const H2 = (c: number) => teks(ws.getCell(j.r + 1, c)).toLowerCase();
     const kol: Record<string, number> = {};
-    let view = 0;
+    const view: number[] = [];
     for (let c = 1; c <= ws.columnCount; c++) {
       const h = H(c), h2 = H2(c);
       if (KODE.test(h)) kol.kode = c;
       else if (h === "address") kol.alamat = c;
-      else if (h === "view") { if (view++ === 0) kol.view = c; else kol.bentuk = c; }
+      else if (h === "view") view.push(c);
       else if (h === "no" && kol.kode) kol.no = c;
       else if (h === "ukuran") kol.ukuran = c;
       else if (h === "type") kol.tipeBangunan = c;
       else if (h === "tipe pl") kol.tipe = c;
-      else if (h === "bentuk") kol.bentuk = c;
+      else if (h === "bentuk" || h.startsWith("sub-tipe kavling")) kol.bentuk = c;
       else if (h === "sub-tipe") kol.subTipe = c;
       else if (h === "phase") kol.phase = c;
       else if (h.startsWith("increase")) kol.kenaikan = c;
@@ -118,6 +118,11 @@ function bacaLembarUnit(ws: ExcelJS.Worksheet, peringatan: string[]): UnitData[]
       else if (h2.startsWith("gfa (base)")) kol.hargaBangunan = c;
       for (const [k, label] of FAKTOR) if (h === label.toLowerCase()) kol[k] = c;
     }
+    // View pertama adalah arah (UTARA/SELATAN). Berkas Data Pricelist lama
+    // menjuduli kolom bentuk (Irregullar) dengan "View" kedua; bila ada kolom
+    // Sub-Tipe Kavling tersendiri (template), View kedua adalah kolom View sesudah Type.
+    if (view[0]) kol.view = view[0];
+    if (view[1]) { if (kol.bentuk) kol.view2 = view[1]; else kol.bentuk = view[1]; }
     for (let r = j.r + 2; r <= ws.rowCount; r++) {
       const kode = teks(ws.getCell(r, kol.kode));
       if (!kode) break;
@@ -132,6 +137,7 @@ function bacaLembarUnit(ws: ExcelJS.Worksheet, peringatan: string[]): UnitData[]
         faktor: Object.fromEntries(FAKTOR.map(([k]) => [k, n(k)]).filter(([, v]) => v)),
       };
       if (kol.tipe) u.tipe = t("tipe");
+      if (kol.view2) u.view2 = t("view2");
       for (const k of ANGKA_UNIT) {
         const v = kol[k] ? nilai(ws.getCell(r, kol[k])) : null;
         if (typeof v === "string" && !/^\s*-?[\d.,]+\s*%?\s*$/.test(v)) {
@@ -167,7 +173,8 @@ export async function templatUnitData(): Promise<Buffer> {
   const kolom: [string, string, string, number][] = [
     ["kode", "Code", "", 14], ["alamat", "Address", "", 16], ["view", "View", "", 11],
     ["no", "No", "", 6], ["ukuran", "Ukuran", "", 10], ["phase", "Phase", "", 7],
-    ["tipe", "Tipe PL", "", 8], ["tipeBangunan", "Type", "", 7], ["bentuk", "Bentuk", "", 11],
+    ["tipe", "Tipe PL", "", 8], ["tipeBangunan", "Type", "", 7], ["view2", "View", "", 11],
+    ["bentuk", "Sub-Tipe Kavling/Irr/Irr Hoek", "", 16],
     ["subTipe", "Sub-Tipe", "", 14],
     ["lt", "Tanah", "Land", 9], ["hargaTanah", "", "Land Price (base)", 16],
     ["lb", "Bangunan", "GFA", 9], ["hargaBangunan", "", "GFA (base)", 16],
@@ -202,7 +209,8 @@ export async function templatUnitData(): Promise<Buffer> {
       });
     }
   });
-  ws.mergeCells(1, 11, 1, 12); ws.mergeCells(1, 13, 1, 14);
+  const no = (k: string) => kolom.findIndex(([x]) => x === k) + 1;
+  ws.mergeCells(1, no("lt"), 1, no("hargaTanah")); ws.mergeCells(1, no("lb"), 1, no("hargaBangunan"));
   for (const r of [r1, r2]) {
     r.font = { bold: true };
     r.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
@@ -527,13 +535,13 @@ export async function eksporSusun(susun: SusunPricelist): Promise<Buffer> {
 
   // 2. Unit Data
   const w2 = wb.addWorksheet("Unit Data");
-  tebal(w2.addRow(["Code", "Address", "View", "No", "Ukuran", "Type", "Bentuk", "Sub-Tipe",
+  tebal(w2.addRow(["Code", "Address", "View", "No", "Ukuran", "Type", "View", "Sub-Tipe Kavling/Irr/Irr Hoek", "Sub-Tipe",
     "Phase", "Land", "Land Price (base)", "GFA", "GFA (base)", "Increase (%)",
     ...FAKTOR.map(([, l]) => l), "(+) Factor", "Special", "Show Unit",
     "Base Price", "Factored Price"]));
   for (const b of h.baris) {
     const u = b.unit;
-    w2.addRow([u.kode, u.alamat, u.view, u.no, u.ukuran, u.tipeBangunan, u.bentuk, u.subTipe,
+    w2.addRow([u.kode, u.alamat, u.view, u.no, u.ukuran, u.tipeBangunan, u.view2 ?? "", u.bentuk, u.subTipe,
       u.phase, u.lt, u.hargaTanah, u.lb, u.hargaBangunan, u.kenaikan,
       ...FAKTOR.map(([k]) => u.faktor[k] ?? 0), u.faktorTambah, u.special, u.showUnit,
       b.hasilUnit.base, b.hasilUnit.factored]);
