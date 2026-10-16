@@ -108,7 +108,12 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
     ubahSkema(i, (x) => ({ ...f(x), hargaSesuai: undefined }));
   const tanpaSimpanan = (d: SusunPricelist) =>
     d.irr.skema.map((x) => ({ ...x, hargaSesuai: undefined }));
-  const tersimpan = irr.skema.filter((s) => s.hargaSesuai && !s.acuan).length;
+  // Cara bayar yang IRR-nya belum tepat pada target (mis. Adjusted Price
+  // hasil Goal Seek dari berkas Excel lama). Tombol Goal Seek hanya muncul
+  // bila ada; bila semuanya sudah sesuai rumus, tidak ada yang perlu disamakan.
+  const belumSesuai = new Set(irr.skema.filter((s) => !s.acuan
+    && Number.isFinite(hasil.irr.irr[s.nama])
+    && Math.abs(hasil.irr.irr[s.nama] - irr.target) > 1e-7).map((s) => s.nama));
   const ubahSkema = (i: number, f: (s: SusunPricelist["irr"]["skema"][0]) => typeof s) =>
     ubah((d) => ({ ...d, irr: { ...d.irr, skema: d.irr.skema.map((s, j) => j === i ? f(s) : s) } }));
   const ganti = (i: number, nama: string) => ubah((d) => {
@@ -279,7 +284,10 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
             <td key={i} className="n"><b>{Number.isFinite(hasil.irr.koef[s.nama])
               ? hasil.irr.koef[s.nama].toFixed(5) : "—"}</b></td>))}</tr>
           <tr className="hasil"><td>IRR</td>{irr.skema.map((s, i) => (
-            <td key={i} className="n">{s.acuan ? "acuan" : persen(hasil.irr.irr[s.nama])}</td>))}</tr>
+            <td key={i} className={`n${belumSesuai.has(s.nama) ? " belum-sesuai" : ""}`}
+                title={belumSesuai.has(s.nama) ? "Belum tepat sesuai target" : undefined}>
+              {s.acuan ? "acuan" : persen(hasil.irr.irr[s.nama], belumSesuai.has(s.nama) ? 5 : 2)}
+            </td>))}</tr>
           <tr className="hasil"><td>Adjusted Price</td>{irr.skema.map((s, i) => (
             <td key={i} className="n"
                 title={s.hargaSesuai && !s.acuan ? "Tersimpan dari Excel (hasil Goal Seek)" : "Dihitung tepat dari target"}>
@@ -303,26 +311,25 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
           )}
         </tbody></table>
       </div>
-      {tersimpan > 0 && (
-        <p className="hint kiri" style={{ marginBottom: 0 }}>
-          Adjusted Price bertanda <b>Excel</b> diambil apa adanya dari berkas Excel (hasil
-          Goal Seek), sehingga koefisien dan harganya sama persis dengan Excel; IRR-nya
-          karena itu sedikit di bawah target, sama seperti di Excel. Mengubah DP, cicilan,
-          bulan, target atau porsi menghitungnya ulang tepat pada target; mengubah Cash
-          Price hanya mengubah Adjusted Price, koefisiennya tetap.
-        </p>
+      {belumSesuai.size > 0 && (
+        <div className="banner warn" style={{ marginTop: 10, marginBottom: 0 }}>
+          <b>IRR {belumSesuai.size} cara bayar belum tepat {persen(irr.target)}</b>
+          Ditandai kuning di baris IRR — biasanya karena Adjusted Price diambil apa adanya
+          dari berkas Excel (hasil Goal Seek). Harga unitnya tetap mengikuti angka itu.
+          {bolehUbah && (
+            <div style={{ marginTop: 8 }}>
+              <button className="pri"
+                      onClick={() => ubah((d) => ({ ...d, irr: { ...d.irr, skema: tanpaSimpanan(d) } }))}>
+                Samakan ke {persen(irr.target)} (Goal Seek)</button>
+            </div>
+          )}
+        </div>
       )}
       <div className="row" style={{ marginTop: 10 }}>
         <span className="hint" style={{ margin: 0 }}>
           Total alokasi <b>{persen(hasil.irr.totalAlokasi)}</b> · WA coefficient{" "}
           <b>{hasil.irr.koefRata.toFixed(5)}</b>
         </span>
-        {bolehUbah && (
-          <button disabled={!tersimpan}
-                  title="Hitung ulang Adjusted Price semua cara bayar tepat pada target interest rate"
-                  onClick={() => ubah((d) => ({ ...d, irr: { ...d.irr, skema: tanpaSimpanan(d) } }))}>
-            Goal Seek ulang</button>
-        )}
         {bolehUbah && <button onClick={tambahSkema}>+ Tambah cara bayar</button>}
       </div>
     </>
