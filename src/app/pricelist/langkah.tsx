@@ -78,7 +78,8 @@ export function Isian({ nilai, ubah, jenis = "angka", lebar = 90, disabled, id, 
     <span className="isian-angka">
       <input id={id} value={teks ?? (kosongNol && nilai === 0 ? ""
                : desimal != null && Number.isFinite(nilai)
-                 ? nilai.toLocaleString("id-ID", { minimumFractionDigits: desimal, maximumFractionDigits: desimal })
+                 ? (jenis === "persen" ? nilai * 100 : nilai)
+                     .toLocaleString("id-ID", { minimumFractionDigits: desimal, maximumFractionDigits: desimal })
                  : tampilAngka(nilai, jenis))}
              disabled={disabled}
              onFocus={desimal != null ? () => setTeks(tampilAngka(nilai, jenis)) : undefined}
@@ -580,7 +581,7 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
                   <td key={k}><Isian jenis="persen" kosongNol nilai={u.faktor[k] ?? 0} lebar={55} disabled={ro}
                                      ubah={(n) => ubahUnit(i, (x) => ({ ...x, faktor: { ...x.faktor, [k]: n } }))} /></td>
                 ))}
-                <td><Isian jenis="persen" nilai={u.faktorTambah} lebar={55} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, faktorTambah: n }))} /></td>
+                <td><Isian jenis="persen" desimal={1} nilai={u.faktorTambah} lebar={55} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, faktorTambah: n }))} /></td>
                 <td><Isian jenis="rp" kosongNol nilai={u.special} lebar={95} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, special: n }))} /></td>
                 <td><Isian jenis="rp" kosongNol nilai={u.showUnit} lebar={95} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, showUnit: n }))} /></td>
                 <td className="n">{rp(b?.hasilUnit.base ?? NaN)}</td>
