@@ -871,6 +871,33 @@ export function LangkahDataPl({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
   const ubahKolom = (i: number, f: (k: (typeof kolom)[0]) => (typeof kolom)[0]) =>
     ubah((d) => ({ ...d, dataPricelist: { ...d.dataPricelist,
       kolom: d.dataPricelist.kolom.map((k, j) => j === i ? f(k) : k) } }));
+  const [yakin, setYakin] = useState<number | null>(null);
+
+  // Kolom turunan (dihitung dari kolom lain × pengali, mis. KPR DP 1%/1x =
+  // KPR Express × 112%) tidak punya cara bayar di Data (IRR), jadi ditambah
+  // dan dihapus di sini. Kolom baru ikut tampil di Pricelist.
+  const tambahTurunan = () => ubah((d) => {
+    const ada = new Set([...d.dataPricelist.kolom.map((k) => k.nama),
+                         ...d.pricelist.kolom.map((k) => k.nama)]);
+    let no = 1;
+    while (ada.has(`Kolom turunan ${no}`)) no++;
+    const nama = `Kolom turunan ${no}`;
+    const dari = d.dataPricelist.kolom[d.dataPricelist.kolom.length - 1]?.nama ?? "";
+    return { ...d,
+      dataPricelist: { ...d.dataPricelist, kolom: [...d.dataPricelist.kolom, { nama, dari, kali: 1 }] },
+      pricelist: { ...d.pricelist, kolom: [...d.pricelist.kolom, { nama, dari: nama, kali: 1 }] } };
+  });
+  /** Hapus kolom turunan beserta turunannya dan kolom Pricelist yang bersumber darinya. */
+  const hapusTurunan = (i: number) => {
+    setYakin(null);
+    ubah((d) => {
+      const hilang = new Set([d.dataPricelist.kolom[i].nama]);
+      d.dataPricelist.kolom.forEach((k) => { if (k.dari && hilang.has(k.dari)) hilang.add(k.nama); });
+      return { ...d,
+        dataPricelist: { ...d.dataPricelist, kolom: d.dataPricelist.kolom.filter((k) => !hilang.has(k.nama)) },
+        pricelist: { ...d.pricelist, kolom: d.pricelist.kolom.filter((k) => !hilang.has(k.dari)) } };
+    });
+  };
 
   return (
     <>
@@ -891,7 +918,7 @@ export function LangkahDataPl({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
         <table className="tabel-ringkas tabel-isian tabel-rapat"><tbody>
           <tr className="kepala-tengah"><th>Kolom</th><th>Dihitung dari</th><th>Koefisien / pengali</th>
             <th title="Nama kolom yang tampil di Pricelist dan cetakan; hitungannya tetap dari kolom ini">
-              Perubahan Metode Pembayaran</th></tr>
+              Perubahan Metode Pembayaran</th>{!ro && <th />}</tr>
           {kolom.map((k, i) => (
             <tr key={i}>
               <td><IsianTeks nilai={k.nama} lebar={190} disabled={ro}
@@ -935,10 +962,37 @@ export function LangkahDataPl({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
                   <span className="hint" style={{ margin: 0 }}>tidak dipakai di Pricelist</span>
                 )}
               </td>
+              {!ro && (
+                <td>
+                  {/* Kolom dari cara bayar dihapus di Data (IRR); di sini hanya turunan. */}
+                  {k.skema ? (
+                    <span className="hint" style={{ margin: 0 }} title="Hapus cara bayarnya di langkah 1 Data (IRR)">
+                      hapus di Data (IRR)</span>
+                  ) : yakin === i ? (
+                    <span className="row" style={{ margin: 0, flexWrap: "nowrap", gap: 4 }}>
+                      <button className="kecil bahaya" onClick={() => hapusTurunan(i)}>Ya, hapus</button>
+                      <button className="kecil" onClick={() => setYakin(null)}>Batal</button>
+                    </span>
+                  ) : (
+                    <button className="kecil" title="Hapus kolom turunan ini (dan kolom yang dihitung darinya)"
+                            onClick={() => setYakin(i)}>Hapus</button>
+                  )}
+                </td>
+              )}
             </tr>
           ))}
         </tbody></table>
       </div>
+      {!ro && (
+        <div className="row" style={{ marginTop: 8 }}>
+          <button onClick={tambahTurunan}
+                  title="Kolom baru yang dihitung dari kolom lain × pengali, mis. KPR Express × 112%">
+            + Tambah kolom turunan</button>
+          <span className="hint" style={{ margin: 0 }}>
+            Kolom dari cara bayar baru ditambah lewat + Tambah Cara Bayar di langkah 1 Data (IRR).
+          </span>
+        </div>
+      )}
 
       <div className="tscroll" style={{ maxHeight: 560, overflowY: "auto" }}>
         {/* Kolom harga sama lebar; judul cara bayar yang panjang dilipat. */}
