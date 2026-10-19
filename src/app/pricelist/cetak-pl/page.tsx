@@ -21,7 +21,17 @@ type Isi = {
   judul: string; tanggal: string; catatan: string; slug: string | null;
   kolom: string[]; unit: UnitHarga[];
 };
-type Pilihan = { kolom: string[]; alamat: string[]; pajak: boolean };
+type Pilihan = { kolom: string[]; alamat: string[]; pajak: boolean; info?: string[] };
+
+/**
+ * Kolom keterangan unit yang dapat disembunyikan dari cetakan. Makin sedikit
+ * kolom, makin besar tulisannya saat tabel dipaskan selebar kertas.
+ */
+const INFO: [keyof UnitHarga, string, string][] = [
+  ["alamat", "Address", ""], ["phase", "Phase", "c"], ["ukuran", "Ukuran", "c"],
+  ["view", "View", ""], ["tipe", "Tipe", "c"], ["subTipe", "Sub-Tipe", ""],
+];
+const AREA: [keyof UnitHarga, string][] = [["lt", "Land"], ["lb", "Build"]];
 
 /** Ukuran isi halaman A4 dalam px CSS (96 dpi) dikurangi margin 8 mm. */
 const MM = 96 / 25.4;
@@ -36,6 +46,8 @@ export default function CetakPricelist() {
   const [isi, setIsi] = useState<Isi | null>(null);
   const [arah, setArah] = useState<"lanskap" | "potret">("lanskap");
   const [huruf, setHuruf] = useState(7.5);
+  /** Jarak atas-bawah isi tiap baris (em). */
+  const [baris, setBaris] = useState(0.15);
   const [sembunyi, setSembunyi] = useState<Pilihan>({ kolom: [], alamat: [], pajak: true });
   const [muatkan, setMuatkan] = useState(false);
   const [terlalu, setTerlalu] = useState(false);
@@ -102,7 +114,7 @@ export default function CetakPricelist() {
     const zLebar = Math.min(1.6, LEBAR[arah] / w);
     const z = pas === "halaman" ? Math.min(zLebar, (TINGGI[arah] * 0.95) / h) : zLebar;
     setSkala((s) => (Math.abs(s.zoom - z) < 0.001 && s.lebar === w ? s : { zoom: z, lebar: w }));
-  }, [isi, arah, huruf, sembunyi, pas]);
+  }, [isi, arah, huruf, sembunyi, pas, baris]);
 
   if (!isi) {
     return (
@@ -117,7 +129,9 @@ export default function CetakPricelist() {
   const kolom = isi.kolom.filter((k) => !sembunyi.kolom.includes(k));
   const semuaAlamat = [...new Set(isi.unit.map((u) => u.alamat || "(tanpa address)"))];
   const unit = isi.unit.filter((u) => !sembunyi.alamat.includes(u.alamat || "(tanpa address)"));
-  const jumlahSembunyi = sembunyi.kolom.length + sembunyi.alamat.length;
+  const info = INFO.filter(([k]) => !(sembunyi.info ?? []).includes(k));
+  const area = AREA.filter(([k]) => !(sembunyi.info ?? []).includes(k));
+  const jumlahSembunyi = sembunyi.kolom.length + sembunyi.alamat.length + (sembunyi.info ?? []).length;
 
   return (
     <>
@@ -143,6 +157,11 @@ export default function CetakPricelist() {
         <label><input type="checkbox" checked={pajak}
                       onChange={(e) => simpanPilihan({ ...sembunyi, pajak: !e.target.checked })} />
           DPP &amp; Nilai Free PPN DTP</label>
+        <span className="cetak-huruf">Tinggi baris
+          <button onClick={() => setBaris((b) => Math.max(0.05, +(b - 0.1).toFixed(2)))} aria-label="Rapatkan baris">−</button>
+          <b>{Math.round((baris - 0.15) / 0.1) + 1}</b>
+          <button onClick={() => setBaris((b) => Math.min(1.25, +(b + 0.1).toFixed(2)))} aria-label="Renggangkan baris">+</button>
+        </span>
         <span className="cetak-huruf">Ukuran huruf
           <button onClick={() => setHuruf((h) => Math.max(5, +(h - 0.5).toFixed(1)))} aria-label="Perkecil huruf">A−</button>
           <b>{huruf.toLocaleString("id-ID")} pt</b>
@@ -165,6 +184,14 @@ export default function CetakPricelist() {
           <div className="cetak-pilih-isi">
             <p className="hint">Yang tidak dicentang hanya disembunyikan dari cetakan; isi Pricelist
               tidak berubah.</p>
+            <b>Kolom keterangan</b>
+            <span className="hint" style={{ textAlign: "left", margin: 0 }}>Sembunyikan kolom yang tidak
+              perlu supaya tulisan tercetak lebih besar.</span>
+            {[...INFO, ...AREA.map(([k, l]) => [k, `${l} (m²)`, ""] as [keyof UnitHarga, string, string])].map(([k, l]) => (
+              <label key={k}><input type="checkbox" checked={!(sembunyi.info ?? []).includes(k)}
+                onChange={(e) => simpanPilihan({ ...sembunyi, info: e.target.checked
+                  ? (sembunyi.info ?? []).filter((x) => x !== k) : [...(sembunyi.info ?? []), k] })} /> {l}</label>
+            ))}
             <b>Cara bayar</b>
             <div className="row" style={{ margin: "0 0 4px" }}>
               <button className="kecil" onClick={() => simpanPilihan({ ...sembunyi, kolom: [] })}>Centang semua</button>
@@ -193,7 +220,7 @@ export default function CetakPricelist() {
       <div className="cetak-latar">
         <div className="cetak-kertas" style={{ width: LEBAR[arah] + 2 * 30, minHeight: TINGGI[arah] + 2 * 30, padding: 30 }}>
           <div ref={lembar} className="pl-lembar"
-               style={{ fontSize: `${huruf}pt`,
+               style={{ fontSize: `${huruf}pt`, ["--pad" as string]: `${baris}em`,
                         ...(satuHalaman && skala.lebar ? { zoom: skala.zoom, width: skala.lebar } : {}) }}>
             <header>
               {isi.slug ? <img src={`/project/${isi.slug}.png`} alt="" className="tnc-logo" /> : <span />}
@@ -206,9 +233,11 @@ export default function CetakPricelist() {
             <table ref={tabel}>
               <thead>
                 <tr>
-                  <th rowSpan={2}>No</th><th rowSpan={2}>Address</th><th rowSpan={2}>Unit No</th>
-                  <th rowSpan={2}>Phase</th><th rowSpan={2}>Ukuran</th><th rowSpan={2}>View</th>
-                  <th rowSpan={2}>Tipe</th><th rowSpan={2}>Sub-Tipe</th><th colSpan={2}>Area (m²)</th>
+                  <th rowSpan={2}>No</th>
+                  {info.filter(([k]) => k === "alamat").map(([k, l]) => <th key={k} rowSpan={2}>{l}</th>)}
+                  <th rowSpan={2}>Unit No</th>
+                  {info.filter(([k]) => k !== "alamat").map(([k, l]) => <th key={k} rowSpan={2}>{l}</th>)}
+                  {area.length > 0 && <th colSpan={area.length}>Area (m²)</th>}
                   {/* Judul cara bayar: kolom sama lebar, judul panjang dilipat. Tanpa
                       DPP/DTP judulnya dua baris tinggi (tidak ada baris "Harga"). */}
                   {kolom.map((k) => pajak
@@ -216,7 +245,7 @@ export default function CetakPricelist() {
                     : <th key={k} rowSpan={2} className="cb harga">{k}</th>)}
                 </tr>
                 <tr>
-                  <th>Land</th><th>Build</th>
+                  {area.map(([k, l]) => <th key={k}>{l}</th>)}
                   {kolom.map((k) => pajak
                     ? [<th key={`${k}h`} className="harga">Harga</th>, <th key={`${k}d`} className="harga">DPP</th>,
                        <th key={`${k}t`} className="harga">Free PPN DTP</th>]
@@ -226,10 +255,12 @@ export default function CetakPricelist() {
               <tbody>
                 {unit.map((u, i) => (
                   <tr key={`${u.kode}-${i}`}>
-                    <td className="c">{i + 1}</td><td>{u.alamat}</td><td>{u.kode}</td>
-                    <td className="c">{u.phase}</td><td className="c">{u.ukuran}</td><td>{u.view}</td>
-                    <td className="c">{u.tipe}</td><td>{u.subTipe}</td>
-                    <td className="n">{angka(u.lt, 2)}</td><td className="n">{angka(u.lb, 2)}</td>
+                    <td className="c">{i + 1}</td>
+                    {info.filter(([k]) => k === "alamat").map(([k]) => <td key={k}>{String(u[k] ?? "")}</td>)}
+                    <td>{u.kode}</td>
+                    {info.filter(([k]) => k !== "alamat").map(([k, , c]) =>
+                      <td key={k} className={c || undefined}>{String(u[k] ?? "")}</td>)}
+                    {area.map(([k]) => <td key={k} className="n">{angka(u[k] as number | null, 2)}</td>)}
                     {kolom.map((k) => pajak
                       ? [<td key={`${k}h`} className="n h harga">{angka(u.harga[k])}</td>,
                          <td key={`${k}d`} className="n harga">{angka(u.pajak?.[k]?.dpp)}</td>,
