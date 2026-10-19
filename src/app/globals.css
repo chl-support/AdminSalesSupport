@@ -3201,3 +3201,5 @@ ul.daftar-ubah li { margin: 1px 0; }
 /* Judul tabel susunan kolom Data Pricelist rata tengah. */
 .tabel-rapat tr.kepala-tengah th { text-align: center !important; }
 .pl-lembar .pl-tanggal { font-weight: 700; justify-self: end; align-self: end; text-align: right; }
+/* Tabel Unit Data: kolom nomor dan Code sedikit lebih lebar. */
+.tabel-unit .no-unit { min-width: 40px; }

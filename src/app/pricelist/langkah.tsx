@@ -449,7 +449,7 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah, baru }: PropsLangkah 
 // ── 2. Unit Data ───────────────────────────────────────────────────────────
 
 const TEKS_UNIT = [
-  ["kode", "Code", 100], ["alamat", "Address", 130], ["view", "View", 85],
+  ["kode", "Code", 130], ["alamat", "Address", 130], ["view", "View", 85],
   ["no", "No", 40], ["ukuran", "Ukuran", 75], ["phase", "Phase", 45],
   ["tipeBangunan", "Type", 45], ["view2", "View", 85], ["bentuk", "Sub-Tipe Kavling/Irr/Irr Hoek", 110],
   ["subTipe", "Sub-Tipe", 110],
@@ -641,7 +641,7 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
                          onChange={(e) => setPilih(e.target.checked ? new Set(tampil.map(({ i }) => i)) : new Set())} />
                 </th>
               )}
-              <th>#</th>
+              <th className="no-unit">#</th>
               {TEKS_UNIT.map(([k, l]) => <th key={k}>{l}</th>)}
               <th>Land (m²)</th>
               <th>Land Price (base)<br />(Excl PPN. {lp})</th><th className="incl">Land Price (base)<br />(Incl PPN. {lp})</th>
@@ -675,7 +675,7 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
                     </span>
                   </td>
                 )}
-                <td className="n">{i + 1}</td>
+                <td className="n no-unit">{i + 1}</td>
                 {TEKS_UNIT.map(([k, , w]) => (
                   <td key={k}><IsianTeks id={k === "kode" ? `unit-kode-${i}` : undefined}
                                          nilai={u[k] ?? ""} lebar={w} disabled={ro}
