@@ -1,0 +1,178 @@
+"use client";
+
+/**
+ * Cetak Terms & Conditions (Term of Payment) pada kertas A4, seperti lembar
+ * T&C berkas PL Excel: logo project, judul, tanggal, cara bayar dua kolom,
+ * CATATAN, dan rekening pembayaran.
+ *
+ * Isinya dikirim halaman Pricelist lewat localStorage tepat sebelum tab ini
+ * dibuka, sehingga isian yang belum disimpan pun ikut tercetak. Orientasi,
+ * ukuran huruf, dan jumlah kolom dapat diatur supaya muat satu halaman.
+ */
+
+import { useEffect, useRef, useState } from "react";
+
+import type { Tnc } from "@/lib/susun-pricelist";
+
+const KUNCI_CETAK_TNC = "cetak-tnc";
+
+type Isi = { tnc: Tnc; tanggal: string; slug: string | null };
+
+/** Tinggi isi halaman A4 dalam px CSS (96 dpi) dikurangi margin 10 mm. */
+const TINGGI = { lanskap: (210 - 20) * 96 / 25.4, potret: (297 - 20) * 96 / 25.4 };
+const LEBAR = { lanskap: (297 - 20) * 96 / 25.4, potret: (210 - 20) * 96 / 25.4 };
+
+export default function CetakTnc() {
+  const [isi, setIsi] = useState<Isi | null>(null);
+  const [arah, setArah] = useState<"lanskap" | "potret">("lanskap");
+  const [huruf, setHuruf] = useState(8);
+  const [muatkan, setMuatkan] = useState(false);
+  const [kolom, setKolom] = useState(2);
+  const [lebih, setLebih] = useState(false);
+  const lembar = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    try {
+      const s = localStorage.getItem(KUNCI_CETAK_TNC);
+      if (s) setIsi(JSON.parse(s));
+    } catch { /* tidak ada isi */ }
+  }, []);
+
+  // Tandai bila isinya lebih panjang dari satu halaman A4. Saat "Muatkan 1
+  // halaman" diminta, huruf dikecilkan setengah poin demi setengah poin
+  // sampai muat (paling kecil 6 pt).
+  useEffect(() => {
+    const el = lembar.current;
+    if (!el) return;
+    const lewat = el.scrollHeight > TINGGI[arah] + 1;
+    setLebih(lewat);
+    if (muatkan) {
+      if (lewat && huruf > 6) setHuruf((h) => +(h - 0.5).toFixed(1));
+      else setMuatkan(false);
+    }
+  }, [isi, arah, huruf, kolom, muatkan]);
+
+  if (!isi) {
+    return (
+      <main className="cetak-tnc-kosong">
+        <p>Tidak ada isi untuk dicetak. Buka halaman Pricelist → langkah 5. Terms &amp; Conditions,
+          lalu klik <b>Cetak A4</b>.</p>
+      </main>
+    );
+  }
+
+  const { tnc, tanggal, slug } = isi;
+  const perKolom = Math.ceil(tnc.caraBayar.length / kolom);
+  const kelompok = Array.from({ length: kolom }, (_, k) =>
+    tnc.caraBayar.map((c, i) => ({ c, i })).slice(k * perKolom, (k + 1) * perKolom));
+
+  return (
+    <>
+      <style>{`
+        @page { size: A4 ${arah === "lanskap" ? "landscape" : "portrait"}; margin: 10mm; }
+        @media print {
+          body { background: #fff !important; }
+          .cetak-alat { display: none !important; }
+          .cetak-kertas { box-shadow: none !important; margin: 0 !important; padding: 0 !important;
+                          width: auto !important; min-height: 0 !important; }
+          .cetak-latar { background: none !important; padding: 0 !important; }
+        }
+      `}</style>
+
+      <div className="cetak-alat">
+        <b>Cetak Terms &amp; Conditions (A4)</b>
+        <label>Orientasi
+          <select value={arah} onChange={(e) => setArah(e.target.value as typeof arah)}>
+            <option value="lanskap">Lanskap (mendatar)</option>
+            <option value="potret">Potret (tegak)</option>
+          </select>
+        </label>
+        <label>Kolom cara bayar
+          <select value={kolom} onChange={(e) => setKolom(Number(e.target.value))}>
+            <option value={1}>1</option><option value={2}>2</option><option value={3}>3</option>
+          </select>
+        </label>
+        <span className="cetak-huruf">Ukuran huruf
+          <button onClick={() => setHuruf((h) => Math.max(6, +(h - 0.5).toFixed(1)))} aria-label="Perkecil huruf">A−</button>
+          <b>{huruf.toLocaleString("id-ID")} pt</b>
+          <button onClick={() => setHuruf((h) => Math.min(14, +(h + 0.5).toFixed(1)))} aria-label="Perbesar huruf">A+</button>
+        </span>
+        <span className={`pill ${lebih ? "warn" : "ok"}`}>
+          {lebih ? "Lebih dari 1 halaman" : "Muat 1 halaman A4"}</span>
+        {lebih && <button onClick={() => setMuatkan(true)}>Muatkan 1 halaman</button>}
+        <button className="pri" onClick={() => print()}>Cetak / Simpan PDF</button>
+        <button onClick={() => close()}>Tutup</button>
+        <span className="hint">Di dialog cetak pilih kertas <b>A4</b>; untuk PDF pilih
+          “Simpan sebagai PDF”.</span>
+      </div>
+
+      <div className="cetak-latar">
+        <div className="cetak-kertas" style={{ width: LEBAR[arah] + 2 * 38, minHeight: TINGGI[arah] + 2 * 38 }}>
+          <div ref={lembar} className="tnc-lembar" style={{ fontSize: `${huruf}pt` }}>
+            <header>
+              {slug ? <img src={`/project/${slug}.png`} alt="" className="tnc-logo" /> : <span />}
+              <h1>{tnc.judul || "TERM OF PAYMENT"}</h1>
+              <span />
+            </header>
+            {tanggal && <div className="tnc-tanggal">{tanggal}</div>}
+
+            <div className="tnc-kolom" style={{ gridTemplateColumns: `repeat(${kolom}, 1fr)` }}>
+              {kelompok.map((kel, k) => (
+                <div key={k}>
+                  {kel.map(({ c, i }) => (
+                    <section key={i} className="tnc-cb">
+                      <h2><span>{i + 1}.</span>{c.judul}</h2>
+                      <table><tbody>
+                        {c.baris.map((b, j) => (
+                          <tr key={j}>
+                            <td className="h">{String.fromCharCode(97 + j)}.</td>
+                            <td className="l">{b.label}</td>
+                            <td className="v">{b.nilai ? `: ${b.nilai}` : ""}</td>
+                            <td className="w">{b.waktu}</td>
+                          </tr>
+                        ))}
+                      </tbody></table>
+                      {c.catatan && <p className="tnc-cb-catatan">{c.catatan}</p>}
+                    </section>
+                  ))}
+                </div>
+              ))}
+            </div>
+
+            {tnc.catatan.length > 0 && (
+              <section className="tnc-catatan-cetak">
+                <h3>CATATAN</h3>
+                <ol>
+                  {tnc.catatan.map((c, i) => {
+                    const [pertama, ...lanjut] = c.split("\n");
+                    return (
+                      <li key={i}>
+                        {lanjut.length ? <b>{pertama}</b> : pertama}
+                        {lanjut.map((l, j) => (
+                          <div key={j} className={l.trim().startsWith("-") ? "sub" : undefined}>{l}</div>
+                        ))}
+                      </li>
+                    );
+                  })}
+                </ol>
+              </section>
+            )}
+
+            {tnc.rekening.length > 0 && (
+              <section className="tnc-rek">
+                <p>{tnc.pengantarRekening}</p>
+                {tnc.rekening.map((r, i) => (
+                  <table key={i}><tbody>
+                    <tr><td className="n">{i + 1})</td><td className="l">Bank</td><td>: {r.bank}</td></tr>
+                    <tr><td /><td className="l">No. Rekening</td><td>: {r.noRek}</td></tr>
+                    <tr><td /><td className="l">Cabang</td><td>: {r.cabang}</td></tr>
+                  </tbody></table>
+                ))}
+              </section>
+            )}
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
