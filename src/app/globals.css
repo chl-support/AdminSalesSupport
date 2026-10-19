@@ -3086,3 +3086,13 @@ button.bahaya { border-color: var(--stop); color: #fff; background: var(--stop);
 /* Catatan Unit Data. */
 textarea.catatan-unit { display: block; width: 100%; max-width: 900px; margin: 4px 0;
   font: inherit; padding: 8px 10px; resize: vertical; }
+
+/* Riwayat perubahan pricelist. */
+.riwayat-susun > summary { cursor: pointer; font-size: 14px; }
+.riwayat-susun[open] > summary { margin-bottom: 10px; }
+.riwayat-susun td { vertical-align: top; }
+ul.daftar-ubah { margin: 0; padding-left: 16px; }
+ul.daftar-ubah li { margin: 1px 0; }
+.riwayat-susun .tabel-ringkas td:last-child, .riwayat-susun .tabel-ringkas th:last-child {
+  text-align: left !important; white-space: normal; min-width: 420px;
+}

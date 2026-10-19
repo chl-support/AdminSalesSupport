@@ -18,6 +18,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useKata } from "../bahasa";
 import { Kerangka, MemeriksaSesi } from "../kerangka";
 import { PilihBerkas } from "../pilih-berkas";
+import { PanelPricelist } from "./panel-pricelist";
+import { RiwayatSusun } from "./riwayat-susun";
 import { useSesi } from "../session";
 import { PENGUNGGAH } from "../simulasi/unggah-pricelist";
 import { hitungSemua, type SusunPricelist } from "@/lib/susun-pricelist";
@@ -50,7 +52,9 @@ const KATA = {
     galatJudul: "Belum dapat diberlakukan",
     berlakuJudul: "Berlakukan pricelist",
     berlakuInfo: "Pricelist ini menggantikan pricelist yang berlaku dan langsung dipakai layar Simulasi / NPV. Pricelist lama tetap ada di riwayatnya.",
-    fNama: "Referensi dokumen", berlakukan: "Simpan & berlakukan", memberlakukan: "Memberlakukan…",
+    yakinBuka: "Isian di layar belum disimpan dan akan diganti. Lanjutkan?",
+    dibuka: (n: string) => `Pricelist "${n}" dibuka untuk diedit. Setelah selesai, beri nama baru di langkah 4 lalu Simpan & berlakukan — pricelist "${n}" tetap ada di riwayat.`,
+    fNama: "Nama pricelist (juga nama file Excel-nya)", berlakukan: "Simpan & berlakukan", memberlakukan: "Memberlakukan…",
     diberlakukan: (n: string) => `Pricelist "${n}" berlaku. Buka Simulasi / NPV untuk memakainya.`,
     keSimulasi: "Buka Simulasi / NPV",
   },
@@ -78,7 +82,9 @@ const KATA = {
     galatJudul: "Cannot be applied yet",
     berlakuJudul: "Apply price list",
     berlakuInfo: "This price list replaces the one in force and is used by Simulation / NPV right away. The old one stays in the history.",
-    fNama: "Document reference", berlakukan: "Save & apply", memberlakukan: "Applying…",
+    yakinBuka: "Unsaved changes on screen will be replaced. Continue?",
+    dibuka: (n: string) => `Price list "${n}" opened for editing. When done, give it a new name in step 4 and Save & apply — "${n}" stays in the history.`,
+    fNama: "Price list name (also its Excel file name)", berlakukan: "Save & apply", memberlakukan: "Applying…",
     diberlakukan: (n: string) => `Price list "${n}" is in force. Open Simulation / NPV to use it.`,
     keSimulasi: "Open Simulation / NPV",
   },
@@ -94,6 +100,8 @@ export default function PricelistPage() {
   const k = useKata(KATA);
 
   const [draf, setDraf] = useState<Draf | null>(null);
+  // Dinaikkan sesudah memberlakukan, supaya daftar pricelist tersimpan dibaca ulang.
+  const [versiPl, setVersiPl] = useState(0);
   const [data, setData] = useState<SusunPricelist | null>(null);
   const [langkah, setLangkah] = useState(0);
   const [galat, setGalat] = useState<string | null>(null);
@@ -145,7 +153,7 @@ export default function PricelistPage() {
       body: JSON.stringify({ data }),
     });
     setSibuk(null);
-    if (b) { setDraf(b); setData(b.data); }
+    if (b) { setDraf(b); setData(b.data); setVersiPl((v) => v + 1); }
     return !!b;
   };
 
@@ -161,6 +169,19 @@ export default function PricelistPage() {
     setBukaImpor(false); setBerkas(null);
   };
 
+  // Buka pricelist tersimpan untuk diedit. Isinya menggantikan isian di
+  // layar (belum tersimpan); pricelist lamanya tetap ada di riwayat, dan
+  // hasil suntingan disimpan sebagai pricelist baru dengan nama lain.
+  const bukaEdit = async (id: string, nama: string) => {
+    if (berubah && !confirm(k.yakinBuka)) return;
+    setSibuk("impor"); setGalat(null); setInfo(null); setBerlaku(null);
+    const b = await kirim(`/api/pricelist/${id}/susun`, { method: "GET" });
+    setSibuk(null);
+    if (!b) return;
+    setData(b.susun); setPeringatan(b.peringatan ?? []); setNamaPl("");
+    setInfo(k.dibuka(nama)); setLangkah(0);
+  };
+
   const berlakukan = async () => {
     if (berubah && !(await simpan())) return;
     setSibuk("berlaku"); setGalat(null); setBerlaku(null);
@@ -169,7 +190,7 @@ export default function PricelistPage() {
       body: JSON.stringify({ nama: namaPl }),
     });
     setSibuk(null);
-    if (b) setBerlaku(b.nama);
+    if (b) { setBerlaku(b.nama); setVersiPl((v) => v + 1); }
   };
 
   const ubah = (f: (d: SusunPricelist) => SusunPricelist) => {
@@ -191,6 +212,7 @@ export default function PricelistPage() {
       ) : (
         <>
           <p className="hint kiri" style={{ marginTop: 0 }}>{k.berlakuInfo}</p>
+          <label className="lbl" htmlFor="pl-nama">{k.fNama}</label>
           <div className="row">
             <input id="pl-nama" value={namaPl} maxLength={120} style={{ width: 320 }}
                    placeholder={`${data!.pricelist.judul} ${data!.pricelist.tanggal}`.trim()}
@@ -257,17 +279,24 @@ export default function PricelistPage() {
             )}
           </div>
 
-          {/* Kelima langkah tampil sekaligus, berurutan seperti lembar-lembar
-              Excel-nya, supaya dapat disunting dan diperiksa tanpa berpindah
-              layar. Bilah langkah di atas hanya menunjuk dan melompat ke
-              bagiannya; ia ikut menempel di atas saat halaman digulir. */}
+          {/* Pricelist yang sudah diberlakukan beserta riwayatnya: dapat
+              dibuka, diunduh, dan diganti namanya dari sini. */}
+          {sesi.project_slug && (
+            <PanelPricelist sesi={sesi} versi={versiPl} onBerubah={() => setVersiPl((v) => v + 1)}
+                            onEdit={bolehUbah ? (id, nama) => void bukaEdit(id, nama) : undefined} />)}
+          {sesi.project_slug && <RiwayatSusun versi={versiPl} />}
+
+          {/* Satu langkah tampil sekali waktu, seperti lembar-lembar Excel-nya:
+              klik langkah di bilah atas untuk berpindah. Isian semua langkah
+              tetap satu draf, jadi berpindah langkah tidak menghilangkan apa
+              pun. Bilahnya menempel di atas saat halaman digulir. */}
           <nav className="langkah langkah-pl lekat" aria-label={k.judul}>
             {k.langkah.map((l, i) => (
               <button key={l} className={`lk ${i === langkah ? "kini" : ""}`}
                       aria-current={i === langkah ? "step" : undefined}
                       onClick={() => {
                         setLangkah(i);
-                        document.getElementById(`langkah-${i + 1}`)
+                        document.querySelector(".langkah-pl")
                           ?.scrollIntoView({ behavior: "smooth", block: "start" });
                       }}>
                 <b>{i + 1}. {l}</b>{k.uraian[i]}
@@ -281,9 +310,8 @@ export default function PricelistPage() {
             <LangkahDataPl key={2} {...props} />,
             <LangkahPricelist key={3} {...props} aksi={panelBerlaku} />,
             <LangkahTnc key={4} {...props} />,
-          ].map((isi, i) => (
-            <section key={i} id={`langkah-${i + 1}`} className="panel sp bagian-langkah"
-                     onFocusCapture={() => setLangkah(i)} onMouseEnter={() => setLangkah(i)}>
+          ].map((isi, i) => i !== langkah ? null : (
+            <section key={i} id={`langkah-${i + 1}`} className="panel sp bagian-langkah">
               <h2>{i + 1}. {k.langkah[i]}<span className="hint" style={{ margin: 0 }}>{k.uraian[i]}</span></h2>
               {isi}
             </section>

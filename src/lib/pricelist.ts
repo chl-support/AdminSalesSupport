@@ -20,6 +20,7 @@ import ExcelJS from "exceljs";
 
 import { audit, one, query, tx } from "./db";
 import { PRICELIST, SKEMA } from "./pricelist-naraya";
+import { catatRiwayat } from "./susun-pricelist-riwayat";
 import { bentukSkema, uraianBentuk, type UnitHarga } from "./simulasi";
 
 // ── Membaca berkas ─────────────────────────────────────────────────────────
@@ -470,6 +471,38 @@ export async function berlakukanPricelist(
                   action: "pricelist_activated", actor: aktor,
                   after: { nama: rows[0].nama } }, c);
   });
+  const p = await one<{ nama: string }>("SELECT nama FROM pricelists WHERE id=$1", [id]);
+  await catatRiwayat(projectId, aktor, "Berlakukan kembali",
+    [`Pricelist "${p?.nama ?? id}" diberlakukan kembali`]);
+}
+
+/**
+ * Ganti nama pricelist (yang berlaku maupun di riwayat), supaya mudah
+ * dikenali dan dibuka kembali. Nama berkas unduhannya ikut berganti.
+ */
+export async function gantiNamaPricelist(
+  id: string, projectId: string, nama: string, aktor: string,
+): Promise<void> {
+  await ensureTabelPricelist();
+  const baru = nama.replace(/\s+/g, " ").trim();
+  if (!baru) throw new Error("Nama pricelist tidak boleh kosong.");
+  if (baru.length > 120) throw new Error("Nama pricelist paling banyak 120 huruf.");
+  if (!UUID.test(id)) throw new Error("Pricelist tidak ditemukan pada project ini.");
+  let lamaNama = "";
+  await tx(async (c) => {
+    const { rows } = await c.query<{ nama: string; nama_berkas: string | null }>(
+      "SELECT nama, nama_berkas FROM pricelists WHERE id=$1 AND project_id=$2",
+      [id, projectId]);
+    if (!rows.length) throw new Error("Pricelist tidak ditemukan pada project ini.");
+    const berkas = `${baru.replace(/[\\/:*?"<>|]+/g, "-")}.xlsx`;
+    await c.query("UPDATE pricelists SET nama=$2, nama_berkas=$3 WHERE id=$1",
+                  [id, baru, berkas]);
+    await audit({ entityType: "pricelist", entityId: id, action: "pricelist_renamed",
+                  actor: aktor, before: { nama: rows[0].nama, berkas: rows[0].nama_berkas },
+                  after: { nama: baru, berkas } }, c);
+    lamaNama = rows[0].nama;
+  });
+  await catatRiwayat(projectId, aktor, "Ganti nama", [`"${lamaNama}" → "${baru}"`]);
 }
 
 /**
@@ -482,6 +515,7 @@ export async function hapusPricelist(
 ): Promise<void> {
   await ensureTabelPricelist();
   if (!UUID.test(id)) throw new Error("Pricelist tidak ditemukan pada project ini.");
+  let lamaNama = "";
   await tx(async (c) => {
     const { rows } = await c.query<{ nama: string; aktif: boolean }>(
       "SELECT nama, aktif FROM pricelists WHERE id=$1 AND project_id=$2",
@@ -495,5 +529,7 @@ export async function hapusPricelist(
     await audit({ entityType: "pricelist", entityId: id,
                   action: "pricelist_deleted", actor: aktor,
                   before: { nama: rows[0].nama } }, c);
+    lamaNama = rows[0].nama;
   });
+  await catatRiwayat(projectId, aktor, "Hapus", [`Pricelist "${lamaNama}" dihapus`]);
 }
