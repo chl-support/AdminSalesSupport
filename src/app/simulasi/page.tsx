@@ -614,6 +614,59 @@ export default function SimulasiPage() {
     });
   };
 
+  /**
+   * Nilai satu termin diketik; termin sesudahnya dibagi rata atas sisanya.
+   *
+   * Jadwal yang disunting hampir selalu berarti "yang ini sekian, sisanya
+   * atur": orang menaikkan Pembayaran 1 lalu mengetik ulang satu per satu
+   * baris di bawahnya sampai jumlahnya kembali pas — pekerjaan yang panjang,
+   * dan yang salah hitungnya baru ketahuan dari peringatan selisih di atas
+   * tabel. Jadi begitu sebuah nilai diketik, termin di bawahnya langsung
+   * dihitungkan: sisanya dibagi rata, dan jumlah seluruh termin kembali sama
+   * dengan harga transaksi — yaitu harga PL ketika tidak ada diskon maupun
+   * penambahan harga.
+   *
+   * Yang di atasnya tidak disentuh: itu angka yang sudah disepakati, dan
+   * membetulkan baris keempat tidak boleh menggeser baris kedua.
+   *
+   * Baris yang disembunyikan tidak ikut dibagi — tetapi nilainya tetap
+   * dihitung ke dalam total, sama seperti pada lembar cetak.
+   *
+   * Pembulatannya jatuh pada baris terakhir: membagi tiga sisa yang tidak
+   * habis dibagi tiga akan meninggalkan satu atau dua rupiah, dan selisih satu
+   * rupiah pada lembar yang dicetak tetap selisih.
+   */
+  const ubahNilai = (i: number, mentah: string) => {
+    const teks = rapikanRupiah(mentah);
+    const target = Math.round(hasilStandar?.hargaTransaksi ?? 0);
+    setUbah((u) => {
+      if (!u) return u;
+      const baris = u.map((x, j) =>
+        j === i
+          // Nilai yang diketik tangan membatalkan persen yang tadi diketik:
+          // arahnya berbalik lagi, persen mengikuti nilai.
+          ? { ...x, teks, persenTeks: null }
+          : x);
+      const sesudah = baris
+        .map((x, j) => ({ x, j }))
+        .filter(({ x, j }) => j > i && !x.sembunyi)
+        .map(({ j }) => j);
+      if (!sesudah.length || !(target > 0)) return baris;
+
+      const diluar = baris.reduce(
+        (t, x, j) => t + (sesudah.includes(j) ? 0 : nilaiBaris(x)), 0);
+      const sisa = Math.max(0, Math.round(target - diluar));
+      const per = Math.floor(sisa / sesudah.length);
+      sesudah.forEach((j, urut) => {
+        const nilai = urut === sesudah.length - 1
+          ? sisa - per * (sesudah.length - 1) : per;
+        baris[j] = { ...baris[j], teks: nilai.toLocaleString("id-ID"),
+                     persenTeks: null };
+      });
+      return baris;
+    });
+  };
+
   // Pembanding tetap Cash Keras, cara bayar yang paling ringkas jadwalnya dan
   // karena itu paling tinggi nilai sekarangnya — di situlah selisih cara bayar
   // lain terbaca sebagai biaya menunggu.
@@ -980,12 +1033,7 @@ export default function SimulasiPage() {
                       <td className="n">{modeUbah && b
                         ? <input className="n" inputMode="decimal"
                                  value={b.teks ?? Math.round(b.nilaiAsli).toLocaleString("id-ID")}
-                                 onChange={(e) => ganti({
-                                   teks: rapikanRupiah(e.target.value),
-                                   // Nilai yang diketik tangan membatalkan
-                                   // persen yang tadi diketik: arahnya
-                                   // berbalik lagi, persen mengikuti nilai.
-                                   persenTeks: null })} />
+                                 onChange={(e) => ubahNilai(i, e.target.value)} />
                         : angkaLembar(t.nilai)}</td>
                       <td className="n">{angkaLembar(t.pv)}</td>
                       <td className="n">{angkaLembar(t.tagihan)}</td>
