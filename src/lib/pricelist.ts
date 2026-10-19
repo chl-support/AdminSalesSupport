@@ -415,6 +415,8 @@ export async function simpanPricelist(input: {
   /** Isi berkas Excel aslinya, disimpan untuk diunduh kembali. */
   isi?: Buffer;
   hasil: HasilBaca; aktor: string;
+  /** false: simpan ke riwayat saja, pricelist yang berlaku tidak berganti. */
+  aktif?: boolean;
 }): Promise<{ id: string }> {
   const { hasil } = input;
   if (hasil.galat.length) {
@@ -422,15 +424,18 @@ export async function simpanPricelist(input: {
   }
   await ensureTabelPricelist();
   return tx(async (c) => {
-    await c.query("UPDATE pricelists SET aktif=false WHERE project_id=$1 AND aktif",
-                  [input.projectId]);
+    const aktif = input.aktif ?? true;
+    if (aktif) {
+      await c.query("UPDATE pricelists SET aktif=false WHERE project_id=$1 AND aktif",
+                    [input.projectId]);
+    }
     const { rows } = await c.query<{ id: string }>(
       `INSERT INTO pricelists (project_id, nama, nama_berkas, lembar, skema, unit,
                                jumlah_unit, aktif, diunggah_oleh, berkas)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,true,$8,$9) RETURNING id`,
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$10,$8,$9) RETURNING id`,
       [input.projectId, input.nama, input.namaBerkas, hasil.lembar,
        JSON.stringify(hasil.skema.map((s) => s.nama)), JSON.stringify(hasil.unit),
-       hasil.unit.length, input.aktor, input.isi ?? null]);
+       hasil.unit.length, input.aktor, input.isi ?? null, aktif]);
     await audit({
       entityType: "pricelist", entityId: rows[0].id, action: "pricelist_uploaded",
       actor: input.aktor,
