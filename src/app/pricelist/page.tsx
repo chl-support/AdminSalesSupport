@@ -13,7 +13,7 @@
  * 4 — sebelum itu, pricelist yang berlaku tetap yang lama.
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useKata } from "../bahasa";
 import { Kerangka, MemeriksaSesi } from "../kerangka";
@@ -22,7 +22,7 @@ import { PanelPricelist } from "./panel-pricelist";
 import { RiwayatSusun } from "./riwayat-susun";
 import { useSesi } from "../session";
 import { PENGUNGGAH } from "../simulasi/unggah-pricelist";
-import { hitungSemua, type SusunPricelist } from "@/lib/susun-pricelist";
+import { basisProject, hitungSemua, type SusunPricelist } from "@/lib/susun-pricelist";
 import {
   LangkahDataPl, LangkahIrr, LangkahPricelist, LangkahTnc, LangkahUnit,
 } from "./langkah";
@@ -128,12 +128,17 @@ export default function PricelistPage() {
   /** Nama pricelist yang baru disimpan tanpa diberlakukan. */
   const [tersimpanSbg, setTersimpanSbg] = useState<string | null>(null);
 
+  // Slug project untuk muat(), yang sengaja tidak bergantung pada sesi.
+  const slugRef = useRef<string | null | undefined>(null);
+  slugRef.current = sesi?.project_slug;
+
   const muat = useCallback(async () => {
     const res = await fetch("/api/pricelist/susun");
     const b = await res.json().catch(() => ({}));
     if (res.status === 401) { location.href = "/login"; return; }
     if (!res.ok) { setGalat(b.detail ?? b.title ?? `HTTP ${res.status}`); return; }
-    setDraf(b); setData(b.data);
+    // Aturan basis harga project (Permai Indah: Excl PPN) untuk draf baru.
+    setDraf(b); setData(basisProject(slugRef.current, b.data));
   }, []);
 
   useEffect(() => { if (sesi?.project_slug) void muat(); }, [sesi, muat]);
@@ -179,7 +184,7 @@ export default function PricelistPage() {
     const b = await kirim("/api/pricelist/susun/impor", { method: "POST", body: fd });
     setSibuk(null);
     if (!b) return;
-    setData(b.susun); setPeringatan(b.peringatan ?? []);
+    setData(basisProject(sesi?.project_slug, b.susun)); setPeringatan(b.peringatan ?? []);
     setInfo(k.terimpor(b.susun.unit.length));
     setBukaImpor(false); setBerkas(null);
   };
@@ -193,7 +198,7 @@ export default function PricelistPage() {
     const b = await kirim(`/api/pricelist/${id}/susun`, { method: "GET" });
     setSibuk(null);
     if (!b) return;
-    setData(b.susun); setPeringatan(b.peringatan ?? []); setNamaPl("");
+    setData(basisProject(sesi?.project_slug, b.susun)); setPeringatan(b.peringatan ?? []); setNamaPl("");
     setInfo(k.dibuka(nama)); setLangkah(0);
   };
 
