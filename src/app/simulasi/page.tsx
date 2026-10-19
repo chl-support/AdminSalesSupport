@@ -80,9 +80,10 @@ const KATA = {
     fUnit: "No. Unit",
     // PL Harga Dasar berdiri lebih dulu, lalu Cara Bayar — urutan yang
     // diminta bagian penjualan, dan urutan kerjanya juga: harga dasarnya
-    // ditentukan, baru cara membayarnya disusun.
+    // ditentukan, baru cara membayarnya disusun. `fPlSama` adalah pilihan
+    // bawaan pada kotak Cara Bayar: jadwalnya mengikuti kolom harga itu.
     fSkema: "Cara Bayar",
-    fPl: "PL Harga Dasar", fPlSama: "Sesuai Cara Bayar",
+    fPl: "PL Harga Dasar", fPlSama: "Sesuai PL Harga Dasar",
     fTambah: "Penambahan Harga",
     plBeda: (pl: string, sk: string) =>
       `Harga dari PL ${pl}, jadwal mengikuti ${sk}.`,
@@ -175,7 +176,7 @@ const KATA = {
     fTanggal: "Booking Date",
     fUnit: "Unit No.",
     fSkema: "Payment Scheme",
-    fPl: "PL Base Price", fPlSama: "Same as Scheme",
+    fPl: "PL Base Price", fPlSama: "Same as PL Base Price",
     fTambah: "Price Addition",
     plBeda: (pl: string, sk: string) =>
       `Price from the ${pl} list, schedule follows ${sk}.`,
@@ -285,9 +286,13 @@ export default function SimulasiPage() {
   // Dinaikkan setiap kali pricelist baru tersimpan, supaya dibaca ulang.
   const [versiPl, setVersiPl] = useState(0);
   const [kode, setKode] = useState("");
-  const [skema, setSkema] = useState<Skema>("");
-  // Kolom pricelist asal harga permintaan; "" = harga cara bayar itu sendiri.
-  const [plHarga, setPlHarga] = useState<Skema>("");
+  // Kolom pricelist yang harganya dipakai sebagai dasar perhitungan. Selalu
+  // terisi: tiap simulasi berangkat dari satu harga, dan harga itu harus ada
+  // namanya.
+  const [plDasar, setPlDasar] = useState<Skema>("");
+  // Cara bayar yang menyusun jadwalnya. "" berarti mengikuti PL Harga Dasar —
+  // keadaan yang paling sering, dan karena itu yang menjadi bawaannya.
+  const [caraBayar, setCaraBayar] = useState<Skema>("");
   // Penambahan harga di luar pricelist, dalam rupiah. Ditulis dengan titik
   // ribuan seperti kolom Nilai (VALUE) pada jadwal, sebab angkanya berpuluh
   // juta dan deretan nol tanpa pemisah salah dibaca.
@@ -309,8 +314,11 @@ export default function SimulasiPage() {
       setPl(p);
       if (p) {
         setKode((kd) => p.unit.some((u) => u.kode === kd) ? kd : (p.unit[0]?.kode ?? ""));
-        setSkema((sk) => p.skema.includes(sk) ? sk
+        setPlDasar((d) => p.skema.includes(d) ? d
           : (p.skema.find((x) => bentukSkema(x)?.jenis === "cash") ?? p.skema[0] ?? ""));
+        // Cara bayar yang tidak ada di pricelist baru kembali mengikuti
+        // PL Harga Dasar, bukan bertahan sebagai nama yang tidak ada kolomnya.
+        setCaraBayar((c) => c && p.skema.includes(c) ? c : "");
       }
     })();
     return () => { batal = true; };
@@ -342,9 +350,19 @@ export default function SimulasiPage() {
       .then((b) => { if (b?.tarif) setTarifDtp(b.tarif); }).catch(() => {});
   }, [sesi]);
 
-  // Harga permintaan dari kolom lain hanya bila unit punya harga di kolom itu.
-  const skemaHarga = plHarga && plHarga !== skema && unit && unit.harga[plHarga] > 0
-    ? plHarga : undefined;
+  /**
+   * Cara bayar yang benar-benar dipakai menyusun jadwal.
+   *
+   * Kotak Cara Bayar boleh dibiarkan "Sesuai PL Harga Dasar" — dan itulah
+   * keadaan biasanya: jadwalnya mengikuti kolom harga yang dipilih. Yang
+   * mengisinya dengan cara bayar lain meminta sesuatu yang memang terjadi di
+   * lapangan: harga dari kolom Cash Keras, jadwal mengikuti KPR.
+   */
+  const skema = (caraBayar || plDasar) as Skema;
+  // Kolom harga disebut terpisah hanya bila memang berbeda dari cara bayarnya;
+  // bila sama, hitung() mengambil harga dari cara bayar itu sendiri.
+  const skemaHarga = plDasar && plDasar !== skema && unit && unit.harga[plDasar] > 0
+    ? plDasar : undefined;
   const nilaiTambah = bacaRupiah(tambah);
   const hasilStandar = useMemo(() => unit && unit.harga[skemaHarga ?? skema] > 0
     ? hitung({
@@ -485,7 +503,11 @@ export default function SimulasiPage() {
       } catch { setBanding(null); }
     }
     setTanggal(v.tanggal_booking);
-    setPlHarga(v.skema_harga ?? "");
+    // Riwayat disaring menurut cara bayar efektifnya, jadi `skema` di sini
+    // sudah sama dengan milik versi itu. Yang perlu dikembalikan tinggal
+    // pembagiannya ke dua kotak: ada kolom harga tersendiri, atau tidak.
+    setPlDasar((v.skema_harga || skema) as Skema);
+    setCaraBayar(v.skema_harga ? skema : "");
     setTambah(rapikanRupiah(String(Math.round(v.tambahan ?? 0))));
     setDiskon(String(v.diskon));
     setBunga(String(v.bunga));
@@ -684,13 +706,11 @@ export default function SimulasiPage() {
               Cara Bayar menyusun jadwal pembayarannya. */}
           <div>
             <div className="lbl">{k.fPl}</div>
-            {/* Semua kolom pricelist ditawarkan, termasuk yang sama dengan
-                cara bayarnya (mis. CASH KERAS): memilihnya sama hasilnya
-                dengan "Sesuai Cara Bayar", tetapi orang mencarinya dengan
-                nama. */}
-            <select value={plHarga && (unit?.harga[plHarga] ?? 0) > 0 ? plHarga : ""}
-                    onChange={(e) => setPlHarga(e.target.value as Skema)}>
-              <option value="">{k.fPlSama}</option>
+            {/* Hanya kolom yang unit ini punya harganya: dari sinilah angka
+                seluruh simulasi berangkat, dan kolom kosong tidak dapat
+                menjadi dasar apa pun. */}
+            <select value={plDasar}
+                    onChange={(e) => setPlDasar(e.target.value as Skema)}>
               {pl.skema.map((s) => (
                 <option key={s} value={s} disabled={!((unit?.harga[s] ?? 0) > 0)}>{s}</option>
               ))}
@@ -698,11 +718,14 @@ export default function SimulasiPage() {
           </div>
           <div>
             <div className="lbl">{k.fSkema}</div>
-            <select value={skema}
-                    onChange={(e) => setSkema(e.target.value as Skema)}>
-              {pl.skema.map((s) => (
-                <option key={s} value={s} disabled={!((unit?.harga[s] ?? 0) > 0)}>{s}</option>
-              ))}
+            {/* Dibiarkan "Sesuai PL Harga Dasar", jadwalnya mengikuti kolom
+                harga di sebelah kiri. Kolom yang unit ini tidak punya harganya
+                tetap boleh dipilih di sini: yang diambil darinya bentuk
+                jadwalnya, bukan harganya. */}
+            <select value={caraBayar}
+                    onChange={(e) => setCaraBayar(e.target.value as Skema)}>
+              <option value="">{k.fPlSama}</option>
+              {pl.skema.map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
           {/* Penambahan harga berdiri di kiri Diskon: keduanya menggeser
@@ -840,7 +863,7 @@ export default function SimulasiPage() {
               <table className="tabel-ringkas"><tbody>
                 <tr><th>{k.kSkema}</th><th>{k.kHarga}</th></tr>
                 {pl.skema.map((s) => (
-                  <tr key={s} className={s === skema ? "terpilih" : undefined}>
+                  <tr key={s} className={s === plDasar ? "terpilih" : undefined}>
                     <td>{s}</td>
                     <td className="n">
                       {unit.harga[s] > 0 ? formatRupiah(unit.harga[s]) : "—"}
