@@ -175,7 +175,18 @@ export type KolomDataPl = {
    */
   dari?: string;
   kali?: number;
+  /**
+   * Diskon kolom ini, pecahan (0,05 = 5%; negatif = kenaikan), diketik
+   * manual atau dari Koefisien akhir yang diketik. Dikenakan sebelum
+   * pembulatan dan sebelum tambahan per unit:
+   * ROUNDUP(Factored × koefisien × (1 − diskon), juta) + tambahan.
+   */
+  diskon?: number;
 };
+
+/** Koefisien atau pengali kolom Data Pricelist sesudah diskon. */
+export const sesudahDiskon = (koefAtauKali: number, diskon?: number) =>
+  koefAtauKali * (1 - (diskon ?? 0));
 
 /** Satu kolom harga pada lembar Pricelist. */
 export type KolomPricelist = {
@@ -376,10 +387,13 @@ export function hitungDataPl(
     if (k.skema) {
       const c = koef[k.skema];
       harga[k.nama] = Number.isFinite(c)
-        ? roundUp(factored * c, 6) + susun.dataPricelist.tambahan : NaN;
+        ? roundUp(factored * (k.diskon ? sesudahDiskon(c, k.diskon) : c), 6)
+          + susun.dataPricelist.tambahan : NaN;
     } else if (k.dari) {
       const asal = harga[k.dari];
-      harga[k.nama] = asal == null ? NaN : roundUp(asal * (k.kali ?? 1), 6);
+      const kali = k.kali ?? 1;
+      harga[k.nama] = asal == null ? NaN
+        : roundUp(asal * (k.diskon ? sesudahDiskon(kali, k.diskon) : kali), 6);
     }
   }
   return harga;
