@@ -726,6 +726,26 @@ export default function SimulasiPage() {
   };
 
   /**
+   * Hapus satu termin, lalu bagi sisanya ke termin di bawahnya.
+   *
+   * Termin yang dibuang meninggalkan lubang sebesar nilainya, dan jadwal yang
+   * tidak lagi menjumlah harga transaksi harus dibetulkan satu per satu
+   * dengan tangan. Jadi penghapusan diperlakukan sama dengan penyuntingan:
+   * yang di bawahnya menanggung sisanya, yang di atasnya tidak disentuh.
+   *
+   * Menghapus termin pertama berarti tidak ada lagi yang "di atas", dan
+   * seluruh sisanya — yaitu seluruh harga transaksi — dibagi kepada yang
+   * tersisa. Menghapus termin terakhir tidak punya siapa pun di bawahnya:
+   * jumlahnya berkurang, dan peringatan selisih di atas tabel menyebut
+   * berapa.
+   */
+  const hapusBaris = (i: number) => {
+    setUbah((u) => (u && u.length > 1
+      ? bagiSisa(u.filter((_, j) => j !== i), i - 1)
+      : u));
+  };
+
+  /**
    * Hitung ulang satu jadwal suntingan, dengan masukan layar yang sedang
    * berlaku. Dipakai ubahTagihan() untuk membaca DTP yang akan keluar dari
    * sebuah susunan, sebelum susunan itu dipasang.
@@ -1221,8 +1241,7 @@ export default function SimulasiPage() {
                                 tanpa satu pun termin bukan jadwal. */}
                             <button
                               disabled={(ubah?.length ?? 0) < 2}
-                              onClick={() => setUbah((u) =>
-                                u && u.length > 1 ? u.filter((_, j) => j !== i) : u)}>
+                              onClick={() => hapusBaris(i)}>
                               {k.eHapus}
                             </button>
                           </span>
