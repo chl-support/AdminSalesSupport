@@ -4,14 +4,17 @@ import { berlakukanSusun } from "@/lib/susun-pricelist-simpan";
 
 /**
  * Jadikan draf yang tersimpan pricelist yang berlaku untuk project ini —
- * sesudahnya layar Simulasi / NPV memakai harganya.
+ * sesudahnya layar Simulasi / NPV memakai harganya. Dengan
+ * `berlakukan: false` draf hanya disimpan sebagai pricelist baru di
+ * riwayat; pricelist yang berlaku tidak berganti.
  */
 export const POST = handler(async (req) => {
   const user = await requireRole(req, "admin_sales", "admin_system");
   const projectId = await projectAktif(req);
-  const { nama } = await body<{ nama?: string }>(req);
+  const { nama, berlakukan } = await body<{ nama?: string; berlakukan?: boolean }>(req);
   try {
-    return await berlakukanSusun(projectId, String(nama ?? "").slice(0, 120), user.username);
+    return await berlakukanSusun(projectId, String(nama ?? "").slice(0, 120), user.username,
+                                 berlakukan !== false);
   } catch (e: any) {
     throw new WorkflowError(String(e?.message ?? e), "validation", 422);
   }

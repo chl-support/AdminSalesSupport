@@ -50,12 +50,15 @@ const KATA = {
     unduh: "Unduh Excel", unduhSyarat: "Simpan dulu supaya berkasnya berisi perubahan terakhir.",
     hanyaBaca: "Hanya Admin Sales dan Admin IT yang dapat mengubah pricelist.",
     galatJudul: "Belum dapat diberlakukan",
-    berlakuJudul: "Berlakukan pricelist",
+    berlakuJudul: "Simpan / berlakukan pricelist",
     berlakuInfo: "Pricelist ini menggantikan pricelist yang berlaku dan langsung dipakai layar Simulasi / NPV. Pricelist lama tetap ada di riwayatnya.",
     yakinBuka: "Isian di layar belum disimpan dan akan diganti. Lanjutkan?",
     dibuka: (n: string) => `Pricelist "${n}" dibuka untuk diedit. Setelah selesai, beri nama baru di langkah 4 lalu Simpan & berlakukan — pricelist "${n}" tetap ada di riwayat.`,
     fNama: "Nama pricelist (juga nama file Excel-nya)", berlakukan: "Simpan & berlakukan", memberlakukan: "Memberlakukan…",
     diberlakukan: (n: string) => `Pricelist "${n}" berlaku. Buka Simulasi / NPV untuk memakainya.`,
+    simpanSbg: "Simpan dengan nama baru (tanpa memberlakukan)",
+    simpanSbgInfo: "Simpan dengan nama baru: tersimpan di Riwayat Unggahan untuk dibuka lagi nanti, pricelist yang berlaku tidak berganti.",
+    tersimpanSbg: (n: string) => `Pricelist "${n}" tersimpan di Riwayat Unggahan (belum berlaku). Pricelist yang berlaku tidak berubah.`,
     keSimulasi: "Buka Simulasi / NPV",
   },
   en: {
@@ -86,6 +89,9 @@ const KATA = {
     dibuka: (n: string) => `Price list "${n}" opened for editing. When done, give it a new name in step 4 and Save & apply — "${n}" stays in the history.`,
     fNama: "Price list name (also its Excel file name)", berlakukan: "Save & apply", memberlakukan: "Applying…",
     diberlakukan: (n: string) => `Price list "${n}" is in force. Open Simulation / NPV to use it.`,
+    simpanSbg: "Save under a new name (without applying)",
+    simpanSbgInfo: "Save under a new name: kept in the upload history to reopen later; the price list in force does not change.",
+    tersimpanSbg: (n: string) => `Price list "${n}" saved to the upload history (not in force). The price list in force is unchanged.`,
     keSimulasi: "Open Simulation / NPV",
   },
 };
@@ -106,12 +112,14 @@ export default function PricelistPage() {
   const [langkah, setLangkah] = useState(0);
   const [galat, setGalat] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
-  const [sibuk, setSibuk] = useState<"simpan" | "impor" | "berlaku" | null>(null);
+  const [sibuk, setSibuk] = useState<"simpan" | "impor" | "berlaku" | "simpanSbg" | null>(null);
   const [bukaImpor, setBukaImpor] = useState(false);
   const [berkas, setBerkas] = useState<File | null>(null);
   const [peringatan, setPeringatan] = useState<string[]>([]);
   const [namaPl, setNamaPl] = useState("");
   const [berlaku, setBerlaku] = useState<string | null>(null);
+  /** Nama pricelist yang baru disimpan tanpa diberlakukan. */
+  const [tersimpanSbg, setTersimpanSbg] = useState<string | null>(null);
 
   const muat = useCallback(async () => {
     const res = await fetch("/api/pricelist/susun");
@@ -182,19 +190,26 @@ export default function PricelistPage() {
     setInfo(k.dibuka(nama)); setLangkah(0);
   };
 
-  const berlakukan = async () => {
+  /**
+   * Simpan draf sebagai pricelist baru bernama `namaPl`: diberlakukan
+   * (menggantikan yang berlaku) atau hanya disimpan ke riwayat.
+   */
+  const berlakukan = async (aktifkan = true) => {
     if (berubah && !(await simpan())) return;
-    setSibuk("berlaku"); setGalat(null); setBerlaku(null);
+    setSibuk(aktifkan ? "berlaku" : "simpanSbg"); setGalat(null);
+    setBerlaku(null); setTersimpanSbg(null);
     const b = await kirim("/api/pricelist/susun/berlakukan", {
       method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ nama: namaPl }),
+      body: JSON.stringify({ nama: namaPl, berlakukan: aktifkan }),
     });
     setSibuk(null);
-    if (b) { setBerlaku(b.nama); setVersiPl((v) => v + 1); }
+    if (!b) return;
+    if (aktifkan) setBerlaku(b.nama); else setTersimpanSbg(b.nama);
+    setVersiPl((v) => v + 1);
   };
 
   const ubah = (f: (d: SusunPricelist) => SusunPricelist) => {
-    setInfo(null); setBerlaku(null);
+    setInfo(null); setBerlaku(null); setTersimpanSbg(null);
     setData((d) => (d ? f(d) : d));
   };
 
@@ -219,7 +234,12 @@ export default function PricelistPage() {
                    aria-label={k.fNama} onChange={(e) => setNamaPl(e.target.value)} />
             <button className="pri" disabled={!!sibuk} onClick={() => void berlakukan()}>
               {sibuk === "berlaku" ? k.memberlakukan : k.berlakukan}</button>
+            <button disabled={!!sibuk} onClick={() => void berlakukan(false)}
+                    title={k.simpanSbgInfo}>
+              {sibuk === "simpanSbg" ? k.menyimpan : k.simpanSbg}</button>
           </div>
+          <p className="hint kiri" style={{ margin: "6px 0 0" }}>{k.simpanSbgInfo}</p>
+          {tersimpanSbg && <div className="banner ok">{k.tersimpanSbg(tersimpanSbg)}</div>}
           {berlaku && (
             <div className="banner ok">{k.diberlakukan(berlaku)}{" "}
               <a href="/simulasi">{k.keSimulasi}</a></div>

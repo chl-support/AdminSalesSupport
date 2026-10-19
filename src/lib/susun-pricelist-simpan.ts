@@ -169,7 +169,9 @@ export const namaBerkasSusun = (s: SusunPricelist) =>
  */
 export async function berlakukanSusun(
   projectId: string, nama: string, aktor: string,
-): Promise<{ id: string; nama: string }> {
+  /** false: simpan sebagai pricelist baru di riwayat tanpa memberlakukannya. */
+  aktifkan = true,
+): Promise<{ id: string; nama: string; aktif: boolean }> {
   const draf = await bacaSusun(projectId);
   if (!draf) throw new Error("Belum ada isian pricelist untuk project ini.");
   const galat = hitungSemua(draf.data).galat;
@@ -186,9 +188,11 @@ export async function berlakukanSusun(
   const judul = nama.replace(/\s+/g, " ").trim() || namaBerkasSusun(draf.data).replace(/\.xlsx$/, "");
   const namaBerkas = `${judul.replace(/[\\/:*?"<>|]+/g, "-")}.xlsx`;
   const { id } = await simpanPricelist({
-    projectId, nama: judul, namaBerkas, isi, hasil, aktor,
+    projectId, nama: judul, namaBerkas, isi, hasil, aktor, aktif: aktifkan,
   });
-  await catatRiwayat(projectId, aktor, "Berlakukan",
-    [`Diberlakukan sebagai "${judul}" (file ${namaBerkas}, ${hasil.unit.length} unit)`]);
-  return { id, nama: judul };
+  await catatRiwayat(projectId, aktor, aktifkan ? "Berlakukan" : "Simpan sebagai",
+    [aktifkan
+      ? `Diberlakukan sebagai "${judul}" (file ${namaBerkas}, ${hasil.unit.length} unit)`
+      : `Disimpan sebagai "${judul}" tanpa diberlakukan (file ${namaBerkas}, ${hasil.unit.length} unit)`]);
+  return { id, nama: judul, aktif: aktifkan };
 }
