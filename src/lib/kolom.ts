@@ -296,6 +296,48 @@ async function pasang(): Promise<void> {
   await batasUkuranDokumen();
   await tarifPph23();
 
+  // Agensi milik project, bukan milik seluruh basis data.
+  //
+  // Tiap project bekerja dengan agensi yang berbeda-beda, dan nama yang sama
+  // pada dua project adalah dua baris: alamat, NPWP, dan status PKP-nya diurus
+  // sendiri-sendiri. Satu baris bersama berarti perubahan NPWP yang dicatat
+  // satu project diam-diam berlaku di project lain — dan NPWP itulah yang
+  // memilih tarif pajak pada klaimnya.
+  await query(
+    "ALTER TABLE agencies ADD COLUMN IF NOT EXISTS project_id UUID REFERENCES projects(id)");
+
+  // Baris lama tidak punya project. Yang menentukan pemiliknya adalah
+  // marketing yang menunjuknya: tiap project yang memakai agensi itu mendapat
+  // salinannya sendiri, marketingnya diarahkan ke salinan itu, dan baris lama
+  // yang tidak lagi ditunjuk siapa pun dibuang. Agensi yang tidak pernah
+  // ditunjuk marketing mana pun dibiarkan — tidak ada yang tahu milik project
+  // mana, dan menebaknya lebih buruk daripada membiarkannya.
+  await query(
+    `INSERT INTO agencies (name, address, npwp, pkp_status, has_skb,
+                           skb_valid_until, project_id)
+     SELECT DISTINCT a.name, a.address, a.npwp, a.pkp_status, a.has_skb,
+            a.skb_valid_until, m.project_id
+       FROM agencies a JOIN marketings m ON m.agency_id = a.id
+      WHERE a.project_id IS NULL AND m.project_id IS NOT NULL
+        AND NOT EXISTS (SELECT 1 FROM agencies b
+                         WHERE b.project_id = m.project_id
+                           AND lower(b.name) = lower(a.name))`);
+  await query(
+    `UPDATE marketings m SET agency_id = b.id
+       FROM agencies a, agencies b
+      WHERE m.agency_id = a.id AND a.project_id IS NULL
+        AND b.project_id = m.project_id AND lower(b.name) = lower(a.name)`);
+  await query(
+    `DELETE FROM agencies a
+      WHERE a.project_id IS NULL
+        AND NOT EXISTS (SELECT 1 FROM marketings m WHERE m.agency_id = a.id)`);
+
+  try {
+    await query(
+      `CREATE UNIQUE INDEX IF NOT EXISTS uniq_agencies_project_nama
+         ON agencies (project_id, lower(name)) WHERE project_id IS NOT NULL`);
+  } catch { /* nama kembar dalam satu project; dibereskan dulu oleh orangnya */ }
+
   // Nomor kontrak unik per project, bukan di seluruh basis data.
   //
   // db/schema.sql sudah menukarnya, tetapi migrasi itu hanya berjalan lewat

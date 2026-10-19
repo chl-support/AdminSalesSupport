@@ -19,6 +19,7 @@ import { KATEGORI_JENIS, kategoriAwal } from "../src/lib/kategori";
 import { hapusMarketing, tambahMarketing, ubahEmail,
          unggahManual } from "../src/lib/spesimen";
 import { rekapOverriding } from "../src/lib/overriding";
+import { susunRincian } from "../src/lib/pengingat";
 import { penandatanganRekap } from "../src/lib/penandatangan";
 import { skemaXlsx } from "../src/lib/memo-xlsx";
 import { berlakukan, cabut, daftarRujukan, ensureKolomRujukan, nominal,
@@ -1126,6 +1127,20 @@ async function main() {
       null, "2020-01-01", "2100-01-01");
     assert(rec.totals.net_amount === 5_272_500, JSON.stringify(rec.totals));
     assert(rec.totals.claim_count === 1, String(rec.totals.claim_count));
+  });
+
+  await check("pengingat surel menyebut nama project tiap pekerjaan", () => {
+    const teks = susunRincian([
+      { project: "Naraya Serpong", status: "pending_tax_verification", jumlah: 3 },
+      { project: "Naraya Serpong", status: "approved", jumlah: 1 },
+      { project: "BIO District", status: "pending_tax_verification", jumlah: 2 },
+    ]);
+    assert(teks.includes("Naraya Serpong (4):"), teks);
+    assert(teks.includes("BIO District (2):"), teks);
+    assert(teks.includes("• 3 menunggu verifikasi pajak"), teks);
+    // Dua project berdiri sebagai dua kelompok, bukan satu daftar bercampur.
+    assert(teks.indexOf("BIO District") > teks.indexOf("• 1 menunggu penetapan"),
+           teks);
   });
 
   await check("rekap pembayaran hanya memuat project sendiri", async () => {
