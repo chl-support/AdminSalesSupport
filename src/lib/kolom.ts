@@ -296,6 +296,29 @@ async function pasang(): Promise<void> {
   await batasUkuranDokumen();
   await tarifPph23();
 
+  // Nomor kontrak unik per project, bukan di seluruh basis data.
+  //
+  // db/schema.sql sudah menukarnya, tetapi migrasi itu hanya berjalan lewat
+  // /setup dengan SETUP_SECRET — yang sengaja dicabut dari Vercel sesudah
+  // dipakai. Pemasangan yang melewatkannya masih memegang indeks menyeluruh
+  // uniq_units_contract, dan di sana unggahan Laporan Penjualan project kedua
+  // gagal dengan 23505 hanya karena project pertama kebetulan memakai nomor
+  // kontrak yang sama. Tiap project menomori kontraknya sendiri, jadi
+  // keunikannya memang milik project.
+  //
+  // Yang baru dibuat lebih dulu, yang lama dijatuhkan sesudah ia ada: bila
+  // pembuatannya gagal — mis. masih ada nomor kembar di dalam satu project —
+  // perlindungan lama tetap berdiri, dan tidak ada yang bertambah buruk.
+  try {
+    await query(
+      `CREATE UNIQUE INDEX IF NOT EXISTS uniq_units_contract_project
+         ON units (project_id, contract_number) WHERE contract_number IS NOT NULL`);
+    const ada = await query<{ n: number }>(
+      `SELECT count(*)::int AS n FROM pg_indexes
+        WHERE indexname = 'uniq_units_contract_project'`);
+    if (ada[0]?.n) await query("DROP INDEX IF EXISTS uniq_units_contract");
+  } catch { /* nomor kembar di satu project; dibereskan dulu oleh orangnya */ }
+
   // Indeksnya menyebut project_id, yang juga hanya ditambahkan lewat
   // db/schema.sql. Kegagalannya tidak boleh menjatuhkan enam perintah di
   // atasnya, yang sudah commit sendiri-sendiri dan sudah menyelesaikan
