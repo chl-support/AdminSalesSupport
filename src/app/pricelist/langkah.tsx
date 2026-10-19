@@ -150,7 +150,13 @@ function genapkanAlokasi<T extends { alokasi: number }>(skema: T[]): T[] {
 }
 
 
-export function LangkahIrr({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
+export function LangkahIrr({ data, hasil, ubah, bolehUbah, baru }: PropsLangkah & {
+  /**
+   * Jumlah cara bayar yang baru ditambah di ujung kanan, disimpan halamannya
+   * supaya tetap ada walau berpindah langkah (untuk "Batalkan tambah").
+   */
+  baru?: [number, (f: (n: number) => number) => void];
+}) {
   const irr = data.irr;
   const TAHAP = namaTahap(irr);
   // Cash Price diubah lewat tombol Edit, supaya tidak tergeser tanpa sengaja.
@@ -201,7 +207,16 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
    * tertinggal. Isiannya dapat diubah sesudahnya.
    */
   const [yakinHapus, setYakinHapus] = useState<number | null>(null);
-  const tambahSkema = () => ubah((d) => {
+  /** Jumlah cara bayar yang baru ditambah di ujung kanan (untuk "Batalkan tambah"). */
+  const [baruLokal, setBaruLokal] = useState(0);
+  const [baruDitambah, setBaruDitambah] = baru ?? [baruLokal, setBaruLokal];
+  const tambahSkema = () => { setBaruDitambah((n) => n + 1); tambahSkemaData(); };
+  const batalTambah = () => {
+    if (!baruDitambah || irr.skema.length <= 1) return;
+    setBaruDitambah((n) => n - 1);
+    hapusSkema(irr.skema.length - 1);
+  };
+  const tambahSkemaData = () => ubah((d) => {
     const ada = new Set([...d.irr.skema.map((x) => x.nama), ...d.dataPricelist.kolom.map((k) => k.nama)]);
     let no = d.irr.skema.length + 1;
     while (ada.has(`Cara bayar ${no}`)) no++;
@@ -268,6 +283,11 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
 
       {bolehUbah && (
         <div className="row" style={{ justifyContent: "flex-end", margin: "12px 0 6px" }}>
+          {baruDitambah > 0 && irr.skema.length > 1 && (
+            <button onClick={batalTambah}
+                    title="Hapus cara bayar yang baru ditambah (paling kanan)">
+              ↶ Batalkan tambah ({irr.skema[irr.skema.length - 1].nama})</button>
+          )}
           <button className="pri" onClick={tambahSkema}
                   title="Tambah kolom cara bayar baru di Data (IRR), Data Pricelist, Pricelist dan T&C">
             + Tambah cara bayar</button>
@@ -286,8 +306,22 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
             <th />
             {irr.skema.map((s, i) => (
               <th key={i}>
-                <IsianTeks id={`irr-nama-${i}`} nilai={s.nama} disabled={ro} lebar={120}
-                           ubah={(v) => ganti(i, v)} />
+                <span className="kepala-cb">
+                  <IsianTeks id={`irr-nama-${i}`} nilai={s.nama} disabled={ro} lebar={120}
+                             ubah={(v) => ganti(i, v)} />
+                  {/* Hapus langsung dari judul kolom; konfirmasi di baris bawah tabel. */}
+                  {bolehUbah && irr.skema.length > 1 && !s.acuan && (
+                    <button className="kecil hapus-cb" aria-label={`Hapus ${s.nama}`}
+                            title="Hapus cara bayar ini (konfirmasi di bawah kolom)"
+                            onClick={() => setYakinHapus(i)}>×</button>
+                  )}
+                </span>
+                {yakinHapus === i && (
+                  <span className="row" style={{ margin: "4px 0 0", gap: 4, flexWrap: "nowrap", justifyContent: "center" }}>
+                    <button className="kecil bahaya" onClick={() => hapusSkema(i)}>Ya, hapus</button>
+                    <button className="kecil" onClick={() => setYakinHapus(null)}>Batal</button>
+                  </span>
+                )}
               </th>
             ))}
           </tr>
@@ -401,6 +435,9 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
             Bagi rata</button>
         )}
         {bolehUbah && <button onClick={tambahSkema}>+ Tambah cara bayar</button>}
+        {bolehUbah && baruDitambah > 0 && irr.skema.length > 1 && (
+          <button onClick={batalTambah}>↶ Batalkan tambah</button>
+        )}
       </div>
     </>
   );
