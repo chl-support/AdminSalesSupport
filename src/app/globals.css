@@ -3190,3 +3190,5 @@ ul.daftar-ubah li { margin: 1px 0; }
 /* Judul cara bayar Data (IRR) dengan tombol hapus kecil. */
 .kepala-cb { display: inline-flex; align-items: center; gap: 4px; }
 .kepala-cb .hapus-cb { padding: 0 6px; line-height: 1.4; color: var(--stop, #b42318); }
+.tabel-irr .alokasi-pas { color: var(--ok, #1a7f37); margin-left: 6px; }
+.tabel-irr .alokasi-kurang { color: var(--stop, #b42318); margin-left: 6px; }
