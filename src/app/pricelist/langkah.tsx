@@ -450,7 +450,7 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah, baru }: PropsLangkah 
 
 const TEKS_UNIT = [
   ["kode", "Code", 130], ["alamat", "Address", 130], ["view", "View", 85],
-  ["no", "No", 40], ["ukuran", "Ukuran", 75], ["phase", "Phase", 45],
+  ["no", "No", 40], ["ukuran", "Ukuran", 100], ["phase", "Phase", 45],
   ["tipeBangunan", "Type", 45], ["view2", "View", 85], ["bentuk", "Sub-Tipe Kavling/Irr/Irr Hoek", 110],
   ["subTipe", "Sub-Tipe", 110],
 ] as const;
@@ -687,7 +687,7 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
                 <td><Isian nilai={u.lb} lebar={60} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, lb: n }))} /></td>
                 <td><Isian jenis="rp" nilai={u.hargaBangunan} lebar={95} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, hargaBangunan: n }))} /></td>
                 <td className="n">{rpPolos(b?.hasilUnit.hargaBangunanPpn)}</td>
-                <td><Isian jenis="persen" kosongNol nilai={u.kenaikan} lebar={55} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, kenaikan: n }))} /></td>
+                <td><Isian jenis="persen" kosongNol desimal={2} nilai={u.kenaikan} lebar={55} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, kenaikan: n }))} /></td>
                 {FAKTOR.map(([k]) => (
                   <td key={k}><Isian jenis="persen" kosongNol nilai={u.faktor[k] ?? 0} lebar={55} disabled={ro}
                                      ubah={(n) => ubahUnit(i, (x) => ({ ...x, faktor: { ...x.faktor, [k]: n } }))} /></td>
