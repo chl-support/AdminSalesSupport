@@ -3100,3 +3100,11 @@ ul.daftar-ubah li { margin: 1px 0; }
 /* Folder Data & Riwayat Pricelist di depan langkah 1. */
 .langkah-pl .lk.folder-pl b { color: var(--emas-tua); }
 .langkah-pl .lk.folder-pl { border-top-style: double; }
+
+/* Gambar pada Catatan Unit Data. */
+.gambar-catatan { display: flex; flex-wrap: wrap; gap: 10px; margin: 8px 0 2px; }
+.gambar-catatan figure { margin: 0; width: 160px; border: 1px solid var(--line);
+  border-radius: 8px; overflow: hidden; background: #fff; }
+.gambar-catatan img { display: block; width: 100%; height: 110px; object-fit: cover; background: var(--fill); }
+.gambar-catatan figcaption { display: flex; align-items: center; gap: 6px; padding: 4px 6px; font-size: 11px; }
+.gambar-catatan figcaption span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

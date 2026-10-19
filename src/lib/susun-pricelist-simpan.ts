@@ -23,6 +23,8 @@ const teks = z.string().max(2000);
 const SKEMA = z.object({
   ppn: angka.min(0).max(1).optional(),
   catatanUnit: z.string().max(5000).optional(),
+  catatanGambar: z.array(z.object({ id: z.string().regex(/^\d{1,18}$/), nama: teks }))
+    .max(10).optional(),
   irr: z.object({
     target: angka,
     hargaKas: angka.optional(),
