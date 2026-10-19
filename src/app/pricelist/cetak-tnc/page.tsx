@@ -8,6 +8,10 @@
  * Isinya dikirim halaman Pricelist lewat localStorage tepat sebelum tab ini
  * dibuka, sehingga isian yang belum disimpan pun ikut tercetak. Orientasi,
  * ukuran huruf, dan jumlah kolom dapat diatur supaya muat satu halaman.
+ *
+ * Cara bayar, catatan, dan rekening yang tidak dicentang di "Pilih isi yang
+ * dicetak" hanya disembunyikan dari cetakan — isian Pricelist tidak berubah.
+ * Pilihan itu diingat peramban per project untuk cetakan berikutnya.
  */
 
 import { useEffect, useRef, useState } from "react";
@@ -17,6 +21,12 @@ import type { Tnc } from "@/lib/susun-pricelist";
 const KUNCI_CETAK_TNC = "cetak-tnc";
 
 type Isi = { tnc: Tnc; tanggal: string; slug: string | null };
+
+/** Kunci tiap butir supaya pilihan tetap cocok walau urutannya bergeser. */
+type Sembunyi = { caraBayar: string[]; catatan: string[]; rekening: string[] };
+const KOSONG: Sembunyi = { caraBayar: [], catatan: [], rekening: [] };
+const kunciCatatan = (c: string) => c.slice(0, 80);
+const kunciRek = (r: Tnc["rekening"][number]) => `${r.bank}|${r.noRek}`;
 
 /** Tinggi isi halaman A4 dalam px CSS (96 dpi) dikurangi margin 10 mm. */
 const TINGGI = { lanskap: (210 - 20) * 96 / 25.4, potret: (297 - 20) * 96 / 25.4 };
@@ -29,14 +39,37 @@ export default function CetakTnc() {
   const [muatkan, setMuatkan] = useState(false);
   const [kolom, setKolom] = useState(2);
   const [lebih, setLebih] = useState(false);
+  const [sembunyi, setSembunyi] = useState<Sembunyi>(KOSONG);
   const lembar = useRef<HTMLDivElement>(null);
+  const kunciPilihan = `${KUNCI_CETAK_TNC}-pilihan-${isi?.slug ?? "-"}`;
 
   useEffect(() => {
     try {
       const s = localStorage.getItem(KUNCI_CETAK_TNC);
-      if (s) setIsi(JSON.parse(s));
+      if (!s) return;
+      const v: Isi = JSON.parse(s);
+      setIsi(v);
+      const p = localStorage.getItem(`${KUNCI_CETAK_TNC}-pilihan-${v.slug ?? "-"}`);
+      if (p) setSembunyi({ ...KOSONG, ...JSON.parse(p) });
     } catch { /* tidak ada isi */ }
   }, []);
+
+  const ganti = (jenis: keyof Sembunyi, kunci: string, tampil: boolean) => {
+    setSembunyi((s) => {
+      const n = { ...s, [jenis]: tampil ? s[jenis].filter((k) => k !== kunci) : [...s[jenis], kunci] };
+      try { localStorage.setItem(kunciPilihan, JSON.stringify(n)); } catch { /* abaikan */ }
+      return n;
+    });
+  };
+  const semua = (tampil: boolean) => {
+    const n = tampil || !isi ? KOSONG : {
+      caraBayar: isi.tnc.caraBayar.map((c) => c.judul),
+      catatan: isi.tnc.catatan.map(kunciCatatan),
+      rekening: isi.tnc.rekening.map(kunciRek),
+    };
+    setSembunyi(n);
+    try { localStorage.setItem(kunciPilihan, JSON.stringify(n)); } catch { /* abaikan */ }
+  };
 
   // Tandai bila isinya lebih panjang dari satu halaman A4. Saat "Muatkan 1
   // halaman" diminta, huruf dikecilkan setengah poin demi setengah poin
@@ -50,7 +83,7 @@ export default function CetakTnc() {
       if (lewat && huruf > 6) setHuruf((h) => +(h - 0.5).toFixed(1));
       else setMuatkan(false);
     }
-  }, [isi, arah, huruf, kolom, muatkan]);
+  }, [isi, arah, huruf, kolom, muatkan, sembunyi]);
 
   if (!isi) {
     return (
@@ -61,8 +94,17 @@ export default function CetakTnc() {
     );
   }
 
-  const { tnc, tanggal, slug } = isi;
-  const perKolom = Math.ceil(tnc.caraBayar.length / kolom);
+  const { tnc: semuaTnc, tanggal, slug } = isi;
+  // Yang dicetak: butir yang tidak disembunyikan. Nomornya diurutkan ulang.
+  const tnc: Tnc = {
+    ...semuaTnc,
+    caraBayar: semuaTnc.caraBayar.filter((c) => !sembunyi.caraBayar.includes(c.judul)),
+    catatan: semuaTnc.catatan.filter((c) => !sembunyi.catatan.includes(kunciCatatan(c))),
+    rekening: semuaTnc.rekening.filter((r) => !sembunyi.rekening.includes(kunciRek(r))),
+  };
+  const jumlahSembunyi = semuaTnc.caraBayar.length - tnc.caraBayar.length
+    + semuaTnc.catatan.length - tnc.catatan.length + semuaTnc.rekening.length - tnc.rekening.length;
+  const perKolom = Math.max(1, Math.ceil(tnc.caraBayar.length / kolom));
   const kelompok = Array.from({ length: kolom }, (_, k) =>
     tnc.caraBayar.map((c, i) => ({ c, i })).slice(k * perKolom, (k + 1) * perKolom));
 
@@ -100,6 +142,33 @@ export default function CetakTnc() {
         <span className={`pill ${lebih ? "warn" : "ok"}`}>
           {lebih ? "Lebih dari 1 halaman" : "Muat 1 halaman A4"}</span>
         {lebih && <button onClick={() => setMuatkan(true)}>Muatkan 1 halaman</button>}
+        <details className="cetak-pilih">
+          <summary>Pilih isi yang dicetak{jumlahSembunyi ? ` (${jumlahSembunyi} disembunyikan)` : ""}</summary>
+          <div className="cetak-pilih-isi">
+            <p className="hint">Yang tidak dicentang hanya disembunyikan dari cetakan; isi Pricelist
+              tidak berubah.</p>
+            <div className="row" style={{ margin: "0 0 6px" }}>
+              <button className="kecil" onClick={() => semua(true)}>Centang semua</button>
+              <button className="kecil" onClick={() => semua(false)}>Kosongkan semua</button>
+            </div>
+            <b>Cara bayar</b>
+            {semuaTnc.caraBayar.map((c, i) => (
+              <label key={`c${i}`}><input type="checkbox" checked={!sembunyi.caraBayar.includes(c.judul)}
+                onChange={(e) => ganti("caraBayar", c.judul, e.target.checked)} /> {c.judul || `(cara bayar ${i + 1})`}</label>
+            ))}
+            {semuaTnc.catatan.length > 0 && <b>Catatan</b>}
+            {semuaTnc.catatan.map((c, i) => (
+              <label key={`n${i}`}><input type="checkbox" checked={!sembunyi.catatan.includes(kunciCatatan(c))}
+                onChange={(e) => ganti("catatan", kunciCatatan(c), e.target.checked)} />
+                {" "}{i + 1}. {c.split("\n")[0].slice(0, 70)}{c.length > 70 ? "…" : ""}</label>
+            ))}
+            {semuaTnc.rekening.length > 0 && <b>Rekening</b>}
+            {semuaTnc.rekening.map((r, i) => (
+              <label key={`r${i}`}><input type="checkbox" checked={!sembunyi.rekening.includes(kunciRek(r))}
+                onChange={(e) => ganti("rekening", kunciRek(r), e.target.checked)} /> {r.bank} {r.noRek}</label>
+            ))}
+          </div>
+        </details>
         <button className="pri" onClick={() => print()}>Cetak / Simpan PDF</button>
         <button onClick={() => close()}>Tutup</button>
         <span className="hint">Di dialog cetak pilih kertas <b>A4</b>; untuk PDF pilih

@@ -830,9 +830,10 @@ export function LangkahDataPl({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
 
 // ── 4. Pricelist ───────────────────────────────────────────────────────────
 
-export function LangkahPricelist({ data, hasil, ubah, bolehUbah, aksi }: PropsLangkah & {
+export function LangkahPricelist({ data, hasil, ubah, bolehUbah, aksi, slug }: PropsLangkah & {
   /** Panel memberlakukan, disediakan halamannya. */
   aksi?: React.ReactNode;
+  slug?: string | null;
 }) {
   const ro = !bolehUbah;
   const [pajak, setPajak] = useState(true);
@@ -849,8 +850,24 @@ export function LangkahPricelist({ data, hasil, ubah, bolehUbah, aksi }: PropsLa
       { dpp: b.pricelist[k.nama]?.dpp ?? null, dtp: b.pricelist[k.nama]?.dtp ?? null }])),
   }));
 
+  // Cetak A4: isinya (termasuk yang belum disimpan) diserahkan ke tab cetak
+  // lewat localStorage, lalu tab itu dibuka.
+  const cetak = () => {
+    try {
+      localStorage.setItem("cetak-pl", JSON.stringify({
+        judul: pl.judul, tanggal: pl.tanggal, catatan: pl.catatan, slug: slug ?? null,
+        kolom: pl.kolom.map((k) => k.nama), unit }));
+    } catch { /* penyimpanan peramban penuh atau diblokir */ }
+    open("/pricelist/cetak-pl", "_blank");
+  };
+
   return (
     <>
+      <div className="row" style={{ justifyContent: "flex-end", margin: 0 }}>
+        <button className="pri" onClick={cetak} disabled={!unit.length}
+                title="Pratinjau dan cetak Pricelist di kertas A4 (atau simpan sebagai PDF)">
+          🖨 Cetak A4</button>
+      </div>
       <p className="hint kiri">
         Kolom dengan pengali 100% mengambil harga Data Pricelist apa adanya; selain
         itu ROUND(harga × pengali, juta) — di Excel 111,5% untuk kolom KPR.
