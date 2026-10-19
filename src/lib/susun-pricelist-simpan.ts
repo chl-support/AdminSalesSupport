@@ -12,7 +12,7 @@ import { z } from "zod";
 
 import { audit, one, query } from "./db";
 import { bacaPricelist, simpanPricelist } from "./pricelist";
-import { hitungSemua, type SusunPricelist } from "./susun-pricelist";
+import { basisProject, hitungSemua, type SusunPricelist } from "./susun-pricelist";
 import { SUSUN_NARAYA } from "./susun-pricelist-naraya";
 import { eksporSusun } from "./susun-pricelist-xlsx";
 import { bedaSusun, catatRiwayat } from "./susun-pricelist-riwayat";
@@ -22,6 +22,7 @@ const teks = z.string().max(2000);
 
 const SKEMA = z.object({
   ppn: angka.min(0).max(1).optional(),
+  basisExclPpn: z.boolean().optional(),
   catatanUnit: z.string().max(5000).optional(),
   catatanGambar: z.array(z.object({ id: z.string().regex(/^\d{1,18}$/), nama: teks }))
     .max(10).optional(),
@@ -98,9 +99,13 @@ export type DrafSusun = {
 
 export async function bacaSusun(projectId: string): Promise<DrafSusun | null> {
   await ensureTabel();
-  return one<DrafSusun>(
-    "SELECT data, diubah_oleh, diubah_pada FROM pricelist_susun WHERE project_id=$1",
-    [projectId]);
+  const draf = await one<DrafSusun & { slug: string }>(
+    `SELECT s.data, s.diubah_oleh, s.diubah_pada, p.slug
+       FROM pricelist_susun s JOIN projects p ON p.id = s.project_id
+      WHERE s.project_id=$1`, [projectId]);
+  if (!draf) return null;
+  const { slug, ...isi } = draf;
+  return { ...isi, data: basisProject(slug, isi.data) };
 }
 
 const AKTOR_AWAL = "isian awal (Data_Pricelist.xlsx)";
