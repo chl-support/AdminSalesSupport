@@ -1210,12 +1210,21 @@ export default function SimulasiPage() {
                               { ket: k.eBaru, tgl: b.tgl, nilaiAsli: 0, teks: "0",
                                 sembunyi: false, tambahan: true },
                               ...u.slice(i + 1)])}>{k.eSisip}</button>
-                            {b.tambahan && (
-                              <button onClick={() => setUbah((u) =>
+                            {/* Hapus berdiri pada setiap baris, bukan hanya
+                                pada baris tambahan: termin bawaan pun kerap
+                                tidak jadi dipakai — mis. uang muka yang
+                                dilebur ke pembayaran berikutnya — dan
+                                menyembunyikannya hanya menghilangkannya dari
+                                lembar, bukan dari jumlahnya.
+
+                                Baris terakhir tidak dapat dihapus: jadwal
+                                tanpa satu pun termin bukan jadwal. */}
+                            <button
+                              disabled={(ubah?.length ?? 0) < 2}
+                              onClick={() => setUbah((u) =>
                                 u && u.length > 1 ? u.filter((_, j) => j !== i) : u)}>
-                                {k.eHapus}
-                              </button>
-                            )}
+                              {k.eHapus}
+                            </button>
                           </span>
                         </td>
                       )}
