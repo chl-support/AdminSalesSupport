@@ -3203,3 +3203,10 @@ ul.daftar-ubah li { margin: 1px 0; }
 .pl-lembar .pl-tanggal { font-weight: 700; justify-self: end; align-self: end; text-align: right; }
 /* Tabel Unit Data: kolom nomor dan Code sedikit lebih lebar. */
 .tabel-unit .no-unit { min-width: 40px; }
+/* Tabel Unit Data: kolom mengikuti isian terpanjangnya (lihat lebarIsi di
+   langkah.tsx); kotak yang lebih pendek mengisi penuh kolomnya supaya tetap
+   sejajar, dan judul kolom yang panjang dibungkus ke baris berikutnya. */
+.tabel-unit td > input { min-width: 100%; }
+.tabel-unit td > .isian-angka { display: flex; }
+.tabel-unit td > .isian-angka input { flex: 1; }
+.tabel-unit thead th { white-space: normal; line-height: 1.25; }
