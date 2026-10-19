@@ -887,6 +887,25 @@ export function LangkahDataPl({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
       dataPricelist: { ...d.dataPricelist, kolom: [...d.dataPricelist.kolom, { nama, dari, kali: 1 }] },
       pricelist: { ...d.pricelist, kolom: [...d.pricelist.kolom, { nama, dari: nama, kali: 1 }] } };
   });
+  /**
+   * Geser kolom i satu langkah (arah -1 naik, +1 turun). Kolom turunan tidak
+   * boleh berada di atas kolom sumbernya. Urutan kolom Pricelist ikut urutan
+   * kolom sumbernya di sini.
+   */
+  const bolehTukar = (a: number) =>
+    a >= 0 && a + 1 < kolom.length && kolom[a + 1].dari !== kolom[a].nama;
+  const geser = (i: number, arah: -1 | 1) => ubah((d) => {
+    const k = [...d.dataPricelist.kolom];
+    const a = arah < 0 ? i - 1 : i;
+    if (a < 0 || a + 1 >= k.length || k[a + 1].dari === k[a].nama) return d;
+    [k[a], k[a + 1]] = [k[a + 1], k[a]];
+    const posisi = new Map(k.map((x, j) => [x.nama, j]));
+    const pl = d.pricelist.kolom.map((x, j) => ({ x, j }))
+      .sort((p, q) => (posisi.get(p.x.dari) ?? 1e9) - (posisi.get(q.x.dari) ?? 1e9) || p.j - q.j)
+      .map(({ x }) => x);
+    return { ...d, dataPricelist: { ...d.dataPricelist, kolom: k },
+             pricelist: { ...d.pricelist, kolom: pl } };
+  });
   /** Hapus kolom turunan beserta turunannya dan kolom Pricelist yang bersumber darinya. */
   const hapusTurunan = (i: number) => {
     setYakin(null);
@@ -963,7 +982,13 @@ export function LangkahDataPl({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
                 )}
               </td>
               {!ro && (
-                <td>
+                <td style={{ whiteSpace: "nowrap" }}>
+                  <span className="row" style={{ margin: "0 6px 0 0", gap: 4, display: "inline-flex" }}>
+                    <button className="kecil" title="Geser ke atas" aria-label={`Geser ${k.nama} ke atas`}
+                            disabled={!bolehTukar(i - 1)} onClick={() => geser(i, -1)}>▲</button>
+                    <button className="kecil" title="Geser ke bawah" aria-label={`Geser ${k.nama} ke bawah`}
+                            disabled={!bolehTukar(i)} onClick={() => geser(i, 1)}>▼</button>
+                  </span>
                   {/* Kolom dari cara bayar dihapus di Data (IRR); di sini hanya turunan. */}
                   {k.skema ? (
                     <span className="hint" style={{ margin: 0 }} title="Hapus cara bayarnya di langkah 1 Data (IRR)">
