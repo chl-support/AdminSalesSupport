@@ -11,7 +11,7 @@
  * diingat peramban per project untuk cetakan berikutnya.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import type { UnitHarga } from "@/lib/simulasi";
 
@@ -26,6 +26,8 @@ type Pilihan = { kolom: string[]; alamat: string[]; pajak: boolean };
 /** Ukuran isi halaman A4 dalam px CSS (96 dpi) dikurangi margin 8 mm. */
 const MM = 96 / 25.4;
 const LEBAR = { lanskap: (297 - 16) * MM, potret: (210 - 16) * MM };
+/** Tinggi isi halaman A4 (dikurangi margin 8 mm dan sedikit cadangan). */
+const TINGGI = { lanskap: (210 - 16) * MM - 4, potret: (297 - 16) * MM - 4 };
 
 const angka = (n: number | null | undefined, d = 0) =>
   n == null || !Number.isFinite(n) ? "" : n.toLocaleString("id-ID", { maximumFractionDigits: d });
@@ -37,7 +39,16 @@ export default function CetakPricelist() {
   const [sembunyi, setSembunyi] = useState<Pilihan>({ kolom: [], alamat: [], pajak: true });
   const [muatkan, setMuatkan] = useState(false);
   const [terlalu, setTerlalu] = useState(false);
+  /**
+   * Penyesuaian ukuran lembar (zoom yang sama ke kedua arah):
+   * "lebar" — pas selebar kertas, ke bawah boleh beberapa halaman (bawaan);
+   * "halaman" — seluruhnya pas satu halaman A4; "asli" — tanpa penyesuaian.
+   */
+  const [pas, setPas] = useState<"lebar" | "halaman" | "asli">("lebar");
+  const satuHalaman = pas !== "asli";
+  const [skala, setSkala] = useState({ zoom: 1, lebar: 0 });
   const tabel = useRef<HTMLTableElement>(null);
+  const lembar = useRef<HTMLDivElement>(null);
   const kunciPilihan = `${KUNCI}-pilihan-${isi?.slug ?? "-"}`;
 
   useEffect(() => {
@@ -72,6 +83,27 @@ export default function CetakPricelist() {
     }
   }, [isi, arah, huruf, sembunyi, muatkan]);
 
+  // Ukur lembar pada ukuran aslinya, lalu perbesar/perkecil seluruhnya dengan
+  // zoom yang sama ke kedua arah: pas selebar kertas, atau (pilihan "1
+  // halaman") sekaligus pas setinggi satu halaman A4.
+  useLayoutEffect(() => {
+    const el = lembar.current;
+    if (!el) return;
+    if (!satuHalaman) { setSkala({ zoom: 1, lebar: 0 }); return; }
+    const simpan = { zoom: el.style.zoom, width: el.style.width };
+    el.style.zoom = "1"; el.style.width = "max-content";
+    const w = el.scrollWidth;
+    el.style.width = `${w}px`;
+    const h = el.scrollHeight;
+    el.style.zoom = simpan.zoom; el.style.width = simpan.width;
+    // Pas lebar: boleh diperbesar sampai 1,6× supaya tabel memenuhi kertas.
+    // Pas 1 halaman: juga dibatasi tinggi (cadangan 5%: hasil cetak sedikit
+    // lebih tinggi dari ukuran di layar).
+    const zLebar = Math.min(1.6, LEBAR[arah] / w);
+    const z = pas === "halaman" ? Math.min(zLebar, (TINGGI[arah] * 0.95) / h) : zLebar;
+    setSkala((s) => (Math.abs(s.zoom - z) < 0.001 && s.lebar === w ? s : { zoom: z, lebar: w }));
+  }, [isi, arah, huruf, sembunyi, pas]);
+
   if (!isi) {
     return (
       <main className="cetak-tnc-kosong">
@@ -95,8 +127,8 @@ export default function CetakPricelist() {
           body { background: #fff !important; }
           .cetak-alat { display: none !important; }
           .cetak-kertas { box-shadow: none !important; margin: 0 !important; padding: 0 !important;
-                          width: auto !important; }
-          .cetak-latar { background: none !important; padding: 0 !important; }
+                          width: auto !important; min-height: 0 !important; }
+          .cetak-latar { background: none !important; padding: 0 !important; min-height: 0 !important; }
         }
       `}</style>
 
@@ -116,9 +148,18 @@ export default function CetakPricelist() {
           <b>{huruf.toLocaleString("id-ID")} pt</b>
           <button onClick={() => setHuruf((h) => Math.min(12, +(h + 0.5).toFixed(1)))} aria-label="Perbesar huruf">A+</button>
         </span>
-        <span className={`pill ${terlalu ? "warn" : "ok"}`}>
-          {terlalu ? "Tabel lebih lebar dari kertas" : "Muat selebar A4"}</span>
-        {terlalu && <button onClick={() => setMuatkan(true)}>Muatkan lebar kertas</button>}
+        <label>Ukuran cetak
+          <select value={pas} onChange={(e) => setPas(e.target.value as typeof pas)}>
+            <option value="lebar">Pas lebar kertas (ke bawah boleh lebih)</option>
+            <option value="halaman">Pas 1 halaman A4</option>
+            <option value="asli">Ukuran asli</option>
+          </select>
+          {satuHalaman && <b>{Math.round(skala.zoom * 100)}%</b>}</label>
+        {!satuHalaman && <>
+          <span className={`pill ${terlalu ? "warn" : "ok"}`}>
+            {terlalu ? "Tabel lebih lebar dari kertas" : "Muat selebar A4"}</span>
+          {terlalu && <button onClick={() => setMuatkan(true)}>Muatkan lebar kertas</button>}
+        </>}
         <details className="cetak-pilih">
           <summary>Pilih isi yang dicetak{jumlahSembunyi ? ` (${jumlahSembunyi} disembunyikan)` : ""}</summary>
           <div className="cetak-pilih-isi">
@@ -150,8 +191,10 @@ export default function CetakPricelist() {
       </div>
 
       <div className="cetak-latar">
-        <div className="cetak-kertas" style={{ width: LEBAR[arah] + 2 * 30, padding: 30 }}>
-          <div className="pl-lembar" style={{ fontSize: `${huruf}pt` }}>
+        <div className="cetak-kertas" style={{ width: LEBAR[arah] + 2 * 30, minHeight: TINGGI[arah] + 2 * 30, padding: 30 }}>
+          <div ref={lembar} className="pl-lembar"
+               style={{ fontSize: `${huruf}pt`,
+                        ...(satuHalaman && skala.lebar ? { zoom: skala.zoom, width: skala.lebar } : {}) }}>
             <header>
               {isi.slug ? <img src={`/project/${isi.slug}.png`} alt="" className="tnc-logo" /> : <span />}
               <div className="pl-judul">
