@@ -877,10 +877,9 @@ export function LangkahDataPl({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
 
       <div className="tscroll sp">
         <table className="tabel-ringkas tabel-isian tabel-rapat"><tbody>
-          <tr><th>Kolom</th><th>Dihitung dari</th><th>Koefisien / pengali</th>
-            <th style={{ textAlign: "left" }}
-                title="Nama kolom yang tampil di Pricelist dan cetakan; hitungannya tetap dari kolom ini">
-              Nama di Pricelist</th></tr>
+          <tr className="kepala-tengah"><th>Kolom</th><th>Dihitung dari</th><th>Koefisien / pengali</th>
+            <th title="Nama kolom yang tampil di Pricelist dan cetakan; hitungannya tetap dari kolom ini">
+              Perubahan Metode Pembayaran</th></tr>
           {kolom.map((k, i) => (
             <tr key={i}>
               <td><IsianTeks nilai={k.nama} lebar={190} disabled={ro}
