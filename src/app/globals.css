@@ -3180,5 +3180,5 @@ ul.daftar-ubah li { margin: 1px 0; }
 .pl-lembar .pl-catatan { margin: .6em 0 0; font-style: italic; }
 @media print { .pl-lembar thead { display: table-header-group; } }
 /* Kolom harga sama lebar; judul cara bayar yang panjang dilipat. */
-.pl-lembar th.harga, .pl-lembar td.harga { width: 7.6em; min-width: 7.6em; max-width: 7.6em; }
+.pl-lembar th.harga, .pl-lembar td.harga { width: 8.4em; min-width: 8.4em; max-width: 8.4em; }
 .pl-lembar thead th.cb { white-space: normal; word-break: break-word; line-height: 1.15; }
