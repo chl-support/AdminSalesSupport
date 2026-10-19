@@ -113,6 +113,8 @@ export default function PricelistPage() {
   const [draf, setDraf] = useState<Draf | null>(null);
   // Dinaikkan sesudah memberlakukan, supaya daftar pricelist tersimpan dibaca ulang.
   const [versiPl, setVersiPl] = useState(0);
+  /** Cara bayar yang baru ditambah dan belum disimpan (untuk "Batalkan tambah"). */
+  const [baruCb, setBaruCb] = useState(0);
   const [data, setData] = useState<SusunPricelist | null>(null);
   const [langkah, setLangkah] = useState(0);
   const [galat, setGalat] = useState<string | null>(null);
@@ -166,7 +168,7 @@ export default function PricelistPage() {
       body: JSON.stringify({ data }),
     });
     setSibuk(null);
-    if (b) { setDraf(b); setData(b.data); setVersiPl((v) => v + 1); }
+    if (b) { setDraf(b); setData(b.data); setVersiPl((v) => v + 1); setBaruCb(0); }
     return !!b;
   };
 
@@ -329,7 +331,7 @@ export default function PricelistPage() {
           </nav>
 
           {[
-            <LangkahIrr key={0} {...props} />,
+            <LangkahIrr key={0} {...props} baru={[baruCb, setBaruCb]} />,
             <LangkahUnit key={1} {...props} />,
             <LangkahDataPl key={2} {...props} />,
             <LangkahPricelist key={3} {...props} aksi={panelBerlaku} slug={sesi.project_slug} />,

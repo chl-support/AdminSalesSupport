@@ -3186,3 +3186,7 @@ ul.daftar-ubah li { margin: 1px 0; }
 /* Data Pricelist: kolom harga sama lebar, judul panjang dilipat. */
 .tabel-harga-rata th.kol-harga { width: 128px; min-width: 128px; max-width: 128px;
   white-space: normal; text-align: center !important; line-height: 1.2; vertical-align: middle; }
+
+/* Judul cara bayar Data (IRR) dengan tombol hapus kecil. */
+.kepala-cb { display: inline-flex; align-items: center; gap: 4px; }
+.kepala-cb .hapus-cb { padding: 0 6px; line-height: 1.4; color: var(--stop, #b42318); }
