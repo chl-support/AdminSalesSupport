@@ -80,6 +80,37 @@ async function bolehKirim(peran: string): Promise<boolean> {
   return true;
 }
 
+/** Satu baris hitungan: berapa pekerjaan, pada status apa, di project mana. */
+export type Rincian = { project: string; status: string; jumlah: number };
+
+/** Nama pengganti bagi klaim lama yang belum punya project. */
+export const TANPA_PROJECT = "Tanpa project";
+
+/**
+ * Isi surel bagian tengahnya: pekerjaan yang menunggu, dikelompokkan per
+ * project dan disebut nama project-nya.
+ *
+ * Dipisah dari pengirimannya supaya bentuknya dapat diuji tanpa mengirim
+ * surel — dan supaya yang mengubah susunannya melihat contoh hasilnya di
+ * rangkaian uji, bukan di kotak masuk orang.
+ */
+export function susunRincian(rincian: Rincian[]): string {
+  const perProject = new Map<string, Rincian[]>();
+  for (const r of rincian) {
+    const daftar = perProject.get(r.project) ?? [];
+    daftar.push(r);
+    perProject.set(r.project, daftar);
+  }
+  return [...perProject.entries()]
+    .map(([project, baris]) => {
+      const jumlah = baris.reduce((t, b) => t + b.jumlah, 0);
+      return `${project} (${jumlah}):\n` + baris
+        .map((b) => `  • ${b.jumlah} ${TUGAS[b.status] ?? b.status}`)
+        .join("\n");
+    })
+    .join("\n\n");
+}
+
 /**
  * Mengabari satu peran bahwa ada pekerjaan menunggu.
  *
@@ -98,10 +129,16 @@ export async function kabariPeran(peran: string, alamatAplikasi?: string) {
         AND NULLIF(to_jsonb(users) ->> 'email','') IS NOT NULL`, [peran]);
   if (!penerima.length) return;
 
-  const rincian = await query<{ status: string; jumlah: number }>(
-    `SELECT status, count(*)::int AS jumlah FROM claims
-      WHERE status = ANY($1::claim_status[])
-      GROUP BY status ORDER BY 2 DESC`, [status]);
+  // Dipilah per project, bukan satu angka gabungan: satu peran mengerjakan
+  // beberapa project, dan "ada 7 pengajuan menunggu" tanpa menyebut project
+  // tidak memberi tahu di mana ketujuhnya berada — yang membacanya tetap harus
+  // membuka satu per satu untuk tahu harus mulai dari mana.
+  const rincian = await query<Rincian>(
+    `SELECT COALESCE(p.name, $2) AS project, c.status, count(*)::int AS jumlah
+       FROM claims c LEFT JOIN projects p ON p.id = c.project_id
+      WHERE c.status = ANY($1::claim_status[])
+      GROUP BY 1, 2
+      ORDER BY 1, 3 DESC`, [status, TANPA_PROJECT]);
   const total = rincian.reduce((t, r) => t + r.jumlah, 0);
   if (!total) return;
 
@@ -109,9 +146,7 @@ export async function kabariPeran(peran: string, alamatAplikasi?: string) {
   // gunanya menghabiskan jatah satu surel per jam untuk peran itu.
   if (!await bolehKirim(peran)) return;
 
-  const baris = rincian
-    .map((r) => `  • ${r.jumlah} ${TUGAS[r.status] ?? r.status}`)
-    .join("\n");
+  const baris = susunRincian(rincian);
   const alamat = alamatAplikasi
     ?? process.env.ALAMAT_APLIKASI
     ?? (process.env.VERCEL_PROJECT_PRODUCTION_URL

@@ -230,8 +230,22 @@ const GROUP_COLUMNS: Record<string, string> = {
   sales_group: "c.recipient_role::text",
 };
 
+/**
+ * Rekap pembayaran satu periode, hanya untuk satu project.
+ *
+ * Rekap tanpa batas project menjumlahkan pembayaran seluruh project menjadi
+ * satu angka — dan yang membacanya di layar satu project membaca angka itu
+ * sebagai angka project-nya sendiri. Yang dipakai membatasi adalah project
+ * pada klaimnya, sebab di situlah pembayaran ini bermula.
+ *
+ * `null` berarti tanpa batas, sama seperti pada claimView() dan createClaim():
+ * jalan dari layar selalu membawa project (projectAktif melemparkan galat bila
+ * belum dipilih), sedangkan skrip pemeriksaan kadang memang menghitung
+ * seluruhnya.
+ */
 export async function paymentRecap(
-  periodFrom: string, periodTo: string, groupBy = "claim_type",
+  projectId: string | null, periodFrom: string, periodTo: string,
+  groupBy = "claim_type",
 ) {
   const col = GROUP_COLUMNS[groupBy] ?? GROUP_COLUMNS.claim_type;
   const rows = await query(
@@ -248,9 +262,10 @@ export async function paymentRecap(
      JOIN claims c ON c.id = pi.claim_id
      JOIN units u ON u.id = c.unit_id
      JOIN marketings m ON m.id = c.marketing_id
-     WHERE s.transfer_date BETWEEN $1::date AND $2::date
+     WHERE s.transfer_date BETWEEN $2::date AND $3::date
+       AND ($1::uuid IS NULL OR c.project_id = $1)
      GROUP BY k`,
-    [periodFrom, periodTo]);
+    [projectId, periodFrom, periodTo]);
 
   const totals = { claim_count: 0, gross_amount: 0, vat: 0, pph21: 0, pph23: 0,
                    net_amount: 0 };
@@ -270,13 +285,20 @@ export async function paymentRecap(
            period_status: await periodStatus(periodOf(periodFrom)), totals, groups };
 }
 
-/** Instruksi transfer yang tidak pernah dikonfirmasi tanggal pembayarannya. */
-export async function bankReconciliation(minAgeDays = 7) {
+/**
+ * Instruksi transfer yang tidak pernah dikonfirmasi tanggal pembayarannya,
+ * pada satu project. Sama seperti rekap di atas: daftar lintas project membuat
+ * orang menagih kolega di project lain atas instruksi yang bukan urusannya.
+ */
+export async function bankReconciliation(
+  projectId: string | null, minAgeDays = 7,
+) {
   return query(
     `SELECT pi.id, c.claim_number, pi.recipient_name, pi.amount, pi.issued_at,
             EXTRACT(DAY FROM now() - pi.issued_at)::int AS age
      FROM payment_instructions pi JOIN claims c ON c.id = pi.claim_id
      WHERE pi.status IN ('pending','exported')
-       AND now() - pi.issued_at >= ($1 || ' days')::interval
-     ORDER BY age DESC`, [String(minAgeDays)]);
+       AND ($1::uuid IS NULL OR c.project_id = $1)
+       AND now() - pi.issued_at >= ($2 || ' days')::interval
+     ORDER BY age DESC`, [projectId, String(minAgeDays)]);
 }

@@ -199,14 +199,17 @@ export async function imporAgen(
 
     let agencyId: string | null = mkt?.agency_id ?? null;
     if (b.agensi) {
+      // Dalam lingkup project ini saja, sama seperti marketingnya: tiap
+      // project bekerja dengan agensi yang berbeda-beda, dan nama yang sama
+      // pada dua project diurus sendiri-sendiri.
       const ada = await one<{ id: string }>(
-        "SELECT id FROM agencies WHERE lower(name)=$1",
-        [b.agensi.toLowerCase()], client);
+        "SELECT id FROM agencies WHERE lower(name)=$1 AND project_id=$2",
+        [b.agensi.toLowerCase(), projectId], client);
       if (ada) agencyId = ada.id;
       else if (!dryRun) {
         agencyId = (await query<{ id: string }>(
-          "INSERT INTO agencies (name) VALUES ($1) RETURNING id",
-          [b.agensi], client))[0].id;
+          "INSERT INTO agencies (name, project_id) VALUES ($1,$2) RETURNING id",
+          [b.agensi, projectId], client))[0].id;
       }
     }
 

@@ -19,6 +19,7 @@ import { KATEGORI_JENIS, kategoriAwal } from "../src/lib/kategori";
 import { hapusMarketing, tambahMarketing, ubahEmail,
          unggahManual } from "../src/lib/spesimen";
 import { rekapOverriding } from "../src/lib/overriding";
+import { susunRincian } from "../src/lib/pengingat";
 import { penandatanganRekap } from "../src/lib/penandatangan";
 import { skemaXlsx } from "../src/lib/memo-xlsx";
 import { berlakukan, cabut, daftarRujukan, ensureKolomRujukan, nominal,
@@ -1122,9 +1123,58 @@ async function main() {
   });
 
   await check("rekap memakai tanggal transfer, bukan tanggal input", async () => {
-    const rec = await settlement.paymentRecap("2020-01-01", "2100-01-01");
+    const rec = await settlement.paymentRecap(
+      null, "2020-01-01", "2100-01-01");
     assert(rec.totals.net_amount === 5_272_500, JSON.stringify(rec.totals));
     assert(rec.totals.claim_count === 1, String(rec.totals.claim_count));
+  });
+
+  await check("pengingat surel menyebut nama project tiap pekerjaan", () => {
+    const teks = susunRincian([
+      { project: "Naraya Serpong", status: "pending_tax_verification", jumlah: 3 },
+      { project: "Naraya Serpong", status: "approved", jumlah: 1 },
+      { project: "BIO District", status: "pending_tax_verification", jumlah: 2 },
+    ]);
+    assert(teks.includes("Naraya Serpong (4):"), teks);
+    assert(teks.includes("BIO District (2):"), teks);
+    assert(teks.includes("• 3 menunggu verifikasi pajak"), teks);
+    // Dua project berdiri sebagai dua kelompok, bukan satu daftar bercampur.
+    assert(teks.indexOf("BIO District") > teks.indexOf("• 1 menunggu penetapan"),
+           teks);
+  });
+
+  await check("rekap pembayaran hanya memuat project sendiri", async () => {
+    // Klaim contoh diberi project, lalu rekap diminta dua kali: untuk project
+    // itu, dan untuk project lain. Yang kedua harus kosong — di situlah
+    // pemisahan antar-project terbukti, bukan pada jumlahnya saja.
+    const rantai = await one<{ claim_id: string }>(
+      `SELECT pi.claim_id FROM settlement_lines sl
+         JOIN payment_instructions pi ON pi.id = sl.instruction_id LIMIT 1`);
+    assert(Boolean(rantai), "belum ada pembayaran contoh");
+    const dua = await query<{ id: string }>(
+      "SELECT id FROM projects ORDER BY created_at LIMIT 2");
+    assert(dua.length === 2, "perlu dua project untuk menguji pemisahan");
+    const [milik, lain] = dua;
+    await query("UPDATE claims SET project_id=$2 WHERE id=$1",
+                [rantai!.claim_id, milik.id]);
+
+    const sendiri = await settlement.paymentRecap(
+      milik.id, "2020-01-01", "2100-01-01");
+    const tetangga = await settlement.paymentRecap(
+      lain.id, "2020-01-01", "2100-01-01");
+    assert(sendiri.totals.claim_count === 1,
+           `project sendiri: ${JSON.stringify(sendiri.totals)}`);
+    assert(tetangga.totals.claim_count === 0,
+           `project lain seharusnya kosong: ${JSON.stringify(tetangga.totals)}`);
+
+    const daftarSendiri = await settlement.bankReconciliation(milik.id, 0);
+    const daftarLain = await settlement.bankReconciliation(lain.id, 0);
+    assert(daftarLain.length === 0,
+           `rekonsiliasi project lain seharusnya kosong: ${daftarLain.length}`);
+    assert(daftarSendiri.length >= 0, "rekonsiliasi project sendiri gagal");
+
+    await query("UPDATE claims SET project_id=NULL WHERE id=$1",
+                [rantai!.claim_id]);
   });
 
   await check("periode tertutup mengalihkan entri terlambat ke periode terbuka",

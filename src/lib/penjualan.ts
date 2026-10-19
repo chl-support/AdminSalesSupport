@@ -157,13 +157,24 @@ export async function imporLaporan(
   const cacheAgensi = new Map<string, string>();
   const cacheMarketing = new Map<string, string>();
 
+  /**
+   * Agensi dicari dan dibuat dalam lingkup project ini saja.
+   *
+   * Tiap project bekerja dengan agensi yang berbeda-beda, dan nama yang sama
+   * pada dua project adalah dua baris: alamat, NPWP, dan status PKP-nya diurus
+   * sendiri-sendiri oleh masing-masing project. Satu baris bersama berarti
+   * perubahan NPWP yang dicatat satu project diam-diam berlaku di project
+   * lain.
+   */
   async function agensiId(nama: string): Promise<string> {
     const kunci = nama.toLowerCase();
     if (cacheAgensi.has(kunci)) return cacheAgensi.get(kunci)!;
     const ada = await one<{ id: string }>(
-      "SELECT id FROM agencies WHERE lower(name) = $1", [kunci], client);
+      "SELECT id FROM agencies WHERE lower(name) = $1 AND project_id = $2",
+      [kunci, projectId], client);
     const id = ada?.id ?? (await query<{ id: string }>(
-      "INSERT INTO agencies (name) VALUES ($1) RETURNING id", [nama], client))[0].id;
+      "INSERT INTO agencies (name, project_id) VALUES ($1,$2) RETURNING id",
+      [nama, projectId], client))[0].id;
     cacheAgensi.set(kunci, id);
     return id;
   }

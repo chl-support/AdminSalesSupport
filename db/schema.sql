@@ -817,6 +817,14 @@ UPDATE incentive_schemes SET project_id = (SELECT id FROM projects WHERE slug='b
 CREATE INDEX IF NOT EXISTS idx_marketings_category
   ON marketings(project_id, category);
 
+-- Agensi milik project: tiap project bekerja dengan agensi yang berbeda-beda,
+-- dan NPWP maupun status PKP yang dicatat satu project tidak boleh ikut berlaku
+-- di project lain. Pemindahan baris lama dikerjakan ensureKolomMarketing()
+-- (src/lib/kolom.ts), yang berjalan tanpa SETUP_SECRET.
+ALTER TABLE agencies ADD COLUMN IF NOT EXISTS project_id UUID REFERENCES projects(id);
+CREATE UNIQUE INDEX IF NOT EXISTS uniq_agencies_project_nama
+  ON agencies (project_id, lower(name)) WHERE project_id IS NOT NULL;
+
 -- Nomor kontrak unik per project, bukan di seluruh basis data.
 --
 -- Sebelum pemisahan project, keunikan menyeluruh benar: hanya ada satu project.
