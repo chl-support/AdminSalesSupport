@@ -3182,3 +3182,7 @@ ul.daftar-ubah li { margin: 1px 0; }
 /* Kolom harga sama lebar; judul cara bayar yang panjang dilipat. */
 .pl-lembar th.harga, .pl-lembar td.harga { width: 8.4em; min-width: 8.4em; max-width: 8.4em; }
 .pl-lembar thead th.cb { white-space: normal; word-break: break-word; line-height: 1.15; }
+
+/* Data Pricelist: kolom harga sama lebar, judul panjang dilipat. */
+.tabel-harga-rata th.kol-harga { width: 128px; min-width: 128px; max-width: 128px;
+  white-space: normal; text-align: center !important; line-height: 1.2; vertical-align: middle; }

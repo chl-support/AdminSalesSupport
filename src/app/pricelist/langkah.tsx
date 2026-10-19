@@ -804,11 +804,12 @@ export function LangkahDataPl({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
       </div>
 
       <div className="tscroll" style={{ maxHeight: 560, overflowY: "auto" }}>
-        <table className="tabel-ringkas kepala-lekat" style={{ whiteSpace: "nowrap" }}><thead>
+        {/* Kolom harga sama lebar; judul cara bayar yang panjang dilipat. */}
+        <table className="tabel-ringkas kepala-lekat tabel-harga-rata" style={{ whiteSpace: "nowrap" }}><thead>
           <tr>
             <th>No</th><th>Code</th><th>Phase</th><th>Address</th><th>View</th><th>Ukuran</th>
-            <th>Tipe</th><th>Sub-Tipe</th><th>Land</th><th>Build</th><th>Factored Price</th>
-            {kolom.map((k) => <th key={k.nama}>{k.nama}</th>)}
+            <th>Tipe</th><th>Sub-Tipe</th><th>Land</th><th>Build</th><th className="kol-harga">Factored Price</th>
+            {kolom.map((k) => <th key={k.nama} className="kol-harga">{k.nama}</th>)}
           </tr>
         </thead><tbody>
           {hasil.baris.map((b, i) => (
