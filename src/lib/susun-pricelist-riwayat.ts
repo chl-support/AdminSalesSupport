@@ -150,15 +150,7 @@ export function bedaSusun(lama: SusunPricelist | null, baru: SusunPricelist): st
   // 3. Data Pricelist
   nilai("Data Pricelist · Tambahan per unit", angka(lama.dataPricelist.tambahan, 0),
         angka(baru.dataPricelist.tambahan, 0));
-  const kA = new Map(lama.dataPricelist.kolom.map((k) => [k.nama, k]));
-  for (const k of baru.dataPricelist.kolom) {
-    const a = kA.get(k.nama);
-    if (a && (a.diskon ?? 0) !== (k.diskon ?? 0)) {
-      out.push(`Data Pricelist · ${k.nama} · Diskon: ${persen(a.diskon ?? 0)} → ${persen(k.diskon ?? 0)}`);
-    }
-  }
-  const tanpaDiskon = (ks: SusunPricelist["dataPricelist"]["kolom"]) => ks.map(({ diskon: _d, ...x }) => x);
-  if (!sama(tanpaDiskon(lama.dataPricelist.kolom), tanpaDiskon(baru.dataPricelist.kolom))) {
+  if (!sama(lama.dataPricelist.kolom, baru.dataPricelist.kolom)) {
     out.push(`Data Pricelist · Susunan kolom diubah (${baru.dataPricelist.kolom.map((k) => k.nama).join(", ")})`);
   }
 

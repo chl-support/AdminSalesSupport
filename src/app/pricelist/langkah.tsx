@@ -13,7 +13,7 @@ import { useEffect, useState } from "react";
 
 import { formatRupiah } from "@/lib/money";
 import {
-  FAKTOR, hargaKasIrr, hargaSesuaiSkema, labelPpn, namaTahap, sesudahDiskon, tarifPpn, unitKosong,
+  FAKTOR, hargaKasIrr, hargaSesuaiSkema, labelPpn, namaTahap, tarifPpn, unitKosong,
   type HasilSusun, type SusunPricelist, type UnitData,
 } from "@/lib/susun-pricelist";
 import type { UnitHarga } from "@/lib/simulasi";
@@ -766,8 +766,7 @@ export function LangkahDataPl({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
 
       <div className="tscroll sp">
         <table className="tabel-ringkas tabel-isian tabel-rapat"><tbody>
-          <tr><th>Kolom</th><th>Dihitung dari</th><th>Koefisien / pengali</th>
-            <th>Diskon</th><th>Koefisien akhir</th></tr>
+          <tr><th>Kolom</th><th>Dihitung dari</th><th>Koefisien / pengali</th></tr>
           {kolom.map((k, i) => (
             <tr key={i}>
               <td><IsianTeks nilai={k.nama} lebar={190} disabled={ro}
@@ -783,8 +782,8 @@ export function LangkahDataPl({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
                 <select value={k.skema ? `s:${k.skema}` : `k:${k.dari ?? ""}`} disabled={ro}
                         onChange={(e) => {
                           const [jenis, nama] = [e.target.value.slice(0, 1), e.target.value.slice(2)];
-                          ubahKolom(i, (x) => jenis === "s" ? { nama: x.nama, skema: nama, diskon: x.diskon }
-                            : { nama: x.nama, dari: nama, kali: x.kali ?? 1, diskon: x.diskon });
+                          ubahKolom(i, (x) => jenis === "s" ? { nama: x.nama, skema: nama }
+                            : { nama: x.nama, dari: nama, kali: x.kali ?? 1 });
                         }}>
                   <optgroup label="Koefisien Data (IRR)">
                     {data.irr.skema.map((s) => <option key={s.nama} value={`s:${s.nama}`}>{s.nama}</option>)}
@@ -799,28 +798,6 @@ export function LangkahDataPl({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
                   : <Isian jenis="persen" nilai={k.kali ?? 1} lebar={70} disabled={ro}
                            ubah={(n) => ubahKolom(i, (x) => ({ ...x, kali: n }))} />}
               </td>
-              {/* Diskon (%) dan Koefisien akhir saling terhubung: ketik salah
-                  satu, yang lain menyesuaikan. Koefisien akhir = koefisien ×
-                  (1 − diskon). */}
-              {(() => {
-                const dasar = k.skema ? hasil.irr.koef[k.skema] : (k.kali ?? 1);
-                const ada = Number.isFinite(dasar) && dasar > 0;
-                const akhir = ada ? sesudahDiskon(dasar, k.diskon) : NaN;
-                const setDiskon = (d: number) => ubahKolom(i, (x) => ({ ...x,
-                  diskon: Math.abs(d) < 1e-9 ? undefined : Math.max(-1, Math.min(1, +d.toFixed(10))) }));
-                return (<>
-                  <td className="n">
-                    <Isian jenis="persen" kosongNol desimal={2} nilai={k.diskon ?? 0} lebar={60} disabled={ro || !ada}
-                           ubah={(n) => setDiskon(n)} />
-                  </td>
-                  <td className="n">
-                    {ada
-                      ? <Isian nilai={+akhir.toFixed(5)} desimal={3} lebar={70} disabled={ro}
-                               ubah={(n) => setDiskon(1 - n / dasar)} />
-                      : "—"}
-                  </td>
-                </>);
-              })()}
             </tr>
           ))}
         </tbody></table>
