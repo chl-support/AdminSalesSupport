@@ -471,6 +471,15 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
   // biasanya sama untuk satu cluster sudah terisi; kotak Code-nya langsung
   // disorot supaya kode unit barunya dapat segera diketik.
   const [pilih, setPilih] = useState<Set<number>>(new Set());
+  // Increase massal: satu persen untuk semua unit atau hanya unit terpilih.
+  const [kenaikan, setKenaikan] = useState(0);
+  const [pesanKenaikan, setPesanKenaikan] = useState<string | null>(null);
+  const terapkanKenaikan = (hanyaTerpilih: boolean) => {
+    const n = hanyaTerpilih ? pilih.size : data.unit.length;
+    ubah((d) => ({ ...d, unit: d.unit.map((u, j) =>
+      !hanyaTerpilih || pilih.has(j) ? { ...u, kenaikan } : u) }));
+    setPesanKenaikan(`Increase ${persen(kenaikan)} diterapkan ke ${n} unit${hanyaTerpilih ? " terpilih" : ""}. Simpan untuk menyimpannya.`);
+  };
   const [yakin, setYakin] = useState<number | "pilihan" | null>(null);
   const [fokus, setFokus] = useState<number | null>(null);
   useEffect(() => {
@@ -583,6 +592,20 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
         <button onClick={() => { location.href = "/api/pricelist/susun/template-unit"; }}>
           Unduh Template Unit Data</button>
       </div>
+      {bolehUbah && data.unit.length > 0 && (
+        <div className="row increase-massal">
+          <b>Increase</b>
+          <Isian id="unit-increase-massal" jenis="persen" nilai={kenaikan} lebar={70}
+                  ubah={(n) => { setKenaikan(n); setPesanKenaikan(null); }} />
+          <button onClick={() => terapkanKenaikan(false)}>Semua Unit ({data.unit.length})</button>
+          <button disabled={!pilih.size} onClick={() => terapkanKenaikan(true)}
+                  title={pilih.size ? undefined : "Centang unit di tabel lebih dulu"}>
+            Unit Terpilih ({pilih.size})</button>
+          <span className="hint" style={{ margin: 0 }}>
+            {pesanKenaikan ?? "Isi persen, lalu terapkan ke semua unit atau ke unit yang dicentang di tabel."}
+          </span>
+        </div>
+      )}
       {buka && (
         <div className="form-blok">
           <p className="hint kiri" style={{ marginTop: 0 }}>
