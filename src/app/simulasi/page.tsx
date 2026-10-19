@@ -609,9 +609,13 @@ export default function SimulasiPage() {
       // lain: nol terbaca sebagai "persen ini lebih kecil daripada booking
       // fee-nya", dan itu memang yang perlu dilihat orang yang mengetiknya.
       const bulatRp = Math.max(0, bulatRibu(nilai));
-      return u.map((x, j) => j === i
+      // Sama seperti kolom Nilai: begitu satu termin ditetapkan, termin di
+      // bawahnya dibagi rata atas sisanya, dan jumlahnya kembali sama dengan
+      // harga transaksi. Persen yang tadi diketik pada baris-baris itu ikut
+      // dilepas — angkanya kini mengikuti nilai, bukan sebaliknya.
+      return bagiSisa(u.map((x, j) => j === i
         ? { ...x, persenTeks: teksPersen, teks: bulatRp.toLocaleString("id-ID") }
-        : x);
+        : x), i);
     });
   };
 
@@ -637,37 +641,36 @@ export default function SimulasiPage() {
    * habis dibagi tiga akan meninggalkan satu atau dua rupiah, dan selisih satu
    * rupiah pada lembar yang dicetak tetap selisih.
    */
+  const bagiSisa = (baris: BarisUbah[], i: number): BarisUbah[] => {
+    const target = Math.round(hasilStandar?.hargaTransaksi ?? 0);
+    const sesudah = baris
+      .map((x, j) => ({ x, j }))
+      .filter(({ x, j }) => j > i && !x.sembunyi)
+      .map(({ j }) => j);
+    if (!sesudah.length || !(target > 0)) return baris;
+
+    const diluar = baris.reduce(
+      (t, x, j) => t + (sesudah.includes(j) ? 0 : nilaiBaris(x)), 0);
+    const sisa = Math.max(0, Math.round(target - diluar));
+    // Bulat ribuan, dan baris terakhir menanggung selisihnya — ia pun ikut
+    // bulat selama sisanya bulat ribuan.
+    const per = bulatRibu(sisa / sesudah.length);
+    const hasilBaris = [...baris];
+    sesudah.forEach((j, urut) => {
+      const nilai = urut === sesudah.length - 1
+        ? sisa - per * (sesudah.length - 1) : per;
+      hasilBaris[j] = { ...hasilBaris[j], teks: nilai.toLocaleString("id-ID"),
+                        persenTeks: null };
+    });
+    return hasilBaris;
+  };
+
   const ubahNilai = (i: number, mentah: string) => {
     const teks = rapikanRupiah(mentah);
-    const target = Math.round(hasilStandar?.hargaTransaksi ?? 0);
-    setUbah((u) => {
-      if (!u) return u;
-      const baris = u.map((x, j) =>
-        j === i
-          // Nilai yang diketik tangan membatalkan persen yang tadi diketik:
-          // arahnya berbalik lagi, persen mengikuti nilai.
-          ? { ...x, teks, persenTeks: null }
-          : x);
-      const sesudah = baris
-        .map((x, j) => ({ x, j }))
-        .filter(({ x, j }) => j > i && !x.sembunyi)
-        .map(({ j }) => j);
-      if (!sesudah.length || !(target > 0)) return baris;
-
-      const diluar = baris.reduce(
-        (t, x, j) => t + (sesudah.includes(j) ? 0 : nilaiBaris(x)), 0);
-      const sisa = Math.max(0, Math.round(target - diluar));
-      // Bulat ribuan, dan baris terakhir menanggung selisihnya — ia pun ikut
-      // bulat selama sisanya bulat ribuan.
-      const per = bulatRibu(sisa / sesudah.length);
-      sesudah.forEach((j, urut) => {
-        const nilai = urut === sesudah.length - 1
-          ? sisa - per * (sesudah.length - 1) : per;
-        baris[j] = { ...baris[j], teks: nilai.toLocaleString("id-ID"),
-                     persenTeks: null };
-      });
-      return baris;
-    });
+    setUbah((u) => u && bagiSisa(
+      // Nilai yang diketik tangan membatalkan persen yang tadi diketik:
+      // arahnya berbalik lagi, persen mengikuti nilai.
+      u.map((x, j) => j === i ? { ...x, teks, persenTeks: null } : x), i));
   };
 
   // Pembanding tetap Cash Keras, cara bayar yang paling ringkas jadwalnya dan
