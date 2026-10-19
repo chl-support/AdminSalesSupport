@@ -113,6 +113,42 @@ const persen = (n: number, d = 2, min = 0) =>
 
 // ── 1. Data (IRR) ──────────────────────────────────────────────────────────
 
+/**
+ * Bagi `total` basis poin (10000 = 100%) sebanding dengan `bobot`, dengan
+ * metode sisa terbesar supaya jumlahnya tepat `total`. Bobot nol semua →
+ * dibagi rata.
+ */
+function bagiSebanding(bobot: number[], total: number): number[] {
+  if (!bobot.length) return [];
+  const jml = bobot.reduce((a, b) => a + Math.max(0, b), 0);
+  const dasar = jml > 0 ? bobot.map((b) => (Math.max(0, b) / jml) * total) : bobot.map(() => total / bobot.length);
+  const bulat = dasar.map(Math.floor);
+  let sisa = total - bulat.reduce((a, b) => a + b, 0);
+  dasar.map((x, i) => [x - Math.floor(x), i] as const).sort((a, b) => b[0] - a[0])
+    .forEach(([, i]) => { if (sisa > 0) { bulat[i]++; sisa--; } });
+  return bulat;
+}
+
+/**
+ * Allocation selalu berjumlah 100%: cara bayar ke-`i` diberi `nilai`, sisanya
+ * dibagi ke cara bayar lain sebanding dengan allocation lamanya.
+ */
+function aturAlokasi<T extends { alokasi: number }>(skema: T[], i: number, nilai: number): T[] {
+  const bp = Math.round(Math.min(1, Math.max(0, nilai)) * 10000);
+  const lain = skema.map((s, j) => ({ s, j })).filter(({ j }) => j !== i);
+  const bagian = bagiSebanding(lain.map(({ s }) => s.alokasi), 10000 - bp);
+  const baru = skema.map((s) => ({ ...s }));
+  baru[i].alokasi = bp / 10000;
+  lain.forEach(({ j }, k) => { baru[j].alokasi = bagian[k] / 10000; });
+  return baru;
+}
+
+/** Sesuaikan semua allocation sebanding supaya berjumlah 100%. */
+function genapkanAlokasi<T extends { alokasi: number }>(skema: T[]): T[] {
+  const bagian = bagiSebanding(skema.map((s) => s.alokasi), 10000);
+  return skema.map((s, j) => ({ ...s, alokasi: bagian[j] / 10000 }));
+}
+
 
 export function LangkahIrr({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
   const irr = data.irr;
@@ -192,7 +228,8 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
       d.dataPricelist.kolom.forEach((k) => { if (k.dari && hilang.has(k.dari)) hilang.add(k.nama); });
       return {
         ...d,
-        irr: { ...d.irr, skema: d.irr.skema.filter((_, j) => j !== i) },
+        // Allocation cara bayar yang dihapus dibagi ke yang lain (tetap 100%).
+        irr: { ...d.irr, skema: genapkanAlokasi(d.irr.skema.filter((_, j) => j !== i)) },
         dataPricelist: { ...d.dataPricelist, kolom: d.dataPricelist.kolom.filter((k) => !hilang.has(k.nama)) },
         pricelist: { ...d.pricelist, kolom: d.pricelist.kolom.filter((k) => !hilang.has(k.dari)) },
       };
@@ -260,7 +297,8 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
                                    ubah={(v) => ubahSkema(i, (x) => ({ ...x, kelompok: v }))} /></td>))}</tr>
           <tr><td>Allocation</td>{irr.skema.map((s, i) => (
             <td key={i}><Isian jenis="persen" nilai={s.alokasi} lebar={60} disabled={ro}
-                               ubah={(n) => ubahSkema(i, (x) => ({ ...x, alokasi: n }))} /></td>))}</tr>
+                               ubah={(n) => ubah((d) => ({ ...d, irr: { ...d.irr,
+                                 skema: aturAlokasi(d.irr.skema, i, n) } }))} /></td>))}</tr>
           <tr><td>DP</td>{irr.skema.map((s, i) => (
             <td key={i}><Isian jenis="persen" nilai={s.dp} lebar={60} disabled={ro}
                                ubah={(n) => ubahArus(i, (x) => ({ ...x, dp: n }))} /></td>))}</tr>
@@ -350,8 +388,18 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
       <div className="row" style={{ marginTop: 10 }}>
         <span className="hint" style={{ margin: 0 }}>
           Total alokasi <b>{persen(hasil.irr.totalAlokasi)}</b> · WA coefficient{" "}
-          <b>{hasil.irr.koefRata.toFixed(3)}</b>
+          <b>{hasil.irr.koefRata.toFixed(3)}</b> · Allocation otomatis berjumlah 100%: mengubah
+          satu cara bayar menyesuaikan yang lain secara sebanding.
         </span>
+        {bolehUbah && Math.abs(hasil.irr.totalAlokasi - 1) > 1e-9 && (
+          <button onClick={() => ubah((d) => ({ ...d, irr: { ...d.irr, skema: genapkanAlokasi(d.irr.skema) } }))}>
+            Genapkan ke 100%</button>
+        )}
+        {bolehUbah && (
+          <button onClick={() => ubah((d) => ({ ...d, irr: { ...d.irr,
+            skema: d.irr.skema.map((s, j, a) => ({ ...s, alokasi: bagiSebanding(a.map(() => 0), 10000)[j] / 10000 })) } }))}>
+            Bagi rata</button>
+        )}
         {bolehUbah && <button onClick={tambahSkema}>+ Tambah cara bayar</button>}
       </div>
     </>
