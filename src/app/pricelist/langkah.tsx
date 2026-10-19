@@ -871,8 +871,8 @@ export function LangkahPricelist({ data, hasil, ubah, bolehUbah, aksi, slug }: P
       <p className="hint kiri">
         Kolom dengan pengali 100% mengambil harga Data Pricelist apa adanya; selain
         itu ROUND(harga × pengali, juta) — di Excel 111,5% untuk kolom KPR.
-        DPP = harga / (1 + PPN {labelPpn(tarifPpn(data))}); Nilai Free PPN DTP = harga − DPP,
-        paling banyak PPN atas pagu harga. Tarif PPN diubah di langkah 2.
+        DPP = harga / (1 + PPN {labelPpn(tarifPpn(data))}); Nilai Free PPN DTP = harga − DPP.
+        Tarif PPN diubah di langkah 2.
       </p>
       <div className="filters rapat">
         <div><div className="lbl">Judul</div>
@@ -881,9 +881,6 @@ export function LangkahPricelist({ data, hasil, ubah, bolehUbah, aksi, slug }: P
         <div><div className="lbl">Tanggal berlaku</div>
           <IsianTeks id="pl-tanggal" nilai={pl.tanggal} lebar={160} disabled={ro}
                      ubah={(v) => ubahPl((p) => ({ ...p, tanggal: v }))} /></div>
-        <div><div className="lbl">Pagu harga PPN DTP (Rp)</div>
-          <Isian id="pl-pagu" jenis="rp" nilai={pl.batasDtp} lebar={150} disabled={ro}
-                 ubah={(n) => ubahPl((p) => ({ ...p, batasDtp: n }))} /></div>
         <div style={{ gridColumn: "span 2" }}><div className="lbl">Catatan kolom KPR</div>
           <input id="pl-catatan" value={pl.catatan} disabled={ro}
                  onChange={(e) => ubahPl((p) => ({ ...p, catatan: e.target.value }))} /></div>
