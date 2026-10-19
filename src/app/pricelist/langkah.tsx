@@ -363,7 +363,7 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
 const TEKS_UNIT = [
   ["kode", "Code", 100], ["alamat", "Address", 130], ["view", "View", 85],
   ["no", "No", 40], ["ukuran", "Ukuran", 75], ["phase", "Phase", 45],
-  ["tipe", "Tipe PL", 45], ["tipeBangunan", "Type", 45], ["view2", "View", 85], ["bentuk", "Sub-Tipe Kavling/Irr/Irr Hoek", 110],
+  ["tipeBangunan", "Type", 45], ["view2", "View", 85], ["bentuk", "Sub-Tipe Kavling/Irr/Irr Hoek", 110],
   ["subTipe", "Sub-Tipe", 110],
 ] as const;
 

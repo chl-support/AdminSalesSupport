@@ -175,7 +175,7 @@ export async function templatUnitData(): Promise<Buffer> {
   const kolom: [string, string, string, number][] = [
     ["kode", "Code", "", 14], ["alamat", "Address", "", 16], ["view", "View", "", 11],
     ["no", "No", "", 6], ["ukuran", "Ukuran", "", 10], ["phase", "Phase", "", 7],
-    ["tipe", "Tipe PL", "", 8], ["tipeBangunan", "Type", "", 7], ["view2", "View", "", 11],
+    ["tipeBangunan", "Type", "", 7], ["view2", "View", "", 11],
     ["bentuk", "Sub-Tipe Kavling/Irr/Irr Hoek", "", 16],
     ["subTipe", "Sub-Tipe", "", 14],
     ["lt", "Tanah", "Land", 9], ["hargaTanah", "", "Land Price (base) (Excl PPN. 11%)", 18],
@@ -231,7 +231,7 @@ export async function templatUnitData(): Promise<Buffer> {
     "Land dan GFA dalam m². Land Price (base) dan GFA (base) adalah harga per m² sebelum PPN 11%, angka saja tanpa \"Rp\" atau titik ketik manual.",
     "Increase, faktor posisi (Single Row s.d. Side Garden) dan (+) Factor diisi persen, mis. ketik 5% atau 0,05. Kosongkan bila tidak ada.",
     "Special dan Show Unit dalam rupiah. Kosongkan bila tidak ada.",
-    "Phase dan Tipe PL boleh kosong: Phase dianggap 1, dan untuk unit yang Code-nya sudah ada di tabel, isian lamanya dipakai.",
+    "Phase boleh kosong: dianggap 1, dan untuk unit yang Code-nya sudah ada di tabel, isian lamanya dipakai.",
     "Jangan ganti nama lembar UNIT DATA dan jangan sembunyikan (hide) lembarnya. Lembar PETUNJUK ini boleh dibiarkan.",
     "Unggah lewat langkah 2. Unit Data → Impor Unit Data dari Excel. Hasilnya tampil di tabel untuk diperiksa sebelum Simpan.",
   ].forEach((t, i) => {
