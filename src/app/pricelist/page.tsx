@@ -31,6 +31,7 @@ const KATA = {
   id: {
     judul: "Pricelist",
     langkah: ["Data (IRR)", "Unit Data", "Data Pricelist", "Pricelist", "Terms & Conditions"],
+    folder: "Data & Riwayat Pricelist", folderUraian: "Pricelist tersimpan & riwayat perubahan",
     uraian: [
       "Koefisien harga tiap cara bayar",
       "Harga dasar tiap unit",
@@ -64,6 +65,7 @@ const KATA = {
   en: {
     judul: "Price List",
     langkah: ["Data (IRR)", "Unit Data", "Price Data", "Price List", "Terms & Conditions"],
+    folder: "Price List Data & History", folderUraian: "Saved price lists & change history",
     uraian: [
       "Price coefficient per payment scheme",
       "Base price per unit",
@@ -100,6 +102,9 @@ type Draf = {
   baru: boolean; data: SusunPricelist;
   diubah_oleh: string | null; diubah_pada: string | null;
 };
+
+/** Nomor "langkah" untuk folder Data & Riwayat Pricelist di depan langkah 1. */
+const FOLDER = -1;
 
 export default function PricelistPage() {
   const { sesi, memuat } = useSesi();
@@ -299,18 +304,17 @@ export default function PricelistPage() {
             )}
           </div>
 
-          {/* Pricelist yang sudah diberlakukan beserta riwayatnya: dapat
-              dibuka, diunduh, dan diganti namanya dari sini. */}
-          {sesi.project_slug && (
-            <PanelPricelist sesi={sesi} versi={versiPl} onBerubah={() => setVersiPl((v) => v + 1)}
-                            onEdit={bolehUbah ? (id, nama) => void bukaEdit(id, nama) : undefined} />)}
-          {sesi.project_slug && <RiwayatSusun versi={versiPl} />}
-
           {/* Satu langkah tampil sekali waktu, seperti lembar-lembar Excel-nya:
               klik langkah di bilah atas untuk berpindah. Isian semua langkah
               tetap satu draf, jadi berpindah langkah tidak menghilangkan apa
               pun. Bilahnya menempel di atas saat halaman digulir. */}
           <nav className="langkah langkah-pl lekat" aria-label={k.judul}>
+            {/* Folder di depan langkah 1: pricelist tersimpan dan riwayatnya. */}
+            <button className={`lk folder-pl ${langkah === FOLDER ? "kini" : ""}`}
+                    aria-current={langkah === FOLDER ? "page" : undefined}
+                    onClick={() => setLangkah(FOLDER)}>
+              <b><span aria-hidden>📁</span> {k.folder}</b>{k.folderUraian}
+            </button>
             {k.langkah.map((l, i) => (
               <button key={l} className={`lk ${i === langkah ? "kini" : ""}`}
                       aria-current={i === langkah ? "step" : undefined}
@@ -336,6 +340,17 @@ export default function PricelistPage() {
               {isi}
             </section>
           ))}
+
+          {/* Data & Riwayat Pricelist: pricelist yang berlaku dan yang
+              tersimpan (dapat dibuka, diunduh, diganti nama, Buka & edit),
+              beserta riwayat perubahannya. */}
+          {langkah === FOLDER && sesi.project_slug && (
+            <>
+              <PanelPricelist sesi={sesi} versi={versiPl} onBerubah={() => setVersiPl((v) => v + 1)}
+                              onEdit={bolehUbah ? (id, nama) => void bukaEdit(id, nama) : undefined} />
+              <RiwayatSusun versi={versiPl} />
+            </>
+          )}
         </>
       )}
     </Kerangka>
