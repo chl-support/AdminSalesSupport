@@ -53,6 +53,14 @@ function bacaAngka(s: string, jenis: Jenis): number | null {
  * dibaca saat kotak ditinggalkan atau Enter ditekan — supaya "9," yang baru
  * setengah diketik tidak langsung dibulatkan menjadi 9.
  */
+/**
+ * Lebar kotak isian: sekurang-kurangnya `lebar`, dan melebar mengikuti isinya
+ * bila isinya lebih panjang — supaya isian tidak terpotong dan kolom tabelnya
+ * ikut melebar dengan sendirinya.
+ */
+const lebarIsi = (teks: string, lebar: number) =>
+  `max(${lebar}px, calc(${teks.length + 1}ch + 14px))`;
+
 export function Isian({ nilai, ubah, jenis = "angka", lebar = 90, disabled, id, kosongNol, desimal }: {
   nilai: number; ubah: (n: number) => void; jenis?: Jenis; lebar?: number;
   disabled?: boolean; id?: string;
@@ -74,17 +82,18 @@ export function Isian({ nilai, ubah, jenis = "angka", lebar = 90, disabled, id, 
     setSalah(false); setTeks(null);
     if (n !== nilai) ubah(n);
   };
+  const tampil = teks ?? (kosongNol && nilai === 0 ? ""
+    : desimal != null && Number.isFinite(nilai)
+      ? (jenis === "persen" ? nilai * 100 : nilai)
+          .toLocaleString("id-ID", { minimumFractionDigits: desimal, maximumFractionDigits: desimal })
+      : tampilAngka(nilai, jenis));
   return (
     <span className="isian-angka">
-      <input id={id} value={teks ?? (kosongNol && nilai === 0 ? ""
-               : desimal != null && Number.isFinite(nilai)
-                 ? (jenis === "persen" ? nilai * 100 : nilai)
-                     .toLocaleString("id-ID", { minimumFractionDigits: desimal, maximumFractionDigits: desimal })
-                 : tampilAngka(nilai, jenis))}
+      <input id={id} value={tampil}
              disabled={disabled}
              onFocus={desimal != null ? () => setTeks(tampilAngka(nilai, jenis)) : undefined}
              inputMode="decimal" aria-invalid={salah || undefined}
-             style={{ width: lebar }}
+             style={{ width: lebarIsi(tampil, lebar) }}
              onChange={(e) => setTeks(e.target.value)} onBlur={simpan}
              onKeyDown={(e) => { if (e.key === "Enter") simpan(); }} />
       <span className="satuan">{jenis === "persen" && !(kosongNol && nilai === 0 && teks == null) ? "%" : ""}</span>
@@ -95,7 +104,8 @@ export function Isian({ nilai, ubah, jenis = "angka", lebar = 90, disabled, id, 
 function IsianTeks({ nilai, ubah, lebar = 110, disabled, id }: {
   nilai: string; ubah: (s: string) => void; lebar?: number; disabled?: boolean; id?: string;
 }) {
-  return <input id={id} value={nilai} disabled={disabled} style={{ width: lebar }}
+  return <input id={id} value={nilai} disabled={disabled}
+                style={{ width: lebarIsi(nilai, lebar) }}
                 onChange={(e) => ubah(e.target.value)} />;
 }
 
