@@ -230,10 +230,11 @@ export default function CetakPricelist() {
               {isi.slug ? <img src={`/project/${isi.slug}.png`} alt="" className="tnc-logo" /> : <span />}
               <div className="pl-judul">
                 <h1>{isi.judul || "PRICELIST"}</h1>
-                {isi.tanggal && <div>{isi.tanggal}</div>}
               </div>
               <span />
             </header>
+            {/* Tanggal di pojok kiri, tepat di atas tabel. */}
+            {isi.tanggal && <div className="pl-tanggal">{isi.tanggal}</div>}
             <table ref={tabel}>
               <thead>
                 <tr>
