@@ -697,7 +697,7 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
                 <td><Isian nilai={u.lb} lebar={60} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, lb: n }))} /></td>
                 <td><Isian jenis="rp" nilai={u.hargaBangunan} lebar={95} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, hargaBangunan: n }))} /></td>
                 <td className="n">{rpPolos(b?.hasilUnit.hargaBangunanPpn)}</td>
-                <td><Isian jenis="persen" kosongNol desimal={2} nilai={u.kenaikan} lebar={55} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, kenaikan: n }))} /></td>
+                <td><Isian jenis="persen" kosongNol desimal={1} nilai={u.kenaikan} lebar={55} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, kenaikan: n }))} /></td>
                 {FAKTOR.map(([k]) => (
                   <td key={k}><Isian jenis="persen" kosongNol nilai={u.faktor[k] ?? 0} lebar={55} disabled={ro}
                                      ubah={(n) => ubahUnit(i, (x) => ({ ...x, faktor: { ...x.faktor, [k]: n } }))} /></td>
