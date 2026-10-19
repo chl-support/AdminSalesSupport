@@ -19,6 +19,7 @@ import { useKata } from "../bahasa";
 import { Kerangka, MemeriksaSesi } from "../kerangka";
 import { PilihBerkas } from "../pilih-berkas";
 import { PanelPricelist } from "./panel-pricelist";
+import { RiwayatSusun } from "./riwayat-susun";
 import { useSesi } from "../session";
 import { PENGUNGGAH } from "../simulasi/unggah-pricelist";
 import { hitungSemua, type SusunPricelist } from "@/lib/susun-pricelist";
@@ -152,7 +153,7 @@ export default function PricelistPage() {
       body: JSON.stringify({ data }),
     });
     setSibuk(null);
-    if (b) { setDraf(b); setData(b.data); }
+    if (b) { setDraf(b); setData(b.data); setVersiPl((v) => v + 1); }
     return !!b;
   };
 
@@ -178,8 +179,7 @@ export default function PricelistPage() {
     setSibuk(null);
     if (!b) return;
     setData(b.susun); setPeringatan(b.peringatan ?? []); setNamaPl("");
-    setInfo(k.dibuka(nama));
-    document.getElementById("langkah-1")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    setInfo(k.dibuka(nama)); setLangkah(0);
   };
 
   const berlakukan = async () => {
@@ -282,20 +282,21 @@ export default function PricelistPage() {
           {/* Pricelist yang sudah diberlakukan beserta riwayatnya: dapat
               dibuka, diunduh, dan diganti namanya dari sini. */}
           {sesi.project_slug && (
-            <PanelPricelist sesi={sesi} versi={versiPl}
+            <PanelPricelist sesi={sesi} versi={versiPl} onBerubah={() => setVersiPl((v) => v + 1)}
                             onEdit={bolehUbah ? (id, nama) => void bukaEdit(id, nama) : undefined} />)}
+          {sesi.project_slug && <RiwayatSusun versi={versiPl} />}
 
-          {/* Kelima langkah tampil sekaligus, berurutan seperti lembar-lembar
-              Excel-nya, supaya dapat disunting dan diperiksa tanpa berpindah
-              layar. Bilah langkah di atas hanya menunjuk dan melompat ke
-              bagiannya; ia ikut menempel di atas saat halaman digulir. */}
+          {/* Satu langkah tampil sekali waktu, seperti lembar-lembar Excel-nya:
+              klik langkah di bilah atas untuk berpindah. Isian semua langkah
+              tetap satu draf, jadi berpindah langkah tidak menghilangkan apa
+              pun. Bilahnya menempel di atas saat halaman digulir. */}
           <nav className="langkah langkah-pl lekat" aria-label={k.judul}>
             {k.langkah.map((l, i) => (
               <button key={l} className={`lk ${i === langkah ? "kini" : ""}`}
                       aria-current={i === langkah ? "step" : undefined}
                       onClick={() => {
                         setLangkah(i);
-                        document.getElementById(`langkah-${i + 1}`)
+                        document.querySelector(".langkah-pl")
                           ?.scrollIntoView({ behavior: "smooth", block: "start" });
                       }}>
                 <b>{i + 1}. {l}</b>{k.uraian[i]}
@@ -309,9 +310,8 @@ export default function PricelistPage() {
             <LangkahDataPl key={2} {...props} />,
             <LangkahPricelist key={3} {...props} aksi={panelBerlaku} />,
             <LangkahTnc key={4} {...props} />,
-          ].map((isi, i) => (
-            <section key={i} id={`langkah-${i + 1}`} className="panel sp bagian-langkah"
-                     onFocusCapture={() => setLangkah(i)} onMouseEnter={() => setLangkah(i)}>
+          ].map((isi, i) => i !== langkah ? null : (
+            <section key={i} id={`langkah-${i + 1}`} className="panel sp bagian-langkah">
               <h2>{i + 1}. {k.langkah[i]}<span className="hint" style={{ margin: 0 }}>{k.uraian[i]}</span></h2>
               {isi}
             </section>

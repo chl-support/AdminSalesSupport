@@ -15,6 +15,7 @@ import { bacaPricelist, simpanPricelist } from "./pricelist";
 import { hitungSemua, type SusunPricelist } from "./susun-pricelist";
 import { SUSUN_NARAYA } from "./susun-pricelist-naraya";
 import { eksporSusun } from "./susun-pricelist-xlsx";
+import { bedaSusun, catatRiwayat } from "./susun-pricelist-riwayat";
 
 const angka = z.number().finite();
 const teks = z.string().max(2000);
@@ -134,6 +135,9 @@ export async function simpanSusun(
   projectId: string, data: SusunPricelist, aktor: string,
 ): Promise<DrafSusun> {
   await ensureTabel();
+  // Isian awal yang diperbarui otomatis tidak dicatat di riwayat; simpanan
+  // orang dicatat beserta daftar perubahannya.
+  const lama = aktor === AKTOR_AWAL ? null : await bacaSusun(projectId);
   const row = await one<DrafSusun>(
     `INSERT INTO pricelist_susun (project_id, data, diubah_oleh, diubah_pada)
      VALUES ($1,$2,$3,now())
@@ -145,6 +149,10 @@ export async function simpanSusun(
     entityType: "pricelist_susun", entityId: projectId, action: "pricelist_draft_saved",
     actor: aktor, after: { unit: data.unit.length, skema: data.irr.skema.length },
   });
+  if (aktor !== AKTOR_AWAL) {
+    const beda = bedaSusun(lama?.data ?? null, data);
+    if (beda.length) await catatRiwayat(projectId, aktor, "Simpan", beda);
+  }
   return row!;
 }
 
@@ -180,5 +188,7 @@ export async function berlakukanSusun(
   const { id } = await simpanPricelist({
     projectId, nama: judul, namaBerkas, isi, hasil, aktor,
   });
+  await catatRiwayat(projectId, aktor, "Berlakukan",
+    [`Diberlakukan sebagai "${judul}" (file ${namaBerkas}, ${hasil.unit.length} unit)`]);
   return { id, nama: judul };
 }
