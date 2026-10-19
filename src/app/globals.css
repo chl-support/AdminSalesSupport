@@ -226,6 +226,11 @@ textarea.reason { width: 100%; min-height: 80px; font-size: 13.5px; }
 .filters > div { display: flex; flex-direction: column; }
 .filters > div > :last-child { margin-top: auto; }
 .filters input, .filters select { width: 100%; }
+/* Kotak isian beserta pemilih satuannya (Rp atau %) pada satu baris. Lebar
+   pemilihnya mengikuti isinya; sisanya milik kotak isian. */
+.filters .satuan { display: flex; gap: 6px; margin-top: auto; }
+.filters .satuan input { flex: 1 1 auto; min-width: 0; }
+.filters .satuan select { width: auto; flex: 0 0 auto; }
 /* Tabel entri punya enam kolom: di layar sempit ia digulir sendiri, bukan
    memaksa seluruh halaman menggulir menyamping. */
 .tscroll { overflow-x: auto; }

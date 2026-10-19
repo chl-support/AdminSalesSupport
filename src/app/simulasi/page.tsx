@@ -48,6 +48,14 @@ type BarisUbah = {
    * menjaga "29," tetap dapat dilanjutkan menjadi "29,45" tanpa melompat.
    */
   persenTeks?: string | null;
+  /**
+   * Tagihan yang diketik orang pada kolom Tagihan (DTP), apa adanya.
+   *
+   * Null berarti kolom itu mengikuti hitungan — tagihan adalah nilai dikurangi
+   * DTP. Begitu diketik, nilainya yang dicari: nilai = tagihan + DTP, dan DTP
+   * tetap mengikuti aturan PMK.
+   */
+  tagihanTeks?: string | null;
 };
 
 /** "1.234.567" atau "1234567,5" menjadi angka; kosong atau keliru menjadi 0. */
@@ -60,6 +68,12 @@ const rapikanRupiah = (s: string) => {
   const [bulat, ...pecahan] = bersih.split(",");
   const ribuan = bulat.replace(/^0+(?=\d)/, "").replace(/\B(?=(\d{3})+(?!\d))/g, ".");
   return pecahan.length ? `${ribuan},${pecahan.join("").slice(0, 2)}` : ribuan;
+};
+/** Angka persen: digit dan satu koma, mis. "9,45". Titik ribuan tak berarti. */
+const rapikanPersen = (s: string) => {
+  const [bulat, ...pecahan] = s.replace(/[^\d,.]/g, "").replace(/\./g, ",")
+    .split(",");
+  return pecahan.length ? `${bulat},${pecahan.join("").slice(0, 2)}` : bulat;
 };
 const bacaRupiah = (s: string) => {
   const n = Number(s.replace(/[^\d,.-]/g, "").replace(/\./g, "").replace(",", "."));
@@ -87,7 +101,7 @@ const KATA = {
     fTambah: "Penambahan Harga",
     plBeda: (pl: string, sk: string) =>
       `Harga dari PL ${pl}, jadwal mengikuti ${sk}.`,
-    fDiskon: "Diskon (%)",
+    fDiskon: "Diskon",
     fBunga: "Bunga KPR (%)",
     cetakKonsumen: "Preview & Print Out — Konsumen",
     cetakManagement: "Preview & Print Out — Management",
@@ -180,7 +194,7 @@ const KATA = {
     fTambah: "Price Addition",
     plBeda: (pl: string, sk: string) =>
       `Price from the ${pl} list, schedule follows ${sk}.`,
-    fDiskon: "Discount (%)",
+    fDiskon: "Discount",
     fBunga: "Mortgage Rate (%)",
     cetakKonsumen: "Preview & Print Out — Customer",
     cetakManagement: "Preview & Print Out — Management",
@@ -298,6 +312,17 @@ export default function SimulasiPage() {
   // juta dan deretan nol tanpa pemisah salah dibaca.
   const [tambah, setTambah] = useState("0");
   const [diskon, setDiskon] = useState("0");
+  /**
+   * Satuan kedua kotak itu, dipilih sendiri-sendiri.
+   *
+   * Kesepakatan datang dalam dua bentuk: "tambah 25 juta" dan "tambah 2%",
+   * "diskon 5%" dan "diskon 50 juta" — dan yang memegang kesepakatan tidak
+   * seharusnya menghitung ulang di kalkulator sebelum mengetiknya ke sini.
+   * Bawaannya mengikuti yang paling sering: penambahan dalam rupiah, diskon
+   * dalam persen.
+   */
+  const [satuanTambah, setSatuanTambah] = useState<"rp" | "persen">("rp");
+  const [satuanDiskon, setSatuanDiskon] = useState<"rp" | "persen">("persen");
   const [bunga, setBunga] = useState("4.65");
 
   useEffect(() => {
@@ -363,14 +388,33 @@ export default function SimulasiPage() {
   // bila sama, hitung() mengambil harga dari cara bayar itu sendiri.
   const skemaHarga = plDasar && plDasar !== skema && unit && unit.harga[plDasar] > 0
     ? plDasar : undefined;
-  const nilaiTambah = bacaRupiah(tambah);
+  /**
+   * Harga yang menjadi dasar kedua kotak itu: kolom PL Harga Dasar.
+   *
+   * Persen pada penambahan maupun diskon dihitung darinya, sama seperti kolom
+   * % pada jadwal — bukan dari harga transaksi, yang justru hasil dari
+   * keduanya.
+   */
+  const hargaDasar = (unit && plDasar ? unit.harga[plDasar] : 0) || 0;
+  const nilaiTambah = satuanTambah === "rp"
+    ? bacaRupiah(tambah)
+    : bulatRibu(hargaDasar * angka(tambah) / 100);
+  /**
+   * Diskon selalu disimpan dan dicetak sebagai persen — begitulah bentuknya
+   * di lembar cetak, pada versi jadwal tersimpan, dan pada alamat lembar
+   * cetak. Yang mengetik rupiah hanya menempuh jalan lain menuju angka yang
+   * sama.
+   */
+  const diskonPersen = satuanDiskon === "persen"
+    ? angka(diskon)
+    : (hargaDasar > 0 ? bacaRupiah(diskon) / hargaDasar * 100 : 0);
   const hasilStandar = useMemo(() => unit && unit.harga[skemaHarga ?? skema] > 0
     ? hitung({
         unit, skema, skemaHarga, tambahan: nilaiTambah,
-        diskon: angka(diskon) / 100,
+        diskon: diskonPersen / 100,
         bungaKpr: angka(bunga) / 100, tanggal: booking, tarifDtp,
       }) : null,
-    [unit, skema, skemaHarga, nilaiTambah, diskon, bunga, booking, tarifDtp]);
+    [unit, skema, skemaHarga, nilaiTambah, diskonPersen, bunga, booking, tarifDtp]);
 
   // Jadwal suntingan. null = jadwal standar cara bayarnya. Disetel ulang
   // setiap kali dasar jadwalnya berganti: suntingan untuk unit atau cara
@@ -380,7 +424,7 @@ export default function SimulasiPage() {
   // salah satunya diganti, layar kembali ke jadwal standar; membuka versi
   // tersimpan mengisi keempatnya sekaligus beserta barisnya.
   const kunciKini =
-    `${kode}|${skema}|${skemaHarga ?? ""}|${tanggal}|${nilaiTambah}|${angka(diskon)}`;
+    `${kode}|${skema}|${skemaHarga ?? ""}|${tanggal}|${nilaiTambah}|${diskonPersen}`;
   const [ubahKunci, setUbahKunci] =
     useState<{ kunci: string; baris: BarisUbah[] } | null>(null);
   const ubah = ubahKunci?.kunci === kunciKini ? ubahKunci.baris : null;
@@ -459,7 +503,7 @@ export default function SimulasiPage() {
         body: JSON.stringify({
           kode, skema, skemaHarga: skemaHarga ?? null,
           tanggal, tambahan: nilaiTambah,
-          diskon: angka(diskon), bunga: angka(bunga),
+          diskon: diskonPersen, bunga: angka(bunga),
           catatan, baris: ubah.map((b) => ({
             ket: b.ket, tgl: b.tgl, nilai: nilaiBaris(b),
             sembunyi: b.sembunyi, tambahan: b.tambahan })),
@@ -508,7 +552,13 @@ export default function SimulasiPage() {
     // pembagiannya ke dua kotak: ada kolom harga tersendiri, atau tidak.
     setPlDasar((v.skema_harga || skema) as Skema);
     setCaraBayar(v.skema_harga ? skema : "");
+    // Yang tersimpan rupiah untuk penambahan dan persen untuk diskon, jadi
+    // satuannya ikut dikembalikan ke sana — bukan dibiarkan pada satuan yang
+    // kebetulan sedang dipilih, yang akan membaca angka yang sama sebagai
+    // angka yang lain sama sekali.
+    setSatuanTambah("rp");
     setTambah(rapikanRupiah(String(Math.round(v.tambahan ?? 0))));
+    setSatuanDiskon("persen");
     setDiskon(String(v.diskon));
     setBunga(String(v.bunga));
     setCatatan(v.catatan ?? "");
@@ -531,13 +581,13 @@ export default function SimulasiPage() {
     if (!ubah || !unit || !hasilStandar) return hasilStandar;
     return hitung({
       unit, skema, skemaHarga, tambahan: nilaiTambah,
-      diskon: angka(diskon) / 100,
+      diskon: diskonPersen / 100,
       bungaKpr: angka(bunga) / 100, tanggal: booking, tarifDtp,
       jadwalManual: ubah.map((b) => ({
         ket: b.ket, tgl: tanggalIso(b.tgl, booking), nilai: nilaiBaris(b) })),
     });
-  }, [ubah, hasilStandar, unit, skema, skemaHarga, nilaiTambah, diskon, bunga,
-      booking, tarifDtp]);
+  }, [ubah, hasilStandar, unit, skema, skemaHarga, nilaiTambah, diskonPersen,
+      bunga, booking, tarifDtp]);
   const sembunyi = ubah?.map((b) => b.sembunyi);
 
   /**
@@ -614,7 +664,8 @@ export default function SimulasiPage() {
       // harga transaksi. Persen yang tadi diketik pada baris-baris itu ikut
       // dilepas — angkanya kini mengikuti nilai, bukan sebaliknya.
       return bagiSisa(u.map((x, j) => j === i
-        ? { ...x, persenTeks: teksPersen, teks: bulatRp.toLocaleString("id-ID") }
+        ? { ...x, persenTeks: teksPersen, tagihanTeks: null,
+            teks: bulatRp.toLocaleString("id-ID") }
         : x), i);
     });
   };
@@ -660,7 +711,7 @@ export default function SimulasiPage() {
       const nilai = urut === sesudah.length - 1
         ? sisa - per * (sesudah.length - 1) : per;
       hasilBaris[j] = { ...hasilBaris[j], teks: nilai.toLocaleString("id-ID"),
-                        persenTeks: null };
+                        persenTeks: null, tagihanTeks: null };
     });
     return hasilBaris;
   };
@@ -668,18 +719,83 @@ export default function SimulasiPage() {
   const ubahNilai = (i: number, mentah: string) => {
     const teks = rapikanRupiah(mentah);
     setUbah((u) => u && bagiSisa(
-      // Nilai yang diketik tangan membatalkan persen yang tadi diketik:
-      // arahnya berbalik lagi, persen mengikuti nilai.
-      u.map((x, j) => j === i ? { ...x, teks, persenTeks: null } : x), i));
+      // Nilai yang diketik tangan membatalkan persen maupun tagihan yang tadi
+      // diketik: arahnya berbalik lagi, keduanya mengikuti nilai.
+      u.map((x, j) =>
+        j === i ? { ...x, teks, persenTeks: null, tagihanTeks: null } : x), i));
+  };
+
+  /**
+   * Hitung ulang satu jadwal suntingan, dengan masukan layar yang sedang
+   * berlaku. Dipakai ubahTagihan() untuk membaca DTP yang akan keluar dari
+   * sebuah susunan, sebelum susunan itu dipasang.
+   */
+  const hitungJadwal = (baris: BarisUbah[]): Hasil | null => {
+    if (!unit || !hasilStandar) return null;
+    try {
+      return hitung({
+        unit, skema, skemaHarga, tambahan: nilaiTambah,
+        diskon: diskonPersen / 100, bungaKpr: angka(bunga) / 100,
+        tanggal: booking, tarifDtp,
+        jadwalManual: baris.map((b) => ({
+          ket: b.ket, tgl: tanggalIso(b.tgl, booking), nilai: nilaiBaris(b) })),
+      });
+    } catch { return null; }
+  };
+
+  /**
+   * Tagihan diketik; nilailah yang menyesuaikan, DTP tetap menurut PMK.
+   *
+   * Yang ditagihkan kepada konsumen adalah nilai dikurangi PPN yang ditanggung
+   * pemerintah. Jadi menetapkan tagihan berarti mencari nilai yang, setelah
+   * dipotong DTP-nya, menyisakan angka itu — bukan menggeser DTP-nya, yang
+   * besarnya ditentukan tarif dan pagu PMK, bukan oleh kesepakatan.
+   *
+   * Dicari dengan beberapa putaran, sebab DTP bergantung pada nilai yang
+   * sedang dicari itu sendiri: nilai ditaksir, jadwalnya dihitung, DTP-nya
+   * dibaca, nilai ditaksir ulang. Tiap putaran memangkas selisihnya menjadi
+   * sepersepuluh — DTP sekitar 9,9% dari nilainya — jadi dua belas putaran
+   * membawa taksiran pertama yang meleset ratusan juta ke dalam satu rupiah,
+   * dan perulangannya berhenti begitu selisihnya tinggal serupiah. Aturan
+   * pajaknya sendiri tidak ditulis ulang di sini: yang dibaca hasil hitung()
+   * yang sama dengan yang dipakai seluruh layar, lengkap dengan pagu dan
+   * cabang "pendahulunya nol".
+   *
+   * Tagihan yang diketik dipakai persis, tanpa dibulatkan ke ribuan: ia angka
+   * yang diketik orang, bukan hasil hitungan layar. Baris di bawahnya tetap
+   * dibagi rata atas sisanya, seperti pada kolom Nilai.
+   */
+  const ubahTagihan = (i: number, mentah: string) => {
+    const teksTagihan = rapikanRupiah(mentah);
+    const tagihan = bacaRupiah(teksTagihan);
+    setUbah((u) => {
+      if (!u) return u;
+      const pasang = (nilai: number) => bagiSisa(u.map((x, j) => j === i
+        ? { ...x, teks: Math.round(nilai).toLocaleString("id-ID"),
+            persenTeks: null, tagihanTeks: teksTagihan }
+        : x), i);
+
+      let nilai = tagihan;
+      let baris = pasang(nilai);
+      for (let putaran = 0; putaran < 12; putaran++) {
+        const h = hitungJadwal(baris);
+        const dtp = h?.termin[i]?.dtp ?? 0;
+        const taksiran = Math.round(tagihan + dtp);
+        if (Math.abs(taksiran - nilai) <= 1) break;
+        nilai = taksiran;
+        baris = pasang(nilai);
+      }
+      return baris;
+    });
   };
 
   // Pembanding tetap Cash Keras, cara bayar yang paling ringkas jadwalnya dan
   // karena itu paling tinggi nilai sekarangnya — di situlah selisih cara bayar
   // lain terbaca sebagai biaya menunggu.
   const dasar = useMemo(() => unit && unit.harga[tunai] > 0 ? hitung({
-    unit, skema: tunai, tambahan: nilaiTambah, diskon: angka(diskon) / 100,
+    unit, skema: tunai, tambahan: nilaiTambah, diskon: diskonPersen / 100,
     bungaKpr: angka(bunga) / 100, tanggal: booking, tarifDtp,
-  }) : null, [unit, tunai, nilaiTambah, diskon, bunga, booking, tarifDtp]);
+  }) : null, [unit, tunai, nilaiTambah, diskonPersen, bunga, booking, tarifDtp]);
 
   // Unduh PDF: lembar cetaknya digambar di luar layar, dipotret, lalu
   // diunduh — lembar yang sama dengan halaman pratinjau, tanpa membuka tab.
@@ -792,13 +908,44 @@ export default function SimulasiPage() {
               dipotong. */}
           <div>
             <div className="lbl">{k.fTambah}</div>
-            <input value={tambah} inputMode="decimal"
-                   onChange={(e) => setTambah(rapikanRupiah(e.target.value))} />
+            <span className="satuan">
+              <input value={tambah} inputMode="decimal"
+                     aria-label={k.fTambah}
+                     onChange={(e) => setTambah(satuanTambah === "rp"
+                       ? rapikanRupiah(e.target.value)
+                       : rapikanPersen(e.target.value))} />
+              {/* Ganti satuan tidak mengetik ulang angkanya: "25.000.000"
+                  yang berpindah ke persen menjadi 25.000.000% — angka yang
+                  tidak pernah dimaksudkan siapa pun. Kotaknya dikosongkan,
+                  dan yang mengganti satuan mengetik angkanya sekali lagi
+                  dalam satuan yang ia pilih. */}
+              <select value={satuanTambah} aria-label={`${k.fTambah} — satuan`}
+                      onChange={(e) => {
+                        setSatuanTambah(e.target.value as "rp" | "persen");
+                        setTambah("0");
+                      }}>
+                <option value="rp">Rp</option>
+                <option value="persen">%</option>
+              </select>
+            </span>
           </div>
           <div>
             <div className="lbl">{k.fDiskon}</div>
-            <input value={diskon} inputMode="decimal"
-                   onChange={(e) => setDiskon(e.target.value)} />
+            <span className="satuan">
+              <input value={diskon} inputMode="decimal"
+                     aria-label={k.fDiskon}
+                     onChange={(e) => setDiskon(satuanDiskon === "rp"
+                       ? rapikanRupiah(e.target.value)
+                       : rapikanPersen(e.target.value))} />
+              <select value={satuanDiskon} aria-label={`${k.fDiskon} — satuan`}
+                      onChange={(e) => {
+                        setSatuanDiskon(e.target.value as "rp" | "persen");
+                        setDiskon("0");
+                      }}>
+                <option value="rp">Rp</option>
+                <option value="persen">%</option>
+              </select>
+            </span>
           </div>
           <div>
             <div className="lbl">{k.fBunga}</div>
@@ -815,7 +962,7 @@ export default function SimulasiPage() {
                       jenis, kode, skema, tanggal,
                       ...(skemaHarga ? { pl: skemaHarga } : {}),
                       ...(nilaiTambah ? { tambah: String(nilaiTambah) } : {}),
-                      diskon: String(angka(diskon)), bunga: String(angka(bunga)),
+                      diskon: String(diskonPersen), bunga: String(angka(bunga)),
                       ...(ubah ? { jadwal: kodeJadwal(ubah.map((b) => ({
                         ket: b.ket, tgl: b.tgl, nilai: nilaiBaris(b),
                         sembunyi: b.sembunyi }))) } : {}),
@@ -1042,7 +1189,15 @@ export default function SimulasiPage() {
                                  onChange={(e) => ubahNilai(i, e.target.value)} />
                         : angkaLembar(t.nilai)}</td>
                       <td className="n">{angkaLembar(t.pv)}</td>
-                      <td className="n">{angkaLembar(t.tagihan)}</td>
+                      {/* Tagihan dapat diketik seperti kolom Nilai: yang
+                          disepakati konsumen kerap justru angka yang ia
+                          transfer, bukan nilai sebelum PPN DTP. */}
+                      <td className="n">{modeUbah && b
+                        ? <input className="n" inputMode="decimal"
+                                 value={b.tagihanTeks
+                                        ?? Math.round(t.tagihan).toLocaleString("id-ID")}
+                                 onChange={(e) => ubahTagihan(i, e.target.value)} />
+                        : angkaLembar(t.tagihan)}</td>
                       <td className="n">{angkaLembar(t.dtp)}</td>
                       {modeUbah && b && (
                         <td>
@@ -1055,12 +1210,21 @@ export default function SimulasiPage() {
                               { ket: k.eBaru, tgl: b.tgl, nilaiAsli: 0, teks: "0",
                                 sembunyi: false, tambahan: true },
                               ...u.slice(i + 1)])}>{k.eSisip}</button>
-                            {b.tambahan && (
-                              <button onClick={() => setUbah((u) =>
+                            {/* Hapus berdiri pada setiap baris, bukan hanya
+                                pada baris tambahan: termin bawaan pun kerap
+                                tidak jadi dipakai — mis. uang muka yang
+                                dilebur ke pembayaran berikutnya — dan
+                                menyembunyikannya hanya menghilangkannya dari
+                                lembar, bukan dari jumlahnya.
+
+                                Baris terakhir tidak dapat dihapus: jadwal
+                                tanpa satu pun termin bukan jadwal. */}
+                            <button
+                              disabled={(ubah?.length ?? 0) < 2}
+                              onClick={() => setUbah((u) =>
                                 u && u.length > 1 ? u.filter((_, j) => j !== i) : u)}>
-                                {k.eHapus}
-                              </button>
-                            )}
+                              {k.eHapus}
+                            </button>
                           </span>
                         </td>
                       )}
