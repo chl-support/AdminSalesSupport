@@ -51,6 +51,8 @@ const KATA = {
     galatJudul: "Belum dapat diberlakukan",
     berlakuJudul: "Berlakukan pricelist",
     berlakuInfo: "Pricelist ini menggantikan pricelist yang berlaku dan langsung dipakai layar Simulasi / NPV. Pricelist lama tetap ada di riwayatnya.",
+    yakinBuka: "Isian di layar belum disimpan dan akan diganti. Lanjutkan?",
+    dibuka: (n: string) => `Pricelist "${n}" dibuka untuk diedit. Setelah selesai, beri nama baru di langkah 4 lalu Simpan & berlakukan — pricelist "${n}" tetap ada di riwayat.`,
     fNama: "Nama pricelist (juga nama file Excel-nya)", berlakukan: "Simpan & berlakukan", memberlakukan: "Memberlakukan…",
     diberlakukan: (n: string) => `Pricelist "${n}" berlaku. Buka Simulasi / NPV untuk memakainya.`,
     keSimulasi: "Buka Simulasi / NPV",
@@ -79,6 +81,8 @@ const KATA = {
     galatJudul: "Cannot be applied yet",
     berlakuJudul: "Apply price list",
     berlakuInfo: "This price list replaces the one in force and is used by Simulation / NPV right away. The old one stays in the history.",
+    yakinBuka: "Unsaved changes on screen will be replaced. Continue?",
+    dibuka: (n: string) => `Price list "${n}" opened for editing. When done, give it a new name in step 4 and Save & apply — "${n}" stays in the history.`,
     fNama: "Price list name (also its Excel file name)", berlakukan: "Save & apply", memberlakukan: "Applying…",
     diberlakukan: (n: string) => `Price list "${n}" is in force. Open Simulation / NPV to use it.`,
     keSimulasi: "Open Simulation / NPV",
@@ -162,6 +166,20 @@ export default function PricelistPage() {
     setData(b.susun); setPeringatan(b.peringatan ?? []);
     setInfo(k.terimpor(b.susun.unit.length));
     setBukaImpor(false); setBerkas(null);
+  };
+
+  // Buka pricelist tersimpan untuk diedit. Isinya menggantikan isian di
+  // layar (belum tersimpan); pricelist lamanya tetap ada di riwayat, dan
+  // hasil suntingan disimpan sebagai pricelist baru dengan nama lain.
+  const bukaEdit = async (id: string, nama: string) => {
+    if (berubah && !confirm(k.yakinBuka)) return;
+    setSibuk("impor"); setGalat(null); setInfo(null); setBerlaku(null);
+    const b = await kirim(`/api/pricelist/${id}/susun`, { method: "GET" });
+    setSibuk(null);
+    if (!b) return;
+    setData(b.susun); setPeringatan(b.peringatan ?? []); setNamaPl("");
+    setInfo(k.dibuka(nama));
+    document.getElementById("langkah-1")?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
   const berlakukan = async () => {
@@ -263,7 +281,9 @@ export default function PricelistPage() {
 
           {/* Pricelist yang sudah diberlakukan beserta riwayatnya: dapat
               dibuka, diunduh, dan diganti namanya dari sini. */}
-          {sesi.project_slug && <PanelPricelist sesi={sesi} versi={versiPl} />}
+          {sesi.project_slug && (
+            <PanelPricelist sesi={sesi} versi={versiPl}
+                            onEdit={bolehUbah ? (id, nama) => void bukaEdit(id, nama) : undefined} />)}
 
           {/* Kelima langkah tampil sekaligus, berurutan seperti lembar-lembar
               Excel-nya, supaya dapat disunting dan diperiksa tanpa berpindah
