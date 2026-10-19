@@ -877,7 +877,10 @@ export function LangkahDataPl({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
 
       <div className="tscroll sp">
         <table className="tabel-ringkas tabel-isian tabel-rapat"><tbody>
-          <tr><th>Kolom</th><th>Dihitung dari</th><th>Koefisien / pengali</th></tr>
+          <tr><th>Kolom</th><th>Dihitung dari</th><th>Koefisien / pengali</th>
+            <th style={{ textAlign: "left" }}
+                title="Nama kolom yang tampil di Pricelist dan cetakan; hitungannya tetap dari kolom ini">
+              Nama di Pricelist</th></tr>
           {kolom.map((k, i) => (
             <tr key={i}>
               <td><IsianTeks nilai={k.nama} lebar={190} disabled={ro}
@@ -908,6 +911,18 @@ export function LangkahDataPl({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
                 {k.skema ? (Number.isFinite(hasil.irr.koef[k.skema]) ? hasil.irr.koef[k.skema].toFixed(3) : "—")
                   : <Isian jenis="persen" nilai={k.kali ?? 1} lebar={70} disabled={ro}
                            ubah={(n) => ubahKolom(i, (x) => ({ ...x, kali: n }))} />}
+              </td>
+              {/* Ganti nama yang tampil di Pricelist saja: kolom Pricelist yang
+                  bersumber dari kolom ini diganti namanya, hitungannya tetap. */}
+              <td>
+                {data.pricelist.kolom.map((p, j) => p.dari !== k.nama ? null : (
+                  <IsianTeks key={j} nilai={p.nama} lebar={230} disabled={ro}
+                             ubah={(v) => ubah((d) => ({ ...d, pricelist: { ...d.pricelist,
+                               kolom: d.pricelist.kolom.map((x, m) => m === j ? { ...x, nama: v } : x) } }))} />
+                ))}
+                {!data.pricelist.kolom.some((p) => p.dari === k.nama) && (
+                  <span className="hint" style={{ margin: 0 }}>tidak dipakai di Pricelist</span>
+                )}
               </td>
             </tr>
           ))}
