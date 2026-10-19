@@ -198,6 +198,8 @@ export type SusunPricelist = {
   ppn?: number;
   /** Catatan bebas di langkah 2 Unit Data, ikut tersimpan bersama draf. */
   catatanUnit?: string;
+  /** Gambar pada Catatan Unit Data; isinya di tabel pricelist_susun_gambar. */
+  catatanGambar?: { id: string; nama: string }[];
   irr: DataIrr;
   unit: UnitData[];
   dataPricelist: {

@@ -140,6 +140,12 @@ export function bedaSusun(lama: SusunPricelist | null, baru: SusunPricelist): st
     if (beda.length) out.push(`Unit Data · ${b.kode}: ${beda.join("; ")}`);
   }
   if ((lama.catatanUnit ?? "") !== (baru.catatanUnit ?? "")) out.push("Unit Data · Catatan diubah");
+  const gA = new Set((lama.catatanGambar ?? []).map((g) => g.id));
+  const gB = new Set((baru.catatanGambar ?? []).map((g) => g.id));
+  const gTambah = (baru.catatanGambar ?? []).filter((g) => !gA.has(g.id)).map((g) => g.nama);
+  const gHapus = (lama.catatanGambar ?? []).filter((g) => !gB.has(g.id)).map((g) => g.nama);
+  if (gTambah.length) out.push(`Unit Data · Gambar catatan ditambah: ${gTambah.join(", ")}`);
+  if (gHapus.length) out.push(`Unit Data · Gambar catatan dihapus: ${gHapus.join(", ")}`);
 
   // 3. Data Pricelist
   nilai("Data Pricelist · Tambahan per unit", angka(lama.dataPricelist.tambahan, 0),

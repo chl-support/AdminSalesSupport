@@ -614,14 +614,129 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
           </span>
         </div>
       )}
-      <div style={{ marginTop: 14 }}>
-        <label className="lbl" htmlFor="unit-catatan">Catatan</label>
-        <textarea id="unit-catatan" className="catatan-unit" rows={3} maxLength={5000}
-                  disabled={ro} value={data.catatanUnit ?? ""}
-                  onChange={(e) => { const v = e.target.value; ubah((d) => ({ ...d, catatanUnit: v })); }} />
-        <span className="hint" style={{ margin: 0 }}>Catatan ikut tersimpan setelah <b>Simpan</b>.</span>
-      </div>
+      <CatatanUnit data={data} ubah={ubah} ro={ro} />
     </>
+  );
+}
+
+/** Paling banyak sekian gambar per catatan (sama dengan batas di server). */
+const MAKS_GAMBAR = 10;
+
+/**
+ * Perkecil gambar besar sebelum diunggah: screenshot penuh layar atau foto
+ * kamera bisa beberapa MB. Gambar di atas 1,5 MB atau lebih lebar/tinggi dari
+ * 2000 px diubah menjadi JPEG 2000 px; gambar kecil diunggah apa adanya.
+ */
+async function perkecilGambar(f: File): Promise<File> {
+  if (f.type === "image/gif") return f;
+  const bmp = await createImageBitmap(f).catch(() => null);
+  if (!bmp) return f;
+  const skala = Math.min(1, 2000 / Math.max(bmp.width, bmp.height));
+  if (f.size <= 1.5 * 1024 * 1024 && skala === 1) return f;
+  const c = document.createElement("canvas");
+  c.width = Math.round(bmp.width * skala); c.height = Math.round(bmp.height * skala);
+  const ctx = c.getContext("2d")!;
+  ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, c.width, c.height);
+  ctx.drawImage(bmp, 0, 0, c.width, c.height);
+  const blob = await new Promise<Blob | null>((r) => c.toBlob(r, "image/jpeg", 0.88));
+  if (!blob) return f;
+  return new File([blob], f.name.replace(/\.\w+$/, "") + ".jpg", { type: "image/jpeg" });
+}
+
+/**
+ * Catatan Unit Data: tulisan dan gambar (mis. screenshot persetujuan harga).
+ * Gambar dipilih lewat tombol atau ditempel (Ctrl + V) di kotak catatan;
+ * gambar langsung diunggah, dan rujukannya ikut tersimpan saat Simpan.
+ */
+function CatatanUnit({ data, ubah, ro }: {
+  data: SusunPricelist; ubah: PropsLangkah["ubah"]; ro: boolean;
+}) {
+  const gambar = data.catatanGambar ?? [];
+  const [sibuk, setSibuk] = useState(false);
+  const [galat, setGalat] = useState<string | null>(null);
+
+  const unggah = async (files: File[]) => {
+    const sisa = MAKS_GAMBAR - gambar.length;
+    if (!files.length) return;
+    if (sisa <= 0) { setGalat(`Paling banyak ${MAKS_GAMBAR} gambar per catatan.`); return; }
+    setSibuk(true); setGalat(null);
+    try {
+      for (const asli of files.slice(0, sisa)) {
+        const f = await perkecilGambar(asli);
+        const fd = new FormData(); fd.append("file", f, f.name);
+        const res = await fetch("/api/pricelist/susun/gambar", { method: "POST", body: fd });
+        const b = await res.json().catch(() => ({}));
+        if (res.status === 401) { location.href = "/login"; return; }
+        if (!res.ok) { setGalat(`${asli.name}: ${b.detail ?? b.title ?? `HTTP ${res.status}`}`); continue; }
+        ubah((d) => ({ ...d, catatanGambar: [...(d.catatanGambar ?? []), { id: b.id, nama: b.nama }] }));
+      }
+      if (files.length > sisa) setGalat(`Hanya ${sisa} gambar yang ditambahkan: paling banyak ${MAKS_GAMBAR} gambar per catatan.`);
+    } finally {
+      setSibuk(false);
+    }
+  };
+
+  // Tempel screenshot (Windows + Shift + S lalu Ctrl + V). Bila papan klip
+  // juga berisi tulisan (mis. salinan sel Excel), yang ditempel tulisannya.
+  const tempel = (e: React.ClipboardEvent) => {
+    if (ro || e.clipboardData.getData("text/plain")) return;
+    const files = [...e.clipboardData.items]
+      .filter((it) => it.kind === "file" && it.type.startsWith("image/"))
+      .map((it, i) => {
+        const f = it.getAsFile()!;
+        const jam = new Date().toLocaleString("sv-SE").replace(/[: ]/g, "-");
+        return new File([f], `screenshot-${jam}${i ? `-${i + 1}` : ""}.${f.type.split("/")[1] || "png"}`,
+                        { type: f.type });
+      });
+    if (!files.length) return;
+    e.preventDefault();
+    void unggah(files);
+  };
+
+  return (
+    <div style={{ marginTop: 14 }}>
+      <label className="lbl" htmlFor="unit-catatan">Catatan</label>
+      <textarea id="unit-catatan" className="catatan-unit" rows={3} maxLength={5000}
+                disabled={ro} value={data.catatanUnit ?? ""} onPaste={tempel}
+                onChange={(e) => { const v = e.target.value; ubah((d) => ({ ...d, catatanUnit: v })); }} />
+      {gambar.length > 0 && (
+        <div className="gambar-catatan">
+          {gambar.map((g) => (
+            <figure key={g.id}>
+              <a href={`/api/pricelist/susun/gambar/${g.id}`} target="_blank" rel="noreferrer"
+                 title="Buka gambar ukuran penuh">
+                <img src={`/api/pricelist/susun/gambar/${g.id}`} alt={g.nama} loading="lazy" />
+              </a>
+              <figcaption>
+                <span title={g.nama}>{g.nama}</span>
+                {!ro && (
+                  <button className="kecil bahaya" aria-label={`Hapus ${g.nama}`}
+                          onClick={() => ubah((d) => ({ ...d,
+                            catatanGambar: (d.catatanGambar ?? []).filter((x) => x.id !== g.id) }))}>
+                    Hapus</button>
+                )}
+              </figcaption>
+            </figure>
+          ))}
+        </div>
+      )}
+      {galat && <div className="banner stop" style={{ marginTop: 8 }}>{galat}</div>}
+      <div className="row" style={{ margin: "6px 0 0", alignItems: "center" }}>
+        {!ro && (
+          <label className="tombol-berkas">
+            <input type="file" accept="image/png,image/jpeg,image/gif,image/webp" multiple hidden
+                   disabled={sibuk || gambar.length >= MAKS_GAMBAR}
+                   onChange={(e) => { void unggah([...(e.target.files ?? [])]); e.target.value = ""; }} />
+            {sibuk ? "Mengunggah…" : "+ Tambah gambar"}
+          </label>
+        )}
+        <span className="hint" style={{ margin: 0 }}>
+          Tempel screenshot langsung dengan <b>Ctrl + V</b> di kotak catatan, atau pilih lewat
+          <b> + Tambah gambar</b> (paling banyak {MAKS_GAMBAR}). Tulisan dan gambar ikut tersimpan
+          setelah <b>Simpan</b>.
+        </span>
+      </div>
+    </div>
   );
 }
 
