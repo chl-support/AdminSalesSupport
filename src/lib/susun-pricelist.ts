@@ -202,6 +202,11 @@ export type SusunPricelist = {
    * kosong = Incl PPN, seperti berkas PL Naraya.
    */
   basisExclPpn?: boolean;
+  /**
+   * Base Price dibulatkan ke atas ke 10^n rupiah; kosong = 6 (jutaan).
+   * Permai Indah: 4 (puluhan ribu).
+   */
+  bulatBase?: number;
   /** Catatan bebas di langkah 2 Unit Data, ikut tersimpan bersama draf. */
   catatanUnit?: string;
   /** Gambar pada Catatan Unit Data; isinya di tabel pricelist_susun_gambar. */
@@ -349,14 +354,15 @@ const BASIS_EXCL_PPN = new Set(["permai-indah"]);
 
 /**
  * Pasang aturan basis harga project pada draf yang belum menyatakannya:
- * Permai Indah memakai harga Excl PPN, project lain Incl PPN. Draf yang
- * sudah menyatakannya dibiarkan.
+ * Permai Indah memakai harga Excl PPN dan membulatkan Base Price ke atas ke
+ * puluhan ribu; project lain Incl PPN, dibulatkan ke jutaan. Aturan yang
+ * sudah dinyatakan draf dibiarkan.
  */
-export function basisProject<T extends Pick<SusunPricelist, "basisExclPpn">>(
+export function basisProject<T extends Pick<SusunPricelist, "basisExclPpn" | "bulatBase">>(
   slug: string | null | undefined, data: T,
 ): T {
-  if (data.basisExclPpn != null || !slug || !BASIS_EXCL_PPN.has(slug)) return data;
-  return { ...data, basisExclPpn: true };
+  if (!slug || !BASIS_EXCL_PPN.has(slug)) return data;
+  return { ...data, basisExclPpn: data.basisExclPpn ?? true, bulatBase: data.bulatBase ?? 4 };
 }
 
 /** "11%", "12%", "11,5%" — untuk judul kolom dan keterangan. */
@@ -375,14 +381,14 @@ export type HasilUnit = {
   factored: number;
 };
 
-export function hitungUnit(u: UnitData, ppn = PPN, exclPpn = false): HasilUnit {
+export function hitungUnit(u: UnitData, ppn = PPN, exclPpn = false, bulat = 6): HasilUnit {
   const hargaTanahPpn = u.hargaTanah * (1 + ppn);
   const hargaBangunanPpn = u.hargaBangunan * (1 + ppn);
   // Pricelist Permai Indah mengalikan luas dengan harga Excl PPN.
   const [tanah, bangunan] = exclPpn ? [u.hargaTanah, u.hargaBangunan]
     : [hargaTanahPpn, hargaBangunanPpn];
   const base = roundUp((u.lt * tanah + u.lb * bangunan)
-                       * (1 + u.kenaikan), 6);
+                       * (1 + u.kenaikan), bulat);
   const faktor = FAKTOR.reduce((a, [k]) => a + (u.faktor[k] ?? 0), 0);
   const factored = base * (1 + faktor) * (1 + u.faktorTambah) + u.special
                    + u.showUnit * (1 + u.kenaikan);
@@ -458,7 +464,8 @@ export type HasilSusun = {
 export function hitungSemua(susun: SusunPricelist): HasilSusun {
   const irr = hitungIrr(susun.irr);
   const baris = susun.unit.map((unit) => {
-    const hasilUnit = hitungUnit(unit, tarifPpn(susun), !!susun.basisExclPpn);
+    const hasilUnit = hitungUnit(unit, tarifPpn(susun), !!susun.basisExclPpn,
+                                 susun.bulatBase ?? 6);
     const dataPl = hitungDataPl(susun, hasilUnit.factored, irr.koef);
     return { unit, hasilUnit, dataPl, pricelist: hitungPricelist(susun, dataPl) };
   });

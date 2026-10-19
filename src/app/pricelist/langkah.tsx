@@ -565,7 +565,8 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
       <p className="hint kiri">
         Base Price = ROUNDUP((Land × harga tanah + GFA × harga bangunan){data.basisExclPpn
           ? " (Excl PPN)" : " × (1 + PPN)"} ×
-        (1 + kenaikan), juta). Factored Price = Base × (1 + jumlah faktor posisi)
+        (1 + kenaikan), {(data.bulatBase ?? 6) === 6 ? "juta"
+          : `${(10 ** (data.bulatBase ?? 6)).toLocaleString("id-ID")}`}). Factored Price = Base × (1 + jumlah faktor posisi)
         × (1 + (+) Factor) + Special + Show Unit × (1 + kenaikan). Harga per m²
         ditulis sebelum PPN {lp}; faktor dan kenaikan dalam persen.
       </p>
