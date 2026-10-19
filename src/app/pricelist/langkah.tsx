@@ -924,19 +924,33 @@ export function LangkahPricelist({ data, hasil, ubah, bolehUbah, aksi }: PropsLa
 
 // ── 5. Terms & Conditions ──────────────────────────────────────────────────
 
-export function LangkahTnc({ data, ubah, bolehUbah }: PropsLangkah) {
+export function LangkahTnc({ data, ubah, bolehUbah, slug }: PropsLangkah & { slug?: string | null }) {
   const ro = !bolehUbah;
   const t = data.tnc;
+  // Cetak A4: isinya (termasuk yang belum disimpan) diserahkan ke tab cetak
+  // lewat localStorage, lalu tab itu dibuka.
+  const cetak = () => {
+    try {
+      localStorage.setItem("cetak-tnc", JSON.stringify({
+        tnc: data.tnc, tanggal: data.pricelist.tanggal, slug: slug ?? null }));
+    } catch { /* penyimpanan peramban penuh atau diblokir */ }
+    open("/pricelist/cetak-tnc", "_blank");
+  };
   const ubahT = (f: (x: typeof t) => typeof t) => ubah((d) => ({ ...d, tnc: f(d.tnc) }));
   const ubahCb = (i: number, f: (c: (typeof t.caraBayar)[0]) => (typeof t.caraBayar)[0]) =>
     ubahT((x) => ({ ...x, caraBayar: x.caraBayar.map((c, j) => j === i ? f(c) : c) }));
 
   return (
     <>
-      <div className="filters rapat" style={{ maxWidth: 420 }}>
-        <div><div className="lbl">Judul</div>
-          <IsianTeks id="tnc-judul" nilai={t.judul} lebar={260} disabled={ro}
-                     ubah={(v) => ubahT((x) => ({ ...x, judul: v }))} /></div>
+      <div className="row" style={{ alignItems: "flex-end", justifyContent: "space-between" }}>
+        <div className="filters rapat" style={{ maxWidth: 420, margin: 0 }}>
+          <div><div className="lbl">Judul</div>
+            <IsianTeks id="tnc-judul" nilai={t.judul} lebar={260} disabled={ro}
+                       ubah={(v) => ubahT((x) => ({ ...x, judul: v }))} /></div>
+        </div>
+        <button className="pri" onClick={cetak}
+                title="Pratinjau dan cetak Term of Payment di kertas A4 (atau simpan sebagai PDF)">
+          🖨 Cetak A4</button>
       </div>
 
       <h3 className="sub-judul">Cara bayar</h3>

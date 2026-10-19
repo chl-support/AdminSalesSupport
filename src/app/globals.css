@@ -3108,3 +3108,45 @@ ul.daftar-ubah li { margin: 1px 0; }
 .gambar-catatan img { display: block; width: 100%; height: 110px; object-fit: cover; background: var(--fill); }
 .gambar-catatan figcaption { display: flex; align-items: center; gap: 6px; padding: 4px 6px; font-size: 11px; }
 .gambar-catatan figcaption span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ── Cetak Terms & Conditions A4 (src/app/pricelist/cetak-tnc) ── */
+.cetak-tnc-kosong { padding: 40px; font-size: 14px; }
+.cetak-alat { position: sticky; top: 0; z-index: 10; display: flex; flex-wrap: wrap; gap: 10px 14px;
+  align-items: center; padding: 10px 16px; background: #fff; border-bottom: 1px solid var(--line);
+  font-size: 13px; }
+.cetak-alat label, .cetak-huruf { display: inline-flex; gap: 6px; align-items: center; }
+.cetak-alat .hint { margin: 0; }
+.cetak-latar { background: #e9eaec; padding: 24px 0; min-height: calc(100vh - 60px); }
+.cetak-kertas { margin: 0 auto; background: #fff; padding: 38px; box-shadow: 0 2px 12px rgba(0,0,0,.18);
+  box-sizing: border-box; }
+.tnc-lembar { font-family: "Century Gothic", "Avenir Next", "Segoe UI", Arial, sans-serif; color: #000;
+  line-height: 1.35; }
+.tnc-lembar header { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; margin-bottom: .6em; }
+.tnc-lembar .tnc-logo { height: 4.2em; object-fit: contain; justify-self: start; }
+.tnc-lembar h1 { font-size: 1.45em; margin: 0; letter-spacing: .02em; text-transform: uppercase; }
+.tnc-lembar .tnc-tanggal { font-weight: 700; margin-bottom: .4em; }
+.tnc-lembar .tnc-kolom { display: grid; gap: 0 2.5em; padding-bottom: .5em; border-bottom: 1px solid #000; }
+.tnc-lembar .tnc-cb { margin: 0 0 .9em; break-inside: avoid; }
+.tnc-lembar .tnc-cb h2 { font-size: 1em; margin: 0 0 .15em; text-transform: uppercase; }
+.tnc-lembar .tnc-cb h2 span { display: inline-block; width: 2em; padding-left: .6em; }
+.tnc-lembar table { border-collapse: collapse; }
+.tnc-lembar .tnc-cb td { padding: .05em .4em .05em 0; vertical-align: top; }
+.tnc-lembar .tnc-cb td.h { padding-left: 2.6em; width: 1.6em; }
+.tnc-lembar .tnc-cb td.l { width: 9em; }
+.tnc-lembar .tnc-cb td.v { width: 10em; white-space: nowrap; }
+.tnc-lembar .tnc-cb-catatan { margin: .1em 0 0 4.2em; font-style: italic; }
+.tnc-lembar .tnc-catatan-cetak { margin-top: .6em; }
+.tnc-lembar .tnc-catatan-cetak h3 { font-size: 1em; margin: 0 0 .2em; text-decoration: underline; }
+.tnc-lembar .tnc-catatan-cetak ol { margin: 0; padding-left: 2.6em; }
+.tnc-lembar .tnc-catatan-cetak li { margin-bottom: .2em; white-space: pre-wrap; }
+.tnc-lembar .tnc-catatan-cetak li .sub { font-weight: 700; }
+.tnc-lembar .tnc-rek { margin-top: .8em; }
+.tnc-lembar .tnc-rek p { margin: 0 0 .3em; }
+.tnc-lembar .tnc-rek table { margin: 0 0 .7em 2.6em; font-weight: 700; }
+.tnc-lembar .tnc-rek td { padding: 0 .6em 0 0; }
+.tnc-lembar .tnc-rek td.n { width: 2em; }
+.tnc-lembar .tnc-rek td.l { width: 8em; }
+/* Tabel di lembar cetak tanpa garis dan latar tabel konsol. */
+.tnc-lembar table, .tnc-lembar tr, .tnc-lembar td { border: 0 !important; background: none !important;
+  font-size: inherit; color: inherit; }
+.tnc-lembar td { height: auto; }
