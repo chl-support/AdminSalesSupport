@@ -231,10 +231,9 @@ export default function CetakPricelist() {
               <div className="pl-judul">
                 <h1>{isi.judul || "PRICELIST"}</h1>
               </div>
-              <span />
+              {/* Tanggal di pojok kanan atas, sejajar judul. */}
+              <div className="pl-tanggal">{isi.tanggal}</div>
             </header>
-            {/* Tanggal di pojok kiri, tepat di atas tabel. */}
-            {isi.tanggal && <div className="pl-tanggal">{isi.tanggal}</div>}
             <table ref={tabel}>
               <thead>
                 <tr>

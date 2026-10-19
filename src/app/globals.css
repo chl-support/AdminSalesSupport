@@ -3200,4 +3200,4 @@ ul.daftar-ubah li { margin: 1px 0; }
 .increase-massal { align-items: center; padding: 8px 10px; background: var(--fill); border-radius: 8px; }
 /* Judul tabel susunan kolom Data Pricelist rata tengah. */
 .tabel-rapat tr.kepala-tengah th { text-align: center !important; }
-.pl-lembar .pl-tanggal { font-weight: 700; margin: 0 0 .3em; text-align: left; }
+.pl-lembar .pl-tanggal { font-weight: 700; justify-self: end; align-self: end; text-align: right; }
