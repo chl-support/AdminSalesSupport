@@ -50,6 +50,7 @@ const SKEMA = z.object({
     tambahan: angka,
     kolom: z.array(z.object({
       nama: teks.min(1), skema: teks.optional(), dari: teks.optional(), kali: angka.optional(),
+      diskon: angka.min(-1).max(1).optional(),
     })).min(1).max(30),
   }),
   pricelist: z.object({
