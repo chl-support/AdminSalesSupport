@@ -166,13 +166,18 @@ export default function CetakPricelist() {
                   <th rowSpan={2}>No</th><th rowSpan={2}>Address</th><th rowSpan={2}>Unit No</th>
                   <th rowSpan={2}>Phase</th><th rowSpan={2}>Ukuran</th><th rowSpan={2}>View</th>
                   <th rowSpan={2}>Tipe</th><th rowSpan={2}>Sub-Tipe</th><th colSpan={2}>Area (m²)</th>
-                  {kolom.map((k) => <th key={k} colSpan={pajak ? 3 : 1} className="cb">{k}</th>)}
+                  {/* Judul cara bayar: kolom sama lebar, judul panjang dilipat. Tanpa
+                      DPP/DTP judulnya dua baris tinggi (tidak ada baris "Harga"). */}
+                  {kolom.map((k) => pajak
+                    ? <th key={k} colSpan={3} className="cb">{k}</th>
+                    : <th key={k} rowSpan={2} className="cb harga">{k}</th>)}
                 </tr>
                 <tr>
                   <th>Land</th><th>Build</th>
                   {kolom.map((k) => pajak
-                    ? [<th key={`${k}h`}>Harga</th>, <th key={`${k}d`}>DPP</th>, <th key={`${k}t`}>Free PPN DTP</th>]
-                    : <th key={k}>Harga</th>)}
+                    ? [<th key={`${k}h`} className="harga">Harga</th>, <th key={`${k}d`} className="harga">DPP</th>,
+                       <th key={`${k}t`} className="harga">Free PPN DTP</th>]
+                    : null)}
                 </tr>
               </thead>
               <tbody>
@@ -183,15 +188,14 @@ export default function CetakPricelist() {
                     <td className="c">{u.tipe}</td><td>{u.subTipe}</td>
                     <td className="n">{angka(u.lt, 2)}</td><td className="n">{angka(u.lb, 2)}</td>
                     {kolom.map((k) => pajak
-                      ? [<td key={`${k}h`} className="n h">{angka(u.harga[k])}</td>,
-                         <td key={`${k}d`} className="n">{angka(u.pajak?.[k]?.dpp)}</td>,
-                         <td key={`${k}t`} className="n">{angka(u.pajak?.[k]?.dtp)}</td>]
-                      : <td key={k} className="n h">{angka(u.harga[k])}</td>)}
+                      ? [<td key={`${k}h`} className="n h harga">{angka(u.harga[k])}</td>,
+                         <td key={`${k}d`} className="n harga">{angka(u.pajak?.[k]?.dpp)}</td>,
+                         <td key={`${k}t`} className="n harga">{angka(u.pajak?.[k]?.dtp)}</td>]
+                      : <td key={k} className="n h harga">{angka(u.harga[k])}</td>)}
                   </tr>
                 ))}
               </tbody>
             </table>
-            {isi.catatan && <p className="pl-catatan">{isi.catatan}</p>}
           </div>
         </div>
       </div>
