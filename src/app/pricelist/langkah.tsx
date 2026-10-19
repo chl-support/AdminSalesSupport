@@ -329,7 +329,10 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah, baru }: PropsLangkah 
           <tr><td>Kelompok</td>{irr.skema.map((s, i) => (
             <td key={i}><IsianTeks nilai={s.kelompok} lebar={70} disabled={ro}
                                    ubah={(v) => ubahSkema(i, (x) => ({ ...x, kelompok: v }))} /></td>))}</tr>
-          <tr><td>Allocation</td>{irr.skema.map((s, i) => (
+          <tr><td>Allocation{" "}
+            {/* Total allocation di samping labelnya; merah bila belum 100%. */}
+            <b className={Math.abs(hasil.irr.totalAlokasi - 1) > 1e-9 ? "alokasi-kurang" : "alokasi-pas"}>
+              {persen(hasil.irr.totalAlokasi)}</b></td>{irr.skema.map((s, i) => (
             <td key={i}><Isian jenis="persen" nilai={s.alokasi} lebar={60} disabled={ro}
                                ubah={(n) => ubah((d) => ({ ...d, irr: { ...d.irr,
                                  skema: aturAlokasi(d.irr.skema, i, n) } }))} /></td>))}</tr>
