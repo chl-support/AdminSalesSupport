@@ -39,6 +39,10 @@ const LEBAR = { lanskap: (297 - 16) * MM, potret: (210 - 16) * MM };
 /** Tinggi isi halaman A4 (dikurangi margin 8 mm dan sedikit cadangan). */
 const TINGGI = { lanskap: (210 - 16) * MM - 4, potret: (297 - 16) * MM - 4 };
 
+/** Land selalu satu angka di belakang koma, seperti di Unit Data (70,0 · 107,2). */
+const satuDesimal = (n: number | null | undefined) =>
+  n == null || !Number.isFinite(n) ? ""
+    : n.toLocaleString("id-ID", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 const angka = (n: number | null | undefined, d = 0) =>
   n == null || !Number.isFinite(n) ? "" : n.toLocaleString("id-ID", { maximumFractionDigits: d });
 
@@ -260,7 +264,8 @@ export default function CetakPricelist() {
                     <td>{u.kode}</td>
                     {info.filter(([k]) => k !== "alamat").map(([k, , c]) =>
                       <td key={k} className={c || undefined}>{String(u[k] ?? "")}</td>)}
-                    {area.map(([k]) => <td key={k} className="n">{angka(u[k] as number | null, 2)}</td>)}
+                    {area.map(([k]) => <td key={k} className="n">
+                      {k === "lt" ? satuDesimal(u.lt) : angka(u[k] as number | null, 2)}</td>)}
                     {kolom.map((k) => pajak
                       ? [<td key={`${k}h`} className="n h harga">{angka(u.harga[k])}</td>,
                          <td key={`${k}d`} className="n harga">{angka(u.pajak?.[k]?.dpp)}</td>,
