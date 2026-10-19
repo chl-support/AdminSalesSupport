@@ -48,6 +48,14 @@ type BarisUbah = {
    * menjaga "29," tetap dapat dilanjutkan menjadi "29,45" tanpa melompat.
    */
   persenTeks?: string | null;
+  /**
+   * Tagihan yang diketik orang pada kolom Tagihan (DTP), apa adanya.
+   *
+   * Null berarti kolom itu mengikuti hitungan — tagihan adalah nilai dikurangi
+   * DTP. Begitu diketik, nilainya yang dicari: nilai = tagihan + DTP, dan DTP
+   * tetap mengikuti aturan PMK.
+   */
+  tagihanTeks?: string | null;
 };
 
 /** "1.234.567" atau "1234567,5" menjadi angka; kosong atau keliru menjadi 0. */
@@ -656,7 +664,8 @@ export default function SimulasiPage() {
       // harga transaksi. Persen yang tadi diketik pada baris-baris itu ikut
       // dilepas — angkanya kini mengikuti nilai, bukan sebaliknya.
       return bagiSisa(u.map((x, j) => j === i
-        ? { ...x, persenTeks: teksPersen, teks: bulatRp.toLocaleString("id-ID") }
+        ? { ...x, persenTeks: teksPersen, tagihanTeks: null,
+            teks: bulatRp.toLocaleString("id-ID") }
         : x), i);
     });
   };
@@ -702,7 +711,7 @@ export default function SimulasiPage() {
       const nilai = urut === sesudah.length - 1
         ? sisa - per * (sesudah.length - 1) : per;
       hasilBaris[j] = { ...hasilBaris[j], teks: nilai.toLocaleString("id-ID"),
-                        persenTeks: null };
+                        persenTeks: null, tagihanTeks: null };
     });
     return hasilBaris;
   };
@@ -710,9 +719,74 @@ export default function SimulasiPage() {
   const ubahNilai = (i: number, mentah: string) => {
     const teks = rapikanRupiah(mentah);
     setUbah((u) => u && bagiSisa(
-      // Nilai yang diketik tangan membatalkan persen yang tadi diketik:
-      // arahnya berbalik lagi, persen mengikuti nilai.
-      u.map((x, j) => j === i ? { ...x, teks, persenTeks: null } : x), i));
+      // Nilai yang diketik tangan membatalkan persen maupun tagihan yang tadi
+      // diketik: arahnya berbalik lagi, keduanya mengikuti nilai.
+      u.map((x, j) =>
+        j === i ? { ...x, teks, persenTeks: null, tagihanTeks: null } : x), i));
+  };
+
+  /**
+   * Hitung ulang satu jadwal suntingan, dengan masukan layar yang sedang
+   * berlaku. Dipakai ubahTagihan() untuk membaca DTP yang akan keluar dari
+   * sebuah susunan, sebelum susunan itu dipasang.
+   */
+  const hitungJadwal = (baris: BarisUbah[]): Hasil | null => {
+    if (!unit || !hasilStandar) return null;
+    try {
+      return hitung({
+        unit, skema, skemaHarga, tambahan: nilaiTambah,
+        diskon: diskonPersen / 100, bungaKpr: angka(bunga) / 100,
+        tanggal: booking, tarifDtp,
+        jadwalManual: baris.map((b) => ({
+          ket: b.ket, tgl: tanggalIso(b.tgl, booking), nilai: nilaiBaris(b) })),
+      });
+    } catch { return null; }
+  };
+
+  /**
+   * Tagihan diketik; nilailah yang menyesuaikan, DTP tetap menurut PMK.
+   *
+   * Yang ditagihkan kepada konsumen adalah nilai dikurangi PPN yang ditanggung
+   * pemerintah. Jadi menetapkan tagihan berarti mencari nilai yang, setelah
+   * dipotong DTP-nya, menyisakan angka itu — bukan menggeser DTP-nya, yang
+   * besarnya ditentukan tarif dan pagu PMK, bukan oleh kesepakatan.
+   *
+   * Dicari dengan beberapa putaran, sebab DTP bergantung pada nilai yang
+   * sedang dicari itu sendiri: nilai ditaksir, jadwalnya dihitung, DTP-nya
+   * dibaca, nilai ditaksir ulang. Tiap putaran memangkas selisihnya menjadi
+   * sepersepuluh — DTP sekitar 9,9% dari nilainya — jadi dua belas putaran
+   * membawa taksiran pertama yang meleset ratusan juta ke dalam satu rupiah,
+   * dan perulangannya berhenti begitu selisihnya tinggal serupiah. Aturan
+   * pajaknya sendiri tidak ditulis ulang di sini: yang dibaca hasil hitung()
+   * yang sama dengan yang dipakai seluruh layar, lengkap dengan pagu dan
+   * cabang "pendahulunya nol".
+   *
+   * Tagihan yang diketik dipakai persis, tanpa dibulatkan ke ribuan: ia angka
+   * yang diketik orang, bukan hasil hitungan layar. Baris di bawahnya tetap
+   * dibagi rata atas sisanya, seperti pada kolom Nilai.
+   */
+  const ubahTagihan = (i: number, mentah: string) => {
+    const teksTagihan = rapikanRupiah(mentah);
+    const tagihan = bacaRupiah(teksTagihan);
+    setUbah((u) => {
+      if (!u) return u;
+      const pasang = (nilai: number) => bagiSisa(u.map((x, j) => j === i
+        ? { ...x, teks: Math.round(nilai).toLocaleString("id-ID"),
+            persenTeks: null, tagihanTeks: teksTagihan }
+        : x), i);
+
+      let nilai = tagihan;
+      let baris = pasang(nilai);
+      for (let putaran = 0; putaran < 12; putaran++) {
+        const h = hitungJadwal(baris);
+        const dtp = h?.termin[i]?.dtp ?? 0;
+        const taksiran = Math.round(tagihan + dtp);
+        if (Math.abs(taksiran - nilai) <= 1) break;
+        nilai = taksiran;
+        baris = pasang(nilai);
+      }
+      return baris;
+    });
   };
 
   // Pembanding tetap Cash Keras, cara bayar yang paling ringkas jadwalnya dan
@@ -1115,7 +1189,15 @@ export default function SimulasiPage() {
                                  onChange={(e) => ubahNilai(i, e.target.value)} />
                         : angkaLembar(t.nilai)}</td>
                       <td className="n">{angkaLembar(t.pv)}</td>
-                      <td className="n">{angkaLembar(t.tagihan)}</td>
+                      {/* Tagihan dapat diketik seperti kolom Nilai: yang
+                          disepakati konsumen kerap justru angka yang ia
+                          transfer, bukan nilai sebelum PPN DTP. */}
+                      <td className="n">{modeUbah && b
+                        ? <input className="n" inputMode="decimal"
+                                 value={b.tagihanTeks
+                                        ?? Math.round(t.tagihan).toLocaleString("id-ID")}
+                                 onChange={(e) => ubahTagihan(i, e.target.value)} />
+                        : angkaLembar(t.tagihan)}</td>
                       <td className="n">{angkaLembar(t.dtp)}</td>
                       {modeUbah && b && (
                         <td>
