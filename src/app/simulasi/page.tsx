@@ -68,8 +68,8 @@ const bacaRupiah = (s: string) => {
 const nilaiBaris = (b: BarisUbah) => b.teks == null ? b.nilaiAsli : bacaRupiah(b.teks);
 const iso = (d: Date) => d.toISOString().slice(0, 10);
 import { formatRupiah } from "@/lib/money";
-import { BUNGA_NPV, bentukSkema, hitung, lewatKpr, type Hasil, type Skema,
-         type TarifDtp, type UnitHarga } from "@/lib/simulasi";
+import { BUNGA_NPV, bentukSkema, bulatRibu, hitung, lewatKpr, type Hasil,
+         type Skema, type TarifDtp, type UnitHarga } from "@/lib/simulasi";
 
 type Pricelist = { nama: string; skema: Skema[]; unit: UnitHarga[] };
 
@@ -604,10 +604,11 @@ export default function SimulasiPage() {
       }
       let nilai = pl * bacaPersen(teksPersen) / 100;
       if (i === 1) nilai -= nilaiBaris(u[0]);
-      // Di bawah nol tidak dibulatkan diam-diam ke angka lain: nol terbaca
-      // sebagai "persen ini lebih kecil daripada booking fee-nya", dan itu
-      // memang yang perlu dilihat orang yang mengetiknya.
-      const bulatRp = Math.max(0, Math.round(nilai));
+      // Dibulatkan ke ribuan, seperti seluruh angka yang dihitung sendiri
+      // oleh layar ini. Di bawah nol tidak dibulatkan diam-diam ke angka
+      // lain: nol terbaca sebagai "persen ini lebih kecil daripada booking
+      // fee-nya", dan itu memang yang perlu dilihat orang yang mengetiknya.
+      const bulatRp = Math.max(0, bulatRibu(nilai));
       return u.map((x, j) => j === i
         ? { ...x, persenTeks: teksPersen, teks: bulatRp.toLocaleString("id-ID") }
         : x);
@@ -656,7 +657,9 @@ export default function SimulasiPage() {
       const diluar = baris.reduce(
         (t, x, j) => t + (sesudah.includes(j) ? 0 : nilaiBaris(x)), 0);
       const sisa = Math.max(0, Math.round(target - diluar));
-      const per = Math.floor(sisa / sesudah.length);
+      // Bulat ribuan, dan baris terakhir menanggung selisihnya — ia pun ikut
+      // bulat selama sisanya bulat ribuan.
+      const per = bulatRibu(sisa / sesudah.length);
       sesudah.forEach((j, urut) => {
         const nilai = urut === sesudah.length - 1
           ? sisa - per * (sesudah.length - 1) : per;

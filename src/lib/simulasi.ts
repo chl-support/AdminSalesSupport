@@ -320,6 +320,39 @@ function jadwal(skema: Skema, h: number, booking: Date): Kasar[] {
 }
 
 /**
+ * Pembulatan ke ribuan terdekat: 118.593.850 menjadi 118.594.000.
+ *
+ * Diminta bagian penjualan untuk seluruh angka yang dihitung sendiri oleh
+ * layar. Jadwal pembayaran yang disodorkan kepada konsumen berisi angka yang
+ * harus ia transfer, dan "Rp 118.593.850" membuat orang menghitung ulang
+ * rupiah terakhirnya di konter bank — sementara angka yang sama sekali tidak
+ * lebih benar.
+ */
+export const bulatRibu = (n: number) => Math.round(n / 1000) * 1000;
+
+/**
+ * Jadwal bawaan dibulatkan ke ribuan, dengan termin terakhir menanggung
+ * selisihnya.
+ *
+ * Membulatkan tiap termin sendiri-sendiri akan menggeser jumlahnya dari harga
+ * transaksi — dan jadwal yang tidak menjumlah persis harga transaksinya adalah
+ * jadwal yang salah, berapa pun rapinya tiap baris. Jadi yang dibulatkan
+ * termin-termin di depan, dan termin terakhir mengambil sisanya: ia ikut bulat
+ * dengan sendirinya selama harga transaksinya bulat ribuan, dan hanya ia yang
+ * menanggung pecahan bila harganya sendiri berpecahan — mis. sesudah diskon
+ * 5% atas harga yang tidak habis dibagi dua puluh.
+ *
+ * Jadwal yang disunting tangan tidak lewat sini: yang diketik orang dipakai
+ * apa adanya.
+ */
+function bulatkanJadwal(baris: Kasar[], total: number): Kasar[] {
+  if (baris.length < 2) return baris;
+  const depan = baris.slice(0, -1).map((k) => ({ ...k, nilai: bulatRibu(k.nilai) }));
+  const sisa = total - depan.reduce((t, k) => t + k.nilai, 0);
+  return [...depan, { ...baris[baris.length - 1], nilai: sisa }];
+}
+
+/**
  * Pagu PPN DTP untuk satu harga transaksi pada satu tanggal.
  *
  * Harga di atas Harga Jual Max tidak mendapat DTP sama sekali — bukan
@@ -396,7 +429,7 @@ export function hitung(
 
   const kasar = jadwalManual?.length
     ? jadwalManual.map((k) => ({ ...k, tgl: hari0utc(k.tgl) }))
-    : jadwal(skema, h, booking);
+    : bulatkanJadwal(jadwal(skema, h, booking), h);
   const terakhir = kasar.reduce((a, b) => (b.tgl > a ? b.tgl : a), kasar[0].tgl);
   const pagu = paguDtp(h, terakhir, tarifDtp);
 
