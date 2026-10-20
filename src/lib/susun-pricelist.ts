@@ -212,6 +212,12 @@ export type SusunPricelist = {
    * Permai Indah: ya; kosong = ke atas.
    */
   bulatBiasa?: boolean;
+  /**
+   * Tanda bahwa T&C draf ini sudah disamakan dengan patokan (T&C Naraya
+   * Serpong) — sekali saja; sesudahnya T&C disunting manual dan tidak
+   * ditimpa lagi. Lihat samakanTncPatokan.
+   */
+  tncPatokan?: string;
   /** Catatan bebas di langkah 2 Unit Data, ikut tersimpan bersama draf. */
   catatanUnit?: string;
   /** Gambar pada Catatan Unit Data; isinya di tabel pricelist_susun_gambar. */
@@ -633,3 +639,10 @@ export function unitKosong(): UnitData {
     special: 0, showUnit: 0,
   };
 }
+
+/**
+ * Kunci pencocokan judul blok T&C dengan nama cara bayar: tanpa kata KPR,
+ * spasi dan tanda baca ("KPR DP 10% - 4X" = "DP 10%/4x").
+ */
+export const kunciTnc = (t: string) =>
+  t.toUpperCase().replace(/\bKPR\b/g, "").replace(/[^A-Z0-9]/g, "");

@@ -184,7 +184,10 @@ export default function PricelistPage() {
     const b = await kirim("/api/pricelist/susun/impor", { method: "POST", body: fd });
     setSibuk(null);
     if (!b) return;
-    setData(basisProject(sesi?.project_slug, b.susun)); setPeringatan(b.peringatan ?? []);
+    // Tanda T&C sudah disamakan dengan patokan ikut terbawa, supaya T&C
+    // dari berkas tidak ditimpa patokan lagi saat halaman dibuka ulang.
+    setData(basisProject(sesi?.project_slug,
+      { ...b.susun, tncPatokan: b.susun.tncPatokan ?? data?.tncPatokan })); setPeringatan(b.peringatan ?? []);
     setInfo(k.terimpor(b.susun.unit.length));
     setBukaImpor(false); setBerkas(null);
   };
@@ -198,7 +201,10 @@ export default function PricelistPage() {
     const b = await kirim(`/api/pricelist/${id}/susun`, { method: "GET" });
     setSibuk(null);
     if (!b) return;
-    setData(basisProject(sesi?.project_slug, b.susun)); setPeringatan(b.peringatan ?? []); setNamaPl("");
+    // Tanda T&C sudah disamakan dengan patokan ikut terbawa, supaya T&C
+    // dari berkas tidak ditimpa patokan lagi saat halaman dibuka ulang.
+    setData(basisProject(sesi?.project_slug,
+      { ...b.susun, tncPatokan: b.susun.tncPatokan ?? data?.tncPatokan })); setPeringatan(b.peringatan ?? []); setNamaPl("");
     setInfo(k.dibuka(nama)); setLangkah(0);
   };
 

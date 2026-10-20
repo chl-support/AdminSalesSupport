@@ -1,7 +1,9 @@
 import { body, handler, projectAktif, requireRole } from "@/lib/api";
 import { WorkflowError } from "@/lib/workflow";
 import { susunAwal } from "@/lib/susun-pricelist";
-import { bacaAtauIsiSusun, periksaSusun, simpanSusun } from "@/lib/susun-pricelist-simpan";
+import {
+  bacaAtauIsiSusun, denganTncPatokan, periksaSusun, samakanTncPatokan, simpanSusun,
+} from "@/lib/susun-pricelist-simpan";
 
 /**
  * Penyusunan pricelist lima langkah (Data (IRR), Unit Data, Data Pricelist,
@@ -14,9 +16,10 @@ import { bacaAtauIsiSusun, periksaSusun, simpanSusun } from "@/lib/susun-priceli
  */
 export const GET = handler(async (req) => {
   const projectId = await projectAktif(req);
-  const draf = await bacaAtauIsiSusun(projectId);
+  // T&C semua project mengikuti patokan Naraya Serpong (sekali; sesudahnya manual).
+  const draf = await samakanTncPatokan(projectId, await bacaAtauIsiSusun(projectId));
   return draf ? { baru: false, ...draf }
-    : { baru: true, data: susunAwal(), diubah_oleh: null, diubah_pada: null };
+    : { baru: true, data: await denganTncPatokan(susunAwal()), diubah_oleh: null, diubah_pada: null };
 });
 
 /** Simpan draf. Admin Sales dan Admin IT, sama dengan unggah pricelist. */
