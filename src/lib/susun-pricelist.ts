@@ -175,6 +175,13 @@ export type KolomDataPl = {
    */
   dari?: string;
   kali?: number;
+  /**
+   * Kenaikan khusus cara bayar ini, sesudah harganya dihitung: persen
+   * (pecahan; harga × (1 + persen), dibulatkan ke atas ke jutaan) lalu rupiah
+   * tetap. Kolom turunannya ikut naik karena dihitung dari harga ini.
+   */
+  naikPersen?: number;
+  naikRp?: number;
 };
 
 /** Satu kolom harga pada lembar Pricelist. */
@@ -423,6 +430,11 @@ export function hitungDataPl(
     } else if (k.dari) {
       const asal = harga[k.dari];
       harga[k.nama] = asal == null ? NaN : roundUp(asal * (k.kali ?? 1), 6);
+    }
+    // Kenaikan khusus cara bayar ini.
+    const h = harga[k.nama];
+    if (Number.isFinite(h)) {
+      harga[k.nama] = (k.naikPersen ? roundUp(h * (1 + k.naikPersen), 6) : h) + (k.naikRp ?? 0);
     }
   }
   return harga;
