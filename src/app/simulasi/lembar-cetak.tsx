@@ -226,8 +226,9 @@ export function LembarManagement({ h, cash, unit, slug, nama, sembunyi }: {
       </div>
 
       <div className="lm-dua">
-        {/* ── Kiri: pembanding — cara bayar yang sama, tanpa diskon, jadwal
-            standar. ── */}
+        {/* ── Kiri: PL Harga Dasar — kolom pricelist yang harganya dipakai
+            sebagai dasar, pada harga penuhnya: tanpa diskon, tanpa
+            penambahan, dengan jadwal bawaan kolom itu sendiri. ── */}
         <div className="lm-sisi kiri">
           <Identitas label={cash.skema} />
           <table className="lm-luas"><tbody>
@@ -265,7 +266,8 @@ export function LembarManagement({ h, cash, unit, slug, nama, sembunyi }: {
           </tbody></table>
         </div>
 
-        {/* ── Kanan: cara bayar yang diminta ── */}
+        {/* ── Kanan: permintaan konsumen — cara bayar yang ia minta, dengan
+            diskon, penambahan harga, dan jadwal yang disunting. ── */}
         <div className="lm-sisi kanan">
           <Identitas label="PERMINTAAN" />
           <table className="lm-dtp"><tbody>

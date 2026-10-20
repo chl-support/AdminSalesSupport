@@ -138,14 +138,23 @@ export default function CetakSimulasiPage() {
   }, [m, unit, booking, tarifDtp, tarifSiap]);
   const sembunyi = m?.jadwal?.map((b) => b.sembunyi);
 
-  // Sisi kiri lembar Management: cara bayar yang sama pada harga
-  // pricelist-nya, tanpa diskon dan dengan jadwal standarnya — begitulah
-  // lembar pembandingnya di berkas Excel. Selisih di sisi kanan karenanya
-  // terbaca sebagai akibat diskon dan suntingan jadwal, bukan akibat cara
-  // bayarnya.
+  /**
+   * Sisi kiri lembar Management: PL Harga Dasar apa adanya.
+   *
+   * Yang dibandingkan adalah kolom pricelist yang harganya dipakai sebagai
+   * dasar — pada harga penuhnya, tanpa diskon maupun penambahan, dan dengan
+   * jadwal bawaan kolom itu sendiri. Sisi kanan adalah permintaan konsumen:
+   * cara bayar yang ia minta, lengkap dengan diskon, penambahan harga, dan
+   * jadwal yang disunting.
+   *
+   * Dengan begitu selisih di antara keduanya terbaca sebagai "inilah yang
+   * diminta konsumen dibandingkan harga dasarnya" — satu pertanyaan, bukan
+   * campuran beberapa.
+   */
   const cash = useMemo(() => {
-    if (!unit || !m || !(unit.harga[m.skema] > 0)) return null;
-    return hitung({ unit, skema: m.skema, diskon: 0,
+    const plDasar = m ? (m.pl || m.skema) : "";
+    if (!unit || !m || !(unit.harga[plDasar] > 0)) return null;
+    return hitung({ unit, skema: plDasar, diskon: 0,
                     bungaKpr: m.bunga / 100, tanggal: booking, tarifDtp });
   }, [unit, m, booking, tarifDtp]);
 

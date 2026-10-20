@@ -829,14 +829,16 @@ export default function SimulasiPage() {
 
   // Unduh PDF: lembar cetaknya digambar di luar layar, dipotret, lalu
   // diunduh — lembar yang sama dengan halaman pratinjau, tanpa membuka tab.
-  // Sisi kiri lembar Management adalah cara bayar yang sama tanpa diskon dan
-  // dengan jadwal standarnya, seperti di halaman pratinjaunya.
+  // Sisi kiri lembar Management adalah PL Harga Dasar pada harga penuhnya,
+  // tanpa diskon dan dengan jadwal bawaannya, seperti di halaman
+  // pratinjaunya.
   const [unduh, setUnduh] = useState<Jenis | null>(null);
   const [galatPdf, setGalatPdf] = useState(false);
   const lembarPdf = useRef<HTMLDivElement | null>(null);
-  const cashPdf = useMemo(() => unit && unit.harga[skema] > 0 ? hitung({
-    unit, skema, diskon: 0, bungaKpr: angka(bunga) / 100, tanggal: booking, tarifDtp,
-  }) : null, [unit, skema, bunga, booking, tarifDtp]);
+  const cashPdf = useMemo(() => unit && unit.harga[plDasar] > 0 ? hitung({
+    unit, skema: plDasar, diskon: 0, bungaKpr: angka(bunga) / 100,
+    tanggal: booking, tarifDtp,
+  }) : null, [unit, plDasar, bunga, booking, tarifDtp]);
   useEffect(() => {
     if (!unduh) return;
     const el = lembarPdf.current?.firstElementChild as HTMLElement | null;
