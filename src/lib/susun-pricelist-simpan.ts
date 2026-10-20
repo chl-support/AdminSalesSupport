@@ -10,7 +10,7 @@
 
 import { z } from "zod";
 
-import { audit, one, query } from "./db";
+import { audit, one, query, tx } from "./db";
 import { bacaPricelist, simpanPricelist } from "./pricelist";
 import { basisProject, hitungSemua, kunciTnc, type SusunPricelist } from "./susun-pricelist";
 import { SUSUN_NARAYA } from "./susun-pricelist-naraya";
@@ -286,4 +286,41 @@ export async function berlakukanSusun(
       ? `Diberlakukan sebagai "${judul}" (file ${namaBerkas}, ${hasil.unit.length} unit)`
       : `Disimpan sebagai "${judul}" tanpa diberlakukan (file ${namaBerkas}, ${hasil.unit.length} unit)`]);
   return { id, nama: judul, aktif: aktifkan };
+}
+
+/**
+ * Mulai dari awal: hapus draf kelima langkah, riwayat perubahannya, gambar
+ * catatannya, dan pricelist tersimpan project ini. Pricelist yang sedang
+ * berlaku ikut dihapus hanya bila diminta — tanpanya layar Simulasi / NPV
+ * project ini tidak punya pricelist sampai ada yang diberlakukan lagi.
+ * Gambar yang dipakai Lampiran T&C (semua project) tidak dihapus.
+ */
+export async function mulaiDariAwal(
+  projectId: string, aktor: string, termasukBerlaku: boolean,
+): Promise<{ pricelist: number }> {
+  await ensureTabel();
+  const ada = async (t: string) =>
+    !!(await one<{ r: string | null }>("SELECT to_regclass($1)::text AS r", [t]))?.r;
+  let pricelist = 0;
+  await tx(async (c) => {
+    await c.query("DELETE FROM pricelist_susun WHERE project_id=$1", [projectId]);
+    if (await ada("pricelist_susun_riwayat")) {
+      await c.query("DELETE FROM pricelist_susun_riwayat WHERE project_id=$1", [projectId]);
+    }
+    if (await ada("pricelists")) {
+      const r = await c.query(
+        `DELETE FROM pricelists WHERE project_id=$1 AND ($2 OR NOT aktif)`, [projectId, termasukBerlaku]);
+      pricelist = r.rowCount ?? 0;
+    }
+    if (await ada("pricelist_susun_gambar")) {
+      await c.query(
+        (await ada("tnc_lampiran"))
+          ? `DELETE FROM pricelist_susun_gambar WHERE project_id=$1
+               AND id NOT IN (SELECT gambar_id FROM tnc_lampiran)`
+          : "DELETE FROM pricelist_susun_gambar WHERE project_id=$1", [projectId]);
+    }
+    await audit({ entityType: "pricelist_susun", entityId: projectId, action: "pricelist_reset",
+                  actor: aktor, after: { pricelist, termasukBerlaku } }, c);
+  });
+  return { pricelist };
 }
