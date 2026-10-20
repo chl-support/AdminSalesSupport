@@ -3239,18 +3239,18 @@ ul.daftar-ubah li { margin: 1px 0; }
 .tabel-pl thead th.skema { white-space: normal; line-height: 1.2; vertical-align: middle; }
 .tabel-pl th.kol-rata, .tabel-pl td.kol-rata { width: 128px; min-width: 128px; max-width: 128px; }
 /* Pricelist: isian manual dibedakan dari angka hasil hitungan sistem.
-   Kuning muda = dapat diisi/diubah; biru muda = dihitung sistem (tidak diketik). */
+   Abu muda = dapat diisi/diubah; abu tua = dihitung sistem (tidak diketik). */
 .bagian-langkah input:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=search]):not(:disabled):not([readonly]),
 .bagian-langkah select:not(:disabled), .bagian-langkah textarea:not(:disabled) {
-  background: #FFF8D6; border-color: #D9C27A;
+  background: #F4F5F6; border-color: #C6CBD1;
 }
 .bagian-langkah input:not([type=checkbox]):disabled, .bagian-langkah select:disabled,
 .bagian-langkah textarea:disabled,
 .bagian-langkah table td.n:not(:has(input, select, textarea, button)) {
-  background: #E6F0FA; color: #24364B;
+  background: #DDE0E4; color: #262A2E;
 }
 .legenda-isian { display: inline-flex; gap: 12px; align-items: center; font-size: 12px; color: var(--sub); }
 .legenda-isian i { display: inline-block; width: 14px; height: 14px; border-radius: 3px;
                    vertical-align: -2px; margin-right: 4px; border: 1px solid #c9ced4; }
-.legenda-isian .manual { background: #FFF8D6; border-color: #D9C27A; }
-.legenda-isian .sistem { background: #E6F0FA; border-color: #B7CCE3; }
+.legenda-isian .manual { background: #F4F5F6; border-color: #C6CBD1; }
+.legenda-isian .sistem { background: #DDE0E4; border-color: #B9BEC4; }
