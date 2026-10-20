@@ -121,9 +121,6 @@ export const FAKTOR = [
   ["hoek", "Hoek"],
   ["hoekGarden", "Hoek Garden"],
   ["sideGarden", "Side Garden"],
-  // Gimmick (Trip, BPHTB, AKAD, Repair): persen, ikut dijumlah bersama faktor
-  // posisi di atas seperti di berkas Excel.
-  ["gimmick", "Gimmick (Trip, BPHTB, AKAD, Repair)"],
 ] as const;
 export type KunciFaktor = (typeof FAKTOR)[number][0];
 

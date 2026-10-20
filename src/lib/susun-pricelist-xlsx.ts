@@ -136,7 +136,9 @@ function bacaLembarUnit(ws: ExcelJS.Worksheet, peringatan: string[]): UnitData[]
         ukuran: t("ukuran"), phase: t("phase"), tipeBangunan: t("tipeBangunan"),
         bentuk: t("bentuk"), subTipe: t("subTipe"), lt: n("lt"), hargaTanah: n("hargaTanah"),
         lb: n("lb"), hargaBangunan: n("hargaBangunan"), kenaikan: n("kenaikan"),
-        faktorTambah: n("faktorTambah"), special: n("special"), showUnit: n("showUnit"),
+        // Gimmick (Trip, BPHTB, AKAD, Repair) di berkas Excel masuk ke (+) Factor;
+        // Unit Data tidak punya kolom Gimmick tersendiri.
+        faktorTambah: n("faktorTambah") + n("gimmick"), special: n("special"), showUnit: n("showUnit"),
         faktor: Object.fromEntries(FAKTOR.map(([k]) => [k, n(k)]).filter(([, v]) => v)),
       };
       if (kol.tipe) u.tipe = t("tipe");
