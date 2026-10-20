@@ -3234,3 +3234,7 @@ ul.daftar-ubah li { margin: 1px 0; }
 .bilah-gaya button { min-width: 28px; text-transform: none; }
 /* Data Pricelist: kenaikan bertingkat per cara bayar. */
 .naik-tingkat { display: grid; gap: 3px; justify-items: start; }
+/* Tabel harga Pricelist: judul cara bayar yang panjang dilipat; tanpa
+   DPP/DTP, kolom harga sama lebar. */
+.tabel-pl thead th.skema { white-space: normal; line-height: 1.2; vertical-align: middle; }
+.tabel-pl th.kol-rata, .tabel-pl td.kol-rata { width: 128px; min-width: 128px; max-width: 128px; }

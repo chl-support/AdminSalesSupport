@@ -126,7 +126,7 @@ export function TabelHarga({ skema, unit, batas, pajak, tinggi = 420 }: {
             <th colSpan={2} className="tengah">{k.kArea}</th>
             {skema.map((s) => (
               <th key={s} colSpan={lebarSkema} rowSpan={denganPajak ? 1 : 2}
-                  className="tengah skema">{s}</th>
+                  className={`tengah skema${denganPajak ? "" : " kol-rata"}`}>{s}</th>
             ))}
           </tr>
           <tr>
@@ -153,7 +153,7 @@ export function TabelHarga({ skema, unit, batas, pajak, tinggi = 420 }: {
                 <td key={s + "d"} className="n">{rp(u.pajak?.[s]?.dpp)}</td>,
                 <td key={s + "t"} className="n">{rp(u.pajak?.[s]?.dtp)}</td>,
               ] : (
-                <td key={s} className="n skema">{rp(u.harga[s])}</td>
+                <td key={s} className="n skema kol-rata">{rp(u.harga[s])}</td>
               ))}
             </tr>
           ))}
