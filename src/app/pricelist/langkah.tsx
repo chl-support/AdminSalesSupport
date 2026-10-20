@@ -14,7 +14,7 @@ import { Fragment, useEffect, useState } from "react";
 import { formatRupiah } from "@/lib/money";
 import {
   FAKTOR, hargaKasIrr, hargaSesuaiSkema, labelPpn, namaTahap, tarifPpn, unitKosong,
-  kunciTnc, type BarisTnc, type HasilSusun, type SusunPricelist, type UnitData,
+  kunciTnc, tingkatNaik, type BarisTnc, type HasilSusun, type SusunPricelist, type UnitData,
 } from "@/lib/susun-pricelist";
 import type { UnitHarga } from "@/lib/simulasi";
 import { PilihBerkas } from "../pilih-berkas";
@@ -942,6 +942,40 @@ function CatatanUnit({ data, ubah, ro }: {
   );
 }
 
+/**
+ * Kenaikan bertingkat satu cara bayar: tiap tingkat punya % dan Nilai (Rp),
+ * dan dihitung dari hasil tingkat sebelumnya.
+ */
+function KenaikanBertingkat({ tingkat, ubah, disabled }: {
+  tingkat: { persen: number; rp: number }[];
+  ubah: (t: { persen: number; rp: number }[]) => void; disabled?: boolean;
+}) {
+  const ganti = (j: number, p: Partial<{ persen: number; rp: number }>) =>
+    ubah(tingkat.map((t, m) => m === j ? { ...t, ...p } : t));
+  return (
+    <div className="naik-tingkat">
+      {tingkat.map((t, j) => (
+        <div key={j} className="row" style={{ margin: 0, gap: 4, flexWrap: "nowrap", alignItems: "center" }}>
+          {tingkat.length > 1 && <span className="hint" style={{ margin: 0, minWidth: 18 }}>{j + 1}.</span>}
+          <Isian jenis="persen" kosongNol desimal={1} nilai={t.persen} lebar={60} disabled={disabled}
+                 ubah={(n) => ganti(j, { persen: n })} />
+          <Isian jenis="rp" kosongNol nilai={t.rp} lebar={110} disabled={disabled}
+                 ubah={(n) => ganti(j, { rp: n })} />
+          {!disabled && (
+            <button className="kecil" aria-label={`Hapus tingkat ${j + 1}`}
+                    onClick={() => ubah(tingkat.filter((_, m) => m !== j))}>×</button>
+          )}
+        </div>
+      ))}
+      {!disabled && (
+        <button className="kecil" title="Tambah tingkat kenaikan (dihitung dari hasil tingkat sebelumnya)"
+                onClick={() => ubah([...tingkat, { persen: 0, rp: 0 }])}>
+          {tingkat.length ? "+ Tingkat" : "+ Kenaikan"}</button>
+      )}
+    </div>
+  );
+}
+
 // ── 3. Data Pricelist ──────────────────────────────────────────────────────
 
 export function LangkahDataPl({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
@@ -1002,8 +1036,8 @@ export function LangkahDataPl({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
     <>
       <p className="hint kiri">
         Harga per cara bayar = ROUNDUP(Factored Price × koefisien Data (IRR), juta)
-        + tambahan; lalu kenaikan khusus cara bayar itu bila diisi: ROUNDUP(harga × (1 + Naik %), juta)
-        + Naik (Rp). Kolom turunan dihitung dari kolom lain di sebelah kirinya:
+        + tambahan; lalu kenaikan bertingkat khusus cara bayar itu bila diisi — tiap tingkat dari
+        hasil tingkat sebelumnya: ROUNDUP(harga × (1 + %), juta) + Nilai (Rp). Kolom turunan dihitung dari kolom lain di sebelah kirinya:
         ROUNDUP(kolom itu × pengali, juta), tanpa tambahan.
       </p>
       <div className="filters rapat" style={{ maxWidth: 300 }}>
@@ -1017,8 +1051,8 @@ export function LangkahDataPl({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
       <div className="tscroll sp">
         <table className="tabel-ringkas tabel-isian tabel-rapat"><tbody>
           <tr className="kepala-tengah"><th>Kolom</th><th>Dihitung dari</th><th>Koefisien / pengali</th>
-            <th title="Kenaikan khusus cara bayar ini: harga × (1 + %), dibulatkan ke atas ke jutaan">Naik (%)</th>
-            <th title="Tambahan rupiah tetap khusus cara bayar ini, sesudah Naik (%)">Naik (Rp)</th>
+            <th title="Kenaikan khusus cara bayar ini. Tiap tingkat dihitung dari hasil tingkat sebelumnya: ROUNDUP(harga × (1 + %), juta) + Nilai (Rp)">
+              Kenaikan bertingkat<br /><span style={{ fontWeight: 400 }}>% · Nilai (Rp)</span></th>
             <th title="Nama kolom yang tampil di Pricelist dan cetakan; hitungannya tetap dari kolom ini">
               Perubahan Metode Pembayaran</th>{!ro && <th />}</tr>
           {kolom.map((k, i) => (
@@ -1037,7 +1071,7 @@ export function LangkahDataPl({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
                         onChange={(e) => {
                           const [jenis, nama] = [e.target.value.slice(0, 1), e.target.value.slice(2)];
                           // Kenaikan khusus cara bayar ini ikut terbawa saat sumbernya diganti.
-                          const naik = { naikPersen: x0(i).naikPersen, naikRp: x0(i).naikRp };
+                          const naik = { naikPersen: x0(i).naikPersen, naikRp: x0(i).naikRp, naikTingkat: x0(i).naikTingkat };
                           ubahKolom(i, (x) => jenis === "s" ? { nama: x.nama, skema: nama, ...naik }
                             : { nama: x.nama, dari: nama, kali: x.kali ?? 1, ...naik });
                         }}>
@@ -1054,10 +1088,11 @@ export function LangkahDataPl({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
                   : <Isian jenis="persen" nilai={k.kali ?? 1} lebar={70} disabled={ro}
                            ubah={(n) => ubahKolom(i, (x) => ({ ...x, kali: n }))} />}
               </td>
-              <td><Isian jenis="persen" kosongNol desimal={1} nilai={k.naikPersen ?? 0} lebar={60} disabled={ro}
-                         ubah={(n) => ubahKolom(i, (x) => ({ ...x, naikPersen: n || undefined }))} /></td>
-              <td><Isian jenis="rp" kosongNol nilai={k.naikRp ?? 0} lebar={110} disabled={ro}
-                         ubah={(n) => ubahKolom(i, (x) => ({ ...x, naikRp: n || undefined }))} /></td>
+              <td>
+                <KenaikanBertingkat tingkat={tingkatNaik(k)} disabled={ro}
+                                    ubah={(t) => ubahKolom(i, (x) => ({ ...x, naikPersen: undefined,
+                                      naikRp: undefined, naikTingkat: t.length ? t : undefined }))} />
+              </td>
               {/* Ganti nama yang tampil di Pricelist saja: kolom Pricelist yang
                   bersumber dari kolom ini diganti namanya, hitungannya tetap. */}
               <td>
