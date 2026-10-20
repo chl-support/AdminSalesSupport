@@ -1192,8 +1192,14 @@ export function LangkahPricelist({ data, hasil, ubah, bolehUbah, aksi, slug }: P
           </tbody></table>
         </div>
         {bolehUbah && (
-          <button style={{ marginTop: 8 }} onClick={() => ubahPl((p) => ({ ...p, kolom: [...p.kolom,
-            { nama: kolomDp[0] ?? "Kolom baru", dari: kolomDp[0] ?? "", kali: 1 }] }))}>+ Tambah kolom</button>
+          <button style={{ marginTop: 8 }} onClick={() => ubahPl((p) => {
+            // Nama unik, supaya blok T&C-nya langsung terbentuk dan ikut saat diganti.
+            const ada = new Set(p.kolom.map((k) => k.nama));
+            let no = 1;
+            while (ada.has(`Kolom baru ${no}`)) no++;
+            return { ...p, kolom: [...p.kolom,
+              { nama: `Kolom baru ${no}`, dari: kolomDp[0] ?? "", kali: 1 }] };
+          })}>+ Tambah kolom</button>
         )}
       </details>
 
@@ -1228,10 +1234,12 @@ export function LangkahPricelist({ data, hasil, ubah, bolehUbah, aksi, slug }: P
  * pelunasan, cicilan, atau DP dan sisa KPR — sebagai titik awal yang diubah
  * sesudahnya. Blok yang sudah ada tidak disentuh.
  */
-function denganTncLengkap(d: SusunPricelist): SusunPricelist {
-  // Judul blok sering ditulis sedikit berbeda dari nama kolom ("KPR DP 10% -
-  // 4X" untuk "DP 10%/4x"): dicocokkan tanpa kata KPR, spasi dan tanda baca.
-  const kunci = (t: string) => t.toUpperCase().replace(/\bKPR\b/g, "").replace(/[^A-Z0-9]/g, "");
+// Judul blok sering ditulis sedikit berbeda dari nama kolom ("KPR DP 10% -
+// 4X" untuk "DP 10%/4x"): dicocokkan tanpa kata KPR, spasi dan tanda baca.
+const kunciTnc = (t: string) => t.toUpperCase().replace(/\bKPR\b/g, "").replace(/[^A-Z0-9]/g, "");
+
+function denganTncLengkap(d: SusunPricelist, hanya?: Set<string>): SusunPricelist {
+  const kunci = kunciTnc;
   const ada = new Set(d.tnc.caraBayar.map((c) => kunci(c.judul)));
   const kolomDp = new Map(d.dataPricelist.kolom.map((k) => [k.nama, k]));
   const skemaDari = (nama: string) => {
@@ -1241,7 +1249,10 @@ function denganTncLengkap(d: SusunPricelist): SusunPricelist {
   };
   const pc = (n: number) => `${(n * 100).toLocaleString("id-ID", { maximumFractionDigits: 2 })}%`;
   const baru = d.pricelist.kolom.flatMap((k) => {
-    if (ada.has(kunci(k.nama)) || ada.has(kunci(k.dari))) return [];
+    if (hanya && !hanya.has(k.nama)) return [];
+    // Kolom yang baru ditambah dicocokkan dengan namanya saja: ia boleh
+    // bersumber dari kolom yang sudah punya blok (mis. Cash Keras).
+    if (ada.has(kunci(k.nama)) || (!hanya && ada.has(kunci(k.dari)))) return [];
     ada.add(kunci(k.nama));
     const s = skemaDari(k.dari);
     const baris: BarisTnc[] = [{ label: "Booking Fee", nilai: "10 Juta", waktu: "" }];
@@ -1256,6 +1267,36 @@ function denganTncLengkap(d: SusunPricelist): SusunPricelist {
     return [{ judul: k.nama.toUpperCase(), baris }];
   });
   return baru.length ? { ...d, tnc: { ...d.tnc, caraBayar: [...d.tnc.caraBayar, ...baru] } } : d;
+}
+
+/**
+ * Jaga T&C tetap mengikuti kolom Pricelist sesudah setiap perubahan draf:
+ * kolom Pricelist baru (dari langkah mana pun) langsung mendapat blok, dan
+ * kolom yang namanya diganti membawa judul bloknya. Blok tidak pernah
+ * dihapus otomatis — isinya ditulis orang.
+ */
+export function sinkronTnc(lama: SusunPricelist, baru: SusunPricelist): SusunPricelist {
+  if (lama.pricelist.kolom === baru.pricelist.kolom) return baru;
+  const namaLama = new Set(lama.pricelist.kolom.map((k) => kunciTnc(k.nama)));
+  const namaBaru = new Set(baru.pricelist.kolom.map((k) => kunciTnc(k.nama)));
+  let d = baru;
+  const tambah = new Set<string>();
+  baru.pricelist.kolom.forEach((k, i) => {
+    // Nama yang sedang dikosongkan tidak mengubah apa pun.
+    if (!kunciTnc(k.nama) || namaLama.has(kunciTnc(k.nama))) return;
+    // Ganti nama: kolom di posisi yang sama dulu bernama lain, dan nama lama
+    // itu tidak lagi dipakai kolom mana pun — judul bloknya ikut diganti.
+    const asal = lama.pricelist.kolom[i];
+    const j = asal && !namaBaru.has(kunciTnc(asal.nama))
+      ? d.tnc.caraBayar.findIndex((c) => kunciTnc(c.judul) === kunciTnc(asal.nama)) : -1;
+    if (j >= 0 && kunciTnc(asal!.nama)) {
+      d = { ...d, tnc: { ...d.tnc, caraBayar: d.tnc.caraBayar.map((c, m) =>
+        m === j ? { ...c, judul: k.nama.toUpperCase() } : c) } };
+    } else {
+      tambah.add(k.nama);
+    }
+  });
+  return tambah.size ? denganTncLengkap(d, tambah) : d;
 }
 
 export function LangkahTnc({ data, ubah, bolehUbah, slug }: PropsLangkah & { slug?: string | null }) {
