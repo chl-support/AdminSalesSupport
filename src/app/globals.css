@@ -2969,6 +2969,10 @@ td.sel-surel, th.sel-surel { white-space: nowrap; font-size: 11.5px; }
 .riwayat-pl > summary { cursor: pointer; font-size: 12.5px; font-weight: 650;
                         color: var(--sub); }
 .riwayat-pl[open] > summary { margin-bottom: 10px; }
+/* Folder pricelist tersimpan: tiap pricelist sebagai berkas. */
+.folder-pl > summary { font-size: 13.5px; color: var(--ink, inherit); }
+.folder-pl .berkas-pl { margin-bottom: 8px; }
+.folder-pl .berkas-pl.berlaku { border-color: #8cc5a3; background: #f1f8f3; }
 
 /* ── Penyusunan pricelist lima langkah (layar Pricelist) ─────────────────
    Kelima langkahnya ditampilkan sebagai tombol berurutan di atas panel, dan
