@@ -24,7 +24,7 @@ import { RiwayatSusun } from "./riwayat-susun";
 import { BilahGaya } from "./gaya-teks";
 import { useSesi } from "../session";
 import { PENGUNGGAH } from "../simulasi/unggah-pricelist";
-import { basisProject, hitungSemua, type SusunPricelist } from "@/lib/susun-pricelist";
+import { basisProject, hitungSemua, unitBelumBerharga, type SusunPricelist } from "@/lib/susun-pricelist";
 import {
   LangkahDataPl, LangkahIrr, LangkahPricelist, LangkahTnc, LangkahUnit, isiOtomatisCaraBayar, rapikanCaraBayar, sinkronTnc,
 } from "./langkah";
@@ -54,6 +54,8 @@ const KATA = {
     hanyaBaca: "Hanya Admin Sales dan Admin IT yang dapat mengubah pricelist.",
     galatJudul: "Belum dapat diberlakukan",
     berlakuJudul: "Simpan / berlakukan pricelist",
+    belumBerharga: "Unit tanpa luas / harga tanah — isi catatan bila harganya memang belum dikeluarkan; unit ini tidak ikut pricelist yang disimpan.",
+    catatanUnit: "Catatan, mis. harga belum ditentukan management",
     berlakuInfo: "Pricelist ini menggantikan pricelist yang berlaku dan langsung dipakai layar Simulasi / NPV. Pricelist lama tetap ada di riwayatnya.",
     yakinBuka: "Isian di layar belum disimpan dan akan diganti. Lanjutkan?",
     dibuka: (n: string) => `Pricelist "${n}" dibuka untuk diedit. Setelah selesai, beri nama baru di langkah 4 lalu Simpan & berlakukan — pricelist "${n}" tetap ada di riwayat.`,
@@ -88,6 +90,8 @@ const KATA = {
     hanyaBaca: "Only Sales Admin and IT Admin can change the price list.",
     galatJudul: "Cannot be applied yet",
     berlakuJudul: "Apply price list",
+    belumBerharga: "Units without land area / price — add a note if their price is not released yet; these units are left out of the saved price list.",
+    catatanUnit: "Note, e.g. price not yet set by management",
     berlakuInfo: "This price list replaces the one in force and is used by Simulation / NPV right away. The old one stays in the history.",
     yakinBuka: "Unsaved changes on screen will be replaced. Continue?",
     dibuka: (n: string) => `Price list "${n}" opened for editing. When done, give it a new name in step 4 and Save & apply — "${n}" stays in the history.`,
@@ -285,6 +289,26 @@ export default function PricelistPage() {
   const panelBerlaku = bolehUbah && hasil && (
     <div className="form-blok sp" style={{ marginTop: 16 }}>
       <h3>{k.berlakuJudul}</h3>
+      {data!.unit.some(unitBelumBerharga) && (
+        <div className="banner warn">
+          <p style={{ margin: "0 0 6px" }}>{k.belumBerharga}</p>
+          <table className="tabel-catatan-unit" style={{ width: "auto" }}><tbody>
+            {data!.unit.map((u, i) => unitBelumBerharga(u) && (
+              <tr key={i}>
+                <td style={{ paddingRight: 12, whiteSpace: "nowrap" }}><b>{u.kode || `#${i + 1}`}</b></td>
+                <td>
+                  <input value={u.catatan ?? ""} maxLength={300} style={{ width: 420 }}
+                         placeholder={k.catatanUnit} aria-label={`${k.catatanUnit} ${u.kode}`}
+                         onChange={(e) => {
+                           const v = e.target.value;
+                           ubah((d) => ({ ...d, unit: d.unit.map((x, j) => j === i ? { ...x, catatan: v } : x) }));
+                         }} />
+                </td>
+              </tr>
+            ))}
+          </tbody></table>
+        </div>
+      )}
       {hasil.galat.length > 0 ? (
         <div className="banner stop">
           <b>{k.galatJudul}</b>

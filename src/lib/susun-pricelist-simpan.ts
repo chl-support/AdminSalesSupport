@@ -12,7 +12,7 @@ import { z } from "zod";
 
 import { audit, one, query, tx } from "./db";
 import { bacaPricelist, simpanPricelist } from "./pricelist";
-import { basisProject, hitungSemua, kunciTnc, type SusunPricelist } from "./susun-pricelist";
+import { basisProject, hitungSemua, kunciTnc, unitBelumBerharga, type SusunPricelist } from "./susun-pricelist";
 import { SUSUN_NARAYA } from "./susun-pricelist-naraya";
 import { eksporSusun } from "./susun-pricelist-xlsx";
 import { bedaSusun, catatRiwayat } from "./susun-pricelist-riwayat";
@@ -50,6 +50,7 @@ const SKEMA = z.object({
     tipe: teks, tipeBangunan: teks, view2: teks.optional(), bentuk: teks, subTipe: teks,
     lt: angka, hargaTanah: angka, lb: angka, hargaBangunan: angka, kenaikan: angka,
     faktor: z.record(angka), faktorTambah: angka, special: angka, showUnit: angka,
+    catatan: teks.optional(),
   })).max(5000),
   dataPricelist: z.object({
     tambahan: angka,
@@ -271,7 +272,12 @@ export async function berlakukanSusun(
   if (!draf) throw new Error("Belum ada isian pricelist untuk project ini.");
   const galat = hitungSemua(draf.data).galat;
   if (galat.length) throw new Error(`Pricelist belum dapat diberlakukan: ${galat[0]}`);
-  const isi = await eksporSusun(draf.data);
+  // Unit yang harganya belum dikeluarkan (bercatatan) tidak ikut pricelist.
+  const ditahan = draf.data.unit.filter(unitBelumBerharga);
+  if (ditahan.length === draf.data.unit.length) {
+    throw new Error("Pricelist belum dapat diberlakukan: belum ada unit yang berharga.");
+  }
+  const isi = await eksporSusun({ ...draf.data, unit: draf.data.unit.filter((u) => !unitBelumBerharga(u)) });
   const hasil = await bacaPricelist(
     isi.buffer.slice(isi.byteOffset, isi.byteOffset + isi.byteLength) as ArrayBuffer,
     "Pricelist");
@@ -289,7 +295,8 @@ export async function berlakukanSusun(
   await catatRiwayat(projectId, aktor, aktifkan ? "Berlakukan" : "Simpan sebagai",
     [aktifkan
       ? `Diberlakukan sebagai "${judul}" (file ${namaBerkas}, ${hasil.unit.length} unit)`
-      : `Disimpan sebagai "${judul}" tanpa diberlakukan (file ${namaBerkas}, ${hasil.unit.length} unit)`]);
+      : `Disimpan sebagai "${judul}" tanpa diberlakukan (file ${namaBerkas}, ${hasil.unit.length} unit)`,
+     ...ditahan.map((u) => `Unit ${u.kode} tidak ikut (belum berharga): ${u.catatan?.trim()}`)]);
   return { id, nama: judul, aktif: aktifkan };
 }
 
