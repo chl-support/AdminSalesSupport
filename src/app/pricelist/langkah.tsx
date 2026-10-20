@@ -143,12 +143,9 @@ function bagiSebanding(bobot: number[], total: number): number[] {
  * Allocation selalu berjumlah 100%: cara bayar ke-`i` diberi `nilai`, sisanya
  * dibagi ke cara bayar lain sebanding dengan allocation lamanya.
  */
-function aturAlokasi<T extends { alokasi: number; tambahan?: boolean }>(
-  skema: T[], i: number, nilai: number,
-): T[] {
+function aturAlokasi<T extends { alokasi: number }>(skema: T[], i: number, nilai: number): T[] {
   const bp = Math.round(Math.min(1, Math.max(0, nilai)) * 10000);
-  // Cara bayar tambahan tidak ikut dibagi.
-  const lain = skema.map((s, j) => ({ s, j })).filter(({ s, j }) => j !== i && !s.tambahan);
+  const lain = skema.map((s, j) => ({ s, j })).filter(({ j }) => j !== i);
   const bagian = bagiSebanding(lain.map(({ s }) => s.alokasi), 10000 - bp);
   const baru = skema.map((s) => ({ ...s }));
   baru[i].alokasi = bp / 10000;
@@ -156,13 +153,20 @@ function aturAlokasi<T extends { alokasi: number; tambahan?: boolean }>(
   return baru;
 }
 
+/**
+ * Allocation otomatis untuk cara bayar yang baru ditambah di ujung: ia
+ * mendapat bagian rata (100% / jumlah cara bayar), dan
+ * cara bayar lain menyesuaikan sebanding — total tetap 100%. Allocation hanya
+ * dipakai untuk WA Coefficient, tidak memengaruhi harga.
+ */
+function denganAlokasiBaru<T extends { alokasi: number }>(skema: T[]): T[] {
+  return skema.length ? aturAlokasi(skema, skema.length - 1, 1 / skema.length) : skema;
+}
+
 /** Sesuaikan semua allocation sebanding supaya berjumlah 100%. */
-function genapkanAlokasi<T extends { alokasi: number; tambahan?: boolean }>(skema: T[]): T[] {
-  const ikut = skema.map((s, j) => ({ s, j })).filter(({ s }) => !s.tambahan);
-  const bagian = bagiSebanding(ikut.map(({ s }) => s.alokasi), 10000);
-  const baru = skema.map((s) => ({ ...s, alokasi: s.tambahan ? 0 : s.alokasi }));
-  ikut.forEach(({ j }, k) => { baru[j].alokasi = bagian[k] / 10000; });
-  return baru;
+function genapkanAlokasi<T extends { alokasi: number }>(skema: T[]): T[] {
+  const bagian = bagiSebanding(skema.map((s) => s.alokasi), 10000);
+  return skema.map((s, j) => ({ ...s, alokasi: bagian[j] / 10000 }));
 }
 
 
@@ -171,7 +175,7 @@ function genapkanAlokasi<T extends { alokasi: number; tambahan?: boolean }>(skem
  * cicilan dan bulan tahap disalin dari cara bayar pertama, diubah di sana),
  * kolom Data Pricelist berkoefisien IRR-nya sendiri, kolom Pricelist, dan
  * satu blok T&C — supaya tidak ada langkah yang tertinggal. Dipakai tombol
- * + Tambah cara bayar di langkah 1 (cara bayar di langkah 3 tidak masuk Data (IRR)).
+ * + Tambah Cara Bayar di langkah 1 dan langkah 3.
  */
 function denganCaraBayarBaru(d: SusunPricelist): SusunPricelist {
   const ada = new Set([...d.irr.skema.map((x) => x.nama), ...d.dataPricelist.kolom.map((k) => k.nama)]);
@@ -180,10 +184,10 @@ function denganCaraBayarBaru(d: SusunPricelist): SusunPricelist {
   const nama = `Cara bayar ${no}`;
   return {
     ...d,
-    irr: { ...d.irr, skema: [...d.irr.skema, {
-      nama, kelompok: "Cash", alokasi: 0, tambahan: true, dp: 1, kali: 1,
+    irr: { ...d.irr, skema: denganAlokasiBaru([...d.irr.skema, {
+      nama, kelompok: "Cash", alokasi: 0, dp: 1, kali: 1,
       bulan: [...(d.irr.skema[0]?.bulan ?? [12, 18, 19, 20])] as [number, number, number, number],
-    }] },
+    }]) },
     dataPricelist: { ...d.dataPricelist, kolom: [...d.dataPricelist.kolom, { nama, skema: nama }] },
     pricelist: { ...d.pricelist, kolom: [...d.pricelist.kolom, { nama, dari: nama, kali: 1 }] },
     tnc: { ...d.tnc, caraBayar: [...d.tnc.caraBayar, { judul: nama.toUpperCase(),
@@ -359,20 +363,9 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah, baru }: PropsLangkah 
             <b className={Math.abs(hasil.irr.totalAlokasi - 1) > 1e-9 ? "alokasi-kurang" : "alokasi-pas"}>
               {persen(hasil.irr.totalAlokasi, 1, 1)}</b></td>{irr.skema.map((s, i) => (
             <td key={i}>
-              <Isian jenis="persen" desimal={1} nilai={s.tambahan ? 0 : s.alokasi} lebar={60}
-                     disabled={ro || s.tambahan}
+              <Isian jenis="persen" desimal={1} nilai={s.alokasi} lebar={60} disabled={ro}
                      ubah={(n) => ubah((d) => ({ ...d, irr: { ...d.irr,
                        skema: aturAlokasi(d.irr.skema, i, n) } }))} />
-              {/* Cara bayar tambahan: Allocation 0% dan tidak ikut dibagi;
-                  dicentang/dilepas, Allocation yang lain disesuaikan otomatis. */}
-              <label className="hint" style={{ margin: "2px 0 0", display: "flex", gap: 4, alignItems: "center" }}
-                     title="Cara bayar tambahan tidak ikut Allocation (0%), sehingga Allocation cara bayar lain tidak berubah">
-                <input type="checkbox" checked={!!s.tambahan} disabled={ro}
-                       onChange={(e) => { const t = e.target.checked; ubah((d) => ({ ...d, irr: { ...d.irr,
-                         skema: genapkanAlokasi(d.irr.skema.map((x, j) => j === i
-                           ? { ...x, tambahan: t || undefined, alokasi: t ? 0 : x.alokasi } : x)) } })); }} />
-                tambahan
-              </label>
             </td>))}</tr>
           <tr><td>DP</td>{irr.skema.map((s, i) => (
             <td key={i}><Isian jenis="persen" nilai={s.dp} lebar={60} disabled={ro}
@@ -464,7 +457,8 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah, baru }: PropsLangkah 
         <span className="hint" style={{ margin: 0 }}>
           Total alokasi <b>{persen(hasil.irr.totalAlokasi)}</b> · WA coefficient{" "}
           <b>{hasil.irr.koefRata.toFixed(3)}</b> · Allocation otomatis berjumlah 100%: mengubah
-          satu cara bayar menyesuaikan yang lain secara sebanding.
+          satu cara bayar menyesuaikan yang lain secara sebanding, dan cara bayar baru langsung
+          mendapat bagian rata. Allocation hanya untuk WA Coefficient, tidak memengaruhi harga.
         </span>
         {bolehUbah && Math.abs(hasil.irr.totalAlokasi - 1) > 1e-9 && (
           <button onClick={() => ubah((d) => ({ ...d, irr: { ...d.irr, skema: genapkanAlokasi(d.irr.skema) } }))}>
@@ -979,9 +973,9 @@ export function LangkahDataPl({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
     const ada = new Set([...d.dataPricelist.kolom.map((k) => k.nama),
                          ...d.pricelist.kolom.map((k) => k.nama), ...d.irr.skema.map((x) => x.nama)]);
     let no = 1;
-    while (ada.has(`Cara bayar baru ${no}`)) no++;
-    const nama = `Cara bayar baru ${no}`;
-    const dari = d.dataPricelist.kolom[0]?.nama ?? "";
+    while (ada.has(`Kolom turunan ${no}`)) no++;
+    const nama = `Kolom turunan ${no}`;
+    const dari = d.dataPricelist.kolom[d.dataPricelist.kolom.length - 1]?.nama ?? "";
     return { ...d,
       dataPricelist: { ...d.dataPricelist, kolom: [...d.dataPricelist.kolom, { nama, dari, kali: 1 }] },
       pricelist: { ...d.pricelist, kolom: [...d.pricelist.kolom, { nama, dari: nama, kali: 1 }] } };
@@ -1119,13 +1113,16 @@ export function LangkahDataPl({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
       </div>
       {!ro && (
         <div className="row" style={{ marginTop: 8 }}>
-          <button className="pri" onClick={tambahTurunan}
-                  title="Cara bayar baru, tidak masuk Data (IRR): dihitung dari cara bayar lain × pengali, lalu kenaikan bila perlu">
+          <button className="pri" onClick={() => ubah(denganCaraBayarBaru)}
+                  title="Cara bayar baru masuk Data (IRR): koefisien dihitung otomatis dari DP, cicilan dan bulan tahap; Allocation dibagi otomatis">
             + Tambah Cara Bayar</button>
+          <button onClick={tambahTurunan}
+                  title="Kolom yang dihitung dari kolom lain × pengali (mis. BANK KPR = KPR Express × 112%), tidak masuk Data (IRR)">
+            + Tambah kolom turunan</button>
           <span className="hint" style={{ margin: 0 }}>
-            Cara bayar baru <b>tidak masuk Data (IRR)</b>, jadi cara bayar normal dan Allocation tidak
-            berubah. Pilih <b>Dihitung Dari</b> dan isi Pengali / Kenaikan bertingkat; kolomnya langsung
-            ada di langkah 4 dan 5.
+            Cara bayar baru <b>masuk Data (IRR)</b>: isi DP, cicilan dan bulan tahapnya di langkah 1 —
+            koefisiennya dihitung otomatis, Allocation dibagi otomatis (tidak memengaruhi harga), dan
+            kolomnya langsung ada di langkah 4 dan 5.
           </span>
         </div>
       )}
