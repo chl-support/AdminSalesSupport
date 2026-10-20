@@ -2973,6 +2973,8 @@ td.sel-surel, th.sel-surel { white-space: nowrap; font-size: 11.5px; }
 .folder-pl > summary { font-size: 13.5px; color: var(--ink, inherit); }
 .folder-pl .berkas-pl { margin-bottom: 8px; }
 .folder-pl .berkas-pl.berlaku { border-color: #8cc5a3; background: #f1f8f3; }
+.berkas-pl-nama small.tgl-berlaku { color: var(--sub); }
+.berkas-pl-nama small.tgl-berlaku.aktif { color: #1f7a45; font-weight: 600; }
 .riwayat-berkas { flex-basis: 100%; border-top: 1px dashed var(--line); padding-top: 6px; }
 .riwayat-berkas > summary { cursor: pointer; font-size: 12.5px; font-weight: 600; color: var(--sub); }
 .riwayat-berkas[open] > summary { margin-bottom: 8px; }

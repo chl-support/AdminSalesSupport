@@ -39,6 +39,7 @@ const KATA = {
     riwayatKosong: "Belum ada unggahan untuk project ini.",
     lihatRiwayat: (n: number) => `Riwayat unggahan (${n})`,
     folderSimpan: (n: number) => `Master Pricelist (${n})`,
+    tglBerlaku: (t: string) => `Diberlakukan ${t}`,
     folderSimpanInfo: "Semua pricelist yang sudah disimpan dengan nama (bukan draf), terbaru di atas.",
     riwayatPl: (n: number) => `Riwayat perubahan (${n})`,
     folderKosong: "Belum ada pricelist yang disimpan dengan nama. Isi nama di langkah 4 lalu Simpan.",
@@ -73,6 +74,7 @@ const KATA = {
     riwayatKosong: "No uploads for this project yet.",
     lihatRiwayat: (n: number) => `Upload history (${n})`,
     folderSimpan: (n: number) => `Master Price List (${n})`,
+    tglBerlaku: (t: string) => `Applied ${t}`,
     folderSimpanInfo: "Every price list saved under a name (not drafts), newest first.",
     riwayatPl: (n: number) => `Change history (${n})`,
     folderKosong: "No price list saved under a name yet. Enter a name in step 4, then save.",
@@ -106,6 +108,8 @@ type Ringkas = {
   id: string; nama: string; nama_berkas: string | null; jumlah_unit: number;
   jumlah_skema: number; aktif: boolean; diunggah_oleh: string | null;
   diunggah_pada: string; ada_berkas: boolean;
+  /** Terakhir diberlakukan; null bila belum pernah. */
+  diberlakukan_pada?: string | null;
   /** "susun": dari layar Pricelist; "unggah": berkas Excel. */
   sumber?: "susun" | "unggah";
 };
@@ -301,9 +305,11 @@ export function PanelPricelist({ sesi, versi, onBerubah, onEdit, onAmbilTnc }: {
         </p>
       )}
       {galat && <div className="banner stop">{galat}</div>}
+      {/* Layar Pricelist: berkas yang berlaku sudah ada di folder Master
+          Pricelist, jadi kartunya hanya di layar Simulasi. */}
       {!berlaku ? (
         <div className="banner info">{k.tidakAda}</div>
-      ) : (
+      ) : adaEdit ? null : (
         <>
           {/* Pricelist tampil sebagai berkas di dalam folder; tabelnya
               baru dibuka bila diminta. */}
@@ -323,8 +329,6 @@ export function PanelPricelist({ sesi, versi, onBerubah, onEdit, onAmbilTnc }: {
                 {bukaTabel ? k.tutup : k.buka}</button>
               {bolehUbah && aktif && (
                 <button onClick={() => mulaiGanti(aktif)}>{k.gantiNama}</button>)}
-              {bolehUbah && onEdit && aktif?.ada_berkas && (
-                <button onClick={() => onEdit(aktif.id, aktif.nama)}>{k.edit}</button>)}
               {bolehUbah && onAmbilTnc && aktif?.ada_berkas && (
                 <button title={k.ambilTncInfo} onClick={() => onAmbilTnc(aktif.id, aktif.nama)}>{k.ambilTnc}</button>)}
               <button className="pri" disabled={!aktif?.ada_berkas}
@@ -400,6 +404,10 @@ export function PanelPricelist({ sesi, versi, onBerubah, onEdit, onAmbilTnc }: {
                         <b>{r.nama}</b>
                         <small>{k.ringkas(r.jumlah_unit, r.jumlah_skema)}
                           {` · ${r.diunggah_oleh ?? "—"} · ${tgl(r.diunggah_pada)}`}</small>
+                        {/* Tanggal terakhir diberlakukan (tercatat sejak fitur ini ada). */}
+                        {r.diberlakukan_pada && (
+                          <small className={r.aktif ? "tgl-berlaku aktif" : "tgl-berlaku"}>
+                            {k.tglBerlaku(tgl(r.diberlakukan_pada))}</small>)}
                       </span>
                     </button>
                     <span className="row" style={{ margin: 0 }}>
