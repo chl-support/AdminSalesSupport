@@ -24,7 +24,7 @@ import { useSesi } from "../session";
 import { PENGUNGGAH } from "../simulasi/unggah-pricelist";
 import { basisProject, hitungSemua, type SusunPricelist } from "@/lib/susun-pricelist";
 import {
-  LangkahDataPl, LangkahIrr, LangkahPricelist, LangkahTnc, LangkahUnit,
+  LangkahDataPl, LangkahIrr, LangkahPricelist, LangkahTnc, LangkahUnit, sinkronTnc,
 } from "./langkah";
 
 const KATA = {
@@ -222,7 +222,8 @@ export default function PricelistPage() {
 
   const ubah = (f: (d: SusunPricelist) => SusunPricelist) => {
     setInfo(null); setBerlaku(null); setTersimpanSbg(null);
-    setData((d) => (d ? f(d) : d));
+    // T&C mengikuti kolom Pricelist: kolom baru mendapat blok, ganti nama ikut.
+    setData((d) => (d ? sinkronTnc(d, f(d)) : d));
   };
 
   const tgl = (s: string) => new Date(s).toLocaleString("id-ID",
