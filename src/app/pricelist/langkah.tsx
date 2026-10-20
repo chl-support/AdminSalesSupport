@@ -539,6 +539,15 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
       !hanyaTerpilih || pilih.has(j) ? { ...u, kenaikan } : u) }));
     setPesanKenaikan(`Increase ${persen(kenaikan)} diterapkan ke ${n} unit${hanyaTerpilih ? " terpilih" : ""}. Simpan untuk menyimpannya.`);
   };
+  // (+) Factor massal (mis. Gimmick 1%), sama caranya dengan Increase massal.
+  const [faktorTambah, setFaktorTambah] = useState(0);
+  const [pesanFaktor, setPesanFaktor] = useState<string | null>(null);
+  const terapkanFaktor = (hanyaTerpilih: boolean) => {
+    const n = hanyaTerpilih ? pilih.size : data.unit.length;
+    ubah((d) => ({ ...d, unit: d.unit.map((u, j) =>
+      !hanyaTerpilih || pilih.has(j) ? { ...u, faktorTambah } : u) }));
+    setPesanFaktor(`(+) Factor ${persen(faktorTambah, 2, 1)} diterapkan ke ${n} unit${hanyaTerpilih ? " terpilih" : ""}. Simpan untuk menyimpannya.`);
+  };
   const [yakin, setYakin] = useState<number | "pilihan" | null>(null);
   const [fokus, setFokus] = useState<number | null>(null);
   useEffect(() => {
@@ -664,6 +673,20 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
             Unit Terpilih ({pilih.size})</button>
           <span className="hint" style={{ margin: 0 }}>
             {pesanKenaikan ?? "Isi persen, lalu terapkan ke semua unit atau ke unit yang dicentang di tabel."}
+          </span>
+        </div>
+      )}
+      {bolehUbah && data.unit.length > 0 && (
+        <div className="row increase-massal">
+          <b>(+) Factor</b>
+          <Isian id="unit-faktor-massal" jenis="persen" desimal={1} nilai={faktorTambah} lebar={70}
+                  ubah={(n) => { setFaktorTambah(n); setPesanFaktor(null); }} />
+          <button onClick={() => terapkanFaktor(false)}>Semua Unit ({data.unit.length})</button>
+          <button disabled={!pilih.size} onClick={() => terapkanFaktor(true)}
+                  title={pilih.size ? undefined : "Centang unit di tabel lebih dulu"}>
+            Unit Terpilih ({pilih.size})</button>
+          <span className="hint" style={{ margin: 0 }}>
+            {pesanFaktor ?? "Mis. Gimmick (Trip, BPHTB, AKAD, Repair) 1%: nilai (+) Factor unit diganti dengan angka ini."}
           </span>
         </div>
       )}
