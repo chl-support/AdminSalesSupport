@@ -1368,6 +1368,32 @@ export function LangkahTnc({ data, ubah, bolehUbah, slug }: PropsLangkah & { slu
   const ubahCb = (i: number, f: (c: (typeof t.caraBayar)[0]) => (typeof t.caraBayar)[0]) =>
     ubahT((x) => ({ ...x, caraBayar: x.caraBayar.map((c, j) => j === i ? f(c) : c) }));
 
+  // Salin T&C dari project lain: format dan cara bayarnya sering sama, jadi
+  // tidak perlu diketik ulang. Rekening project ini tidak ikut diganti.
+  const [lain, setLain] = useState<{ slug: string; nama: string; jumlah: number }[]>([]);
+  const [dari, setDari] = useState("");
+  const [pesanSalin, setPesanSalin] = useState<string | null>(null);
+  useEffect(() => {
+    if (ro) return;
+    fetch("/api/pricelist/susun/tnc").then((r) => r.ok ? r.json() : null)
+      .then((b) => setLain(b?.project ?? [])).catch(() => {});
+  }, [ro]);
+  const salin = async () => {
+    const p = lain.find((x) => x.slug === dari);
+    if (!p) return;
+    setPesanSalin(null);
+    const r = await fetch(`/api/pricelist/susun/tnc?slug=${encodeURIComponent(p.slug)}`);
+    const b = await r.json().catch(() => ({}));
+    if (!r.ok || !b.tnc) { setPesanSalin(b.detail ?? b.title ?? `HTTP ${r.status}`); return; }
+    const x = b.tnc as typeof t;
+    const daftar = x.caraBayar.map((c, i) => `${i + 1}. ${c.judul}`).join("\n");
+    if (!confirm(`Terms & Conditions ${p.nama}:\n\n${daftar}\n\n${x.catatan.length} catatan.\n\n` +
+                 "Judul, cara bayar dan catatan di layar diganti dengan isi di atas (rekening project ini " +
+                 "tetap). Lanjutkan?")) return;
+    ubahT((y) => ({ ...y, judul: x.judul, caraBayar: x.caraBayar, catatan: x.catatan }));
+    setPesanSalin(`T&C disalin dari ${p.nama}. Periksa nama PT, nominal dan cara bayar yang berbeda, lalu Simpan.`);
+  };
+
   return (
     <>
       <div className="row" style={{ alignItems: "flex-end", justifyContent: "space-between" }}>
@@ -1380,6 +1406,17 @@ export function LangkahTnc({ data, ubah, bolehUbah, slug }: PropsLangkah & { slu
                 title="Pratinjau dan cetak Term of Payment di kertas A4 (atau simpan sebagai PDF)">
           🖨 Cetak A4</button>
       </div>
+      {!ro && lain.length > 0 && (
+        <div className="row" style={{ marginTop: 10, alignItems: "center" }}>
+          <span className="lbl" style={{ margin: 0 }}>Salin T&C dari project</span>
+          <select id="tnc-salin" value={dari} onChange={(e) => setDari(e.target.value)}>
+            <option value="">— pilih —</option>
+            {lain.map((x) => <option key={x.slug} value={x.slug}>{x.nama} ({x.jumlah} cara bayar)</option>)}
+          </select>
+          <button disabled={!dari} onClick={() => void salin()}>Salin</button>
+        </div>
+      )}
+      {pesanSalin && <div className="banner info" style={{ marginTop: 8 }}>{pesanSalin}</div>}
 
       <h3 className="sub-judul">Cara bayar</h3>
       <div className="tnc-grid">
