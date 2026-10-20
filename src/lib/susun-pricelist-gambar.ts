@@ -54,3 +54,51 @@ export async function bacaGambar(
     "SELECT nama, tipe, isi FROM pricelist_susun_gambar WHERE id=$1 AND project_id=$2",
     [id, projectId]);
 }
+
+// ── Lampiran T&C (semua project) ───────────────────────────────────────────
+//
+// Gambar yang dicetak di halaman terakhir Terms & Conditions, mis. tabel
+// "Data konsumen yang harus dilengkapi". Isinya sama untuk semua project,
+// jadi daftarnya satu untuk seluruh aplikasi: diunggah sekali dari project
+// mana pun, tampil di cetakan T&C setiap project.
+
+let sekaliLampiran: Promise<void> | null = null;
+function ensureLampiran(): Promise<void> {
+  sekaliLampiran ??= ensureTabel().then(() => query(`
+    CREATE TABLE IF NOT EXISTS tnc_lampiran (
+      gambar_id BIGINT PRIMARY KEY REFERENCES pricelist_susun_gambar(id),
+      urutan    INT NOT NULL
+    )`)).then(() => undefined).catch((e) => { sekaliLampiran = null; throw e; });
+  return sekaliLampiran;
+}
+
+export async function daftarLampiranTnc(): Promise<{ id: string; nama: string }[]> {
+  await ensureLampiran();
+  return query<{ id: string; nama: string }>(
+    `SELECT g.id::text, g.nama FROM tnc_lampiran l
+       JOIN pricelist_susun_gambar g ON g.id = l.gambar_id ORDER BY l.urutan`);
+}
+
+/** Ganti seluruh daftar lampiran; id harus gambar yang sudah diunggah. */
+export async function simpanLampiranTnc(ids: string[]): Promise<{ id: string; nama: string }[]> {
+  await ensureLampiran();
+  const bersih = [...new Set(ids.filter((x) => /^\d{1,18}$/.test(x)))].slice(0, MAKS_GAMBAR);
+  await query("DELETE FROM tnc_lampiran");
+  for (const [i, id] of bersih.entries()) {
+    await query(
+      `INSERT INTO tnc_lampiran (gambar_id, urutan)
+       SELECT id, $2 FROM pricelist_susun_gambar WHERE id=$1`, [id, i]);
+  }
+  return daftarLampiranTnc();
+}
+
+/** Isi gambar lampiran — boleh dibaca dari project mana pun. */
+export async function bacaLampiranTnc(
+  id: string,
+): Promise<{ nama: string; tipe: string; isi: Buffer } | null> {
+  if (!/^\d{1,18}$/.test(id)) return null;
+  await ensureLampiran();
+  return one<{ nama: string; tipe: string; isi: Buffer }>(
+    `SELECT g.nama, g.tipe, g.isi FROM tnc_lampiran l
+       JOIN pricelist_susun_gambar g ON g.id = l.gambar_id WHERE l.gambar_id=$1`, [id]);
+}

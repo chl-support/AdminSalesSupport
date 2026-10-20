@@ -1505,6 +1505,122 @@ export function LangkahTnc({ data, ubah, bolehUbah, slug }: PropsLangkah & { slu
       </div>
       {bolehUbah && <button style={{ marginTop: 8 }} onClick={() => ubahT((x) => ({ ...x,
         rekening: [...x.rekening, { bank: "", noRek: "", cabang: "" }] }))}>+ Tambah rekening</button>}
+
+      <LampiranTnc ro={ro} />
+    </>
+  );
+}
+
+/**
+ * Lampiran gambar T&C — mis. tabel "Data konsumen yang harus dilengkapi" —
+ * dicetak di halaman terakhir Term of Payment. Satu daftar untuk semua
+ * project, dan langsung tersimpan (tidak menunggu Simpan draf).
+ */
+function LampiranTnc({ ro }: { ro: boolean }) {
+  const [lampiran, setLampiran] = useState<{ id: string; nama: string }[]>([]);
+  const [sibuk, setSibuk] = useState(false);
+  const [galat, setGalat] = useState<string | null>(null);
+  useEffect(() => {
+    fetch("/api/pricelist/tnc-lampiran").then((r) => r.ok ? r.json() : null)
+      .then((b) => setLampiran(b?.lampiran ?? [])).catch(() => {});
+  }, []);
+
+  const simpan = async (ids: string[]) => {
+    const r = await fetch("/api/pricelist/tnc-lampiran", {
+      method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ ids }) });
+    const b = await r.json().catch(() => ({}));
+    if (!r.ok) { setGalat(b.detail ?? b.title ?? `HTTP ${r.status}`); return; }
+    setLampiran(b.lampiran ?? []);
+  };
+  const unggah = async (files: File[]) => {
+    const sisa = MAKS_GAMBAR - lampiran.length;
+    if (!files.length) return;
+    if (sisa <= 0) { setGalat(`Paling banyak ${MAKS_GAMBAR} gambar.`); return; }
+    setSibuk(true); setGalat(null);
+    try {
+      const ids = lampiran.map((x) => x.id);
+      for (const asli of files.slice(0, sisa)) {
+        const f = await perkecilGambar(asli);
+        const fd = new FormData(); fd.append("file", f, f.name);
+        const res = await fetch("/api/pricelist/susun/gambar", { method: "POST", body: fd });
+        const b = await res.json().catch(() => ({}));
+        if (res.status === 401) { location.href = "/login"; return; }
+        if (!res.ok) { setGalat(`${asli.name}: ${b.detail ?? b.title ?? `HTTP ${res.status}`}`); continue; }
+        ids.push(b.id);
+      }
+      await simpan(ids);
+    } finally {
+      setSibuk(false);
+    }
+  };
+  // Tempel screenshot (Windows + Shift + S lalu Ctrl + V) di kotak tempel.
+  const tempel = (e: React.ClipboardEvent) => {
+    if (ro) return;
+    const files = [...e.clipboardData.items]
+      .filter((it) => it.kind === "file" && it.type.startsWith("image/"))
+      .map((it, i) => {
+        const f = it.getAsFile()!;
+        const jam = new Date().toLocaleString("sv-SE").replace(/[: ]/g, "-");
+        return new File([f], `lampiran-${jam}${i ? `-${i + 1}` : ""}.${f.type.split("/")[1] || "png"}`,
+                        { type: f.type });
+      });
+    e.preventDefault();
+    if (files.length) void unggah(files);
+  };
+  const geser = (i: number, arah: -1 | 1) => {
+    const ids = lampiran.map((x) => x.id);
+    const j = i + arah;
+    if (j < 0 || j >= ids.length) return;
+    [ids[i], ids[j]] = [ids[j], ids[i]];
+    void simpan(ids);
+  };
+
+  return (
+    <>
+      <h3 className="sub-judul">Lampiran gambar</h3>
+      <p className="hint kiri" style={{ marginTop: 0 }}>
+        Dicetak di halaman terakhir Term of Payment, <b>berlaku untuk semua project</b>, dan langsung
+        tersimpan (tidak perlu Simpan draf).
+      </p>
+      {lampiran.length > 0 && (
+        <div className="gambar-catatan">
+          {lampiran.map((g, i) => (
+            <figure key={g.id}>
+              <a href={`/api/pricelist/tnc-lampiran/${g.id}`} target="_blank" rel="noreferrer"
+                 title="Buka gambar ukuran penuh">
+                <img src={`/api/pricelist/tnc-lampiran/${g.id}`} alt={g.nama} loading="lazy" />
+              </a>
+              <figcaption>
+                <span title={g.nama}>{i + 1}. {g.nama}</span>
+                {!ro && (
+                  <span className="row" style={{ margin: 0, gap: 4, flexWrap: "nowrap" }}>
+                    <button className="kecil" disabled={i === 0} aria-label="Geser ke depan"
+                            onClick={() => geser(i, -1)}>▲</button>
+                    <button className="kecil" disabled={i === lampiran.length - 1} aria-label="Geser ke belakang"
+                            onClick={() => geser(i, 1)}>▼</button>
+                    <button className="kecil bahaya" aria-label={`Hapus ${g.nama}`}
+                            onClick={() => void simpan(lampiran.filter((x) => x.id !== g.id).map((x) => x.id))}>
+                      Hapus</button>
+                  </span>
+                )}
+              </figcaption>
+            </figure>
+          ))}
+        </div>
+      )}
+      {galat && <div className="banner stop" style={{ marginTop: 8 }}>{galat}</div>}
+      {!ro && (
+        <div className="row" style={{ margin: "6px 0 0", alignItems: "center" }}>
+          <input id="tnc-tempel" readOnly value="" onPaste={tempel} style={{ width: 300 }}
+                 placeholder="Klik di sini lalu Ctrl + V untuk menempel screenshot" />
+          <label className="tombol-berkas">
+            <input type="file" accept="image/png,image/jpeg,image/gif,image/webp" multiple hidden
+                   disabled={sibuk || lampiran.length >= MAKS_GAMBAR}
+                   onChange={(e) => { void unggah([...(e.target.files ?? [])]); e.target.value = ""; }} />
+            {sibuk ? "Mengunggah…" : "+ Tambah gambar"}
+          </label>
+        </div>
+      )}
     </>
   );
 }

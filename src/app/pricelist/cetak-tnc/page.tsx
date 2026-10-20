@@ -12,6 +12,9 @@
  * Cara bayar, catatan, dan rekening yang tidak dicentang di "Pilih isi yang
  * dicetak" hanya disembunyikan dari cetakan — isian Pricelist tidak berubah.
  * Pilihan itu diingat peramban per project untuk cetakan berikutnya.
+ *
+ * Lampiran gambar T&C (sama untuk semua project) dicetak di halaman
+ * tersendiri sesudahnya, supaya T&C-nya tetap muat satu halaman.
  */
 
 import { useEffect, useRef, useState } from "react";
@@ -23,8 +26,8 @@ const KUNCI_CETAK_TNC = "cetak-tnc";
 type Isi = { tnc: Tnc; tanggal: string; slug: string | null };
 
 /** Kunci tiap butir supaya pilihan tetap cocok walau urutannya bergeser. */
-type Sembunyi = { caraBayar: string[]; catatan: string[]; rekening: string[] };
-const KOSONG: Sembunyi = { caraBayar: [], catatan: [], rekening: [] };
+type Sembunyi = { caraBayar: string[]; catatan: string[]; rekening: string[]; gambar: string[] };
+const KOSONG: Sembunyi = { caraBayar: [], catatan: [], rekening: [], gambar: [] };
 const kunciCatatan = (c: string) => c.slice(0, 80);
 const kunciRek = (r: Tnc["rekening"][number]) => `${r.bank}|${r.noRek}`;
 
@@ -41,6 +44,11 @@ export default function CetakTnc() {
   const [lebih, setLebih] = useState(false);
   const [sembunyi, setSembunyi] = useState<Sembunyi>(KOSONG);
   const lembar = useRef<HTMLDivElement>(null);
+  const [lampiran, setLampiran] = useState<{ id: string; nama: string }[]>([]);
+  useEffect(() => {
+    fetch("/api/pricelist/tnc-lampiran").then((r) => r.ok ? r.json() : null)
+      .then((b) => setLampiran(b?.lampiran ?? [])).catch(() => {});
+  }, []);
   const kunciPilihan = `${KUNCI_CETAK_TNC}-pilihan-${isi?.slug ?? "-"}`;
 
   useEffect(() => {
@@ -66,6 +74,7 @@ export default function CetakTnc() {
       caraBayar: isi.tnc.caraBayar.map((c) => c.judul),
       catatan: isi.tnc.catatan.map(kunciCatatan),
       rekening: isi.tnc.rekening.map(kunciRek),
+      gambar: lampiran.map((g) => g.id),
     };
     setSembunyi(n);
     try { localStorage.setItem(kunciPilihan, JSON.stringify(n)); } catch { /* abaikan */ }
@@ -102,8 +111,10 @@ export default function CetakTnc() {
     catatan: semuaTnc.catatan.filter((c) => !sembunyi.catatan.includes(kunciCatatan(c))),
     rekening: semuaTnc.rekening.filter((r) => !sembunyi.rekening.includes(kunciRek(r))),
   };
+  const gambar = lampiran.filter((g) => !sembunyi.gambar.includes(g.id));
   const jumlahSembunyi = semuaTnc.caraBayar.length - tnc.caraBayar.length
-    + semuaTnc.catatan.length - tnc.catatan.length + semuaTnc.rekening.length - tnc.rekening.length;
+    + semuaTnc.catatan.length - tnc.catatan.length + semuaTnc.rekening.length - tnc.rekening.length
+    + lampiran.length - gambar.length;
   const perKolom = Math.max(1, Math.ceil(tnc.caraBayar.length / kolom));
   const kelompok = Array.from({ length: kolom }, (_, k) =>
     tnc.caraBayar.map((c, i) => ({ c, i })).slice(k * perKolom, (k + 1) * perKolom));
@@ -166,6 +177,11 @@ export default function CetakTnc() {
             {semuaTnc.rekening.map((r, i) => (
               <label key={`r${i}`}><input type="checkbox" checked={!sembunyi.rekening.includes(kunciRek(r))}
                 onChange={(e) => ganti("rekening", kunciRek(r), e.target.checked)} /> {r.bank} {r.noRek}</label>
+            ))}
+            {lampiran.length > 0 && <b>Lampiran gambar</b>}
+            {lampiran.map((g, i) => (
+              <label key={`g${g.id}`}><input type="checkbox" checked={!sembunyi.gambar.includes(g.id)}
+                onChange={(e) => ganti("gambar", g.id, e.target.checked)} /> {i + 1}. {g.nama}</label>
             ))}
           </div>
         </details>
@@ -241,6 +257,16 @@ export default function CetakTnc() {
             )}
           </div>
         </div>
+        {/* Lampiran gambar: halaman tersendiri sesudah T&C. */}
+        {gambar.length > 0 && (
+          <div className="cetak-kertas tnc-lampiran-kertas"
+               style={{ width: LEBAR[arah] + 2 * 38, minHeight: TINGGI[arah] + 2 * 38 }}>
+            {gambar.map((g) => (
+              <img key={g.id} src={`/api/pricelist/tnc-lampiran/${g.id}`} alt={g.nama}
+                   style={{ maxHeight: TINGGI[arah] }} />
+            ))}
+          </div>
+        )}
       </div>
     </>
   );
