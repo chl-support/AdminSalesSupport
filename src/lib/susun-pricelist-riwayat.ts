@@ -44,7 +44,7 @@ export async function catatRiwayat(
     [projectId, oleh, aksi, JSON.stringify(perubahan)]);
 }
 
-export async function bacaRiwayat(projectId: string, batas = 200): Promise<BarisRiwayat[]> {
+export async function bacaRiwayat(projectId: string, batas = 2000): Promise<BarisRiwayat[]> {
   await ensureTabel();
   return query<BarisRiwayat>(
     `SELECT id::text, oleh, pada, aksi, perubahan FROM pricelist_susun_riwayat
