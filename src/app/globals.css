@@ -3217,7 +3217,13 @@ ul.daftar-ubah li { margin: 1px 0; }
 .tnc-kartu .tabel-isian td:nth-child(3) { width: 24%; }
 .tnc-kartu .tabel-isian td:nth-child(5) { width: 34px; }
 .tnc-kartu .tabel-isian td input { width: 100% !important; max-width: 100%; box-sizing: border-box; }
-/* Cetak T&C: lampiran gambar di halaman tersendiri sesudah T&C. */
+/* Cetak T&C: lampiran gambar menyambung di bawah rekening. Lebarnya dalam
+   em, jadi ikut mengecil bersama ukuran huruf ("Muatkan 1 halaman"). */
+.tnc-lembar .tnc-lampiran { margin-top: .8em; display: flex; flex-direction: column;
+                            align-items: center; gap: .6em; }
+.tnc-lembar .tnc-lampiran img { display: block; width: 100%; max-width: 80em; height: auto;
+                                break-inside: avoid; page-break-inside: avoid; }
+/* Cetak T&C: lampiran di halaman terpisah (tombol Lampiran → Dipisah). */
 .tnc-lampiran-kertas { margin-top: 24px !important; display: flex; flex-direction: column;
                        align-items: center; gap: 12px; break-before: page; page-break-before: always; }
 .tnc-lampiran-kertas img { display: block; max-width: 100%; height: auto; object-fit: contain;
