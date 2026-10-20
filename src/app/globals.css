@@ -3129,15 +3129,16 @@ ul.daftar-ubah li { margin: 1px 0; }
 .tnc-lembar header { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; margin-bottom: .6em; }
 .tnc-lembar .tnc-logo { height: 4.2em; object-fit: contain; justify-self: start; }
 .tnc-lembar h1 { font-size: 1.45em; margin: 0; letter-spacing: .02em; text-transform: uppercase; }
-.tnc-lembar .tnc-tanggal { font-weight: 700; margin-bottom: .4em; }
+.tnc-lembar .tnc-tanggal { font-weight: 700; margin-bottom: 1.1em; }
 .tnc-lembar .tnc-kolom { display: grid; gap: 0 2.5em; padding-bottom: .5em; border-bottom: 1px solid #000; }
 .tnc-lembar .tnc-cb { margin: 0 0 .9em; break-inside: avoid; }
 .tnc-lembar .tnc-cb h2 { font-size: 1em; margin: 0 0 .15em; text-transform: uppercase; }
 .tnc-lembar .tnc-cb h2 span { display: inline-block; width: 2em; padding-left: .6em; }
 .tnc-lembar table { border-collapse: collapse; }
-.tnc-lembar .tnc-cb td { padding: .05em .4em .05em 0; vertical-align: top; }
+.tnc-lembar .tnc-cb td { padding: .05em .4em .05em 0; vertical-align: middle; }
 .tnc-lembar .tnc-cb td.h { padding-left: 2.6em; width: 1.6em; }
-.tnc-lembar .tnc-cb td.l { width: 9em; }
+/* Label cara bayar (mis. "PELUNASAN / AKAD") tetap satu baris. */
+.tnc-lembar .tnc-cb td.l { min-width: 9em; white-space: nowrap; }
 .tnc-lembar .tnc-cb td.v { width: 10em; white-space: nowrap; }
 .tnc-lembar .tnc-cb-catatan { margin: .1em 0 0 4.2em; font-style: italic; }
 .tnc-lembar .tnc-catatan-cetak { margin-top: .6em; }
