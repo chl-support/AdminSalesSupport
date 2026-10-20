@@ -3210,3 +3210,10 @@ ul.daftar-ubah li { margin: 1px 0; }
 .tabel-unit td > .isian-angka { display: flex; }
 .tabel-unit td > .isian-angka input { flex: 1; }
 .tabel-unit thead th { white-space: normal; line-height: 1.25; }
+/* Kartu T&C: kotak isian tidak boleh melebarkan kartu (tombol × tetap di dalam). */
+.tnc-kartu .tabel-isian { width: 100%; table-layout: fixed; }
+.tnc-kartu .tabel-isian td:nth-child(1) { width: 22px; }
+.tnc-kartu .tabel-isian td:nth-child(2) { width: 28%; }
+.tnc-kartu .tabel-isian td:nth-child(3) { width: 24%; }
+.tnc-kartu .tabel-isian td:nth-child(5) { width: 34px; }
+.tnc-kartu .tabel-isian td input { width: 100% !important; max-width: 100%; box-sizing: border-box; }
