@@ -283,6 +283,7 @@ export async function berlakukanSusun(
   const namaBerkas = `${judul.replace(/[\\/:*?"<>|]+/g, "-")}.xlsx`;
   const { id } = await simpanPricelist({
     projectId, nama: judul, namaBerkas, isi, hasil, aktor, aktif: aktifkan,
+    sumber: "susun",
   });
   await catatRiwayat(projectId, aktor, aktifkan ? "Berlakukan" : "Simpan sebagai",
     [aktifkan

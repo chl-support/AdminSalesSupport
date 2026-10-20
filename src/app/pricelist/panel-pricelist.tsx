@@ -24,6 +24,12 @@ import type { UnitHarga } from "@/lib/simulasi";
 const KATA = {
   id: {
     berlaku: "Pricelist yang berlaku",
+    sumber: "Sumber angka", sOtomatis: "Otomatis", sManual: "Manual",
+    sOtomatisInfo: "Otomatis: angka dari layar Pricelist, yang terakhir Anda Simpan & berlakukan.",
+    sManualInfo: "Manual: angka dari berkas Excel yang diunggah dan diberlakukan.",
+    sKosongSusun: "Belum ada pricelist dari layar Pricelist. Susun isiannya lalu tekan Simpan & berlakukan.",
+    sKosongUnggah: "Belum ada pricelist dari berkas unggahan pada project ini.",
+    sBerpindah: "Memindahkan…",
     tidakAda: "Project ini belum punya pricelist.",
     ringkas: (u: number, s: number) => `${u} unit · ${s} cara bayar`,
     riwayat: "Riwayat unggahan",
@@ -48,6 +54,12 @@ const KATA = {
   },
   en: {
     berlaku: "Price list in force",
+    sumber: "Source", sOtomatis: "Automatic", sManual: "Manual",
+    sOtomatisInfo: "Automatic: figures from the Price List screen, the last one you saved and applied.",
+    sManualInfo: "Manual: figures from the Excel file you uploaded and applied.",
+    sKosongSusun: "No price list from the Price List screen yet. Fill it in, then press Save & apply.",
+    sKosongUnggah: "No uploaded price list for this project yet.",
+    sBerpindah: "Switching…",
     tidakAda: "This project has no price list yet.",
     ringkas: (u: number, s: number) => `${u} units · ${s} payment schemes`,
     riwayat: "Upload history",
@@ -85,6 +97,8 @@ type Ringkas = {
   id: string; nama: string; nama_berkas: string | null; jumlah_unit: number;
   jumlah_skema: number; aktif: boolean; diunggah_oleh: string | null;
   diunggah_pada: string; ada_berkas: boolean;
+  /** "susun": dari layar Pricelist; "unggah": berkas Excel. */
+  sumber?: "susun" | "unggah";
 };
 
 const LABEL_SARING = {
@@ -114,6 +128,7 @@ export function PanelPricelist({ sesi, versi, onBerubah, onEdit, onAmbilTnc }: {
   const [cari, setCari] = useState("");
   const [saring, setSaring] = useState<Record<Saring, string>>(SARING_KOSONG);
   const [pajak, setPajak] = useState(false);
+  const [pindah, setPindah] = useState(false);
 
   // Pilihan tiap saringan diambil dari isi pricelist-nya sendiri; saringan
   // yang kolomnya tidak ada di berkas tidak ditampilkan.
@@ -155,6 +170,24 @@ export function PanelPricelist({ sesi, versi, onBerubah, onEdit, onAmbilTnc }: {
     onBerubah?.();
   };
 
+  /**
+   * Berpindah sumber angka: Otomatis (layar Pricelist) atau Manual (berkas
+   * unggahan). Yang berpindah hanya penunjuknya — pricelist terbaru dari
+   * sumber itu diberlakukan kembali, dan tidak ada angka yang dihitung ulang.
+   */
+  const pilihSumber = async (sumber: "susun" | "unggah") => {
+    setGalat(null); setPindah(true);
+    const res = await fetch("/api/pricelist/sumber", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ sumber }),
+    });
+    const b = await res.json().catch(() => ({}));
+    setPindah(false);
+    if (!res.ok) { setGalat(b.detail ?? b.title ?? `HTTP ${res.status}`); return; }
+    await muat();
+    onBerubah?.();
+  };
+
   const gantiNama = async (id: string) => {
     setGalat(null);
     const res = await fetch(`/api/pricelist/${id}`, {
@@ -189,13 +222,41 @@ export function PanelPricelist({ sesi, versi, onBerubah, onEdit, onAmbilTnc }: {
     { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
   const aktif = riwayat.find((r) => r.aktif);
   const unduh = (id: string) => { location.href = `/api/pricelist/${id}`; };
+  /** Ada tidaknya pricelist dari tiap sumber; tombol tanpa isi dimatikan. */
+  const ada = (s: "susun" | "unggah") =>
+    riwayat.some((r) => (r.sumber ?? "unggah") === s);
+  const sumberAktif = aktif ? (aktif.sumber ?? "unggah") : null;
+  const tombolSumber = (s: "susun" | "unggah", label: string, info: string) => (
+    <button className={sumberAktif === s ? "pri" : undefined}
+            aria-pressed={sumberAktif === s}
+            disabled={pindah || !ada(s) || sumberAktif === s}
+            title={ada(s) ? info : (s === "susun" ? k.sKosongSusun : k.sKosongUnggah)}
+            onClick={() => void pilihSumber(s)}>
+      {pindah ? k.sBerpindah : label}
+    </button>
+  );
 
   return (
     <div className="panel sp">
       <h2>
         {k.berlaku}
         {berlaku && <span className="pill ok">{berlaku.nama}</span>}
+        {/* Sumber angka: dari layar Pricelist, atau dari berkas yang
+            diunggah. Keduanya pricelist yang pernah diberlakukan — tombol ini
+            menunjuk mana yang dipakai Simulasi, bukan menghitung ulang. */}
+        {bolehUbah && (
+          <span className="row" style={{ margin: 0, flexWrap: "nowrap" }}>
+            <small className="hint" style={{ margin: 0 }}>{k.sumber}:</small>
+            {tombolSumber("unggah", k.sManual, k.sManualInfo)}
+            {tombolSumber("susun", k.sOtomatis, k.sOtomatisInfo)}
+          </span>
+        )}
       </h2>
+      {bolehUbah && sumberAktif && (
+        <p className="hint kiri" style={{ marginTop: 0 }}>
+          {sumberAktif === "susun" ? k.sOtomatisInfo : k.sManualInfo}
+        </p>
+      )}
       {galat && <div className="banner stop">{galat}</div>}
       {!berlaku ? (
         <div className="banner info">{k.tidakAda}</div>

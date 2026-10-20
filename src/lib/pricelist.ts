@@ -362,9 +362,19 @@ export function ensureTabelPricelist(): Promise<void> {
     // Berkas Excel asli yang diunggah, supaya dapat diunduh kembali dari
     // layar Pricelist. Unggahan sebelum kolom ini ada tidak memilikinya.
     await query("ALTER TABLE pricelists ADD COLUMN IF NOT EXISTS berkas BYTEA");
+    // Asal pricelist: "susun" bila lahir dari layar Pricelist lima langkah,
+    // "unggah" bila berkas Excel yang diunggah orang. Dipakai tombol
+    // Otomatis/Manual untuk berpindah sumber tanpa mencari-cari di riwayat.
+    // Baris lama tidak punya penandanya; bawaannya "unggah", dan memang dari
+    // sanalah seluruh pricelist berasal sebelum layar penyusun ada.
+    await query(
+      "ALTER TABLE pricelists ADD COLUMN IF NOT EXISTS sumber TEXT NOT NULL DEFAULT 'unggah'");
   })().catch((e) => { sekali = null; throw e; });
   return sekali;
 }
+
+/** Asal sebuah pricelist: disusun di layar Pricelist, atau berkas unggahan. */
+export type SumberPricelist = "susun" | "unggah";
 
 export type RingkasPricelist = {
   id: string; nama: string; nama_berkas: string | null; lembar: string | null;
@@ -372,6 +382,7 @@ export type RingkasPricelist = {
   diunggah_oleh: string | null; diunggah_pada: string;
   /** Berkas Excel aslinya tersimpan dan dapat diunduh. */
   ada_berkas: boolean;
+  sumber: SumberPricelist;
 };
 
 export type PricelistBerlaku = {
@@ -386,7 +397,8 @@ export async function daftarPricelist(projectId: string): Promise<RingkasPriceli
   return query<RingkasPricelist>(
     `SELECT id, nama, nama_berkas, lembar, jumlah_unit,
             jsonb_array_length(skema) AS jumlah_skema, aktif,
-            diunggah_oleh, diunggah_pada, berkas IS NOT NULL AS ada_berkas
+            diunggah_oleh, diunggah_pada, berkas IS NOT NULL AS ada_berkas,
+            sumber
        FROM pricelists WHERE project_id=$1
       ORDER BY diunggah_pada DESC`, [projectId]);
 }
@@ -417,6 +429,8 @@ export async function simpanPricelist(input: {
   hasil: HasilBaca; aktor: string;
   /** false: simpan ke riwayat saja, pricelist yang berlaku tidak berganti. */
   aktif?: boolean;
+  /** Asalnya; bawaannya berkas unggahan. */
+  sumber?: SumberPricelist;
 }): Promise<{ id: string }> {
   const { hasil } = input;
   if (hasil.galat.length) {
@@ -431,11 +445,12 @@ export async function simpanPricelist(input: {
     }
     const { rows } = await c.query<{ id: string }>(
       `INSERT INTO pricelists (project_id, nama, nama_berkas, lembar, skema, unit,
-                               jumlah_unit, aktif, diunggah_oleh, berkas)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$10,$8,$9) RETURNING id`,
+                               jumlah_unit, aktif, diunggah_oleh, berkas, sumber)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$10,$8,$9,$11) RETURNING id`,
       [input.projectId, input.nama, input.namaBerkas, hasil.lembar,
        JSON.stringify(hasil.skema.map((s) => s.nama)), JSON.stringify(hasil.unit),
-       hasil.unit.length, input.aktor, input.isi ?? null, aktif]);
+       hasil.unit.length, input.aktor, input.isi ?? null, aktif,
+       input.sumber ?? "unggah"]);
     await audit({
       entityType: "pricelist", entityId: rows[0].id, action: "pricelist_uploaded",
       actor: input.aktor,
@@ -485,6 +500,37 @@ export async function berlakukanPricelist(
  * Ganti nama pricelist (yang berlaku maupun di riwayat), supaya mudah
  * dikenali dan dibuka kembali. Nama berkas unduhannya ikut berganti.
  */
+/**
+ * Berpindah sumber: berlakukan pricelist terbaru yang berasal dari layar
+ * Pricelist ("susun") atau dari berkas unggahan ("unggah").
+ *
+ * Keduanya sudah pernah diperiksa dan disimpan; yang dilakukan di sini hanya
+ * menunjuk salah satunya sebagai yang berlaku. Jadi berpindah bolak-balik
+ * tidak menghitung ulang apa pun dan tidak dapat menghasilkan angka baru —
+ * yang dipakai Simulasi tetap angka yang pernah diberlakukan orang.
+ *
+ * Bila project ini belum pernah punya pricelist dari sumber itu, galatnya
+ * menyebutkannya; tidak ada yang diubah.
+ */
+export async function pilihSumberPricelist(
+  projectId: string, sumber: SumberPricelist, aktor: string,
+): Promise<{ id: string; nama: string; sumber: SumberPricelist }> {
+  await ensureTabelPricelist();
+  const baris = await one<{ id: string; nama: string; aktif: boolean }>(
+    `SELECT id, nama, aktif FROM pricelists
+      WHERE project_id=$1 AND sumber=$2
+      ORDER BY diunggah_pada DESC LIMIT 1`, [projectId, sumber]);
+  if (!baris) {
+    throw new Error(sumber === "susun"
+      ? "Belum ada pricelist yang diberlakukan dari layar Pricelist. " +
+        "Susun isiannya lalu tekan Simpan & berlakukan."
+      : "Belum ada pricelist dari berkas unggahan pada project ini. " +
+        "Unggah berkas Excel-nya lebih dulu.");
+  }
+  if (!baris.aktif) await berlakukanPricelist(baris.id, projectId, aktor);
+  return { id: baris.id, nama: baris.nama, sumber };
+}
+
 export async function gantiNamaPricelist(
   id: string, projectId: string, nama: string, aktor: string,
 ): Promise<void> {
