@@ -112,6 +112,7 @@ function bacaLembarUnit(ws: ExcelJS.Worksheet, peringatan: string[]): UnitData[]
       else if (h.startsWith("(+) factor")) kol.faktorTambah = c;
       else if (h.startsWith("special")) kol.special = c;
       else if (h.startsWith("show unit")) kol.showUnit = c;
+      else if (h.startsWith("gimmick")) kol.gimmick = c;
       if (h2 === "land") kol.lt = c;
       // Kolom harga sesudah PPN (Incl PPN) hanya hasil hitungan; yang dibaca
       // harga sebelum PPN.
@@ -135,7 +136,9 @@ function bacaLembarUnit(ws: ExcelJS.Worksheet, peringatan: string[]): UnitData[]
         ukuran: t("ukuran"), phase: t("phase"), tipeBangunan: t("tipeBangunan"),
         bentuk: t("bentuk"), subTipe: t("subTipe"), lt: n("lt"), hargaTanah: n("hargaTanah"),
         lb: n("lb"), hargaBangunan: n("hargaBangunan"), kenaikan: n("kenaikan"),
-        faktorTambah: n("faktorTambah"), special: n("special"), showUnit: n("showUnit"),
+        // Gimmick (Trip, BPHTB, AKAD, Repair) di berkas Excel masuk ke (+) Factor;
+        // Unit Data tidak punya kolom Gimmick tersendiri.
+        faktorTambah: n("faktorTambah") + n("gimmick"), special: n("special"), showUnit: n("showUnit"),
         faktor: Object.fromEntries(FAKTOR.map(([k]) => [k, n(k)]).filter(([, v]) => v)),
       };
       if (kol.tipe) u.tipe = t("tipe");
