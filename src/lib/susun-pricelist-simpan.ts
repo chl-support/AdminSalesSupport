@@ -165,6 +165,31 @@ export async function simpanSusun(
   return row!;
 }
 
+/**
+ * Terms & Conditions draf project lain, untuk disalin: format dan cara bayar
+ * T&C sering sama antarproject. Tanpa `slug`: daftar project yang drafnya
+ * punya blok T&C; dengan `slug`: T&C draf project itu.
+ */
+export async function tncProjectLain(projectId: string): Promise<
+  { slug: string; nama: string; jumlah: number }[]> {
+  await ensureTabel();
+  return query<{ slug: string; nama: string; jumlah: number }>(
+    `SELECT p.slug, p.name AS nama,
+            jsonb_array_length(COALESCE(s.data->'tnc'->'caraBayar', '[]'::jsonb))::int AS jumlah
+       FROM pricelist_susun s JOIN projects p ON p.id = s.project_id
+      WHERE s.project_id <> $1
+        AND jsonb_array_length(COALESCE(s.data->'tnc'->'caraBayar', '[]'::jsonb)) > 0
+      ORDER BY p.name`, [projectId]);
+}
+
+export async function tncProject(slug: string): Promise<SusunPricelist["tnc"] | null> {
+  await ensureTabel();
+  const row = await one<{ tnc: SusunPricelist["tnc"] }>(
+    `SELECT s.data->'tnc' AS tnc FROM pricelist_susun s JOIN projects p ON p.id = s.project_id
+      WHERE p.slug = $1`, [slug]);
+  return row?.tnc ?? null;
+}
+
 /** Nama berkas Excel hasil susunan, mis. "Pricelist 21 Juli 2026.xlsx". */
 export const namaBerkasSusun = (s: SusunPricelist) =>
   `${[s.pricelist.judul.trim() || "Pricelist", s.pricelist.tanggal.trim()]
