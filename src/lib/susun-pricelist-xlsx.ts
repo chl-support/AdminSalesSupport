@@ -112,6 +112,7 @@ function bacaLembarUnit(ws: ExcelJS.Worksheet, peringatan: string[]): UnitData[]
       else if (h.startsWith("(+) factor")) kol.faktorTambah = c;
       else if (h.startsWith("special")) kol.special = c;
       else if (h.startsWith("show unit")) kol.showUnit = c;
+      else if (h.startsWith("gimmick")) kol.gimmick = c;
       if (h2 === "land") kol.lt = c;
       // Kolom harga sesudah PPN (Incl PPN) hanya hasil hitungan; yang dibaca
       // harga sebelum PPN.
