@@ -2972,6 +2972,7 @@ td.sel-surel, th.sel-surel { white-space: nowrap; font-size: 11.5px; }
 /* Folder pricelist tersimpan: tiap pricelist sebagai berkas. */
 .folder-pl > summary, .riwayat-pl.judul-sama > summary { font-size: 13.5px; color: var(--ink, inherit); }
 .folder-pl .berkas-pl { margin-bottom: 8px; }
+.riwayat-pl.log-impor { border-top: 0; margin-top: 0; padding-top: 0; }
 .folder-pl .berkas-pl.berlaku { border-color: #8cc5a3; background: #f1f8f3; }
 .berkas-pl-nama small.tgl-berlaku { color: var(--sub); }
 .berkas-pl-nama small.tgl-berlaku.aktif { color: #1f7a45; font-weight: 600; }

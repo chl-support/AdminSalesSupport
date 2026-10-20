@@ -283,7 +283,53 @@ export function PanelPricelist({ sesi, versi, onBerubah, onEdit, onAmbilTnc }: {
     </span>
   );
 
+  const logImpor = (<>
+    {/* Riwayat dilipat: yang dibuka sehari-hari hanya pricelist yang
+        berlaku; riwayatnya dibuka bila hendak memberlakukan kembali
+        atau menghapus unggahan lama. */}
+    <details className={adaEdit ? "riwayat-pl judul-sama log-impor" : "riwayat-pl"}>
+      <summary>{k.lihatRiwayat(riwayat.length)}</summary>
+      {riwayat.length === 0 ? (
+        <p className="hint" style={{ textAlign: "left" }}>{k.riwayatKosong}</p>
+      ) : (
+        <div className="tscroll">
+          <table className="tabel-ringkas"><tbody>
+            <tr>
+              <th>{k.rNama}</th><th>{k.rBerkas}</th><th>{k.rUnit}</th>
+              <th>{k.rSkema}</th><th>{k.rOleh}</th><th>{k.rPada}</th>
+              <th>{k.rStatus}</th>
+            </tr>
+            {riwayat.map((r) => (
+              <tr key={r.id} className={r.aktif ? "terpilih" : undefined}>
+                <td>{kotakNama(r.id) ?? (
+                  <span className="row" style={{ margin: 0, flexWrap: "nowrap" }}>
+                    {r.nama}
+                    {bolehUbah && (
+                      <button className="kecil" onClick={() => mulaiGanti(r)}>{k.gantiNama}</button>)}
+                  </span>)}</td>
+                <td>
+                  {r.ada_berkas
+                    ? <button className="tautan" onClick={() => unduh(r.id)}
+                              title={k.unduh}>{r.nama_berkas ?? r.nama}</button>
+                    : (r.nama_berkas ?? "—")}
+                </td>
+                <td className="n">{r.jumlah_unit}</td>
+                <td className="n">{r.jumlah_skema}</td>
+                <td>{r.diunggah_oleh ?? "—"}</td>
+                <td>{tgl(r.diunggah_pada)}</td>
+                <td>
+                  {aksiBaris(r)}
+                </td>
+              </tr>
+            ))}
+          </tbody></table>
+        </div>
+      )}
+    </details>
+  </>);
+
   return (
+    <>
     <div className="panel sp">
       {/* Judul pricelist yang berlaku dan Sumber angka hanya di layar
           Simulasi; di layar Pricelist yang berlaku ditandai di Master Pricelist. */}
@@ -435,48 +481,11 @@ export function PanelPricelist({ sesi, versi, onBerubah, onEdit, onAmbilTnc }: {
         );
       })()}
 
-      {/* Riwayat dilipat: yang dibuka sehari-hari hanya pricelist yang
-          berlaku; riwayatnya dibuka bila hendak memberlakukan kembali
-          atau menghapus unggahan lama. */}
-      <details className={adaEdit ? "riwayat-pl judul-sama" : "riwayat-pl"}>
-        <summary>{k.lihatRiwayat(riwayat.length)}</summary>
-        {riwayat.length === 0 ? (
-          <p className="hint" style={{ textAlign: "left" }}>{k.riwayatKosong}</p>
-        ) : (
-          <div className="tscroll">
-            <table className="tabel-ringkas"><tbody>
-              <tr>
-                <th>{k.rNama}</th><th>{k.rBerkas}</th><th>{k.rUnit}</th>
-                <th>{k.rSkema}</th><th>{k.rOleh}</th><th>{k.rPada}</th>
-                <th>{k.rStatus}</th>
-              </tr>
-              {riwayat.map((r) => (
-                <tr key={r.id} className={r.aktif ? "terpilih" : undefined}>
-                  <td>{kotakNama(r.id) ?? (
-                    <span className="row" style={{ margin: 0, flexWrap: "nowrap" }}>
-                      {r.nama}
-                      {bolehUbah && (
-                        <button className="kecil" onClick={() => mulaiGanti(r)}>{k.gantiNama}</button>)}
-                    </span>)}</td>
-                  <td>
-                    {r.ada_berkas
-                      ? <button className="tautan" onClick={() => unduh(r.id)}
-                                title={k.unduh}>{r.nama_berkas ?? r.nama}</button>
-                      : (r.nama_berkas ?? "—")}
-                  </td>
-                  <td className="n">{r.jumlah_unit}</td>
-                  <td className="n">{r.jumlah_skema}</td>
-                  <td>{r.diunggah_oleh ?? "—"}</td>
-                  <td>{tgl(r.diunggah_pada)}</td>
-                  <td>
-                    {aksiBaris(r)}
-                  </td>
-                </tr>
-              ))}
-            </tbody></table>
-          </div>
-        )}
-      </details>
+      {!adaEdit && logImpor}
     </div>
+    {/* Layar Pricelist: Log Impor Data sebagai panel sendiri, berjarak dari
+        Master Pricelist seperti Log Aktivitas Sistem. */}
+    {adaEdit && <div className="panel sp">{logImpor}</div>}
+    </>
   );
 }
