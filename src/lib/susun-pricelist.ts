@@ -32,6 +32,12 @@ export type SkemaIrr = {
   alokasi: number;
   /** Tanda lama (tidak dipakai lagi); dibiarkan supaya draf lama tetap terbaca. */
   tambahan?: boolean;
+  /**
+   * Cara bayar baru yang Kelompok, DP, Installments dan bulan tahapnya masih
+   * diisi otomatis dari namanya (mis. "KPR DP 10%/4x"). Hilang begitu salah
+   * satunya diubah manual.
+   */
+  otomatis?: boolean;
   /** Porsi yang dibayar konsumen sendiri (DP), 1 = seluruhnya. */
   dp: number;
   /** Berapa kali DP itu dicicil, bulan ke-1 sampai ke-n. */

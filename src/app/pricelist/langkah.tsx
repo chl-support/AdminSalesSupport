@@ -185,7 +185,7 @@ function denganCaraBayarBaru(d: SusunPricelist): SusunPricelist {
   return {
     ...d,
     irr: { ...d.irr, skema: denganAlokasiBaru([...d.irr.skema, {
-      nama, kelompok: "Cash", alokasi: 0, dp: 1, kali: 1,
+      nama, kelompok: "Cash", alokasi: 0, dp: 1, kali: 1, otomatis: true,
       bulan: [...(d.irr.skema[0]?.bulan ?? [12, 18, 19, 20])] as [number, number, number, number],
     }]) },
     dataPricelist: { ...d.dataPricelist, kolom: [...d.dataPricelist.kolom, { nama, skema: nama }] },
@@ -193,6 +193,89 @@ function denganCaraBayarBaru(d: SusunPricelist): SusunPricelist {
     tnc: { ...d.tnc, caraBayar: [...d.tnc.caraBayar, { judul: nama.toUpperCase(),
       baris: [{ label: "Booking Fee", nilai: "10 Juta", waktu: "" }] }] },
   };
+}
+
+/**
+ * Draf lama: cara bayar yang dulu ditambah tanpa Allocation (tanda
+ * "tambahan" di Data (IRR), atau kolom "Cara bayar baru N" di Data Pricelist
+ * yang dulu tidak masuk Data (IRR)) kini mendapat Allocation otomatis seperti
+ * cara bayar baru; parameternya diisi dari namanya.
+ */
+export function rapikanCaraBayar(d: SusunPricelist): SusunPricelist {
+  // Hanya yang pengalinya masih 100% (harganya sama dengan cara bayar asal).
+  const pindah = d.dataPricelist.kolom.filter((k) => k.dari && (k.kali ?? 1) === 1
+    && /^cara bayar baru \d+$/i.test(k.nama)
+    && !d.irr.skema.some((x) => x.nama === k.nama));
+  if (!pindah.length && !d.irr.skema.some((x) => x.tambahan)) return d;
+  let skema = d.irr.skema.map((x) => (x.tambahan ? { ...x, tambahan: undefined, alokasi: 0, baru: true }
+                                                  : { ...x, baru: false }));
+  const dasar = skema.filter((x) => !x.baru);
+  skema = [...dasar, ...skema.filter((x) => x.baru)];
+  const urut = skema.map((x) => x.nama);
+  for (const k of pindah) {
+    skema.push({ nama: k.nama, kelompok: "Cash", alokasi: 0, dp: 1, kali: 1, otomatis: true, baru: true,
+                 bulan: [...(d.irr.skema[0]?.bulan ?? [12, 18, 19, 20])] as [number, number, number, number] });
+  }
+  // Bagian rata untuk tiap cara bayar baru, satu per satu, seperti saat ditambah.
+  let hasil = skema.slice(0, dasar.length);
+  for (const x of skema.slice(dasar.length)) hasil = denganAlokasiBaru([...hasil, x]);
+  // Urutan kolom Data (IRR) semula dipertahankan; yang dipindah di ujung.
+  const posisi = (n: string) => { const j = urut.indexOf(n); return j < 0 ? urut.length : j; };
+  hasil.sort((a, b) => posisi(a.nama) - posisi(b.nama));
+  const namaPindah = new Set(pindah.map((k) => k.nama));
+  return isiOtomatisCaraBayar({
+    ...d,
+    irr: { ...d.irr, skema: hasil.map(({ baru: _, ...x }) => x) },
+    dataPricelist: { ...d.dataPricelist, kolom: d.dataPricelist.kolom.map((k) => {
+      if (!namaPindah.has(k.nama)) return k;
+      const { dari: _d, kali: _k, ...sisa } = k;
+      return { ...sisa, skema: k.nama };
+    }) },
+  });
+}
+
+/**
+ * Parameter cara bayar dibaca dari namanya: "KPR …" / "BANK …" / "DP x%" →
+ * kelompok KPR; "DP x%" → DP; "Nx" → Installments; tanpa DP: Cash 100%,
+ * KPR 10%. Bulan tahap disalin dari cara bayar lama yang paling mirip
+ * (kelompok sama, Express atau bukan, DP terdekat).
+ */
+function parameterDariNama(nama: string, skema: SusunPricelist["irr"]["skema"]) {
+  const t = nama.toUpperCase();
+  const dpCocok = /DP\s*(\d+(?:[.,]\d+)?)\s*%/.exec(t);
+  const dp = dpCocok ? Number(dpCocok[1].replace(",", ".")) / 100 : null;
+  const kpr = /\b(KPR|BANK|KREDIT)\b/.test(t) || (dp != null && dp < 1);
+  const kali = Number(/(\d+)\s*X\b/.exec(t)?.[1]) || 1;
+  const express = /EXPRESS/.test(t);
+  const kelompok = kpr ? "KPR" : "Cash";
+  const dpAkhir = dp ?? (kpr ? 0.1 : 1);
+  const calon = skema.filter((x) => !x.otomatis && x.kelompok === kelompok);
+  const mirip = [...calon].sort((a, b) =>
+    (Number(/EXPRESS/i.test(a.nama) !== express) - Number(/EXPRESS/i.test(b.nama) !== express))
+    || Math.abs(a.dp - dpAkhir) - Math.abs(b.dp - dpAkhir))[0] ?? skema.find((x) => !x.otomatis);
+  return { kelompok, dp: dpAkhir, kali,
+           bulan: [...(mirip?.bulan ?? [12, 18, 19, 20])] as [number, number, number, number] };
+}
+
+/**
+ * Isi otomatis parameter cara bayar baru dari namanya, sesudah setiap
+ * perubahan draf. Nama diambil dari kolom Data Pricelist-nya bila nama di
+ * Data (IRR) masih nama bawaan ("Cara bayar N").
+ */
+export function isiOtomatisCaraBayar(d: SusunPricelist): SusunPricelist {
+  if (!d.irr.skema.some((x) => x.otomatis)) return d;
+  let ubah = false;
+  const skema = d.irr.skema.map((x) => {
+    if (!x.otomatis) return x;
+    const namaDp = d.dataPricelist.kolom.find((k) => k.skema === x.nama)?.nama;
+    const nama = /^cara bayar \d+$/i.test(x.nama) && namaDp ? namaDp : x.nama;
+    const p = parameterDariNama(nama, d.irr.skema);
+    if (x.kelompok === p.kelompok && x.dp === p.dp && x.kali === p.kali
+        && x.bulan.every((b, j) => b === p.bulan[j])) return x;
+    ubah = true;
+    return { ...x, ...p };
+  });
+  return ubah ? { ...d, irr: { ...d.irr, skema } } : d;
 }
 
 export function LangkahIrr({ data, hasil, ubah, bolehUbah, baru }: PropsLangkah & {
@@ -220,8 +303,10 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah, baru }: PropsLangkah 
   const belumSesuai = new Set(irr.skema.filter((s) => !s.acuan
     && Number.isFinite(hasil.irr.irr[s.nama])
     && Math.abs(hasil.irr.irr[s.nama] - irr.target) > 1e-7).map((s) => s.nama));
+  // Mengubah parameter cara bayar secara manual menghentikan pengisian otomatis.
   const ubahSkema = (i: number, f: (s: SusunPricelist["irr"]["skema"][0]) => typeof s) =>
-    ubah((d) => ({ ...d, irr: { ...d.irr, skema: d.irr.skema.map((s, j) => j === i ? f(s) : s) } }));
+    ubah((d) => ({ ...d, irr: { ...d.irr, skema: d.irr.skema.map((s, j) =>
+      j === i ? { ...f(s), otomatis: undefined } : s) } }));
   const ganti = (i: number, nama: string) => ubah((d) => {
     const lama = d.irr.skema[i].nama;
     // Kolom Data Pricelist yang merujuk cara bayar ini ikut berganti; bila

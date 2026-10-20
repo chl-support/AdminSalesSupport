@@ -26,7 +26,7 @@ import { useSesi } from "../session";
 import { PENGUNGGAH } from "../simulasi/unggah-pricelist";
 import { basisProject, hitungSemua, type SusunPricelist } from "@/lib/susun-pricelist";
 import {
-  LangkahDataPl, LangkahIrr, LangkahPricelist, LangkahTnc, LangkahUnit, sinkronTnc,
+  LangkahDataPl, LangkahIrr, LangkahPricelist, LangkahTnc, LangkahUnit, isiOtomatisCaraBayar, rapikanCaraBayar, sinkronTnc,
 } from "./langkah";
 
 const KATA = {
@@ -142,7 +142,7 @@ export default function PricelistPage() {
     if (res.status === 401) { location.href = "/login"; return; }
     if (!res.ok) { setGalat(b.detail ?? b.title ?? `HTTP ${res.status}`); return; }
     // Aturan basis harga project (Permai Indah: Excl PPN) untuk draf baru.
-    setDraf(b); setData(basisProject(slugRef.current, b.data));
+    setDraf(b); setData(rapikanCaraBayar(basisProject(slugRef.current, b.data)));
   }, []);
 
   useEffect(() => { if (sesi?.project_slug) void muat(); }, [sesi, muat]);
@@ -207,8 +207,8 @@ export default function PricelistPage() {
     if (!b) return;
     // Tanda T&C sudah disamakan dengan patokan ikut terbawa, supaya T&C
     // dari berkas tidak ditimpa patokan lagi saat halaman dibuka ulang.
-    setData(basisProject(sesi?.project_slug,
-      { ...b.susun, tncPatokan: b.susun.tncPatokan ?? data?.tncPatokan })); setPeringatan(b.peringatan ?? []); setNamaPl("");
+    setData(rapikanCaraBayar(basisProject(sesi?.project_slug,
+      { ...b.susun, tncPatokan: b.susun.tncPatokan ?? data?.tncPatokan }))); setPeringatan(b.peringatan ?? []); setNamaPl("");
     setInfo(k.dibuka(nama)); setLangkah(0);
   };
 
@@ -275,7 +275,8 @@ export default function PricelistPage() {
   const ubah = (f: (d: SusunPricelist) => SusunPricelist) => {
     setInfo(null); setBerlaku(null); setTersimpanSbg(null);
     // T&C mengikuti kolom Pricelist: kolom baru mendapat blok, ganti nama ikut.
-    setData((d) => (d ? sinkronTnc(d, f(d)) : d));
+    // Parameter cara bayar baru diisi otomatis dari namanya.
+    setData((d) => (d ? isiOtomatisCaraBayar(sinkronTnc(d, f(d))) : d));
   };
 
   const tgl = (s: string) => new Date(s).toLocaleString("id-ID",
