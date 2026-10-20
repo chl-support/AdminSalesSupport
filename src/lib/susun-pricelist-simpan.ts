@@ -12,7 +12,7 @@ import { z } from "zod";
 
 import { audit, one, query } from "./db";
 import { bacaPricelist, simpanPricelist } from "./pricelist";
-import { basisProject, hitungSemua, type SusunPricelist } from "./susun-pricelist";
+import { basisProject, hitungSemua, kunciTnc, type SusunPricelist } from "./susun-pricelist";
 import { SUSUN_NARAYA } from "./susun-pricelist-naraya";
 import { eksporSusun } from "./susun-pricelist-xlsx";
 import { bedaSusun, catatRiwayat } from "./susun-pricelist-riwayat";
@@ -23,6 +23,7 @@ const teks = z.string().max(2000);
 const SKEMA = z.object({
   ppn: angka.min(0).max(1).optional(),
   basisExclPpn: z.boolean().optional(),
+  tncPatokan: z.string().max(40).optional(),
   bulatBase: z.number().int().min(0).max(9).optional(),
   bulatBiasa: z.boolean().optional(),
   catatanUnit: z.string().max(5000).optional(),
@@ -188,6 +189,62 @@ export async function tncProject(slug: string): Promise<SusunPricelist["tnc"] | 
     `SELECT s.data->'tnc' AS tnc FROM pricelist_susun s JOIN projects p ON p.id = s.project_id
       WHERE p.slug = $1`, [slug]);
   return row?.tnc ?? null;
+}
+
+/** Project patokan T&C: format dan cara bayarnya dipakai semua project. */
+const SLUG_PATOKAN_TNC = "naraya-serpong";
+/** Versi penyamaan; dinaikkan bila suatu saat semua project perlu disamakan ulang. */
+export const VERSI_PATOKAN_TNC = "naraya-1";
+const AKTOR_PATOKAN = "sistem (T&C disamakan dengan Naraya Serpong)";
+
+/** T&C patokan: draf Naraya Serpong yang tersimpan, atau isian awalnya. */
+async function tncPatokan(): Promise<SusunPricelist["tnc"]> {
+  return (await tncProject(SLUG_PATOKAN_TNC)) ?? SUSUN_NARAYA.tnc;
+}
+
+/**
+ * Samakan T&C dengan patokan: judul dan catatan diambil dari patokan; blok
+ * cara bayar hanya untuk cara bayar yang ada di Pricelist project ini (urut
+ * kolom Pricelist) — blok patokan untuk cara bayar yang tidak ada di sini
+ * diabaikan. Blok project untuk cara bayar yang tidak ada di patokan
+ * dibiarkan (dibuat atau diubah manual). Rekening project tetap.
+ */
+export async function denganTncPatokan(data: SusunPricelist): Promise<SusunPricelist> {
+  const p = await tncPatokan();
+  const cocok = (blok: SusunPricelist["tnc"]["caraBayar"], nama: string[]) =>
+    blok.find((c) => nama.some((n) => kunciTnc(n) && kunciTnc(c.judul) === kunciTnc(n)));
+  const dipakai = new Set<unknown>();
+  const caraBayar = data.pricelist.kolom.flatMap((k) => {
+    // Nama kolomnya dulu (patokan, lalu blok project sendiri); nama kolom
+    // sumbernya hanya bila tidak ada yang cocok — kolom turunan dari Cash
+    // Keras bukan blok Cash Keras.
+    const b = cocok(p.caraBayar, [k.nama]) ?? cocok(data.tnc.caraBayar, [k.nama])
+      ?? cocok(p.caraBayar, [k.dari]) ?? cocok(data.tnc.caraBayar, [k.dari]);
+    if (!b || dipakai.has(b)) return [];
+    dipakai.add(b);
+    return [structuredClone(b)];
+  });
+  // Blok project yang tidak tergantikan dibiarkan apa adanya (tidak dihapus).
+  const sisa = data.tnc.caraBayar.filter((c) => !dipakai.has(c)
+    && !caraBayar.some((x) => kunciTnc(x.judul) === kunciTnc(c.judul)));
+  return { ...data, tncPatokan: VERSI_PATOKAN_TNC,
+           tnc: { ...data.tnc, judul: p.judul, caraBayar: [...caraBayar, ...sisa],
+                  catatan: [...p.catatan] } };
+}
+
+/**
+ * Samakan T&C draf project dengan patokan (Naraya Serpong), sekali per
+ * project: draf yang belum bertanda disamakan dan disimpan (tercatat di
+ * riwayat); sesudahnya T&C hanya diubah manual. Naraya Serpong sendiri
+ * tidak disentuh.
+ */
+export async function samakanTncPatokan(
+  projectId: string, draf: DrafSusun | null,
+): Promise<DrafSusun | null> {
+  if (!draf || draf.data.tncPatokan === VERSI_PATOKAN_TNC) return draf;
+  const p = await one<{ slug: string }>("SELECT slug FROM projects WHERE id=$1", [projectId]);
+  if (!p || p.slug === SLUG_PATOKAN_TNC) return draf;
+  return simpanSusun(projectId, await denganTncPatokan(draf.data), AKTOR_PATOKAN);
 }
 
 /** Nama berkas Excel hasil susunan, mis. "Pricelist 21 Juli 2026.xlsx". */

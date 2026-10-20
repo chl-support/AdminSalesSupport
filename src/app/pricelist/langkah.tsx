@@ -14,7 +14,7 @@ import { Fragment, useEffect, useState } from "react";
 import { formatRupiah } from "@/lib/money";
 import {
   FAKTOR, hargaKasIrr, hargaSesuaiSkema, labelPpn, namaTahap, tarifPpn, unitKosong,
-  type BarisTnc, type HasilSusun, type SusunPricelist, type UnitData,
+  kunciTnc, type BarisTnc, type HasilSusun, type SusunPricelist, type UnitData,
 } from "@/lib/susun-pricelist";
 import type { UnitHarga } from "@/lib/simulasi";
 import { PilihBerkas } from "../pilih-berkas";
@@ -1286,9 +1286,6 @@ export function denganWaktuAwal(d: SusunPricelist): SusunPricelist {
  * pelunasan, cicilan, atau DP dan sisa KPR — sebagai titik awal yang diubah
  * sesudahnya. Blok yang sudah ada tidak disentuh.
  */
-// Judul blok sering ditulis sedikit berbeda dari nama kolom ("KPR DP 10% -
-// 4X" untuk "DP 10%/4x"): dicocokkan tanpa kata KPR, spasi dan tanda baca.
-const kunciTnc = (t: string) => t.toUpperCase().replace(/\bKPR\b/g, "").replace(/[^A-Z0-9]/g, "");
 
 function denganTncLengkap(d: SusunPricelist, hanya?: Set<string>): SusunPricelist {
   const kunci = kunciTnc;
