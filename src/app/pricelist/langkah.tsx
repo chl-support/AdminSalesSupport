@@ -951,6 +951,7 @@ export function LangkahDataPl({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
     ubah((d) => ({ ...d, dataPricelist: { ...d.dataPricelist,
       kolom: d.dataPricelist.kolom.map((k, j) => j === i ? f(k) : k) } }));
   const [yakin, setYakin] = useState<number | null>(null);
+  const x0 = (i: number) => kolom[i];
 
   // Kolom turunan (dihitung dari kolom lain × pengali, mis. KPR DP 1%/1x =
   // KPR Express × 112%) tidak punya cara bayar di Data (IRR), jadi ditambah
@@ -1001,7 +1002,8 @@ export function LangkahDataPl({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
     <>
       <p className="hint kiri">
         Harga per cara bayar = ROUNDUP(Factored Price × koefisien Data (IRR), juta)
-        + tambahan. Kolom turunan dihitung dari kolom lain di sebelah kirinya:
+        + tambahan; lalu kenaikan khusus cara bayar itu bila diisi: ROUNDUP(harga × (1 + Naik %), juta)
+        + Naik (Rp). Kolom turunan dihitung dari kolom lain di sebelah kirinya:
         ROUNDUP(kolom itu × pengali, juta), tanpa tambahan.
       </p>
       <div className="filters rapat" style={{ maxWidth: 300 }}>
@@ -1015,6 +1017,8 @@ export function LangkahDataPl({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
       <div className="tscroll sp">
         <table className="tabel-ringkas tabel-isian tabel-rapat"><tbody>
           <tr className="kepala-tengah"><th>Kolom</th><th>Dihitung dari</th><th>Koefisien / pengali</th>
+            <th title="Kenaikan khusus cara bayar ini: harga × (1 + %), dibulatkan ke atas ke jutaan">Naik (%)</th>
+            <th title="Tambahan rupiah tetap khusus cara bayar ini, sesudah Naik (%)">Naik (Rp)</th>
             <th title="Nama kolom yang tampil di Pricelist dan cetakan; hitungannya tetap dari kolom ini">
               Perubahan Metode Pembayaran</th>{!ro && <th />}</tr>
           {kolom.map((k, i) => (
@@ -1032,8 +1036,10 @@ export function LangkahDataPl({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
                 <select value={k.skema ? `s:${k.skema}` : `k:${k.dari ?? ""}`} disabled={ro}
                         onChange={(e) => {
                           const [jenis, nama] = [e.target.value.slice(0, 1), e.target.value.slice(2)];
-                          ubahKolom(i, (x) => jenis === "s" ? { nama: x.nama, skema: nama }
-                            : { nama: x.nama, dari: nama, kali: x.kali ?? 1 });
+                          // Kenaikan khusus cara bayar ini ikut terbawa saat sumbernya diganti.
+                          const naik = { naikPersen: x0(i).naikPersen, naikRp: x0(i).naikRp };
+                          ubahKolom(i, (x) => jenis === "s" ? { nama: x.nama, skema: nama, ...naik }
+                            : { nama: x.nama, dari: nama, kali: x.kali ?? 1, ...naik });
                         }}>
                   <optgroup label="Koefisien Data (IRR)">
                     {data.irr.skema.map((s) => <option key={s.nama} value={`s:${s.nama}`}>{s.nama}</option>)}
@@ -1048,6 +1054,10 @@ export function LangkahDataPl({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
                   : <Isian jenis="persen" nilai={k.kali ?? 1} lebar={70} disabled={ro}
                            ubah={(n) => ubahKolom(i, (x) => ({ ...x, kali: n }))} />}
               </td>
+              <td><Isian jenis="persen" kosongNol desimal={1} nilai={k.naikPersen ?? 0} lebar={60} disabled={ro}
+                         ubah={(n) => ubahKolom(i, (x) => ({ ...x, naikPersen: n || undefined }))} /></td>
+              <td><Isian jenis="rp" kosongNol nilai={k.naikRp ?? 0} lebar={110} disabled={ro}
+                         ubah={(n) => ubahKolom(i, (x) => ({ ...x, naikRp: n || undefined }))} /></td>
               {/* Ganti nama yang tampil di Pricelist saja: kolom Pricelist yang
                   bersumber dari kolom ini diganti namanya, hitungannya tetap. */}
               <td>
