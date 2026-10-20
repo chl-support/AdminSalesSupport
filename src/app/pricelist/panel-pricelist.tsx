@@ -33,11 +33,11 @@ const KATA = {
     sBerpindah: "Memindahkan…",
     tidakAda: "Project ini belum punya pricelist.",
     ringkas: (u: number, s: number) => `${u} unit · ${s} cara bayar`,
-    riwayat: "Riwayat unggahan",
+    riwayat: "Log impor data",
     buka: "Buka Tabel", tutup: "Tutup Tabel", unduh: "Unduh Berkas",
     takAdaBerkas: "Berkas asli tidak tersimpan (diunggah sebelum fitur unduh ada).",
     riwayatKosong: "Belum ada unggahan untuk project ini.",
-    lihatRiwayat: (n: number) => `Riwayat unggahan (${n})`,
+    lihatRiwayat: (n: number) => `Log impor data (${n})`,
     folderSimpan: (n: number) => `Master Pricelist (${n})`,
     tglBerlaku: (t: string) => `Diberlakukan ${t}`,
     folderSimpanInfo: "Semua pricelist yang sudah disimpan dengan nama (bukan draf), terbaru di atas.",
@@ -68,11 +68,11 @@ const KATA = {
     sBerpindah: "Switching…",
     tidakAda: "This project has no price list yet.",
     ringkas: (u: number, s: number) => `${u} units · ${s} payment schemes`,
-    riwayat: "Upload history",
+    riwayat: "Data import log",
     buka: "Open Table", tutup: "Close Table", unduh: "Download File",
     takAdaBerkas: "Original file not stored (uploaded before downloads existed).",
     riwayatKosong: "No uploads for this project yet.",
-    lihatRiwayat: (n: number) => `Upload history (${n})`,
+    lihatRiwayat: (n: number) => `Data import log (${n})`,
     folderSimpan: (n: number) => `Master Price List (${n})`,
     tglBerlaku: (t: string) => `Applied ${t}`,
     folderSimpanInfo: "Every price list saved under a name (not drafts), newest first.",
@@ -438,7 +438,7 @@ export function PanelPricelist({ sesi, versi, onBerubah, onEdit, onAmbilTnc }: {
       {/* Riwayat dilipat: yang dibuka sehari-hari hanya pricelist yang
           berlaku; riwayatnya dibuka bila hendak memberlakukan kembali
           atau menghapus unggahan lama. */}
-      <details className="riwayat-pl">
+      <details className={adaEdit ? "riwayat-pl judul-sama" : "riwayat-pl"}>
         <summary>{k.lihatRiwayat(riwayat.length)}</summary>
         {riwayat.length === 0 ? (
           <p className="hint" style={{ textAlign: "left" }}>{k.riwayatKosong}</p>

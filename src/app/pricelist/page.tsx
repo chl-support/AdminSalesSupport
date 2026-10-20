@@ -62,8 +62,8 @@ const KATA = {
     fNama: "Nama pricelist (juga nama file Excel-nya)", berlakukan: "Simpan & berlakukan", memberlakukan: "Memberlakukan…",
     diberlakukan: (n: string) => `Pricelist "${n}" berlaku. Buka Simulasi / NPV untuk memakainya.`,
     simpanSbg: "Simpan dengan nama baru (tanpa memberlakukan)",
-    simpanSbgInfo: "Simpan dengan nama baru: tersimpan di Riwayat Unggahan untuk dibuka lagi nanti, pricelist yang berlaku tidak berganti.",
-    tersimpanSbg: (n: string) => `Pricelist "${n}" tersimpan di Riwayat Unggahan (belum berlaku). Pricelist yang berlaku tidak berubah.`,
+    simpanSbgInfo: "Simpan dengan nama baru: tersimpan di Master Pricelist untuk dibuka lagi nanti, pricelist yang berlaku tidak berganti.",
+    tersimpanSbg: (n: string) => `Pricelist "${n}" tersimpan di Master Pricelist (belum berlaku). Pricelist yang berlaku tidak berubah.`,
     keSimulasi: "Buka Simulasi / NPV",
   },
   en: {
