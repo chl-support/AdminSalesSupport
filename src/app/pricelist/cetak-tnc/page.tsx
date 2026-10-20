@@ -13,8 +13,10 @@
  * dicetak" hanya disembunyikan dari cetakan — isian Pricelist tidak berubah.
  * Pilihan itu diingat peramban per project untuk cetakan berikutnya.
  *
- * Lampiran gambar T&C (sama untuk semua project) dicetak di halaman
- * tersendiri sesudahnya, supaya T&C-nya tetap muat satu halaman.
+ * Lampiran gambar T&C (sama untuk semua project) dapat menyambung di bawah
+ * rekening (satu halaman bila muat; ukurannya ikut ukuran huruf, sehingga
+ * "Muatkan 1 halaman" ikut mengecilkannya) atau dicetak di halaman
+ * terpisah — dipilih dengan tombol "Lampiran".
  */
 
 import { useEffect, useRef, useState } from "react";
@@ -45,6 +47,10 @@ export default function CetakTnc() {
   const [sembunyi, setSembunyi] = useState<Sembunyi>(KOSONG);
   const lembar = useRef<HTMLDivElement>(null);
   const [lampiran, setLampiran] = useState<{ id: string; nama: string }[]>([]);
+  /** Dinaikkan tiap gambar lampiran selesai dimuat, supaya tinggi lembar diukur ulang. */
+  const [muat, setMuat] = useState(0);
+  /** Lampiran di halaman terpisah (true) atau menyambung di bawah T&C. */
+  const [pisah, setPisah] = useState(false);
   useEffect(() => {
     fetch("/api/pricelist/tnc-lampiran").then((r) => r.ok ? r.json() : null)
       .then((b) => setLampiran(b?.lampiran ?? [])).catch(() => {});
@@ -92,7 +98,7 @@ export default function CetakTnc() {
       if (lewat && huruf > 6) setHuruf((h) => +(h - 0.5).toFixed(1));
       else setMuatkan(false);
     }
-  }, [isi, arah, huruf, kolom, muatkan, sembunyi]);
+  }, [isi, arah, huruf, kolom, muatkan, sembunyi, lampiran, muat, pisah]);
 
   if (!isi) {
     return (
@@ -153,6 +159,15 @@ export default function CetakTnc() {
         <span className={`pill ${lebih ? "warn" : "ok"}`}>
           {lebih ? "Lebih dari 1 halaman" : "Muat 1 halaman A4"}</span>
         {lebih && <button onClick={() => setMuatkan(true)}>Muatkan 1 halaman</button>}
+        {lampiran.length > 0 && (
+          <span className="cetak-huruf">Lampiran
+            <button className={!pisah ? "pri" : undefined} onClick={() => setPisah(false)}
+                    title="Gambar lampiran menyambung di bawah T&C; naik ke halaman yang sama bila muat">
+              1 halaman</button>
+            <button className={pisah ? "pri" : undefined} onClick={() => setPisah(true)}
+                    title="Gambar lampiran dicetak di halaman tersendiri">Dipisah</button>
+          </span>
+        )}
         <details className="cetak-pilih">
           <summary>Pilih isi yang dicetak{jumlahSembunyi ? ` (${jumlahSembunyi} disembunyikan)` : ""}</summary>
           <div className="cetak-pilih-isi">
@@ -255,10 +270,20 @@ export default function CetakTnc() {
                 ))}
               </section>
             )}
+
+            {/* Lampiran gambar menyambung di bawah rekening. */}
+            {gambar.length > 0 && !pisah && (
+              <section className="tnc-lampiran">
+                {gambar.map((g) => (
+                  <img key={g.id} src={`/api/pricelist/tnc-lampiran/${g.id}`} alt={g.nama}
+                       onLoad={() => setMuat((n) => n + 1)} />
+                ))}
+              </section>
+            )}
           </div>
         </div>
-        {/* Lampiran gambar: halaman tersendiri sesudah T&C. */}
-        {gambar.length > 0 && (
+        {/* Lampiran gambar di halaman terpisah. */}
+        {gambar.length > 0 && pisah && (
           <div className="cetak-kertas tnc-lampiran-kertas"
                style={{ width: LEBAR[arah] + 2 * 38, minHeight: TINGGI[arah] + 2 * 38 }}>
             {gambar.map((g) => (
