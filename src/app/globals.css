@@ -3232,3 +3232,5 @@ ul.daftar-ubah li { margin: 1px 0; }
 /* Bilah B / I / U untuk tulisan Pricelist. */
 .bilah-gaya { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .bilah-gaya button { min-width: 28px; text-transform: none; }
+/* Data Pricelist: kenaikan bertingkat per cara bayar. */
+.naik-tingkat { display: grid; gap: 3px; justify-items: start; }

@@ -182,7 +182,17 @@ export type KolomDataPl = {
    */
   naikPersen?: number;
   naikRp?: number;
+  /**
+   * Kenaikan bertingkat (beruntun): tiap tingkat diterapkan pada hasil
+   * tingkat sebelumnya — ROUNDUP(harga × (1 + persen), juta) + rupiah. Bila
+   * ada, menggantikan naikPersen / naikRp.
+   */
+  naikTingkat?: { persen: number; rp: number }[];
 };
+
+/** Tingkat kenaikan kolom: daftar bertingkat, atau satu tingkat dari isian lama. */
+export const tingkatNaik = (k: Pick<KolomDataPl, "naikPersen" | "naikRp" | "naikTingkat">) =>
+  k.naikTingkat ?? (k.naikPersen || k.naikRp ? [{ persen: k.naikPersen ?? 0, rp: k.naikRp ?? 0 }] : []);
 
 /** Satu kolom harga pada lembar Pricelist. */
 export type KolomPricelist = {
@@ -434,7 +444,8 @@ export function hitungDataPl(
     // Kenaikan khusus cara bayar ini.
     const h = harga[k.nama];
     if (Number.isFinite(h)) {
-      harga[k.nama] = (k.naikPersen ? roundUp(h * (1 + k.naikPersen), 6) : h) + (k.naikRp ?? 0);
+      harga[k.nama] = tingkatNaik(k).reduce(
+        (x, t) => (t.persen ? roundUp(x * (1 + t.persen), 6) : x) + (t.rp || 0), h);
     }
   }
   return harga;
