@@ -33,7 +33,7 @@ const KATA = {
   id: {
     judul: "Pricelist",
     langkah: ["Data (IRR)", "Unit Data", "Data Pricelist", "Pricelist", "Terms & Conditions"],
-    folder: "Data & Riwayat Pricelist", folderUraian: "Master Pricelist & riwayat perubahan",
+    folder: "Data & Master Pricelist", folderUraian: "Master Pricelist & riwayat perubahan",
     uraian: [
       "Koefisien harga tiap cara bayar",
       "Harga dasar tiap unit",
@@ -69,7 +69,7 @@ const KATA = {
   en: {
     judul: "Price List",
     langkah: ["Data (IRR)", "Unit Data", "Price Data", "Price List", "Terms & Conditions"],
-    folder: "Price List Data & History", folderUraian: "Master price list & change history",
+    folder: "Price List Data & Master", folderUraian: "Master price list & change history",
     uraian: [
       "Price coefficient per payment scheme",
       "Base price per unit",
@@ -109,7 +109,7 @@ type Draf = {
   diubah_oleh: string | null; diubah_pada: string | null;
 };
 
-/** Nomor "langkah" untuk folder Data & Riwayat Pricelist di depan langkah 1. */
+/** Nomor "langkah" untuk folder Data & Master Pricelist di depan langkah 1. */
 const FOLDER = -1;
 
 export default function PricelistPage() {

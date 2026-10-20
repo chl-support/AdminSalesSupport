@@ -3111,7 +3111,7 @@ ul.daftar-ubah li { margin: 1px 0; }
   text-align: left !important; white-space: normal; min-width: 420px;
 }
 
-/* Folder Data & Riwayat Pricelist di depan langkah 1. */
+/* Folder Data & Master Pricelist di depan langkah 1. */
 .langkah-pl .lk.folder-pl b { color: var(--emas-tua); }
 .langkah-pl .lk.folder-pl { border-top-style: double; }
 
