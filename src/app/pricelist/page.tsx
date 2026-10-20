@@ -17,6 +17,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useKata } from "../bahasa";
 import { Kerangka, MemeriksaSesi } from "../kerangka";
+import { TautanLayar } from "../nav";
 import { PilihBerkas } from "../pilih-berkas";
 import { PanelPricelist } from "./panel-pricelist";
 import { RiwayatSusun } from "./riwayat-susun";
@@ -306,7 +307,7 @@ export default function PricelistPage() {
           {tersimpanSbg && <div className="banner ok">{k.tersimpanSbg(tersimpanSbg)}</div>}
           {berlaku && (
             <div className="banner ok">{k.diberlakukan(berlaku)}{" "}
-              <a href="/simulasi">{k.keSimulasi}</a></div>
+              <TautanLayar href="/simulasi">{k.keSimulasi}</TautanLayar></div>
           )}
         </>
       )}

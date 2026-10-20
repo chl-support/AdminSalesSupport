@@ -215,7 +215,9 @@ const KonteksLipat = createContext<{
   lipat: (k: string) => void;
   dipilih: string | null;
   pilih: (href: string) => void;
-}>({ dibuka: [], lipat: () => {}, dipilih: null, pilih: () => {} });
+  bukaLayar: (href: string) => void;
+}>({ dibuka: [], lipat: () => {}, dipilih: null, pilih: () => {},
+     bukaLayar: () => {} });
 
 export function PenyediaMenu({ children }: { children: React.ReactNode }) {
   /**
@@ -264,9 +266,31 @@ export function PenyediaMenu({ children }: { children: React.ReactNode }) {
    */
   const [dipilih, setDipilih] = useState<string | null>(null);
 
+  /**
+   * Membuka sebuah layar dari dalam layar lain, bukan dari menu.
+   *
+   * Isi halaman hanya tergambar selama butir menunya terlihat — itu memang
+   * disengaja. Tetapi tautan di dalam aplikasi ("Buka Simulasi / NPV" sesudah
+   * pricelist diberlakukan) menunjuk layar yang butir menunya belum pernah
+   * ditekan, dan yang menekannya mendarat di layar kosong tanpa tahu apa yang
+   * kurang. Jadi tautan seperti itu melakukan sendiri apa yang dilakukan
+   * tangan: membuka rumpun yang menaunginya, lalu menandainya terpilih.
+   */
+  const bukaLayar = (href: string) => {
+    setDipilih(href);
+    const rantai = rantaiRumpun(href, MENU, []);
+    if (!rantai?.length) return;
+    setDibuka((lama) => {
+      const baru = [...new Set([...lama, ...rantai])];
+      try { localStorage.setItem(KUNCI_BUKA, JSON.stringify(baru)); }
+      catch { /* tidak apa-apa */ }
+      return baru;
+    });
+  };
+
   return (
     <KonteksLipat.Provider
-      value={{ dibuka, lipat, dipilih, pilih: setDipilih }}>
+      value={{ dibuka, lipat, dipilih, pilih: setDipilih, bukaLayar }}>
       {children}
     </KonteksLipat.Provider>
   );
@@ -327,6 +351,25 @@ export function useLayarTampil(path: string) {
   const ditekan = dipilih !== null
     && (path === dipilih || path.startsWith(dipilih + "/"));
   return ditekan && rantai.every((k) => dibuka.includes(k));
+}
+
+/**
+ * Tautan ke layar lain di dalam konsol, yang membuka menunya sekalian.
+ *
+ * Dipakai untuk tautan di dalam isi halaman — bukan untuk butir menu, yang
+ * sudah punya jalannya sendiri. <Link> biasa membawa orang ke alamatnya
+ * tetapi meninggalkan menunya tertutup, dan layar yang dituju tidak tergambar.
+ */
+export function TautanLayar(
+  { href, className, children }:
+  { href: string; className?: string; children: React.ReactNode },
+) {
+  const { bukaLayar } = useContext(KonteksLipat);
+  return (
+    <Link href={href} className={className} onClick={() => bukaLayar(href)}>
+      {children}
+    </Link>
+  );
 }
 
 export function Nav({ peran }: { peran?: string }) {
