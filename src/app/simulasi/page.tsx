@@ -591,26 +591,30 @@ export default function SimulasiPage() {
   const sembunyi = ubah?.map((b) => b.sembunyi);
 
   /**
-   * Porsi satu nilai terhadap harga pricelist yang dipilih.
+   * Porsi satu termin terhadap harga transaksi.
    *
-   * Pembandingnya harga pricelist, bukan harga transaksi: yang hendak dibaca
-   * orang penjualan adalah "termin ini berapa persen dari PL", dan diskon
-   * tidak mengubah pertanyaan itu. Dua angka di belakang koma karena termin
-   * kecil seperti booking fee kerap di bawah satu persen, dan "1%" untuk dua
-   * nilai yang berbeda menyembunyikan justru yang sedang dibandingkan.
+   * Pembandingnya harga transaksi — harga sesudah penambahan dan diskon —
+   * bukan harga pricelist. Harga itulah yang disepakati dan yang dibayar,
+   * jadi jumlah seluruh termin adalah 100% darinya. Memakai harga pricelist
+   * membuat jadwal berdiskon 10% berjumlah 90%, dan angka 90% itu tidak
+   * menjawab pertanyaan siapa pun: yang hendak dibaca adalah "termin ini
+   * berapa bagian dari yang harus dibayar".
+   *
+   * Dua angka di belakang koma karena termin kecil seperti booking fee kerap
+   * di bawah satu persen, dan "1%" untuk dua nilai yang berbeda
+   * menyembunyikan justru yang sedang dibandingkan.
    */
+  const hargaDeal = hasil?.hargaTransaksi ?? 0;
   const persenPl = (nilai: number) => {
-    const pl = hasil?.hargaPricelist ?? 0;
-    if (!(pl > 0)) return "-";
-    return `${(nilai / pl * 100).toLocaleString("id-ID",
+    if (!(hargaDeal > 0)) return "-";
+    return `${(nilai / hargaDeal * 100).toLocaleString("id-ID",
       { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
   };
 
   /** Persen tanpa tanda %, untuk ditampilkan di dalam kotak isian. */
   const persenAngka = (nilai: number) => {
-    const pl = hasil?.hargaPricelist ?? 0;
-    if (!(pl > 0)) return "";
-    return (nilai / pl * 100).toLocaleString("id-ID",
+    if (!(hargaDeal > 0)) return "";
+    return (nilai / hargaDeal * 100).toLocaleString("id-ID",
       { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
@@ -624,16 +628,19 @@ export default function SimulasiPage() {
    *
    * Aturannya dari bagian penjualan, dan letak barisnya yang menentukan:
    *
+   * Acuannya harga transaksi — harga sesudah penambahan dan diskon — sama
+   * dengan kolom % di sebelahnya, sehingga seluruh termin berjumlah 100%.
+   *
    *   • baris pertama (booking fee) — nilainya tetap, bukan turunan persen.
    *     Booking fee adalah angka bulat yang disepakati di muka (10.000.000),
    *     sama untuk unit mahal maupun murah, jadi persen di baris itu hanya
-   *     melaporkan porsinya terhadap harga PL dan tidak dapat diketik; yang
-   *     mengubahnya adalah kolom Nilai (VALUE) sendiri;
-   *   • baris kedua ("Pembayaran 1") — nilai = harga PL × persen, dikurangi
-   *     nilai booking fee. Persen pada baris itu memang mencakup booking fee
-   *     yang sudah dibayar di muka, jadi tanpa pengurangan itu uangnya
-   *     terhitung dua kali;
-   *   • baris ketiga dan seterusnya — nilai = harga PL × persen.
+   *     melaporkan porsinya dan tidak dapat diketik; yang mengubahnya adalah
+   *     kolom Nilai (VALUE) sendiri;
+   *   • baris kedua ("Pembayaran 1") — nilai = harga transaksi × persen,
+   *     dikurangi nilai booking fee. Persen pada baris itu memang mencakup
+   *     booking fee yang sudah dibayar di muka, jadi tanpa pengurangan itu
+   *     uangnya terhitung dua kali;
+   *   • baris ketiga dan seterusnya — nilai = harga transaksi × persen.
    */
   const ubahPersen = (i: number, mentah: string) => {
     // Hanya angka dan satu koma: "29,45" ditulis orang Indonesia dengan koma,
@@ -644,7 +651,10 @@ export default function SimulasiPage() {
 
     setUbah((u) => {
       if (!u) return u;
-      const pl = hasil?.hargaPricelist ?? 0;
+      // Dari jadwal standar, bukan dari hasil suntingan: harga transaksi
+      // tidak bergantung pada susunan terminnya, dan membacanya dari jadwal
+      // yang sedang diketik akan mengejar angkanya sendiri.
+      const pl = Math.round(hasilStandar?.hargaTransaksi ?? 0);
       if (!(pl > 0)) {
         return u.map((x, j) => j === i ? { ...x, persenTeks: teksPersen } : x);
       }
@@ -1169,10 +1179,11 @@ export default function SimulasiPage() {
                   <th style={{ width: 170 }}>{k.kKet}</th>
                   <th style={{ width: 62 }}>{k.kHari}</th>
                   <th style={{ width: modeUbah ? 140 : 100 }}>{k.kTempo}</th>
-                  {/* Porsi tiap termin terhadap harga pricelist yang dipilih.
-                      Hanya di layar kerja: lembar cetak dan PDF-nya tidak
-                      memuatnya — yang dibaca konsumen adalah nominalnya,
-                      bukan cara jadwalnya disusun. */}
+                  {/* Porsi tiap termin terhadap harga transaksi — harga
+                      sesudah penambahan dan diskon — sehingga seluruhnya
+                      berjumlah 100%. Hanya di layar kerja: lembar cetak dan
+                      PDF-nya tidak memuatnya — yang dibaca konsumen adalah
+                      nominalnya, bukan cara jadwalnya disusun. */}
                   <th style={{ width: 72 }}>{k.kPersen}</th>
                   <th>{k.kJumlah}</th>
                   <th>{k.kPv}</th>
