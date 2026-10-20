@@ -645,4 +645,4 @@ export function unitKosong(): UnitData {
  * spasi dan tanda baca ("KPR DP 10% - 4X" = "DP 10%/4x").
  */
 export const kunciTnc = (t: string) =>
-  t.toUpperCase().replace(/\bKPR\b/g, "").replace(/[^A-Z0-9]/g, "");
+  t.replace(/\[\/?[biu]\]/gi, "").toUpperCase().replace(/\bKPR\b/g, "").replace(/[^A-Z0-9]/g, "");

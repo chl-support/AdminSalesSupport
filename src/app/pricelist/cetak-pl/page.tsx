@@ -14,6 +14,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import type { UnitHarga } from "@/lib/simulasi";
+import { TeksBergaya } from "../gaya-teks";
 
 const KUNCI = "cetak-pl";
 
@@ -229,10 +230,10 @@ export default function CetakPricelist() {
             <header>
               {isi.slug ? <img src={`/project/${isi.slug}.png`} alt="" className="tnc-logo" /> : <span />}
               <div className="pl-judul">
-                <h1>{isi.judul || "PRICELIST"}</h1>
+                <h1><TeksBergaya teks={isi.judul || "PRICELIST"} /></h1>
               </div>
               {/* Tanggal di pojok kanan atas, sejajar judul. */}
-              <div className="pl-tanggal">{isi.tanggal}</div>
+              <div className="pl-tanggal"><TeksBergaya teks={isi.tanggal} /></div>
             </header>
             <table ref={tabel}>
               <thead>
