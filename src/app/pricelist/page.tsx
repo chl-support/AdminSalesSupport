@@ -133,8 +133,6 @@ export default function PricelistPage() {
   const [berlaku, setBerlaku] = useState<string | null>(null);
   /** Nama pricelist yang baru disimpan tanpa diberlakukan. */
   const [tersimpanSbg, setTersimpanSbg] = useState<string | null>(null);
-  /** "Mulai dari awal" ikut menghapus pricelist yang sedang berlaku. */
-  const [resetBerlaku, setResetBerlaku] = useState(false);
 
   // Slug project untuk muat(), yang sengaja tidak bergantung pada sesi.
   const slugRef = useRef<string | null | undefined>(null);
@@ -214,25 +212,6 @@ export default function PricelistPage() {
     setData(rapikanCaraBayar(basisProject(sesi?.project_slug,
       { ...b.susun, tncPatokan: b.susun.tncPatokan ?? data?.tncPatokan }))); setPeringatan(b.peringatan ?? []); setNamaPl("");
     setInfo(k.dibuka(nama)); setLangkah(0);
-  };
-
-  /** Mulai dari awal: hapus draf, riwayat, dan pricelist tersimpan project ini. */
-  const mulaiAwal = async () => {
-    const nama = sesi?.project_name ?? "";
-    const ketik = prompt(`Semua data Pricelist ${nama} akan dihapus` +
-      `${resetBerlaku ? ", TERMASUK pricelist yang sedang berlaku" : ""}. ` +
-      `Ketik nama project "${nama}" untuk melanjutkan:`);
-    if (ketik == null) return;
-    setGalat(null); setInfo(null);
-    const b = await kirim("/api/pricelist/susun/kosongkan", {
-      method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ konfirmasi: ketik, termasukBerlaku: resetBerlaku }),
-    });
-    if (!b) return;
-    setResetBerlaku(false); setBaruCb(0); setNamaPl("");
-    await muat();
-    setVersiPl((v) => v + 1);
-    setInfo(`Pricelist ${nama} dimulai dari awal (${b.pricelist} pricelist tersimpan dihapus).`);
   };
 
   /**
@@ -445,24 +424,6 @@ export default function PricelistPage() {
                               onEdit={bolehUbah ? (id, nama) => void bukaEdit(id, nama) : undefined}
                               onAmbilTnc={bolehUbah ? (id, nama) => void ambilTnc(id, nama) : undefined} />
               <RiwayatSusun versi={versiPl} />
-              {bolehUbah && (
-                <div className="panel sp">
-                  <h2>Mulai dari awal</h2>
-                  <p className="hint kiri" style={{ marginTop: 0 }}>
-                    Menghapus draf kelima langkah, riwayat perubahan, dan pricelist tersimpan
-                    project <b>{sesi.project_name}</b>. Tidak dapat dibatalkan. Project lain dan
-                    Lampiran T&amp;C tidak tersentuh.
-                  </p>
-                  <label style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 8 }}>
-                    <input type="checkbox" checked={resetBerlaku}
-                           onChange={(e) => setResetBerlaku(e.target.checked)} />
-                    Hapus juga pricelist yang sedang berlaku (Simulasi / NPV project ini kosong
-                    sampai ada pricelist baru yang diberlakukan)
-                  </label>
-                  <button className="bahaya" disabled={!!sibuk} onClick={() => void mulaiAwal()}>
-                    Mulai dari awal</button>
-                </div>
-              )}
             </>
           )}
         </>
