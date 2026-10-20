@@ -1228,6 +1228,58 @@ export function LangkahPricelist({ data, hasil, ubah, bolehUbah, aksi, slug }: P
 // ── 5. Terms & Conditions ──────────────────────────────────────────────────
 
 /**
+ * Teks awal kolom waktu satu baris T&C, dari labelnya dan cara bayar Data
+ * (IRR) di belakangnya. Hanya titik awal; ketentuan sebenarnya diketik orang.
+ */
+function waktuAwal(label: string, s?: { dp: number; kali: number }): string {
+  const l = label.toUpperCase();
+  if (/BOOKING|\bBF\b|TANDA JADI|UTJ/.test(l)) return "";
+  if (/AKAD/.test(l)) return "Saat akad kredit";
+  if (/CICIL/.test(l)) {
+    const n = s?.kali ?? (Number(/(\d+)\s*X/.exec(l)?.[1]) || 0);
+    return n > 1 ? `Setiap bulan selama ${n} bulan, mulai 1 bulan setelah BF`
+      : "Setiap bulan, mulai 1 bulan setelah BF";
+  }
+  if (/\bDP\b|UANG MUKA/.test(l)) {
+    return s && s.dp < 1 && s.kali > 1
+      ? `Dicicil ${s.kali}x setiap bulan, mulai 1 bulan setelah BF` : "1 bulan setelah BF";
+  }
+  if (/PELUNASAN|LUNAS/.test(l)) return "1 bulan setelah BF";
+  return "";
+}
+
+/**
+ * Isi kolom waktu yang masih kosong di setiap blok T&C dengan teks awalnya.
+ * Isian yang sudah ditulis tidak disentuh.
+ */
+export function denganWaktuAwal(d: SusunPricelist): SusunPricelist {
+  const kolomDp = new Map(d.dataPricelist.kolom.map((k) => [k.nama, k]));
+  const skemaKolom = (nama: string) => {
+    let k = kolomDp.get(nama);
+    for (let n = 0; k && !k.skema && n < 50; n++) k = k.dari ? kolomDp.get(k.dari) : undefined;
+    return d.irr.skema.find((x) => x.nama === k?.skema);
+  };
+  // Cara bayar di belakang tiap blok: lewat kolom Pricelist yang judulnya cocok.
+  const skemaBlok = (judul: string) => {
+    const p = d.pricelist.kolom.find((k) => kunciTnc(k.nama) === kunciTnc(judul)
+      || kunciTnc(k.dari) === kunciTnc(judul));
+    return p ? skemaKolom(p.dari) : undefined;
+  };
+  let berubah = false;
+  const caraBayar = d.tnc.caraBayar.map((c) => {
+    const s = skemaBlok(c.judul);
+    return { ...c, baris: c.baris.map((b) => {
+      if (b.waktu.trim()) return b;
+      const w = waktuAwal(b.label, s);
+      if (!w) return b;
+      berubah = true;
+      return { ...b, waktu: w };
+    }) };
+  });
+  return berubah ? { ...d, tnc: { ...d.tnc, caraBayar } } : d;
+}
+
+/**
  * Blok T&C untuk setiap kolom Pricelist yang belum punya blok (dicocokkan
  * dengan nama tampilan maupun nama kolom asalnya). Barisnya disusun dari
  * cara bayar di Data (IRR) di belakang kolom itu — Booking Fee, lalu
@@ -1257,13 +1309,14 @@ function denganTncLengkap(d: SusunPricelist, hanya?: Set<string>): SusunPricelis
     const s = skemaDari(k.dari);
     const baris: BarisTnc[] = [{ label: "Booking Fee", nilai: "10 Juta", waktu: "" }];
     if (s && s.dp < 1) {
-      baris.push({ label: "DP", nilai: pc(s.dp), waktu: s.kali > 1 ? `Dicicil ${s.kali}x` : "" });
+      baris.push({ label: "DP", nilai: pc(s.dp), waktu: "" });
       baris.push({ label: "Pelunasan / Akad", nilai: pc(1 - s.dp), waktu: "" });
     } else if (s && s.kali > 1) {
       baris.push({ label: "Cicilan", nilai: `${s.kali}x`, waktu: "" });
     } else {
       baris.push({ label: "Pelunasan", nilai: "100%", waktu: "" });
     }
+    baris.forEach((b) => { b.waktu = waktuAwal(b.label, s); });
     return [{ judul: k.nama.toUpperCase(), baris }];
   });
   return baru.length ? { ...d, tnc: { ...d.tnc, caraBayar: [...d.tnc.caraBayar, ...baru] } } : d;
@@ -1372,6 +1425,10 @@ export function LangkahTnc({ data, ubah, bolehUbah, slug }: PropsLangkah & { slu
                   title="Buat blok untuk setiap cara bayar di Pricelist yang belum ada di sini; blok yang sudah ada tidak diubah"
                   onClick={() => ubah(denganTncLengkap)}>
             Buat semua cara bayar dari Pricelist</button>
+          <button disabled={denganWaktuAwal(data) === data}
+                  title="Isi kolom waktu yang masih kosong dengan teks awal; yang sudah diisi tidak diubah"
+                  onClick={() => ubah(denganWaktuAwal)}>
+            Isi teks awal waktu yang kosong</button>
           <span className="hint" style={{ margin: 0 }}>
             {denganTncLengkap(data) === data ? "Semua cara bayar di Pricelist sudah punya blok di sini."
               : `${denganTncLengkap(data).tnc.caraBayar.length - t.caraBayar.length} cara bayar di Pricelist belum punya blok.`}
