@@ -203,6 +203,29 @@ export default function PricelistPage() {
   };
 
   /**
+   * Ambil hanya Terms & Conditions pricelist tersimpan ke draf — untuk
+   * mengembalikan blok T&C yang terhapus tanpa mengubah langkah 1–4. Isinya
+   * diperlihatkan dulu; draf baru tersimpan sesudah orang menekan Simpan.
+   */
+  const ambilTnc = async (id: string, nama: string) => {
+    setGalat(null); setInfo(null);
+    const b = await kirim(`/api/pricelist/${id}/susun`, { method: "GET" });
+    if (!b?.susun?.tnc) return;
+    const tnc = b.susun.tnc as SusunPricelist["tnc"];
+    // Berkas tanpa lembar T&C (mis. unggahan Simulation TOP) terbaca sebagai
+    // T&C bawaan — itu bukan isi pricelist tersebut, jadi tidak ditawarkan.
+    if ((b.peringatan ?? []).some((x: string) => /lembar t&c tidak ada/i.test(x))) {
+      setGalat(`Pricelist "${nama}" tidak menyimpan Terms & Conditions sendiri. Pilih pricelist lain.`);
+      return;
+    }
+    const daftar = tnc.caraBayar.map((c, i) => `${i + 1}. ${c.judul || "(tanpa judul)"}`).join("\n");
+    if (!confirm(`Terms & Conditions dari "${nama}":\n\n${daftar}\n\n${tnc.catatan.length} catatan.\n\n` +
+                 "T&C di layar diganti dengan isi di atas; langkah 1–4 tidak berubah. Lanjutkan?")) return;
+    ubah((d) => ({ ...d, tnc }));
+    setInfo(`Terms & Conditions dari "${nama}" dikembalikan (${tnc.caraBayar.length} cara bayar). Periksa di langkah 5, lalu Simpan.`);
+  };
+
+  /**
    * Simpan draf sebagai pricelist baru bernama `namaPl`: diberlakukan
    * (menggantikan yang berlaku) atau hanya disimpan ke riwayat.
    */
@@ -355,7 +378,8 @@ export default function PricelistPage() {
           {langkah === FOLDER && sesi.project_slug && (
             <>
               <PanelPricelist sesi={sesi} versi={versiPl} onBerubah={() => setVersiPl((v) => v + 1)}
-                              onEdit={bolehUbah ? (id, nama) => void bukaEdit(id, nama) : undefined} />
+                              onEdit={bolehUbah ? (id, nama) => void bukaEdit(id, nama) : undefined}
+                              onAmbilTnc={bolehUbah ? (id, nama) => void ambilTnc(id, nama) : undefined} />
               <RiwayatSusun versi={versiPl} />
             </>
           )}

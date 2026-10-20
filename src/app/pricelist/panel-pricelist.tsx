@@ -37,6 +37,8 @@ const KATA = {
     berlakukan: "Berlakukan", hapus: "Hapus",
     yakinHapus: "Hapus pricelist ini?", ya: "Ya, hapus", batal: "Batal",
     gantiNama: "Ganti nama", simpanNama: "Simpan nama", edit: "Buka & edit",
+    ambilTnc: "Ambil T&C saja",
+    ambilTncInfo: "Kembalikan hanya Terms & Conditions dari pricelist ini ke draf; langkah 1–4 tidak berubah",
     fCari: "Cari unit", fCariContoh: "mis. NR1-05 atau 8,5x10",
     fAlamat: "Address", fPhase: "Phase", fView: "View", fSub: "Sub-Tipe",
     semua: "Semua", pajak: "Tampilkan DPP & Nilai Free PPN DTP",
@@ -59,6 +61,8 @@ const KATA = {
     berlakukan: "Apply", hapus: "Delete",
     yakinHapus: "Delete this price list?", ya: "Yes, delete", batal: "Cancel",
     gantiNama: "Rename", simpanNama: "Save name", edit: "Open & edit",
+    ambilTnc: "Take T&C only",
+    ambilTncInfo: "Restore only the Terms & Conditions of this price list into the draft; steps 1–4 are unchanged",
     fCari: "Search unit", fCariContoh: "e.g. NR1-05 or 8,5x10",
     fAlamat: "Address", fPhase: "Phase", fView: "View", fSub: "Sub-type",
     semua: "All", pajak: "Show DPP & free VAT (DTP)",
@@ -87,7 +91,7 @@ const LABEL_SARING = {
   alamat: "fAlamat", phase: "fPhase", view: "fView", subTipe: "fSub",
 } as const;
 
-export function PanelPricelist({ sesi, versi, onBerubah, onEdit }: {
+export function PanelPricelist({ sesi, versi, onBerubah, onEdit, onAmbilTnc }: {
   sesi: Sesi;
   /** Dinaikkan induknya bila ada unggahan baru, supaya dibaca ulang. */
   versi: number;
@@ -95,6 +99,8 @@ export function PanelPricelist({ sesi, versi, onBerubah, onEdit }: {
   onBerubah?: () => void;
   /** Bila ada (halaman Pricelist): buka pricelist tersimpan untuk diedit. */
   onEdit?: (id: string, nama: string) => void;
+  /** Bila ada: ambil hanya Terms & Conditions pricelist tersimpan ke draf. */
+  onAmbilTnc?: (id: string, nama: string) => void;
 }) {
   const k = useKata(KATA);
   const { bahasa } = useBahasa();
@@ -215,6 +221,8 @@ export function PanelPricelist({ sesi, versi, onBerubah, onEdit }: {
                 <button onClick={() => mulaiGanti(aktif)}>{k.gantiNama}</button>)}
               {bolehUbah && onEdit && aktif?.ada_berkas && (
                 <button onClick={() => onEdit(aktif.id, aktif.nama)}>{k.edit}</button>)}
+              {bolehUbah && onAmbilTnc && aktif?.ada_berkas && (
+                <button title={k.ambilTncInfo} onClick={() => onAmbilTnc(aktif.id, aktif.nama)}>{k.ambilTnc}</button>)}
               <button className="pri" disabled={!aktif?.ada_berkas}
                       title={aktif?.ada_berkas ? undefined : k.takAdaBerkas}
                       onClick={() => aktif && unduh(aktif.id)}>{k.unduh}</button>
@@ -303,6 +311,8 @@ export function PanelPricelist({ sesi, versi, onBerubah, onEdit }: {
                     <span className="row" style={{ margin: 0, flexWrap: "nowrap", justifyContent: "flex-end" }}>
                     {bolehUbah && onEdit && r.ada_berkas && (
                       <button onClick={() => onEdit(r.id, r.nama)}>{k.edit}</button>)}
+                    {bolehUbah && onAmbilTnc && r.ada_berkas && (
+                      <button title={k.ambilTncInfo} onClick={() => onAmbilTnc(r.id, r.nama)}>{k.ambilTnc}</button>)}
                     {r.aktif ? (
                       <span className="pill ok">{k.sBerlaku}</span>
                     ) : !bolehUbah ? null : hapusId === r.id ? (
