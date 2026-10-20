@@ -3238,14 +3238,17 @@ ul.daftar-ubah li { margin: 1px 0; }
    DPP/DTP, kolom harga sama lebar. */
 .tabel-pl thead th.skema { white-space: normal; line-height: 1.2; vertical-align: middle; }
 .tabel-pl th.kol-rata, .tabel-pl td.kol-rata { width: 128px; min-width: 128px; max-width: 128px; }
-/* Pricelist: isian manual dibedakan dari angka hasil hitungan sistem.
-   Abu muda = dapat diisi/diubah; abu tua = dihitung sistem (tidak diketik). */
-.bagian-langkah input:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=search]):not(:disabled):not([readonly]),
-.bagian-langkah select:not(:disabled), .bagian-langkah textarea:not(:disabled) {
+/* Semua layar: isian manual dibedakan dari angka hasil hitungan sistem.
+   Abu muda = dapat diisi/diubah; abu tua = dihitung sistem (tidak diketik).
+   Angka sistem diberi warna hanya di tabel yang juga berisi isian, supaya
+   tabel laporan yang seluruhnya hanya dibaca tetap polos. */
+.isi input:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=search]):not([type=submit]):not([type=button]):not(:disabled):not([readonly]),
+.isi select:not(:disabled), .isi textarea:not(:disabled) {
   background: #F4F5F6; border-color: #C6CBD1;
 }
-.bagian-langkah input:not([type=checkbox]):disabled, .bagian-langkah select:disabled,
-.bagian-langkah textarea:disabled,
+.isi input:not([type=checkbox]):not([type=radio]):disabled, .isi input[readonly]:not([type=search]),
+.isi select:disabled, .isi textarea:disabled,
+.isi table:has(input, select, textarea) td.n:not(:has(input, select, textarea, button)),
 .bagian-langkah table td.n:not(:has(input, select, textarea, button)) {
   background: #DDE0E4; color: #262A2E;
 }
