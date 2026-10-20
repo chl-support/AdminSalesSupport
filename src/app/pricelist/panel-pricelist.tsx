@@ -285,6 +285,9 @@ export function PanelPricelist({ sesi, versi, onBerubah, onEdit, onAmbilTnc }: {
 
   return (
     <div className="panel sp">
+      {/* Judul pricelist yang berlaku dan Sumber angka hanya di layar
+          Simulasi; di layar Pricelist yang berlaku ditandai di Master Pricelist. */}
+      {!adaEdit && (<>
       <h2>
         {k.berlaku}
         {berlaku && <span className="pill ok">{berlaku.nama}</span>}
@@ -304,6 +307,7 @@ export function PanelPricelist({ sesi, versi, onBerubah, onEdit, onAmbilTnc }: {
           {sumberAktif === "susun" ? k.sOtomatisInfo : k.sManualInfo}
         </p>
       )}
+      </>)}
       {galat && <div className="banner stop">{galat}</div>}
       {/* Layar Pricelist: berkas yang berlaku sudah ada di folder Master
           Pricelist, jadi kartunya hanya di layar Simulasi. */}
@@ -388,7 +392,7 @@ export function PanelPricelist({ sesi, versi, onBerubah, onEdit, onAmbilTnc }: {
         // Semua pricelist tersimpan (bukan draf), dari layar ini maupun unggahan.
         const tersimpan = riwayat;
         return (
-          <details className="riwayat-pl folder-pl">
+          <details className="riwayat-pl folder-pl" style={{ borderTop: 0, marginTop: 0, paddingTop: 0 }}>
             <summary><span aria-hidden>📁</span> {k.folderSimpan(tersimpan.length)}</summary>
             <p className="hint kiri" style={{ marginTop: 0 }}>
               {tersimpan.length ? k.folderSimpanInfo : k.folderKosong}</p>
