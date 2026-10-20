@@ -204,6 +204,11 @@ export type KolomPricelist = {
    * ROUND(harga × kali, juta) — di Excel 111,5% untuk kolom KPR.
    */
   kali: number;
+  /**
+   * Pembulatan pengalinya ke atas (ROUNDUP), bukan ROUND. Mis. BANK KPR
+   * Banara: ROUNDUP(KPR Express × 112% × 111,5%, juta) = KPR Express × 124,88%.
+   */
+  bulatAtas?: boolean;
 };
 
 export type SusunPricelist = {
@@ -475,7 +480,7 @@ export function hitungPricelist(
   for (const k of susun.pricelist.kolom) {
     const asal = dataPl[k.dari];
     const harga = asal == null || !Number.isFinite(asal) ? NaN
-      : k.kali === 1 ? asal : roundExcel(asal * k.kali, 6);
+      : k.kali === 1 ? asal : (k.bulatAtas ? roundUp : roundExcel)(asal * k.kali, 6);
     hasil[k.nama] = { harga, ...pajakDtp(harga, susun.pricelist.batasDtp, tarifPpn(susun)) };
   }
   return hasil;
