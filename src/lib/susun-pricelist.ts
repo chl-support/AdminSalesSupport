@@ -166,7 +166,15 @@ export type UnitData = {
   special: number;
   /** Show Unit, rupiah; ikut naik sebesar kenaikan. */
   showUnit: number;
+  /**
+   * Alasan unit tanpa luas / harga tanah, mis. "Harga belum ditentukan
+   * management". Unit itu tidak ikut pricelist yang disimpan.
+   */
+  catatan?: string;
 };
+
+/** Unit yang luas atau harga tanahnya belum diisi: harganya belum dikeluarkan. */
+export const unitBelumBerharga = (u: UnitData) => !(u.lt > 0) || !(u.hargaTanah > 0);
 
 /** Satu kolom lembar Data Pricelist. */
 export type KolomDataPl = {
@@ -554,9 +562,13 @@ function periksa(susun: SusunPricelist, irr: HasilIrr, baris: BarisHasil[]): str
     if (!u.kode.trim()) galat.push(`Unit Data baris ${n}: Code kosong.`);
     else if (kode.has(u.kode)) galat.push(`Unit Data: Code ${u.kode} tertulis dua kali (baris ${kode.get(u.kode)} dan ${n}).`);
     else kode.set(u.kode, n);
-    if (!(u.lt > 0) || !(u.hargaTanah > 0)) galat.push(`Unit Data ${u.kode || `baris ${n}`}: luas atau harga tanah belum diisi.`);
+    // Unit yang harganya memang belum dikeluarkan cukup diberi catatan; ia
+    // tidak ikut pricelist yang disimpan.
+    if (unitBelumBerharga(u) && !u.catatan?.trim()) {
+      galat.push(`Unit Data ${u.kode || `baris ${n}`}: luas atau harga tanah belum diisi. Isi harganya, atau isi catatan di bawah bila harganya memang belum dikeluarkan.`);
+    }
   });
-  if (baris.some((b) => Object.values(b.pricelist).some((h) => !Number.isFinite(h.harga)))) {
+  if (baris.some((b) => !unitBelumBerharga(b.unit) && Object.values(b.pricelist).some((h) => !Number.isFinite(h.harga)))) {
     galat.push("Pricelist: ada harga yang tidak dapat dihitung.");
   }
   return galat;
