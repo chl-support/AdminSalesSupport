@@ -14,7 +14,7 @@ import { Fragment, useEffect, useState } from "react";
 import { formatRupiah } from "@/lib/money";
 import {
   FAKTOR, hargaKasIrr, hargaSesuaiSkema, labelPpn, namaTahap, tarifPpn, unitKosong,
-  type HasilSusun, type SusunPricelist, type UnitData,
+  type BarisTnc, type HasilSusun, type SusunPricelist, type UnitData,
 } from "@/lib/susun-pricelist";
 import type { UnitHarga } from "@/lib/simulasi";
 import { PilihBerkas } from "../pilih-berkas";
@@ -1221,6 +1221,43 @@ export function LangkahPricelist({ data, hasil, ubah, bolehUbah, aksi, slug }: P
 
 // ── 5. Terms & Conditions ──────────────────────────────────────────────────
 
+/**
+ * Blok T&C untuk setiap kolom Pricelist yang belum punya blok (dicocokkan
+ * dengan nama tampilan maupun nama kolom asalnya). Barisnya disusun dari
+ * cara bayar di Data (IRR) di belakang kolom itu — Booking Fee, lalu
+ * pelunasan, cicilan, atau DP dan sisa KPR — sebagai titik awal yang diubah
+ * sesudahnya. Blok yang sudah ada tidak disentuh.
+ */
+function denganTncLengkap(d: SusunPricelist): SusunPricelist {
+  // Judul blok sering ditulis sedikit berbeda dari nama kolom ("KPR DP 10% -
+  // 4X" untuk "DP 10%/4x"): dicocokkan tanpa kata KPR, spasi dan tanda baca.
+  const kunci = (t: string) => t.toUpperCase().replace(/\bKPR\b/g, "").replace(/[^A-Z0-9]/g, "");
+  const ada = new Set(d.tnc.caraBayar.map((c) => kunci(c.judul)));
+  const kolomDp = new Map(d.dataPricelist.kolom.map((k) => [k.nama, k]));
+  const skemaDari = (nama: string) => {
+    let k = kolomDp.get(nama);
+    for (let n = 0; k && !k.skema && n < 50; n++) k = k.dari ? kolomDp.get(k.dari) : undefined;
+    return d.irr.skema.find((x) => x.nama === k?.skema);
+  };
+  const pc = (n: number) => `${(n * 100).toLocaleString("id-ID", { maximumFractionDigits: 2 })}%`;
+  const baru = d.pricelist.kolom.flatMap((k) => {
+    if (ada.has(kunci(k.nama)) || ada.has(kunci(k.dari))) return [];
+    ada.add(kunci(k.nama));
+    const s = skemaDari(k.dari);
+    const baris: BarisTnc[] = [{ label: "Booking Fee", nilai: "10 Juta", waktu: "" }];
+    if (s && s.dp < 1) {
+      baris.push({ label: "DP", nilai: pc(s.dp), waktu: s.kali > 1 ? `Dicicil ${s.kali}x` : "" });
+      baris.push({ label: "Pelunasan / Akad", nilai: pc(1 - s.dp), waktu: "" });
+    } else if (s && s.kali > 1) {
+      baris.push({ label: "Cicilan", nilai: `${s.kali}x`, waktu: "" });
+    } else {
+      baris.push({ label: "Pelunasan", nilai: "100%", waktu: "" });
+    }
+    return [{ judul: k.nama.toUpperCase(), baris }];
+  });
+  return baru.length ? { ...d, tnc: { ...d.tnc, caraBayar: [...d.tnc.caraBayar, ...baru] } } : d;
+}
+
 export function LangkahTnc({ data, ubah, bolehUbah, slug }: PropsLangkah & { slug?: string | null }) {
   const ro = !bolehUbah;
   const t = data.tnc;
@@ -1285,9 +1322,22 @@ export function LangkahTnc({ data, ubah, bolehUbah, slug }: PropsLangkah & { slu
           </div>
         ))}
       </div>
-      {bolehUbah && <button style={{ marginTop: 8 }} onClick={() => ubahT((x) => ({ ...x,
-        caraBayar: [...x.caraBayar, { judul: "", baris: [{ label: "Booking Fee", nilai: "10 Juta", waktu: "" }] }] }))}>
-        + Tambah cara bayar</button>}
+      {bolehUbah && (
+        <div className="row" style={{ marginTop: 8 }}>
+          <button onClick={() => ubahT((x) => ({ ...x,
+            caraBayar: [...x.caraBayar, { judul: "", baris: [{ label: "Booking Fee", nilai: "10 Juta", waktu: "" }] }] }))}>
+            + Tambah cara bayar</button>
+          <button className="pri" disabled={denganTncLengkap(data) === data}
+                  title="Buat blok untuk setiap cara bayar di Pricelist yang belum ada di sini; blok yang sudah ada tidak diubah"
+                  onClick={() => ubah(denganTncLengkap)}>
+            Buat semua cara bayar dari Pricelist</button>
+          <span className="hint" style={{ margin: 0 }}>
+            {denganTncLengkap(data) === data ? "Semua cara bayar di Pricelist sudah punya blok di sini."
+              : `${denganTncLengkap(data).tnc.caraBayar.length - t.caraBayar.length} cara bayar di Pricelist belum punya blok.`}
+            {" "}Angka dan waktunya diisi dari Data (IRR) sebagai awal — periksa dan lengkapi.
+          </span>
+        </div>
+      )}
 
       <h3 className="sub-judul">Catatan</h3>
       <ol className="tnc-catatan">
