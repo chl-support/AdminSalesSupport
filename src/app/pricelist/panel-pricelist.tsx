@@ -438,7 +438,7 @@ export function PanelPricelist({ sesi, versi, onBerubah, onEdit, onAmbilTnc }: {
       {/* Riwayat dilipat: yang dibuka sehari-hari hanya pricelist yang
           berlaku; riwayatnya dibuka bila hendak memberlakukan kembali
           atau menghapus unggahan lama. */}
-      <details className="riwayat-pl">
+      <details className={adaEdit ? "riwayat-pl judul-sama" : "riwayat-pl"}>
         <summary>{k.lihatRiwayat(riwayat.length)}</summary>
         {riwayat.length === 0 ? (
           <p className="hint" style={{ textAlign: "left" }}>{k.riwayatKosong}</p>
