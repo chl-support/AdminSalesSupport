@@ -396,6 +396,9 @@ export async function imporSusun(isi: ArrayBuffer): Promise<HasilImpor> {
       const r1 = j.r + 1;
       const kolom: KolomDataPl[] = [];
       const namaKol = new Map<number, string>();
+      // Tambahan per unit hanya bila rumusnya menambahkannya (mis. "+5000000");
+      // berkas tanpa tambahan (mis. PL Banara) tidak mendapat tambahan bawaan.
+      susun.dataPricelist.tambahan = 0;
       for (let c = (kBuild || 12) + 1; c <= wsDp.columnCount; c++) {
         const nama = hdr(c);
         if (!nama) continue;
@@ -450,7 +453,11 @@ export async function imporSusun(isi: ArrayBuffer): Promise<HasilImpor> {
         if (wsDp) {
           const j2 = cari(wsDp, KODE);
           const dari = j2 ? teks(wsDp.getCell(j2.r, noKolom(ref[1]))) : "";
-          if (dari) kolom.push({ nama, dari, kali: ref[3] ? Number(ref[3]) / 100 : 1 });
+          // Semua pengali persen di rumus dikalikan (mis. =ROUNDUP((R4*112%)*111.5%,-6)
+          // = 124,88%), dan ROUNDUP dibedakan dari ROUND.
+          const kali = [...f.matchAll(/\*\s*([\d.]+)%/g)].reduce((a, m) => a * Number(m[1]) / 100, 1);
+          const bulatAtas = /^ROUNDUP\(/i.test(f.trim()) && kali !== 1;
+          if (dari) kolom.push({ nama, dari, kali: +kali.toFixed(10), ...(bulatAtas && { bulatAtas }) });
         }
       }
       if (kolom.length) susun.pricelist.kolom = kolom;

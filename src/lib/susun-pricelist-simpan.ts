@@ -60,7 +60,8 @@ const SKEMA = z.object({
   }),
   pricelist: z.object({
     judul: teks, tanggal: teks, catatan: teks, batasDtp: angka,
-    kolom: z.array(z.object({ nama: teks.min(1), dari: teks.min(1), kali: angka }))
+    kolom: z.array(z.object({ nama: teks.min(1), dari: teks.min(1), kali: angka,
+                              bulatAtas: z.boolean().optional() }))
       .min(1).max(30),
   }),
   tnc: z.object({

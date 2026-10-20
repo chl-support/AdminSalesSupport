@@ -1221,7 +1221,8 @@ export function LangkahPricelist({ data, hasil, ubah, bolehUbah, aksi, slug }: P
       </div>
       <p className="hint kiri">
         Kolom dengan pengali 100% mengambil harga Data Pricelist apa adanya; selain
-        itu ROUND(harga × pengali, juta) — di Excel 111,5% untuk kolom KPR.
+        itu ROUND(harga × pengali, juta) — di Excel 111,5% untuk kolom KPR — atau ROUNDUP
+        bila dipilih di kolom Pembulatan (Susunan kolom harga).
         DPP = harga / (1 + PPN {labelPpn(tarifPpn(data))}); Nilai Free PPN DTP = harga − DPP.
         Tarif PPN diubah di langkah 2.
       </p>
@@ -1241,7 +1242,9 @@ export function LangkahPricelist({ data, hasil, ubah, bolehUbah, aksi, slug }: P
         <summary className="hint kiri" style={{ cursor: "pointer" }}>Susunan kolom harga ({pl.kolom.length})</summary>
         <div className="tscroll" style={{ marginTop: 8 }}>
           <table className="tabel-ringkas tabel-isian tabel-rapat"><tbody>
-            <tr><th>Kolom Pricelist</th><th>Dari kolom Data Pricelist</th><th>Pengali</th>{bolehUbah && <th />}</tr>
+            <tr><th>Kolom Pricelist</th><th>Dari kolom Data Pricelist</th><th>Pengali</th>
+              <th title="Pembulatan ke jutaan untuk pengali selain 100%: ROUND (biasa) atau ROUNDUP (ke atas)">Pembulatan</th>
+              {bolehUbah && <th />}</tr>
             {pl.kolom.map((k, i) => (
               <tr key={i}>
                 <td><IsianTeks nilai={k.nama} lebar={230} disabled={ro}
@@ -1253,6 +1256,13 @@ export function LangkahPricelist({ data, hasil, ubah, bolehUbah, aksi, slug }: P
                 </select></td>
                 <td><Isian jenis="persen" nilai={k.kali} lebar={70} disabled={ro}
                            ubah={(n) => ubahPl((p) => ({ ...p, kolom: p.kolom.map((x, j) => j === i ? { ...x, kali: n } : x) }))} /></td>
+                <td><select value={k.bulatAtas ? "atas" : "biasa"} disabled={ro || k.kali === 1}
+                            title={k.kali === 1 ? "Pengali 100%: harga diambil apa adanya" : undefined}
+                            onChange={(e) => ubahPl((p) => ({ ...p, kolom: p.kolom.map((x, j) =>
+                              j === i ? { ...x, bulatAtas: e.target.value === "atas" || undefined } : x) }))}>
+                  <option value="biasa">ROUND</option>
+                  <option value="atas">ROUNDUP</option>
+                </select></td>
                 {bolehUbah && <td><button className="kecil" disabled={pl.kolom.length <= 1}
                   onClick={() => ubahPl((p) => ({ ...p, kolom: p.kolom.filter((_, j) => j !== i) }))}>Hapus</button></td>}
               </tr>
