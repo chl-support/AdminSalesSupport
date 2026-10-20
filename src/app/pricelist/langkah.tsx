@@ -196,8 +196,8 @@ function denganCaraBayarBaru(d: SusunPricelist): SusunPricelist {
 }
 
 /**
- * Draf lama: cara bayar yang dulu ditambah tanpa Allocation (tanda
- * "tambahan" di Data (IRR), atau kolom "Cara bayar baru N" di Data Pricelist
+ * Draf lama: cara bayar yang dulu ditambah tanpa Allocation (Allocation 0%
+ * atau tanda "tambahan" di Data (IRR), atau kolom "Cara bayar baru N" di Data Pricelist
  * yang dulu tidak masuk Data (IRR)) kini mendapat Allocation otomatis seperti
  * cara bayar baru; parameternya diisi dari namanya.
  */
@@ -206,8 +206,10 @@ export function rapikanCaraBayar(d: SusunPricelist): SusunPricelist {
   const pindah = d.dataPricelist.kolom.filter((k) => k.dari && (k.kali ?? 1) === 1
     && /^cara bayar baru \d+$/i.test(k.nama)
     && !d.irr.skema.some((x) => x.nama === k.nama));
-  if (!pindah.length && !d.irr.skema.some((x) => x.tambahan)) return d;
-  let skema = d.irr.skema.map((x) => (x.tambahan ? { ...x, tambahan: undefined, alokasi: 0, baru: true }
+  const nol = (x: SusunPricelist["irr"]["skema"][0]) =>
+    x.tambahan || (!x.acuan && !x.alokasi && d.irr.skema.some((y) => y.alokasi > 0));
+  if (!pindah.length && !d.irr.skema.some(nol)) return d;
+  let skema = d.irr.skema.map((x) => (nol(x) ? { ...x, tambahan: undefined, alokasi: 0, baru: true }
                                                   : { ...x, baru: false }));
   const dasar = skema.filter((x) => !x.baru);
   skema = [...dasar, ...skema.filter((x) => x.baru)];
