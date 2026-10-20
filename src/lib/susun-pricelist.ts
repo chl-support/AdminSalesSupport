@@ -30,6 +30,11 @@ export type SkemaIrr = {
   kelompok: string;
   /** Porsi penjualan yang diperkirakan; dipakai rata-rata tertimbang. */
   alokasi: number;
+  /**
+   * Cara bayar tambahan: tidak ikut Allocation (selalu 0%), sehingga
+   * menambah atau menghapusnya tidak mengubah susunan Allocation yang ada.
+   */
+  tambahan?: boolean;
   /** Porsi yang dibayar konsumen sendiri (DP), 1 = seluruhnya. */
   dp: number;
   /** Berapa kali DP itu dicicil, bulan ke-1 sampai ke-n. */
