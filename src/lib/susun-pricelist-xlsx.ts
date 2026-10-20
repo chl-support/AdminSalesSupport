@@ -126,7 +126,11 @@ function bacaLembarUnit(ws: ExcelJS.Worksheet, peringatan: string[]): UnitData[]
     // Sub-Tipe Kavling tersendiri (template), View kedua adalah kolom View sesudah Type.
     if (view[0]) kol.view = view[0];
     if (view[1]) { if (kol.bentuk) kol.view2 = view[1]; else kol.bentuk = view[1]; }
-    for (let r = j.r + 2; r <= ws.rowCount; r++) {
+    // Data mulai tepat di bawah judul; berkas PL dan template punya baris
+    // judul kedua (Land / GFA …) yang kotak Code-nya kosong atau bergabung.
+    let mulai = j.r + 1;
+    { const k = teks(ws.getCell(mulai, kol.kode)); if (!k || KODE.test(k)) mulai++; }
+    for (let r = mulai; r <= ws.rowCount; r++) {
       const kode = teks(ws.getCell(r, kol.kode));
       if (!kode) break;
       const t = (k: string) => kol[k] ? teks(ws.getCell(r, kol[k])) : "";
@@ -284,7 +288,23 @@ export async function imporSusun(isi: ArrayBuffer): Promise<HasilImpor> {
   if (simpanan) {
     const json = simpanan.getColumn(1).values.slice(1).map((v) => String(v ?? "")).join("");
     try {
-      return { susun: JSON.parse(json) as SusunPricelist, peringatan: [] };
+      const susun = JSON.parse(json) as SusunPricelist;
+      // Kolom Gimmick yang ditambahkan orang di lembar Unit Data berkas
+      // unduhan ini tetap terbaca: (+) Factor unit itu diambil dari lembarnya.
+      const ws = wb.worksheets.find((w) => w.state === "visible" && /^unit data$/i.test(w.name.trim()));
+      const j = ws && cari(ws, KODE);
+      let adaGimmick = false;
+      if (ws && j) {
+        for (let c = 1; c <= ws.columnCount; c++) {
+          if (teks(ws.getCell(j.r, c)).toLowerCase().startsWith("gimmick")) adaGimmick = true;
+        }
+      }
+      if (ws && adaGimmick) {
+        const dariLembar = new Map(bacaLembarUnit(ws, []).map((u) => [u.kode, u.faktorTambah]));
+        susun.unit = susun.unit.map((u) => dariLembar.has(u.kode)
+          ? { ...u, faktorTambah: dariLembar.get(u.kode)! } : u);
+      }
+      return { susun, peringatan: [] };
     } catch {
       // Lembarnya rusak (mis. disunting tangan): baca lembar-lembar biasanya.
     }
