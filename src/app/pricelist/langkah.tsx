@@ -9,7 +9,7 @@
  * saling merujuk antarlembar.
  */
 
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 
 import { formatRupiah } from "@/lib/money";
 import {
@@ -512,6 +512,11 @@ const TEKS_UNIT = [
 export function LangkahUnit({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
   const ro = !bolehUbah;
   const ppn = tarifPpn(data), lp = labelPpn(ppn);
+  // Base dan Factored Price dalam dua bentuk, sebelum dan sesudah PPN. Yang
+  // dihitung adalah basis project-nya (Incl PPN, atau Excl PPN untuk Permai
+  // Indah); bentuk satunya diturunkan dengan tarif PPN yang sama.
+  const ppnDua = (n: number) => data.basisExclPpn
+    ? { excl: n, incl: Math.round(n * (1 + ppn)) } : { excl: Math.round(n / (1 + ppn)), incl: n };
   const [cari, setCari] = useState("");
   const ubahUnit = (i: number, f: (u: UnitData) => UnitData) =>
     ubah((d) => ({ ...d, unit: d.unit.map((u, j) => j === i ? f(u) : u) }));
@@ -706,7 +711,8 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
               <th>Increase</th>
               {FAKTOR.map(([, l]) => <th key={l}>{l}</th>)}
               <th>(+) Factor</th><th>Special (Rp)</th><th>Show Unit (Rp)</th>
-              <th>Base Price</th><th>Factored Price</th>
+              <th>Base Price<br />(Excl PPN. {lp})</th><th>Factored Price<br />(Excl PPN. {lp})</th>
+              <th className="incl">Base Price<br />(Incl PPN. {lp})</th><th className="incl">Factored Price<br />(Incl PPN. {lp})</th>
             </tr>
           </thead><tbody>
             {tampil.map(({ u, i, b }) => (
@@ -751,8 +757,10 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
                 <td><Isian jenis="persen" desimal={1} nilai={u.faktorTambah} lebar={55} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, faktorTambah: n }))} /></td>
                 <td><Isian jenis="rp" kosongNol nilai={u.special} lebar={95} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, special: n }))} /></td>
                 <td><Isian jenis="rp" kosongNol nilai={u.showUnit} lebar={95} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, showUnit: n }))} /></td>
-                <td className="n">{rp(b?.hasilUnit.base ?? NaN)}</td>
-                <td className="n"><b>{rp(b?.hasilUnit.factored ?? NaN)}</b></td>
+                <td className="n">{rp(ppnDua(b?.hasilUnit.base ?? NaN).excl)}</td>
+                <td className="n"><b>{rp(ppnDua(b?.hasilUnit.factored ?? NaN).excl)}</b></td>
+                <td className="n">{rp(ppnDua(b?.hasilUnit.base ?? NaN).incl)}</td>
+                <td className="n"><b>{rp(ppnDua(b?.hasilUnit.factored ?? NaN).incl)}</b></td>
               </tr>
             ))}
           </tbody><tfoot>
@@ -766,8 +774,12 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
               {FAKTOR.map(([k]) => <td key={k} />)}
               <td />
               <td /><td />
-              <td className="n">{rp(tampil.reduce((a, { b }) => a + (b?.hasilUnit.base ?? 0), 0))}</td>
-              <td className="n">{rp(tampil.reduce((a, { b }) => a + (b?.hasilUnit.factored ?? 0), 0))}</td>
+              {(["excl", "incl"] as const).map((j) => (
+                <Fragment key={j}>
+                  <td className="n">{rp(ppnDua(tampil.reduce((a, { b }) => a + (b?.hasilUnit.base ?? 0), 0))[j])}</td>
+                  <td className="n">{rp(ppnDua(tampil.reduce((a, { b }) => a + (b?.hasilUnit.factored ?? 0), 0))[j])}</td>
+                </Fragment>
+              ))}
             </tr>
           </tfoot></table>
         </div>
