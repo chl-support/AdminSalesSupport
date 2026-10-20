@@ -64,7 +64,7 @@ export const POST = handler(async (req) => {
   }
   const { id } = await simpanPricelist({
     projectId, nama, namaBerkas: f.name, isi: Buffer.from(isi), hasil,
-    aktor: user.username,
+    aktor: user.username, sumber: "unggah",
   });
   return { dry_run: false, id, nama, jumlah_unit: hasil.unit.length };
 });
