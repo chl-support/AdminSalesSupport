@@ -20,6 +20,7 @@ import { Kerangka, MemeriksaSesi } from "../kerangka";
 import { PilihBerkas } from "../pilih-berkas";
 import { PanelPricelist } from "./panel-pricelist";
 import { RiwayatSusun } from "./riwayat-susun";
+import { BilahGaya } from "./gaya-teks";
 import { useSesi } from "../session";
 import { PENGUNGGAH } from "../simulasi/unggah-pricelist";
 import { basisProject, hitungSemua, type SusunPricelist } from "@/lib/susun-pricelist";
@@ -385,6 +386,9 @@ export default function PricelistPage() {
               </button>
             ))}
           </nav>
+          {bolehUbah && langkah !== FOLDER && (
+            <div className="row" style={{ margin: "0 0 8px" }}><BilahGaya /></div>
+          )}
 
           {[
             <LangkahIrr key={0} {...props} baru={[baruCb, setBaruCb]} />,

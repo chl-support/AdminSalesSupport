@@ -22,6 +22,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import type { Tnc } from "@/lib/susun-pricelist";
+import { TeksBergaya, tanpaGaya } from "../gaya-teks";
 
 const KUNCI_CETAK_TNC = "cetak-tnc";
 
@@ -180,13 +181,13 @@ export default function CetakTnc() {
             <b>Cara bayar</b>
             {semuaTnc.caraBayar.map((c, i) => (
               <label key={`c${i}`}><input type="checkbox" checked={!sembunyi.caraBayar.includes(c.judul)}
-                onChange={(e) => ganti("caraBayar", c.judul, e.target.checked)} /> {c.judul || `(cara bayar ${i + 1})`}</label>
+                onChange={(e) => ganti("caraBayar", c.judul, e.target.checked)} /> {tanpaGaya(c.judul) || `(cara bayar ${i + 1})`}</label>
             ))}
             {semuaTnc.catatan.length > 0 && <b>Catatan</b>}
             {semuaTnc.catatan.map((c, i) => (
               <label key={`n${i}`}><input type="checkbox" checked={!sembunyi.catatan.includes(kunciCatatan(c))}
                 onChange={(e) => ganti("catatan", kunciCatatan(c), e.target.checked)} />
-                {" "}{i + 1}. {c.split("\n")[0].slice(0, 70)}{c.length > 70 ? "…" : ""}</label>
+                {" "}{i + 1}. {tanpaGaya(c.split("\n")[0]).slice(0, 70)}{c.length > 70 ? "…" : ""}</label>
             ))}
             {semuaTnc.rekening.length > 0 && <b>Rekening</b>}
             {semuaTnc.rekening.map((r, i) => (
@@ -211,28 +212,28 @@ export default function CetakTnc() {
           <div ref={lembar} className="tnc-lembar" style={{ fontSize: `${huruf}pt` }}>
             <header>
               {slug ? <img src={`/project/${slug}.png`} alt="" className="tnc-logo" /> : <span />}
-              <h1>{tnc.judul || "TERM OF PAYMENT"}</h1>
+              <h1><TeksBergaya teks={tnc.judul || "TERM OF PAYMENT"} /></h1>
               <span />
             </header>
-            {tanggal && <div className="tnc-tanggal">{tanggal}</div>}
+            {tanggal && <div className="tnc-tanggal"><TeksBergaya teks={tanggal} /></div>}
 
             <div className="tnc-kolom" style={{ gridTemplateColumns: `repeat(${kolom}, 1fr)` }}>
               {kelompok.map((kel, k) => (
                 <div key={k}>
                   {kel.map(({ c, i }) => (
                     <section key={i} className="tnc-cb">
-                      <h2><span>{i + 1}.</span>{c.judul}</h2>
+                      <h2><span>{i + 1}.</span><TeksBergaya teks={c.judul} /></h2>
                       <table><tbody>
                         {c.baris.map((b, j) => (
                           <tr key={j}>
                             <td className="h">{String.fromCharCode(97 + j)}.</td>
-                            <td className="l">{b.label}</td>
-                            <td className="v">{b.nilai ? `: ${b.nilai}` : ""}</td>
-                            <td className="w">{b.waktu}</td>
+                            <td className="l"><TeksBergaya teks={b.label} /></td>
+                            <td className="v">{b.nilai ? <>: <TeksBergaya teks={b.nilai} /></> : ""}</td>
+                            <td className="w"><TeksBergaya teks={b.waktu} /></td>
                           </tr>
                         ))}
                       </tbody></table>
-                      {c.catatan && <p className="tnc-cb-catatan">{c.catatan}</p>}
+                      {c.catatan && <p className="tnc-cb-catatan"><TeksBergaya teks={c.catatan} /></p>}
                     </section>
                   ))}
                 </div>
@@ -247,9 +248,9 @@ export default function CetakTnc() {
                     const [pertama, ...lanjut] = c.split("\n");
                     return (
                       <li key={i}>
-                        {lanjut.length ? <b>{pertama}</b> : pertama}
+                        {lanjut.length ? <b><TeksBergaya teks={pertama} /></b> : <TeksBergaya teks={pertama} />}
                         {lanjut.map((l, j) => (
-                          <div key={j} className={l.trim().startsWith("-") ? "sub" : undefined}>{l}</div>
+                          <div key={j} className={l.trim().startsWith("-") ? "sub" : undefined}><TeksBergaya teks={l} /></div>
                         ))}
                       </li>
                     );
@@ -260,7 +261,7 @@ export default function CetakTnc() {
 
             {tnc.rekening.length > 0 && (
               <section className="tnc-rek">
-                <p>{tnc.pengantarRekening}</p>
+                <p><TeksBergaya teks={tnc.pengantarRekening} /></p>
                 {tnc.rekening.map((r, i) => (
                   <table key={i}><tbody>
                     <tr><td className="n">{i + 1})</td><td className="l">Bank</td><td>: {r.bank}</td></tr>
