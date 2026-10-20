@@ -105,7 +105,7 @@ export function RiwayatSusun({ versi }: { versi: number }) {
 
   return (
     <details className="panel sp riwayat-susun">
-      <summary><b>Riwayat perubahan</b>{riwayat && <span className="hint" style={{ margin: 0 }}> ({riwayat.length})</span>}</summary>
+      <summary><b>Log Aktivitas Sistem</b>{riwayat && <span className="hint" style={{ margin: 0 }}> ({riwayat.length})</span>}</summary>
       {galat && <div className="banner stop">{galat}</div>}
       {riwayat && riwayat.length === 0 && (
         <p className="hint kiri">Tidak ada perubahan yang belum masuk pricelist tersimpan. Riwayat tiap pricelist ada di folder Master Pricelist.</p>
