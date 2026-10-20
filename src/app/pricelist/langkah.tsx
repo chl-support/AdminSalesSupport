@@ -153,6 +153,15 @@ function aturAlokasi<T extends { alokasi: number }>(skema: T[], i: number, nilai
   return baru;
 }
 
+/**
+ * Allocation untuk cara bayar yang baru ditambah di ujung: ia mendapat bagian
+ * rata (100% / jumlah cara bayar), dan cara bayar lain dikurangi sebanding
+ * dengan allocation lamanya — total tetap 100% tanpa diubah manual.
+ */
+function denganAlokasiBaru<T extends { alokasi: number }>(skema: T[]): T[] {
+  return skema.length ? aturAlokasi(skema, skema.length - 1, 1 / skema.length) : skema;
+}
+
 /** Sesuaikan semua allocation sebanding supaya berjumlah 100%. */
 function genapkanAlokasi<T extends { alokasi: number }>(skema: T[]): T[] {
   const bagian = bagiSebanding(skema.map((s) => s.alokasi), 10000);
@@ -174,10 +183,10 @@ function denganCaraBayarBaru(d: SusunPricelist): SusunPricelist {
   const nama = `Cara bayar ${no}`;
   return {
     ...d,
-    irr: { ...d.irr, skema: [...d.irr.skema, {
+    irr: { ...d.irr, skema: denganAlokasiBaru([...d.irr.skema, {
       nama, kelompok: "Cash", alokasi: 0, dp: 1, kali: 1,
       bulan: [...(d.irr.skema[0]?.bulan ?? [12, 18, 19, 20])] as [number, number, number, number],
-    }] },
+    }]) },
     dataPricelist: { ...d.dataPricelist, kolom: [...d.dataPricelist.kolom, { nama, skema: nama }] },
     pricelist: { ...d.pricelist, kolom: [...d.pricelist.kolom, { nama, dari: nama, kali: 1 }] },
     tnc: { ...d.tnc, caraBayar: [...d.tnc.caraBayar, { judul: nama.toUpperCase(),
@@ -207,11 +216,11 @@ function jadikanCaraBayar(d: SusunPricelist, i: number): SusunPricelist {
     .map((x) => x.nama.trim().toUpperCase())]);
   return {
     ...d,
-    irr: { ...d.irr, skema: [...d.irr.skema, {
+    irr: { ...d.irr, skema: denganAlokasiBaru([...d.irr.skema, {
       nama: k.nama, kelompok: sumber?.kelompok ?? "Cash", alokasi: 0,
       dp: sumber?.dp ?? 1, kali: sumber?.kali ?? 1,
       bulan: [...(sumber?.bulan ?? [12, 18, 19, 20])] as [number, number, number, number],
-    }] },
+    }]) },
     dataPricelist: { ...d.dataPricelist, kolom: d.dataPricelist.kolom.map((x, j) =>
       j === i ? { nama: x.nama, skema: x.nama } : x) },
     tnc: d.tnc.caraBayar.some((c) => namaLain.has(c.judul.trim().toUpperCase())) ? d.tnc
@@ -480,7 +489,8 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah, baru }: PropsLangkah 
         <span className="hint" style={{ margin: 0 }}>
           Total alokasi <b>{persen(hasil.irr.totalAlokasi)}</b> · WA coefficient{" "}
           <b>{hasil.irr.koefRata.toFixed(3)}</b> · Allocation otomatis berjumlah 100%: mengubah
-          satu cara bayar menyesuaikan yang lain secara sebanding.
+          satu cara bayar menyesuaikan yang lain secara sebanding, dan cara bayar baru langsung
+          mendapat bagian rata (100% / jumlah cara bayar).
         </span>
         {bolehUbah && Math.abs(hasil.irr.totalAlokasi - 1) > 1e-9 && (
           <button onClick={() => ubah((d) => ({ ...d, irr: { ...d.irr, skema: genapkanAlokasi(d.irr.skema) } }))}>
