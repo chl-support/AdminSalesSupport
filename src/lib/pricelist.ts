@@ -369,6 +369,11 @@ export function ensureTabelPricelist(): Promise<void> {
     // sanalah seluruh pricelist berasal sebelum layar penyusun ada.
     await query(
       "ALTER TABLE pricelists ADD COLUMN IF NOT EXISTS sumber TEXT NOT NULL DEFAULT 'unggah'");
+    // Kapan terakhir diberlakukan. Pricelist lama yang sedang berlaku:
+    // dianggap berlaku sejak disimpan.
+    await query("ALTER TABLE pricelists ADD COLUMN IF NOT EXISTS diberlakukan_pada TIMESTAMPTZ");
+    await query(`UPDATE pricelists SET diberlakukan_pada = diunggah_pada
+                  WHERE aktif AND diberlakukan_pada IS NULL`);
   })().catch((e) => { sekali = null; throw e; });
   return sekali;
 }
@@ -380,6 +385,8 @@ export type RingkasPricelist = {
   id: string; nama: string; nama_berkas: string | null; lembar: string | null;
   jumlah_unit: number; jumlah_skema: number; aktif: boolean;
   diunggah_oleh: string | null; diunggah_pada: string;
+  /** Terakhir diberlakukan; null bila belum pernah. */
+  diberlakukan_pada: string | null;
   /** Berkas Excel aslinya tersimpan dan dapat diunduh. */
   ada_berkas: boolean;
   sumber: SumberPricelist;
@@ -397,7 +404,7 @@ export async function daftarPricelist(projectId: string): Promise<RingkasPriceli
   return query<RingkasPricelist>(
     `SELECT id, nama, nama_berkas, lembar, jumlah_unit,
             jsonb_array_length(skema) AS jumlah_skema, aktif,
-            diunggah_oleh, diunggah_pada, berkas IS NOT NULL AS ada_berkas,
+            diunggah_oleh, diunggah_pada, diberlakukan_pada, berkas IS NOT NULL AS ada_berkas,
             sumber
        FROM pricelists WHERE project_id=$1
       ORDER BY diunggah_pada DESC`, [projectId]);
@@ -445,8 +452,9 @@ export async function simpanPricelist(input: {
     }
     const { rows } = await c.query<{ id: string }>(
       `INSERT INTO pricelists (project_id, nama, nama_berkas, lembar, skema, unit,
-                               jumlah_unit, aktif, diunggah_oleh, berkas, sumber)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$10,$8,$9,$11) RETURNING id`,
+                               jumlah_unit, aktif, diunggah_oleh, berkas, sumber,
+                               diberlakukan_pada)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$10,$8,$9,$11, CASE WHEN $10 THEN now() END) RETURNING id`,
       [input.projectId, input.nama, input.namaBerkas, hasil.lembar,
        JSON.stringify(hasil.skema.map((s) => s.nama)), JSON.stringify(hasil.unit),
        hasil.unit.length, input.aktor, input.isi ?? null, aktif,
@@ -486,7 +494,7 @@ export async function berlakukanPricelist(
     if (!rows.length) throw new Error("Pricelist tidak ditemukan pada project ini.");
     await c.query("UPDATE pricelists SET aktif=false WHERE project_id=$1 AND aktif",
                   [projectId]);
-    await c.query("UPDATE pricelists SET aktif=true WHERE id=$1", [id]);
+    await c.query("UPDATE pricelists SET aktif=true, diberlakukan_pada=now() WHERE id=$1", [id]);
     await audit({ entityType: "pricelist", entityId: id,
                   action: "pricelist_activated", actor: aktor,
                   after: { nama: rows[0].nama } }, c);
