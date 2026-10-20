@@ -171,7 +171,7 @@ function genapkanAlokasi<T extends { alokasi: number; tambahan?: boolean }>(skem
  * cicilan dan bulan tahap disalin dari cara bayar pertama, diubah di sana),
  * kolom Data Pricelist berkoefisien IRR-nya sendiri, kolom Pricelist, dan
  * satu blok T&C — supaya tidak ada langkah yang tertinggal. Dipakai tombol
- * + Tambah Cara Bayar di langkah 1 dan langkah 3.
+ * + Tambah cara bayar di langkah 1 (cara bayar di langkah 3 tidak masuk Data (IRR)).
  */
 function denganCaraBayarBaru(d: SusunPricelist): SusunPricelist {
   const ada = new Set([...d.irr.skema.map((x) => x.nama), ...d.dataPricelist.kolom.map((k) => k.nama)]);
@@ -188,41 +188,6 @@ function denganCaraBayarBaru(d: SusunPricelist): SusunPricelist {
     pricelist: { ...d.pricelist, kolom: [...d.pricelist.kolom, { nama, dari: nama, kali: 1 }] },
     tnc: { ...d.tnc, caraBayar: [...d.tnc.caraBayar, { judul: nama.toUpperCase(),
       baris: [{ label: "Booking Fee", nilai: "10 Juta", waktu: "" }] }] },
-  };
-}
-
-/**
- * Jadikan kolom turunan ke-i di Data Pricelist sebuah cara bayar: ia mendapat
- * kolom sendiri di Data (IRR) — DP, cicilan, kelompok dan bulan tahapnya
- * disalin dari cara bayar sumbernya sebagai titik awal — sehingga
- * koefisiennya dihitung dari arus kasnya sendiri, bukan pengali. Kolom
- * Pricelist-nya tetap; blok T&C ditambahkan bila belum ada.
- */
-function jadikanCaraBayar(d: SusunPricelist, i: number): SusunPricelist {
-  const k = d.dataPricelist.kolom[i];
-  if (!k || k.skema || d.irr.skema.some((x) => x.nama === k.nama)) return d;
-  // Cara bayar sumbernya: telusuri rantai turunan sampai kolom berkoefisien IRR.
-  let asal: (typeof d.dataPricelist.kolom)[0] | undefined = k;
-  for (let n = 0; asal && !asal.skema && n < 50; n++) {
-    asal = d.dataPricelist.kolom.find((x) => x.nama === asal!.dari);
-  }
-  const sumber = d.irr.skema.find((x) => x.nama === asal?.skema) ?? d.irr.skema[0];
-  // Blok T&C bisa berjudul nama kolomnya atau nama tampilannya di Pricelist.
-  const judul = k.nama.toUpperCase();
-  const namaLain = new Set([judul, ...d.pricelist.kolom.filter((x) => x.dari === k.nama)
-    .map((x) => x.nama.trim().toUpperCase())]);
-  return {
-    ...d,
-    irr: { ...d.irr, skema: [...d.irr.skema, {
-      nama: k.nama, kelompok: sumber?.kelompok ?? "Cash", alokasi: 0, tambahan: true,
-      dp: sumber?.dp ?? 1, kali: sumber?.kali ?? 1,
-      bulan: [...(sumber?.bulan ?? [12, 18, 19, 20])] as [number, number, number, number],
-    }] },
-    dataPricelist: { ...d.dataPricelist, kolom: d.dataPricelist.kolom.map((x, j) =>
-      j === i ? { nama: x.nama, skema: x.nama } : x) },
-    tnc: d.tnc.caraBayar.some((c) => namaLain.has(c.judul.trim().toUpperCase())) ? d.tnc
-      : { ...d.tnc, caraBayar: [...d.tnc.caraBayar, { judul,
-          baris: [{ label: "Booking Fee", nilai: "10 Juta", waktu: "" }] }] },
   };
 }
 
@@ -1006,16 +971,17 @@ export function LangkahDataPl({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
   const [yakin, setYakin] = useState<number | null>(null);
   const x0 = (i: number) => kolom[i];
 
-  // Kolom turunan (dihitung dari kolom lain × pengali, mis. KPR DP 1%/1x =
-  // KPR Express × 112%) tidak punya cara bayar di Data (IRR), jadi ditambah
-  // dan dihapus di sini. Kolom baru ikut tampil di Pricelist.
+  // Cara bayar baru ditambah di sini saja, tidak masuk Data (IRR), supaya
+  // cara bayar normal dan Allocation-nya tidak berubah. Harganya dihitung
+  // dari cara bayar lain × pengali (bawaan Cash Keras × 100%) lalu kenaikan
+  // bertingkat bila perlu; kolom Pricelist dan blok T&C-nya ikut dibuat.
   const tambahTurunan = () => ubah((d) => {
     const ada = new Set([...d.dataPricelist.kolom.map((k) => k.nama),
-                         ...d.pricelist.kolom.map((k) => k.nama)]);
+                         ...d.pricelist.kolom.map((k) => k.nama), ...d.irr.skema.map((x) => x.nama)]);
     let no = 1;
-    while (ada.has(`Kolom turunan ${no}`)) no++;
-    const nama = `Kolom turunan ${no}`;
-    const dari = d.dataPricelist.kolom[d.dataPricelist.kolom.length - 1]?.nama ?? "";
+    while (ada.has(`Cara bayar baru ${no}`)) no++;
+    const nama = `Cara bayar baru ${no}`;
+    const dari = d.dataPricelist.kolom[0]?.nama ?? "";
     return { ...d,
       dataPricelist: { ...d.dataPricelist, kolom: [...d.dataPricelist.kolom, { nama, dari, kali: 1 }] },
       pricelist: { ...d.pricelist, kolom: [...d.pricelist.kolom, { nama, dari: nama, kali: 1 }] } };
@@ -1142,14 +1108,8 @@ export function LangkahDataPl({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
                       <button className="kecil" onClick={() => setYakin(null)}>Batal</button>
                     </span>
                   ) : (
-                    <span className="row" style={{ margin: 0, flexWrap: "nowrap", gap: 4, display: "inline-flex" }}>
-                      <button className="kecil"
-                              disabled={data.irr.skema.some((x) => x.nama === k.nama)}
-                              title="Beri kolom ini data cara bayar sendiri di langkah 1 Data (IRR), sehingga koefisiennya dihitung otomatis; ikut ke Pricelist dan T&C"
-                              onClick={() => ubah((d) => jadikanCaraBayar(d, i))}>Jadikan cara bayar</button>
-                      <button className="kecil" title="Hapus kolom turunan ini (dan kolom yang dihitung darinya)"
-                              onClick={() => setYakin(i)}>Hapus</button>
-                    </span>
+                    <button className="kecil" title="Hapus cara bayar ini (dan kolom yang dihitung darinya)"
+                            onClick={() => setYakin(i)}>Hapus</button>
                   )}
                 </td>
               )}
@@ -1159,15 +1119,13 @@ export function LangkahDataPl({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
       </div>
       {!ro && (
         <div className="row" style={{ marginTop: 8 }}>
-          <button className="pri" onClick={() => ubah(denganCaraBayarBaru)}
-                  title="Cara bayar baru: koefisien dihitung otomatis dari DP, cicilan dan bulan tahap yang diisi di langkah 1 Data (IRR); ikut ke Pricelist dan T&C">
+          <button className="pri" onClick={tambahTurunan}
+                  title="Cara bayar baru, tidak masuk Data (IRR): dihitung dari cara bayar lain × pengali, lalu kenaikan bila perlu">
             + Tambah Cara Bayar</button>
-          <button onClick={tambahTurunan}
-                  title="Kolom baru yang dihitung dari kolom lain × pengali, mis. KPR Express × 112%">
-            + Tambah kolom turunan</button>
           <span className="hint" style={{ margin: 0 }}>
-            Cara bayar baru: isi DP, cicilan dan bulan tahapnya di langkah 1 Data (IRR) —
-            koefisiennya dihitung otomatis dan kolomnya langsung ada di langkah 4 dan 5.
+            Cara bayar baru <b>tidak masuk Data (IRR)</b>, jadi cara bayar normal dan Allocation tidak
+            berubah. Pilih <b>Dihitung Dari</b> dan isi Pengali / Kenaikan bertingkat; kolomnya langsung
+            ada di langkah 4 dan 5.
           </span>
         </div>
       )}
