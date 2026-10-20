@@ -33,7 +33,7 @@ const KATA = {
   id: {
     judul: "Pricelist",
     langkah: ["Data (IRR)", "Unit Data", "Data Pricelist", "Pricelist", "Terms & Conditions"],
-    folder: "Data & Riwayat Pricelist", folderUraian: "Pricelist tersimpan & riwayat perubahan",
+    folder: "Data & Riwayat Pricelist", folderUraian: "Master Pricelist & riwayat perubahan",
     uraian: [
       "Koefisien harga tiap cara bayar",
       "Harga dasar tiap unit",
@@ -69,7 +69,7 @@ const KATA = {
   en: {
     judul: "Price List",
     langkah: ["Data (IRR)", "Unit Data", "Price Data", "Price List", "Terms & Conditions"],
-    folder: "Price List Data & History", folderUraian: "Saved price lists & change history",
+    folder: "Price List Data & History", folderUraian: "Master price list & change history",
     uraian: [
       "Price coefficient per payment scheme",
       "Base price per unit",
