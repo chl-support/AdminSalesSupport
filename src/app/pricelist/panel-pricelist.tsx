@@ -20,6 +20,7 @@ import { useBahasa, useKata } from "../bahasa";
 import type { Sesi } from "../session";
 import { PENGUNGGAH, TabelHarga } from "../simulasi/unggah-pricelist";
 import type { UnitHarga } from "@/lib/simulasi";
+import { bagiRiwayat, TabelRiwayat, type Baris } from "./riwayat-susun";
 
 const KATA = {
   id: {
@@ -39,6 +40,7 @@ const KATA = {
     lihatRiwayat: (n: number) => `Riwayat unggahan (${n})`,
     folderSimpan: (n: number) => `Pricelist tersimpan (${n})`,
     folderSimpanInfo: "Semua pricelist yang sudah disimpan dengan nama (bukan draf), terbaru di atas.",
+    riwayatPl: (n: number) => `Riwayat perubahan (${n})`,
     folderKosong: "Belum ada pricelist yang disimpan dengan nama. Isi nama di langkah 4 lalu Simpan.",
     rNama: "Nama", rBerkas: "Berkas", rUnit: "Unit", rSkema: "Cara bayar",
     rOleh: "Diunggah oleh", rPada: "Tanggal", rStatus: "Status",
@@ -72,6 +74,7 @@ const KATA = {
     lihatRiwayat: (n: number) => `Upload history (${n})`,
     folderSimpan: (n: number) => `Saved price lists (${n})`,
     folderSimpanInfo: "Every price list saved under a name (not drafts), newest first.",
+    riwayatPl: (n: number) => `Change history (${n})`,
     folderKosong: "No price list saved under a name yet. Enter a name in step 4, then save.",
     rNama: "Name", rBerkas: "File", rUnit: "Units", rSkema: "Schemes",
     rOleh: "Uploaded by", rPada: "Date", rStatus: "Status",
@@ -135,6 +138,8 @@ export function PanelPricelist({ sesi, versi, onBerubah, onEdit, onAmbilTnc }: {
   const [saring, setSaring] = useState<Record<Saring, string>>(SARING_KOSONG);
   const [pajak, setPajak] = useState(false);
   const [pindah, setPindah] = useState(false);
+  const [riwayatPl, setRiwayatPl] = useState<Map<string, Baris[]>>(new Map());
+  const adaEdit = !!onEdit;
 
   // Pilihan tiap saringan diambil dari isi pricelist-nya sendiri; saringan
   // yang kolomnya tidak ada di berkas tidak ditampilkan.
@@ -161,7 +166,13 @@ export function PanelPricelist({ sesi, versi, onBerubah, onEdit, onAmbilTnc }: {
     if (!res.ok) { setGalat(b.detail ?? b.title ?? `HTTP ${res.status}`); return; }
     setBerlaku(b.berlaku ?? null);
     setRiwayat(b.riwayat ?? []);
-  }, []);
+    // Layar Pricelist: riwayat perubahan dibagi ke tiap pricelist tersimpan.
+    if (adaEdit) {
+      const rs = await fetch("/api/pricelist/susun/riwayat");
+      const br = await rs.json().catch(() => ({}));
+      if (rs.ok) setRiwayatPl(bagiRiwayat(br.riwayat ?? [], b.riwayat ?? []).perPl);
+    }
+  }, [adaEdit]);
 
   // `versi` naik setiap kali layar induknya menyimpan unggahan baru.
   useEffect(() => { void muat(); }, [muat, versi]);
@@ -397,6 +408,13 @@ export function PanelPricelist({ sesi, versi, onBerubah, onEdit, onAmbilTnc }: {
                       <button className="pri" disabled={!r.ada_berkas}
                               onClick={() => unduh(r.id)}>{k.unduh}</button>
                     </span>
+                    {/* Riwayat perubahan pricelist ini, dibuka bila diklik. */}
+                    {!!riwayatPl.get(r.id)?.length && (
+                      <details className="riwayat-berkas">
+                        <summary>{k.riwayatPl(riwayatPl.get(r.id)!.length)}</summary>
+                        <TabelRiwayat riwayat={riwayatPl.get(r.id)!} tinggi={360} />
+                      </details>
+                    )}
                   </div>
                 )}
               </div>
