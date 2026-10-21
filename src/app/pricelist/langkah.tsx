@@ -147,6 +147,12 @@ const KATA = {
     tidakDipakai: "tidak dipakai di Harga",
     thMetodeSub: "nama di Harga · pengali · pembulatan",
     tampilkanDiHarga: "+ Tampilkan di Harga",
+    salinAturDari: "Salin pengaturan dari proyek",
+    salinAturInfo: "Data (IRR), susunan kolom Data Harga dan kolom Harga (nama, pengali, pembulatan), judul dan catatan KPR diambil dari proyek lain. Unit, Harga Spesial dan S&K tidak berubah.",
+    opsiAtur: (n: string, j: number) => `${n} (${j} kolom)`,
+    yakinSalinAtur: (nama: string, daftar: string) => `Pengaturan harga ${nama}:\n\n${daftar}\n\n` +
+      "Data (IRR), susunan kolom Data Harga dan Harga, judul dan catatan KPR di proyek ini diganti dengan milik proyek itu. Unit, Harga Spesial dan S&K tidak berubah. Lanjutkan?",
+    aturDisalin: (n: string) => `Pengaturan harga disalin dari ${n}. Periksa koefisien, pengali dan nama kolom, lalu Simpan.`,
     hapusDariHarga: "Hapus kolom ini dari Harga (kolom Data Harga tetap)",
     susunanDiLangkah3: "Semua pengaturan harga ada di langkah 3. Data Harga: judul, tanggal berlaku, catatan kolom KPR, dan susunan kolom harga (kolom Perubahan Metode Pembayaran: nama, pengali, pembulatan). Langkah ini menampilkan rincian harganya.",
     geserAtas: "Geser ke atas", geserBawah: "Geser ke bawah",
@@ -321,6 +327,12 @@ const KATA = {
     tidakDipakai: "not used in the Price List",
     thMetodeSub: "name in Price List · multiplier · rounding",
     tampilkanDiHarga: "+ Show in Price List",
+    salinAturDari: "Copy settings from project",
+    salinAturInfo: "Data (IRR), the Price Data column layout and the Price List columns (name, multiplier, rounding), title and KPR note are taken from another project. Units, Special Price and T&C stay unchanged.",
+    opsiAtur: (n: string, j: number) => `${n} (${j} columns)`,
+    yakinSalinAtur: (nama: string, daftar: string) => `Price settings of ${nama}:\n\n${daftar}\n\n` +
+      "This project's Data (IRR), Price Data and Price List column layout, title and KPR note will be replaced with that project's. Units, Special Price and T&C stay unchanged. Continue?",
+    aturDisalin: (n: string) => `Price settings copied from ${n}. Check the coefficients, multipliers and column names, then Save.`,
     hapusDariHarga: "Remove this column from the Price List (the Price Data column stays)",
     susunanDiLangkah3: "All price settings are in step 3. Price Data: title, effective date, KPR column note, and the price column layout (Payment Method Name column: name, multiplier, rounding). This step shows the price details.",
     geserAtas: "Move up", geserBawah: "Move down",
@@ -1475,6 +1487,32 @@ function KenaikanBertingkat({ tingkat, ubah, disabled }: {
 export function LangkahDataPl({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
   const kt = useKata(KATA);
   const ro = !bolehUbah;
+  // Salin pengaturan harga dari project lain, supaya pricelist project baru
+  // tidak perlu disusun dari nol.
+  const [lainAtur, setLainAtur] = useState<{ slug: string; nama: string; jumlah: number }[]>([]);
+  const [dariAtur, setDariAtur] = useState("");
+  const [pesanAtur, setPesanAtur] = useState<{ ok: boolean; teks: string } | null>(null);
+  useEffect(() => {
+    if (ro) return;
+    fetch("/api/pricelist/susun/pengaturan").then((r) => r.ok ? r.json() : null)
+      .then((b) => setLainAtur(b?.project ?? [])).catch(() => {});
+  }, [ro]);
+  const salinAtur = async () => {
+    const p = lainAtur.find((x) => x.slug === dariAtur);
+    if (!p) return;
+    setPesanAtur(null);
+    const r = await fetch(`/api/pricelist/susun/pengaturan?slug=${encodeURIComponent(p.slug)}`);
+    const b = await r.json().catch(() => ({}));
+    if (!r.ok || !b.pengaturan) { setPesanAtur({ ok: false, teks: b.detail ?? b.title ?? `HTTP ${r.status}` }); return; }
+    const x = b.pengaturan as Pick<SusunPricelist, "irr" | "dataPricelist"> & {
+      pricelist: Pick<SusunPricelist["pricelist"], "judul" | "catatan" | "kolom"> };
+    const daftar = x.dataPricelist.kolom.map((k, i) => `${i + 1}. ${k.nama}`).join("\n");
+    if (!confirm(kt.yakinSalinAtur(p.nama, daftar))) return;
+    ubah((d) => ({ ...d, irr: x.irr, dataPricelist: x.dataPricelist,
+                   pricelist: { ...d.pricelist, judul: x.pricelist.judul || d.pricelist.judul,
+                                catatan: x.pricelist.catatan, kolom: x.pricelist.kolom.length ? x.pricelist.kolom : d.pricelist.kolom } }));
+    setPesanAtur({ ok: true, teks: kt.aturDisalin(p.nama) });
+  };
   const kolom = data.dataPricelist.kolom;
   const ubahKolom = (i: number, f: (k: (typeof kolom)[0]) => (typeof kolom)[0]) =>
     ubah((d) => ({ ...d, dataPricelist: { ...d.dataPricelist,
@@ -1548,6 +1586,17 @@ export function LangkahDataPl({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
   return (
     <>
       <p className="hint kiri">{kt.dpHint}</p>
+      {!ro && lainAtur.length > 0 && (
+        <div className="row" style={{ marginTop: 4, alignItems: "center" }} title={kt.salinAturInfo}>
+          <span className="lbl" style={{ margin: 0 }}>{kt.salinAturDari}</span>
+          <select id="dp-salin" value={dariAtur} onChange={(e) => setDariAtur(e.target.value)}>
+            <option value="">{kt.pilih}</option>
+            {lainAtur.map((x) => <option key={x.slug} value={x.slug}>{kt.opsiAtur(x.nama, x.jumlah)}</option>)}
+          </select>
+          <button disabled={!dariAtur} onClick={() => void salinAtur()}>{kt.salin}</button>
+        </div>
+      )}
+      {pesanAtur && <div className={`banner ${pesanAtur.ok ? "ok" : "stop"}`}>{pesanAtur.teks}</div>}
       <div className="filters rapat" style={{ maxWidth: 300 }}>
         <div>
           <div className="lbl">{kt.tambahanPerUnit}</div>

@@ -15,7 +15,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { useKata } from "../bahasa";
+import { useBahasa, useKata } from "../bahasa";
 import { Kerangka, MemeriksaSesi } from "../kerangka";
 import { TautanLayar } from "../nav";
 import { PilihBerkas } from "../pilih-berkas";
@@ -25,6 +25,7 @@ import { BilahGaya } from "./gaya-teks";
 import { useSesi } from "../session";
 import { PENGUNGGAH } from "../simulasi/unggah-pricelist";
 import { basisProject, hitungSemua, unitBelumBerharga, type SusunPricelist } from "@/lib/susun-pricelist";
+import { periksaSusun } from "@/lib/susun-pricelist-periksa";
 import {
   LangkahDataPl, LangkahIrr, LangkahPricelist, LangkahTnc, LangkahUnit, isiOtomatisCaraBayar, rapikanCaraBayar, sinkronTnc,
 } from "./langkah";
@@ -56,6 +57,8 @@ const KATA = {
     unduh: "Unduh Excel", unduhSyarat: "Simpan dulu supaya berkasnya berisi perubahan terakhir.",
     hanyaBaca: "Hanya Admin Sales dan Admin IT yang dapat mengubah harga.",
     galatJudul: "Belum dapat diberlakukan",
+    tandaJudul: { ok: "Langkah ini sudah lengkap", stop: "kesalahan", cek: "perlu dicek" },
+    temuanJudul: (n: number) => `Pemeriksaan otomatis: ${n} hal di langkah ini`,
     berlakuJudul: "Simpan / berlakukan harga",
     belumBerharga: "Unit tanpa luas / harga tanah — isi catatan bila harganya memang belum dikeluarkan; unit ini tidak ikut harga yang disimpan.",
     catatanUnit: "Catatan, mis. harga belum ditentukan manajemen",
@@ -103,6 +106,8 @@ const KATA = {
     unduh: "Download Excel", unduhSyarat: "Save first so the file contains the latest changes.",
     hanyaBaca: "Only Sales Admin and IT Admin can change the price list.",
     galatJudul: "Cannot be applied yet",
+    tandaJudul: { ok: "This step is complete", stop: "errors", cek: "to check" },
+    temuanJudul: (n: number) => `Automatic check: ${n} item(s) in this step`,
     berlakuJudul: "Apply price list",
     belumBerharga: "Units without land area / price — add a note if their price is not released yet; these units are left out of the saved price list.",
     catatanUnit: "Note, e.g. price not yet set by management",
@@ -137,6 +142,24 @@ const NOMOR = ["1", "2", "3", "4a", "4b", "5"];
 
 /** Nomor "langkah" untuk folder Data & Master Pricelist di depan langkah 1. */
 const FOLDER = -1;
+
+/**
+ * Tanda di bilah langkah: ✓ bila tidak ada temuan, ✕ n bila ada kesalahan
+ * yang membuat pricelist belum dapat diberlakukan, ⚠ n bila ada yang patut
+ * dicek.
+ */
+function TandaLangkah({ temuan, judul }: {
+  temuan: { jenis: "stop" | "cek" }[]; judul: { ok: string; stop: string; cek: string };
+}) {
+  const stop = temuan.filter((x) => x.jenis === "stop").length, cek = temuan.length - stop;
+  if (!temuan.length) return <span className="tanda-langkah ok" title={judul.ok}>✓</span>;
+  return (
+    <>
+      {stop > 0 && <span className="tanda-langkah stop" title={`${stop} ${judul.stop}`}>✕ {stop}</span>}
+      {cek > 0 && <span className="tanda-langkah cek" title={`${cek} ${judul.cek}`}>⚠ {cek}</span>}
+    </>
+  );
+}
 
 export default function PricelistPage() {
   const { sesi, memuat } = useSesi();
@@ -178,6 +201,9 @@ export default function PricelistPage() {
   useEffect(() => { if (sesi?.project_slug) void muat(); }, [sesi, muat]);
 
   const hasil = useMemo(() => (data ? hitungSemua(data) : null), [data]);
+  // Daftar cek per langkah: kesalahan (stop) dan hal yang patut dicek.
+  const { bahasa } = useBahasa();
+  const temuan = useMemo(() => (data && hasil ? periksaSusun(data, hasil) : []), [data, hasil]);
   const berubah = !!data && !!draf && (draf.baru || JSON.stringify(data) !== JSON.stringify(draf.data));
 
   // Peringatan sebelum meninggalkan halaman dengan perubahan yang belum disimpan.
@@ -431,7 +457,8 @@ export default function PricelistPage() {
                         document.querySelector(".langkah-pl")
                           ?.scrollIntoView({ behavior: "smooth", block: "start" });
                       }}>
-                <b><span className="no-langkah">{NOMOR[i]}.</span> {l}</b>{k.uraian[i]}
+                <b><span className="no-langkah">{NOMOR[i]}.</span> {l}{" "}
+                  <TandaLangkah temuan={temuan.filter((x) => x.langkah === i)} judul={k.tandaJudul} /></b>{k.uraian[i]}
               </button>
             ))}
           </nav>
@@ -457,6 +484,16 @@ export default function PricelistPage() {
           ].map((isi, i) => i !== langkah ? null : (
             <section key={i} id={`langkah-${NOMOR[i]}`} className="panel sp bagian-langkah">
               <h2>{NOMOR[i]}. {k.langkah[i]}<span className="hint" style={{ margin: 0 }}>{k.uraian[i]}</span></h2>
+              {temuan.some((x) => x.langkah === i) && (
+                <details className={`banner ${temuan.some((x) => x.langkah === i && x.jenis === "stop") ? "stop" : "warn"} temuan-langkah`} open>
+                  <summary><b>{k.temuanJudul(temuan.filter((x) => x.langkah === i).length)}</b></summary>
+                  <ul style={{ margin: "4px 0 0 16px" }}>
+                    {temuan.filter((x) => x.langkah === i).map((x) => (
+                      <li key={x.id}>{x.jenis === "stop" ? "✕ " : "⚠ "}{bahasa === "en" ? x.en : x.id}</li>
+                    ))}
+                  </ul>
+                </details>
+              )}
               {isi}
             </section>
           ))}

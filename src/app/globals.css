@@ -3286,3 +3286,12 @@ ul.daftar-ubah li { margin: 1px 0; }
 .legenda-isian .manual { background: #F4F5F6; border-color: #C6CBD1; }
 .legenda-isian .sistem { background: #DDE0E4; border-color: #B9BEC4; }
 .langkah-pl .no-langkah { text-transform: none; }
+
+/* Daftar cek di bilah langkah Pricelist: ✓ lengkap, ✕ kesalahan, ⚠ perlu dicek. */
+.tanda-langkah { display: inline-block; font-size: 10.5px; font-weight: 700; padding: 0 5px;
+  border-radius: 8px; margin-left: 2px; line-height: 16px; vertical-align: middle; }
+.tanda-langkah.ok { color: #1f7a3a; background: #e3f4e8; }
+.tanda-langkah.stop { color: #a3201a; background: #fbe4e2; }
+.tanda-langkah.cek { color: #8a5a00; background: #fdf1d6; }
+.temuan-langkah summary { cursor: pointer; display: list-item; text-transform: none; }
+.temuan-langkah summary b { display: inline; text-transform: none; }

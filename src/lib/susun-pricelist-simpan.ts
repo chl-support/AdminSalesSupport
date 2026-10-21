@@ -212,6 +212,38 @@ export async function tncProject(slug: string): Promise<SusunPricelist["tnc"] | 
   return row?.tnc ?? null;
 }
 
+/**
+ * Pengaturan harga draf project lain (Data (IRR), susunan kolom Data Harga
+ * dan Harga), untuk disalin ke draf project ini. Unit, harga spesial dan
+ * T&C tidak ikut.
+ */
+export type PengaturanHarga = Pick<SusunPricelist, "irr" | "dataPricelist"> & {
+  pricelist: Pick<SusunPricelist["pricelist"], "judul" | "catatan" | "kolom">;
+};
+
+export async function pengaturanProjectLain(projectId: string): Promise<
+  { slug: string; nama: string; jumlah: number }[]> {
+  await ensureTabel();
+  return query<{ slug: string; nama: string; jumlah: number }>(
+    `SELECT p.slug, p.name AS nama,
+            jsonb_array_length(COALESCE(s.data->'dataPricelist'->'kolom', '[]'::jsonb))::int AS jumlah
+       FROM pricelist_susun s JOIN projects p ON p.id = s.project_id
+      WHERE s.project_id <> $1
+        AND jsonb_array_length(COALESCE(s.data->'dataPricelist'->'kolom', '[]'::jsonb)) > 0
+      ORDER BY p.name`, [projectId]);
+}
+
+export async function pengaturanProject(slug: string): Promise<PengaturanHarga | null> {
+  await ensureTabel();
+  const row = await one<{ irr: SusunPricelist["irr"]; dp: SusunPricelist["dataPricelist"];
+                          pl: SusunPricelist["pricelist"] | null }>(
+    `SELECT s.data->'irr' AS irr, s.data->'dataPricelist' AS dp, s.data->'pricelist' AS pl
+       FROM pricelist_susun s JOIN projects p ON p.id = s.project_id WHERE p.slug = $1`, [slug]);
+  if (!row?.irr || !row.dp) return null;
+  return { irr: row.irr, dataPricelist: row.dp,
+           pricelist: { judul: row.pl?.judul ?? "", catatan: row.pl?.catatan ?? "", kolom: row.pl?.kolom ?? [] } };
+}
+
 /** Project patokan T&C: format dan cara bayarnya dipakai semua project. */
 const SLUG_PATOKAN_TNC = "naraya-serpong";
 /** Versi penyamaan; dinaikkan bila suatu saat semua project perlu disamakan ulang. */
