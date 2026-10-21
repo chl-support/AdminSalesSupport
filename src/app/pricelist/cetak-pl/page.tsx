@@ -14,7 +14,61 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import type { UnitHarga } from "@/lib/simulasi";
+import { useKata } from "../../bahasa";
 import { TeksBergaya } from "../gaya-teks";
+
+const KATA = {
+  id: {
+    kosong1: "Tidak ada isi untuk dicetak. Buka halaman Pricelist → langkah 4a. Harga, lalu",
+    kosong2: "klik", cetakA4: "Cetak A4",
+    judul: "Cetak Pricelist (A4)",
+    orientasi: "Orientasi", lanskap: "Lanskap (mendatar)", potret: "Potret (tegak)",
+    pajak: "DPP & Nilai Free PPN DTP",
+    tinggiBaris: "Tinggi baris", rapatkan: "Rapatkan baris", renggangkan: "Renggangkan baris",
+    ukuranHuruf: "Ukuran huruf", perkecil: "Perkecil huruf", perbesar: "Perbesar huruf",
+    ukuranCetak: "Ukuran cetak", pasLebar: "Pas lebar kertas (ke bawah boleh lebih)",
+    pasHalaman: "Pas 1 halaman A4", asli: "Ukuran asli",
+    terlalu: "Tabel lebih lebar dari kertas", muat: "Muat selebar A4", muatkan: "Muatkan lebar kertas",
+    pilihIsi: "Pilih isi yang dicetak", disembunyikan: (n: number) => ` (${n} disembunyikan)`,
+    pilihInfo: "Yang tidak dicentang hanya disembunyikan dari cetakan; isi Pricelist tidak berubah.",
+    kolKet: "Kolom keterangan",
+    kolKetInfo: "Sembunyikan kolom yang tidak perlu supaya tulisan tercetak lebih besar.",
+    caraBayar: "Cara bayar", centangSemua: "Centang semua", kosongkan: "Kosongkan",
+    cluster: "Address (cluster)", tanpaAlamat: "(tanpa address)",
+    nUnit: (n: number) => `${n} unit`,
+    cetak: "Cetak / Simpan PDF", tutup: "Tutup",
+    ringkas: (u: number, c: number) => `${u} unit · ${c} cara bayar. Di dialog cetak pilih kertas`,
+    pdf: "; untuk PDF pilih “Simpan sebagai PDF”.",
+    no: "No", unitNo: "Unit No", area: "Area (m²)", harga: "Harga", dpp: "DPP", dtp: "Free PPN DTP",
+    kol: { alamat: "Address", phase: "Phase", ukuran: "Ukuran", view: "View", tipe: "Tipe",
+           subTipe: "Sub-Tipe", lt: "Land", lb: "Build" } as Record<string, string>,
+  },
+  en: {
+    kosong1: "Nothing to print. Open the Price List page → step 4a. Price List, then",
+    kosong2: "click", cetakA4: "Print A4",
+    judul: "Print Price List (A4)",
+    orientasi: "Orientation", lanskap: "Landscape", potret: "Portrait",
+    pajak: "DPP & VAT DTP free",
+    tinggiBaris: "Row height", rapatkan: "Tighter rows", renggangkan: "Looser rows",
+    ukuranHuruf: "Font size", perkecil: "Smaller font", perbesar: "Larger font",
+    ukuranCetak: "Print size", pasLebar: "Fit paper width (may run onto more pages)",
+    pasHalaman: "Fit 1 A4 page", asli: "Actual size",
+    terlalu: "Table is wider than the paper", muat: "Fits A4 width", muatkan: "Fit to paper width",
+    pilihIsi: "Choose what to print", disembunyikan: (n: number) => ` (${n} hidden)`,
+    pilihInfo: "Unchecked items are only hidden from the printout; the price list itself is unchanged.",
+    kolKet: "Detail columns",
+    kolKetInfo: "Hide columns you do not need so the text prints larger.",
+    caraBayar: "Payment schemes", centangSemua: "Check all", kosongkan: "Clear",
+    cluster: "Address (cluster)", tanpaAlamat: "(no address)",
+    nUnit: (n: number) => `${n} units`,
+    cetak: "Print / Save PDF", tutup: "Close",
+    ringkas: (u: number, c: number) => `${u} units · ${c} payment schemes. In the print dialog choose`,
+    pdf: " paper; for PDF choose “Save as PDF”.",
+    no: "No", unitNo: "Unit No", area: "Area (m²)", harga: "Price", dpp: "DPP", dtp: "VAT DTP free",
+    kol: { alamat: "Address", phase: "Phase", ukuran: "Size", view: "View", tipe: "Type",
+           subTipe: "Sub-type", lt: "Land", lb: "Build" } as Record<string, string>,
+  },
+};
 
 const KUNCI = "cetak-pl";
 
@@ -48,6 +102,7 @@ const angka = (n: number | null | undefined, d = 0) =>
   n == null || !Number.isFinite(n) ? "" : n.toLocaleString("id-ID", { maximumFractionDigits: d });
 
 export default function CetakPricelist() {
+  const kt = useKata(KATA);
   const [isi, setIsi] = useState<Isi | null>(null);
   const [arah, setArah] = useState<"lanskap" | "potret">("lanskap");
   const [huruf, setHuruf] = useState(7.5);
@@ -124,8 +179,8 @@ export default function CetakPricelist() {
   if (!isi) {
     return (
       <main className="cetak-tnc-kosong">
-        <p>Tidak ada isi untuk dicetak. Buka halaman Pricelist → langkah 4a. Pricelist, lalu
-          klik <b>Cetak A4</b>.</p>
+        <p>{kt.kosong1}{" "}
+          {kt.kosong2} <b>{kt.cetakA4}</b>.</p>
       </main>
     );
   }
@@ -152,74 +207,73 @@ export default function CetakPricelist() {
       `}</style>
 
       <div className="cetak-alat">
-        <b>Cetak Pricelist (A4)</b>
-        <label>Orientasi
+        <b>{kt.judul}</b>
+        <label>{kt.orientasi}
           <select value={arah} onChange={(e) => setArah(e.target.value as typeof arah)}>
-            <option value="lanskap">Lanskap (mendatar)</option>
-            <option value="potret">Potret (tegak)</option>
+            <option value="lanskap">{kt.lanskap}</option>
+            <option value="potret">{kt.potret}</option>
           </select>
         </label>
         <label><input type="checkbox" checked={pajak}
                       onChange={(e) => simpanPilihan({ ...sembunyi, pajak: !e.target.checked })} />
-          DPP &amp; Nilai Free PPN DTP</label>
-        <span className="cetak-huruf">Tinggi baris
-          <button onClick={() => setBaris((b) => Math.max(0.05, +(b - 0.1).toFixed(2)))} aria-label="Rapatkan baris">−</button>
+          {kt.pajak}</label>
+        <span className="cetak-huruf">{kt.tinggiBaris}
+          <button onClick={() => setBaris((b) => Math.max(0.05, +(b - 0.1).toFixed(2)))} aria-label={kt.rapatkan}>−</button>
           <b>{Math.round((baris - 0.15) / 0.1) + 1}</b>
-          <button onClick={() => setBaris((b) => Math.min(1.25, +(b + 0.1).toFixed(2)))} aria-label="Renggangkan baris">+</button>
+          <button onClick={() => setBaris((b) => Math.min(1.25, +(b + 0.1).toFixed(2)))} aria-label={kt.renggangkan}>+</button>
         </span>
-        <span className="cetak-huruf">Ukuran huruf
-          <button onClick={() => setHuruf((h) => Math.max(5, +(h - 0.5).toFixed(1)))} aria-label="Perkecil huruf">A−</button>
+        <span className="cetak-huruf">{kt.ukuranHuruf}
+          <button onClick={() => setHuruf((h) => Math.max(5, +(h - 0.5).toFixed(1)))} aria-label={kt.perkecil}>A−</button>
           <b>{huruf.toLocaleString("id-ID")} pt</b>
-          <button onClick={() => setHuruf((h) => Math.min(12, +(h + 0.5).toFixed(1)))} aria-label="Perbesar huruf">A+</button>
+          <button onClick={() => setHuruf((h) => Math.min(12, +(h + 0.5).toFixed(1)))} aria-label={kt.perbesar}>A+</button>
         </span>
-        <label>Ukuran cetak
+        <label>{kt.ukuranCetak}
           <select value={pas} onChange={(e) => setPas(e.target.value as typeof pas)}>
-            <option value="lebar">Pas lebar kertas (ke bawah boleh lebih)</option>
-            <option value="halaman">Pas 1 halaman A4</option>
-            <option value="asli">Ukuran asli</option>
+            <option value="lebar">{kt.pasLebar}</option>
+            <option value="halaman">{kt.pasHalaman}</option>
+            <option value="asli">{kt.asli}</option>
           </select>
           {satuHalaman && <b>{Math.round(skala.zoom * 100)}%</b>}</label>
         {!satuHalaman && <>
           <span className={`pill ${terlalu ? "warn" : "ok"}`}>
-            {terlalu ? "Tabel lebih lebar dari kertas" : "Muat selebar A4"}</span>
-          {terlalu && <button onClick={() => setMuatkan(true)}>Muatkan lebar kertas</button>}
+            {terlalu ? kt.terlalu : kt.muat}</span>
+          {terlalu && <button onClick={() => setMuatkan(true)}>{kt.muatkan}</button>}
         </>}
         <details className="cetak-pilih">
-          <summary>Pilih isi yang dicetak{jumlahSembunyi ? ` (${jumlahSembunyi} disembunyikan)` : ""}</summary>
+          <summary>{kt.pilihIsi}{jumlahSembunyi ? kt.disembunyikan(jumlahSembunyi) : ""}</summary>
           <div className="cetak-pilih-isi">
-            <p className="hint">Yang tidak dicentang hanya disembunyikan dari cetakan; isi Pricelist
-              tidak berubah.</p>
-            <b>Kolom keterangan</b>
-            <span className="hint" style={{ textAlign: "left", margin: 0 }}>Sembunyikan kolom yang tidak
-              perlu supaya tulisan tercetak lebih besar.</span>
-            {[...INFO, ...AREA.map(([k, l]) => [k, `${l} (m²)`, ""] as [keyof UnitHarga, string, string])].map(([k, l]) => (
+            <p className="hint">{kt.pilihInfo}</p>
+            <b>{kt.kolKet}</b>
+            <span className="hint" style={{ textAlign: "left", margin: 0 }}>{kt.kolKetInfo}</span>
+            {[...INFO.map(([k, , c]) => [k, kt.kol[k], c] as [keyof UnitHarga, string, string]),
+              ...AREA.map(([k]) => [k, `${kt.kol[k]} (m²)`, ""] as [keyof UnitHarga, string, string])].map(([k, l]) => (
               <label key={k}><input type="checkbox" checked={!(sembunyi.info ?? []).includes(k)}
                 onChange={(e) => simpanPilihan({ ...sembunyi, info: e.target.checked
                   ? (sembunyi.info ?? []).filter((x) => x !== k) : [...(sembunyi.info ?? []), k] })} /> {l}</label>
             ))}
-            <b>Cara bayar</b>
+            <b>{kt.caraBayar}</b>
             <div className="row" style={{ margin: "0 0 4px" }}>
-              <button className="kecil" onClick={() => simpanPilihan({ ...sembunyi, kolom: [] })}>Centang semua</button>
-              <button className="kecil" onClick={() => simpanPilihan({ ...sembunyi, kolom: [...isi.kolom] })}>Kosongkan</button>
+              <button className="kecil" onClick={() => simpanPilihan({ ...sembunyi, kolom: [] })}>{kt.centangSemua}</button>
+              <button className="kecil" onClick={() => simpanPilihan({ ...sembunyi, kolom: [...isi.kolom] })}>{kt.kosongkan}</button>
             </div>
             {isi.kolom.map((k) => (
               <label key={k}><input type="checkbox" checked={!sembunyi.kolom.includes(k)}
                 onChange={(e) => ganti("kolom", k, e.target.checked)} /> {k}</label>
             ))}
             {semuaAlamat.length > 1 && <>
-              <b>Address (cluster)</b>
+              <b>{kt.cluster}</b>
               {semuaAlamat.map((a) => (
                 <label key={a}><input type="checkbox" checked={!sembunyi.alamat.includes(a)}
                   onChange={(e) => ganti("alamat", a, e.target.checked)} />
-                  {" "}{a} ({isi.unit.filter((u) => (u.alamat || "(tanpa address)") === a).length} unit)</label>
+                  {" "}{a === "(tanpa address)" ? kt.tanpaAlamat : a} ({kt.nUnit(isi.unit.filter((u) => (u.alamat || "(tanpa address)") === a).length)})</label>
               ))}
             </>}
           </div>
         </details>
-        <button className="pri" onClick={() => print()}>Cetak / Simpan PDF</button>
-        <button onClick={() => close()}>Tutup</button>
-        <span className="hint">{unit.length} unit · {kolom.length} cara bayar. Di dialog cetak pilih
-          kertas <b>A4</b>; untuk PDF pilih “Simpan sebagai PDF”.</span>
+        <button className="pri" onClick={() => print()}>{kt.cetak}</button>
+        <button onClick={() => close()}>{kt.tutup}</button>
+        <span className="hint">{kt.ringkas(unit.length, kolom.length)}{" "}
+          <b>A4</b>{kt.pdf}</span>
       </div>
 
       <div className="cetak-latar">
@@ -238,11 +292,11 @@ export default function CetakPricelist() {
             <table ref={tabel}>
               <thead>
                 <tr>
-                  <th rowSpan={2}>No</th>
-                  {info.filter(([k]) => k === "alamat").map(([k, l]) => <th key={k} rowSpan={2}>{l}</th>)}
-                  <th rowSpan={2}>Unit No</th>
-                  {info.filter(([k]) => k !== "alamat").map(([k, l]) => <th key={k} rowSpan={2}>{l}</th>)}
-                  {area.length > 0 && <th colSpan={area.length}>Area (m²)</th>}
+                  <th rowSpan={2}>{kt.no}</th>
+                  {info.filter(([k]) => k === "alamat").map(([k]) => <th key={k} rowSpan={2}>{kt.kol[k]}</th>)}
+                  <th rowSpan={2}>{kt.unitNo}</th>
+                  {info.filter(([k]) => k !== "alamat").map(([k]) => <th key={k} rowSpan={2}>{kt.kol[k]}</th>)}
+                  {area.length > 0 && <th colSpan={area.length}>{kt.area}</th>}
                   {/* Judul cara bayar: kolom sama lebar, judul panjang dilipat. Tanpa
                       DPP/DTP judulnya dua baris tinggi (tidak ada baris "Harga"). */}
                   {kolom.map((k) => pajak
@@ -250,10 +304,10 @@ export default function CetakPricelist() {
                     : <th key={k} rowSpan={2} className="cb harga">{k}</th>)}
                 </tr>
                 <tr>
-                  {area.map(([k, l]) => <th key={k}>{l}</th>)}
+                  {area.map(([k]) => <th key={k}>{kt.kol[k]}</th>)}
                   {kolom.map((k) => pajak
-                    ? [<th key={`${k}h`} className="harga">Harga</th>, <th key={`${k}d`} className="harga">DPP</th>,
-                       <th key={`${k}t`} className="harga">Free PPN DTP</th>]
+                    ? [<th key={`${k}h`} className="harga">{kt.harga}</th>, <th key={`${k}d`} className="harga">{kt.dpp}</th>,
+                       <th key={`${k}t`} className="harga">{kt.dtp}</th>]
                     : null)}
                 </tr>
               </thead>

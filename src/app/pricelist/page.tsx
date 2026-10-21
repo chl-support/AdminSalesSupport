@@ -32,7 +32,7 @@ import {
 const KATA = {
   id: {
     judul: "Pricelist",
-    langkah: ["Data (IRR)", "Unit Data", "Data Pricelist", "Pricelist", "Harga Special", "Terms & Conditions"],
+    langkah: ["Data (IRR)", "Unit Data", "Data Pricelist", "Harga", "Harga Special", "Terms & Conditions"],
     kosong4b: "Halaman Harga Special masih kosong — isinya akan disusun kemudian.",
     folder: "Data & Master Pricelist", folderUraian: "Master Pricelist & riwayat perubahan",
     uraian: [
@@ -67,6 +67,12 @@ const KATA = {
     simpanSbgInfo: "Simpan dengan nama baru: tersimpan di Master Pricelist untuk dibuka lagi nanti, pricelist yang berlaku tidak berganti.",
     tersimpanSbg: (n: string) => `Pricelist "${n}" tersimpan di Master Pricelist (belum berlaku). Pricelist yang berlaku tidak berubah.`,
     keSimulasi: "Buka Simulasi / NPV",
+    tncTakAda: (n: string) => `Pricelist "${n}" tidak menyimpan Terms & Conditions sendiri. Pilih pricelist lain.`,
+    tanpaJudul: "(tanpa judul)",
+    yakinTnc: (n: string, daftar: string, c: number) => `Terms & Conditions dari "${n}":\n\n${daftar}\n\n${c} catatan.\n\n` +
+      "T&C di layar diganti dengan isi di atas; langkah 1–4 tidak berubah. Lanjutkan?",
+    tncKembali: (n: string, c: number) => `Terms & Conditions dari "${n}" dikembalikan (${c} cara bayar). Periksa di langkah 5, lalu Simpan.`,
+    legManual: "Diisi / diubah manual", legSistem: "Dihitung otomatis oleh sistem",
   },
   en: {
     judul: "Price List",
@@ -105,6 +111,12 @@ const KATA = {
     simpanSbgInfo: "Save under a new name: kept in the upload history to reopen later; the price list in force does not change.",
     tersimpanSbg: (n: string) => `Price list "${n}" saved to the upload history (not in force). The price list in force is unchanged.`,
     keSimulasi: "Open Simulation / NPV",
+    tncTakAda: (n: string) => `Price list "${n}" does not store its own Terms & Conditions. Choose another price list.`,
+    tanpaJudul: "(untitled)",
+    yakinTnc: (n: string, daftar: string, c: number) => `Terms & Conditions from "${n}":\n\n${daftar}\n\n${c} notes.\n\n` +
+      "The T&C on screen will be replaced with the content above; steps 1–4 are unchanged. Continue?",
+    tncKembali: (n: string, c: number) => `Terms & Conditions from "${n}" restored (${c} payment schemes). Review them in step 5, then Save.`,
+    legManual: "Entered / changed manually", legSistem: "Calculated automatically by the system",
   },
 };
 
@@ -234,14 +246,13 @@ export default function PricelistPage() {
     // Berkas tanpa lembar T&C (mis. unggahan Simulation TOP) terbaca sebagai
     // T&C bawaan — itu bukan isi pricelist tersebut, jadi tidak ditawarkan.
     if ((b.peringatan ?? []).some((x: string) => /lembar t&c tidak ada/i.test(x))) {
-      setGalat(`Pricelist "${nama}" tidak menyimpan Terms & Conditions sendiri. Pilih pricelist lain.`);
+      setGalat(k.tncTakAda(nama));
       return;
     }
-    const daftar = tnc.caraBayar.map((c, i) => `${i + 1}. ${c.judul || "(tanpa judul)"}`).join("\n");
-    if (!confirm(`Terms & Conditions dari "${nama}":\n\n${daftar}\n\n${tnc.catatan.length} catatan.\n\n` +
-                 "T&C di layar diganti dengan isi di atas; langkah 1–4 tidak berubah. Lanjutkan?")) return;
+    const daftar = tnc.caraBayar.map((c, i) => `${i + 1}. ${c.judul || k.tanpaJudul}`).join("\n");
+    if (!confirm(k.yakinTnc(nama, daftar, tnc.catatan.length))) return;
     ubah((d) => ({ ...d, tnc }));
-    setInfo(`Terms & Conditions dari "${nama}" dikembalikan (${tnc.caraBayar.length} cara bayar). Periksa di langkah 5, lalu Simpan.`);
+    setInfo(k.tncKembali(nama, tnc.caraBayar.length));
   };
 
   /**
@@ -403,8 +414,8 @@ export default function PricelistPage() {
               {bolehUbah ? <BilahGaya /> : <span />}
               {/* Warna: abu muda = diisi manual, abu tua = dihitung sistem. */}
               <span className="legenda-isian">
-                <span><i className="manual" />Diisi / diubah manual</span>
-                <span><i className="sistem" />Dihitung otomatis oleh sistem</span>
+                <span><i className="manual" />{k.legManual}</span>
+                <span><i className="sistem" />{k.legSistem}</span>
               </span>
             </div>
           )}
