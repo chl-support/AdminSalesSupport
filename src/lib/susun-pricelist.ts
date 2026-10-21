@@ -129,8 +129,21 @@ export const FAKTOR = [
   ["hoek", "Hoek"],
   ["hoekGarden", "Hoek Garden"],
   ["sideGarden", "Side Garden"],
+  ["tusukSate", "Tusuk Sate"],
+  ["roundAround", "Round Around"],
+  ["luckyNumber", "Lucky Number"],
 ] as const;
 export type KunciFaktor = (typeof FAKTOR)[number][0];
+
+/**
+ * Faktor yang hanya dipakai sebagian proyek (mis. BIO DISTRICT). Kolomnya di
+ * langkah 2 tampil bila ada unit yang mengisinya, dan tidak ada di template.
+ */
+export const FAKTOR_OPSIONAL: ReadonlySet<KunciFaktor> = new Set(["tusukSate", "roundAround", "luckyNumber"]);
+
+/** Faktor yang kolomnya ditampilkan untuk daftar unit ini. */
+export const faktorTampil = (unit: UnitData[]) =>
+  FAKTOR.filter(([k]) => !FAKTOR_OPSIONAL.has(k) || unit.some((u) => u.faktor[k]));
 
 export type UnitData = {
   kode: string;
