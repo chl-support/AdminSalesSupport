@@ -1198,12 +1198,12 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
                                          nilai={u[k] ?? ""} lebar={w} disabled={ro}
                                          ubah={(v) => ubahUnit(i, (x) => ({ ...x, [k]: v }))} /></td>
                 ))}
-                {bio && <td><Isian nilai={u.floor ?? 0} kosongNol lebar={60} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, floor: n }))} /></td>}
+                {bio && <td><Isian nilai={u.floor ?? 0} kosongNol desimal={1} lebar={70} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, floor: n }))} /></td>}
                 <td><Isian nilai={u.lt} desimal={1} lebar={70} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, lt: n }))} /></td>
                 <td><Isian jenis="rp" nilai={u.hargaTanah} lebar={95} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, hargaTanah: n }))} /></td>
                 {bio && <td className="n">{rpPolos(ratusRibu(b?.hasilUnit.hargaTanahPpn))}</td>}
                 <td className="n">{rpPolos(b?.hasilUnit.hargaTanahPpn)}</td>
-                <td><Isian nilai={u.lb} lebar={60} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, lb: n }))} /></td>
+                <td><Isian nilai={u.lb} desimal={bio ? 1 : undefined} lebar={bio ? 70 : 60} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, lb: n }))} /></td>
                 <td><Isian jenis="rp" nilai={u.hargaBangunan} lebar={95} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, hargaBangunan: n }))} /></td>
                 {bio && <td className="n">{rpPolos(ratusRibu(b?.hasilUnit.hargaBangunanPpn))}</td>}
                 <td className="n">{rpPolos(b?.hasilUnit.hargaBangunanPpn)}</td>
