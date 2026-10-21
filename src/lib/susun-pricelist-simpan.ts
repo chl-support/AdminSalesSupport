@@ -50,6 +50,7 @@ const SKEMA = z.object({
     tipe: teks, tipeBangunan: teks, view2: teks.optional(), bentuk: teks, subTipe: teks,
     lt: angka, hargaTanah: angka, lb: angka, hargaBangunan: angka, kenaikan: angka,
     faktor: z.record(angka), faktorTambah: angka, special: angka, showUnit: angka,
+    floor: angka.optional(), biayaAjb: angka.optional(), specialPersen: angka.optional(),
     catatan: teks.optional(),
   })).max(5000),
   dataPricelist: z.object({
