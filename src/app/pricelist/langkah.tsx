@@ -1045,9 +1045,6 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
         const lama = new Map(d.unit.map((u) => [u.kode, u]));
         return { ...d, unit: unit.map((u) => ({
           ...u,
-          // BIO DISTRICT: Increase dibulatkan ke persen bulat (Excel-nya
-          // 1,02×1,01×1,015×1,01−1 = 5,61% → 6%).
-          kenaikan: bio ? Math.round(u.kenaikan * 100) / 100 : u.kenaikan,
           phase: u.phase || lama.get(u.kode)?.phase || "1",
           tipe: u.tipe || lama.get(u.kode)?.tipe || "",
         })) };
@@ -1220,7 +1217,7 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
                   <td><IsianTeks nilai={u.phase ?? ""} lebar={70} disabled={ro}
                                  ubah={(v) => ubahUnit(i, (x) => ({ ...x, phase: v }))} /></td>
                 )}
-                <td><Isian jenis="persen" kosongNol desimal={bio ? undefined : 1} nilai={u.kenaikan} lebar={55} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, kenaikan: n }))} /></td>
+                <td><Isian jenis="persen" kosongNol desimal={bio ? 2 : 1} nilai={u.kenaikan} lebar={55} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, kenaikan: n }))} /></td>
                 {fk.map(([k]) => (
                   <td key={k}><Isian jenis="persen" kosongNol desimal={bio ? 1 : undefined} nilai={u.faktor[k] ?? 0} lebar={55} disabled={ro}
                                      ubah={(n) => ubahUnit(i, (x) => ({ ...x, faktor: { ...x.faktor, [k]: n } }))} /></td>
