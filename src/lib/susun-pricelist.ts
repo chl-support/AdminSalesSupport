@@ -179,6 +179,12 @@ export type UnitData = {
   special: number;
   /** Show Unit, rupiah; ikut naik sebesar kenaikan. */
   showUnit: number;
+  /** Floor (luas lantai), m²; keterangan saja (berkas BIO DISTRICT). */
+  floor?: number;
+  /** Biaya AJB + BPHTB, pecahan; pengali (1 + x) seperti (+) Factor. */
+  biayaAjb?: number;
+  /** Special %, pecahan; pengali (1 + x) seperti (+) Factor. */
+  specialPersen?: number;
   /**
    * Alasan unit tanpa luas / harga tanah, mis. "Harga belum ditentukan
    * management". Unit itu tidak ikut pricelist yang disimpan.
@@ -454,7 +460,8 @@ export function hitungUnit(u: UnitData, ppn = PPN, exclPpn = false, bulat = 6,
   const base = (bulatBiasa ? roundExcel : roundUp)(
     (u.lt * tanah + u.lb * bangunan) * (1 + u.kenaikan), bulat);
   const faktor = FAKTOR.reduce((a, [k]) => a + (u.faktor[k] ?? 0), 0);
-  const factored = base * (1 + faktor) * (1 + u.faktorTambah) + u.special
+  const factored = base * (1 + faktor) * (1 + u.faktorTambah)
+                   * (1 + (u.biayaAjb ?? 0)) * (1 + (u.specialPersen ?? 0)) + u.special
                    + u.showUnit * (1 + u.kenaikan);
   return { hargaTanahPpn, hargaBangunanPpn, base, faktor, factored };
 }
