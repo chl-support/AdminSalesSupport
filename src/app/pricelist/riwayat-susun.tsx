@@ -8,6 +8,23 @@
 
 import { useEffect, useState } from "react";
 
+import { useKata } from "../bahasa";
+
+const KATA = {
+  id: {
+    tglWaktu: "Tanggal & waktu", user: "Pengguna", aksi: "Aksi", diubah: "Yang diubah",
+    lihatSemua: (n: number) => `Lihat semua (${n})`,
+    log: "Catatan Aktivitas Sistem",
+    kosong: "Tidak ada perubahan yang belum masuk harga tersimpan. Riwayat tiap harga ada di folder Master Harga.",
+  },
+  en: {
+    tglWaktu: "Date & time", user: "User", aksi: "Action", diubah: "Changes",
+    lihatSemua: (n: number) => `Show all (${n})`,
+    log: "System Activity Log",
+    kosong: "No changes outside a saved price list. Each price list's history is in the Master Price List folder.",
+  },
+};
+
 export type Baris = { id: string; oleh: string; pada: string; aksi: string; perubahan: string[] };
 
 /** Pricelist tersimpan, sebatas yang dibutuhkan untuk membagi riwayat. */
@@ -47,11 +64,12 @@ const tglDetik = (s: string) => new Date(s).toLocaleString("id-ID",
 
 /** Tabel riwayat: tanggal & waktu, user, aksi, yang diubah. */
 export function TabelRiwayat({ riwayat, tinggi = 480 }: { riwayat: Baris[]; tinggi?: number }) {
+  const k = useKata(KATA);
   const [buka, setBuka] = useState<Set<string>>(new Set());
   return (
     <div className="tscroll riwayat-susun" style={{ maxHeight: tinggi, overflowY: "auto" }}>
       <table className="tabel-ringkas kepala-lekat"><thead>
-        <tr><th>Tanggal &amp; waktu</th><th>User</th><th>Aksi</th><th>Yang diubah</th></tr>
+        <tr><th>{k.tglWaktu}</th><th>{k.user}</th><th>{k.aksi}</th><th>{k.diubah}</th></tr>
       </thead><tbody>
         {riwayat.map((r) => {
           const semua = buka.has(r.id) || r.perubahan.length <= RINGKAS + 1;
@@ -66,7 +84,7 @@ export function TabelRiwayat({ riwayat, tinggi = 480 }: { riwayat: Baris[]; ting
                 </ul>
                 {!semua && (
                   <button className="kecil" onClick={() => setBuka((s) => new Set(s).add(r.id))}>
-                    Lihat semua ({r.perubahan.length})</button>
+                    {k.lihatSemua(r.perubahan.length)}</button>
                 )}
               </td>
             </tr>
@@ -86,6 +104,7 @@ const RINGKAS = 6;
  * tiap pricelist tersimpan ada di folder Pricelist tersimpan.
  */
 export function RiwayatSusun({ versi }: { versi: number }) {
+  const k = useKata(KATA);
   const [riwayat, setRiwayat] = useState<Baris[] | null>(null);
   const [galat, setGalat] = useState<string | null>(null);
 
@@ -105,10 +124,10 @@ export function RiwayatSusun({ versi }: { versi: number }) {
 
   return (
     <details className="panel sp riwayat-susun">
-      <summary><b>Log Aktivitas Sistem</b>{riwayat && <span className="hint" style={{ margin: 0 }}> ({riwayat.length})</span>}</summary>
+      <summary><b>{k.log}</b>{riwayat && <span className="hint" style={{ margin: 0 }}> ({riwayat.length})</span>}</summary>
       {galat && <div className="banner stop">{galat}</div>}
       {riwayat && riwayat.length === 0 && (
-        <p className="hint kiri">Tidak ada perubahan yang belum masuk pricelist tersimpan. Riwayat tiap pricelist ada di folder Master Pricelist.</p>
+        <p className="hint kiri">{k.kosong}</p>
       )}
       {riwayat && riwayat.length > 0 && (
         <TabelRiwayat riwayat={riwayat} />

@@ -31,10 +31,10 @@ import {
 
 const KATA = {
   id: {
-    judul: "Pricelist",
-    langkah: ["Data (IRR)", "Unit Data", "Data Pricelist", "Pricelist", "Harga Special", "Terms & Conditions"],
-    kosong4b: "Halaman Harga Special masih kosong — isinya akan disusun kemudian.",
-    folder: "Data & Master Pricelist", folderUraian: "Master Pricelist & riwayat perubahan",
+    judul: "Harga",
+    langkah: ["Data (IRR)", "Data Unit", "Data Harga", "Harga", "Harga Spesial", "Syarat dan Ketentuan"],
+    kosong4b: "Halaman Harga Spesial masih kosong — isinya akan disusun kemudian.",
+    folder: "Data & Master Harga", folderUraian: "Master Harga & riwayat perubahan",
     uraian: [
       "Koefisien harga tiap cara bayar",
       "Harga dasar tiap unit",
@@ -43,30 +43,36 @@ const KATA = {
       "Harga khusus",
       "Ketentuan pembayaran",
     ],
-    pilihProject: "Pilih project lebih dulu.",
+    pilihProject: "Pilih proyek lebih dulu.",
     memuat: "Memuat…",
     impor: "Impor dari Excel", imporInfo: "Berkas PL dengan lembar Data (IRR), Unit Data, Data Pricelist, Pricelist dan T&C.",
     membaca: "Membaca…", baca: "Baca berkas", batal: "Batal",
     terimpor: (u: number) => `${u} unit dan seluruh langkah terisi dari berkas. Periksa tiap langkah, lalu Simpan.`,
     simpan: "Simpan", menyimpan: "Menyimpan…", tersimpan: "Tersimpan",
     belumSimpan: "Ada perubahan yang belum disimpan",
-    drafBaru: "Belum ada draf untuk project ini. Isi langkah-langkahnya atau impor dari Excel.",
+    drafBaru: "Belum ada draf untuk proyek ini. Isi langkah-langkahnya atau impor dari Excel.",
     terakhir: (o: string, t: string) => `Disimpan ${o} · ${t}`,
     unduh: "Unduh Excel", unduhSyarat: "Simpan dulu supaya berkasnya berisi perubahan terakhir.",
-    hanyaBaca: "Hanya Admin Sales dan Admin IT yang dapat mengubah pricelist.",
+    hanyaBaca: "Hanya Admin Sales dan Admin IT yang dapat mengubah harga.",
     galatJudul: "Belum dapat diberlakukan",
-    berlakuJudul: "Simpan / berlakukan pricelist",
-    belumBerharga: "Unit tanpa luas / harga tanah — isi catatan bila harganya memang belum dikeluarkan; unit ini tidak ikut pricelist yang disimpan.",
-    catatanUnit: "Catatan, mis. harga belum ditentukan management",
-    berlakuInfo: "Pricelist ini menggantikan pricelist yang berlaku dan langsung dipakai layar Simulasi / NPV. Pricelist lama tetap ada di riwayatnya.",
+    berlakuJudul: "Simpan / berlakukan harga",
+    belumBerharga: "Unit tanpa luas / harga tanah — isi catatan bila harganya memang belum dikeluarkan; unit ini tidak ikut harga yang disimpan.",
+    catatanUnit: "Catatan, mis. harga belum ditentukan manajemen",
+    berlakuInfo: "Harga ini menggantikan harga yang berlaku dan langsung dipakai layar Simulasi / NPV. Harga lama tetap ada di riwayatnya.",
     yakinBuka: "Isian di layar belum disimpan dan akan diganti. Lanjutkan?",
-    dibuka: (n: string) => `Pricelist "${n}" dibuka untuk diedit. Setelah selesai, beri nama baru di langkah 4a lalu Simpan & berlakukan — pricelist "${n}" tetap ada di riwayat.`,
-    fNama: "Nama pricelist (juga nama file Excel-nya)", berlakukan: "Simpan & berlakukan", memberlakukan: "Memberlakukan…",
-    diberlakukan: (n: string) => `Pricelist "${n}" berlaku. Buka Simulasi / NPV untuk memakainya.`,
+    dibuka: (n: string) => `Harga "${n}" dibuka untuk diubah. Setelah selesai, beri nama baru di langkah 4a lalu Simpan & berlakukan — harga "${n}" tetap ada di riwayat.`,
+    fNama: "Nama harga (juga nama berkas Excel-nya)", berlakukan: "Simpan & berlakukan", memberlakukan: "Memberlakukan…",
+    diberlakukan: (n: string) => `Harga "${n}" berlaku. Buka Simulasi / NPV untuk memakainya.`,
     simpanSbg: "Simpan dengan nama baru (tanpa memberlakukan)",
-    simpanSbgInfo: "Simpan dengan nama baru: tersimpan di Master Pricelist untuk dibuka lagi nanti, pricelist yang berlaku tidak berganti.",
-    tersimpanSbg: (n: string) => `Pricelist "${n}" tersimpan di Master Pricelist (belum berlaku). Pricelist yang berlaku tidak berubah.`,
+    simpanSbgInfo: "Simpan dengan nama baru: tersimpan di Master Harga untuk dibuka lagi nanti, harga yang berlaku tidak berganti.",
+    tersimpanSbg: (n: string) => `Harga "${n}" tersimpan di Master Harga (belum berlaku). Harga yang berlaku tidak berubah.`,
     keSimulasi: "Buka Simulasi / NPV",
+    tncTakAda: (n: string) => `Harga "${n}" tidak menyimpan Syarat dan Ketentuan sendiri. Pilih harga lain.`,
+    tanpaJudul: "(tanpa judul)",
+    yakinTnc: (n: string, daftar: string, c: number) => `Syarat dan Ketentuan dari "${n}":\n\n${daftar}\n\n${c} catatan.\n\n` +
+      "S&K di layar diganti dengan isi di atas; langkah 1–4 tidak berubah. Lanjutkan?",
+    tncKembali: (n: string, c: number) => `Syarat dan Ketentuan dari "${n}" dikembalikan (${c} cara bayar). Periksa di langkah 5, lalu Simpan.`,
+    legManual: "Diisi / diubah manual", legSistem: "Dihitung otomatis oleh sistem",
   },
   en: {
     judul: "Price List",
@@ -105,6 +111,12 @@ const KATA = {
     simpanSbgInfo: "Save under a new name: kept in the upload history to reopen later; the price list in force does not change.",
     tersimpanSbg: (n: string) => `Price list "${n}" saved to the upload history (not in force). The price list in force is unchanged.`,
     keSimulasi: "Open Simulation / NPV",
+    tncTakAda: (n: string) => `Price list "${n}" does not store its own Terms & Conditions. Choose another price list.`,
+    tanpaJudul: "(untitled)",
+    yakinTnc: (n: string, daftar: string, c: number) => `Terms & Conditions from "${n}":\n\n${daftar}\n\n${c} notes.\n\n` +
+      "The T&C on screen will be replaced with the content above; steps 1–4 are unchanged. Continue?",
+    tncKembali: (n: string, c: number) => `Terms & Conditions from "${n}" restored (${c} payment schemes). Review them in step 5, then Save.`,
+    legManual: "Entered / changed manually", legSistem: "Calculated automatically by the system",
   },
 };
 
@@ -234,14 +246,13 @@ export default function PricelistPage() {
     // Berkas tanpa lembar T&C (mis. unggahan Simulation TOP) terbaca sebagai
     // T&C bawaan — itu bukan isi pricelist tersebut, jadi tidak ditawarkan.
     if ((b.peringatan ?? []).some((x: string) => /lembar t&c tidak ada/i.test(x))) {
-      setGalat(`Pricelist "${nama}" tidak menyimpan Terms & Conditions sendiri. Pilih pricelist lain.`);
+      setGalat(k.tncTakAda(nama));
       return;
     }
-    const daftar = tnc.caraBayar.map((c, i) => `${i + 1}. ${c.judul || "(tanpa judul)"}`).join("\n");
-    if (!confirm(`Terms & Conditions dari "${nama}":\n\n${daftar}\n\n${tnc.catatan.length} catatan.\n\n` +
-                 "T&C di layar diganti dengan isi di atas; langkah 1–4 tidak berubah. Lanjutkan?")) return;
+    const daftar = tnc.caraBayar.map((c, i) => `${i + 1}. ${c.judul || k.tanpaJudul}`).join("\n");
+    if (!confirm(k.yakinTnc(nama, daftar, tnc.catatan.length))) return;
     ubah((d) => ({ ...d, tnc }));
-    setInfo(`Terms & Conditions dari "${nama}" dikembalikan (${tnc.caraBayar.length} cara bayar). Periksa di langkah 5, lalu Simpan.`);
+    setInfo(k.tncKembali(nama, tnc.caraBayar.length));
   };
 
   /**
@@ -403,8 +414,8 @@ export default function PricelistPage() {
               {bolehUbah ? <BilahGaya /> : <span />}
               {/* Warna: abu muda = diisi manual, abu tua = dihitung sistem. */}
               <span className="legenda-isian">
-                <span><i className="manual" />Diisi / diubah manual</span>
-                <span><i className="sistem" />Dihitung otomatis oleh sistem</span>
+                <span><i className="manual" />{k.legManual}</span>
+                <span><i className="sistem" />{k.legSistem}</span>
               </span>
             </div>
           )}
