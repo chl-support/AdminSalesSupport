@@ -209,14 +209,15 @@ export default function CetakPricelist() {
   const dpp = !(sembunyi.dpp ?? sembunyi.pajak);
   const dtp = !(sembunyi.dtp ?? sembunyi.pajak);
   /**
-   * Kolom angka di bawah tiap cara bayar, dalam urutan tampilnya. Kosong
+   * Kolom angka di bawah tiap cara bayar, dalam urutan tampilnya: harga
+   * termasuk PPN, PPN DTP-nya, lalu harga tanpa PPN di ujung kanan. Kosong
    * berarti cara bayarnya tidak dicetak sama sekali — yang tersisa hanya
    * keterangan unitnya.
    */
   const kolPajak: ("harga" | "dpp" | "dtp")[] = [
     ...(hrg ? ["harga" as const] : []),
-    ...(dpp ? ["dpp" as const] : []),
-    ...(dtp ? ["dtp" as const] : [])];
+    ...(dtp ? ["dtp" as const] : []),
+    ...(dpp ? ["dpp" as const] : [])];
   const judulPajak = { harga: kt.harga, dpp: kt.dpp, dtp: kt.dtp };
   const angkaPajak = (u: UnitHarga, k: string, jenis: "harga" | "dpp" | "dtp") =>
     jenis === "harga" ? angka(u.harga[k]) : angka(u.pajak?.[k]?.[jenis]);
@@ -251,12 +252,12 @@ export default function CetakPricelist() {
         <label><input type="checkbox" checked={hrg}
                       onChange={(e) => gantiPajak("hrg", e.target.checked)} />
           {kt.pajakHarga}</label>
-        <label><input type="checkbox" checked={dpp}
-                      onChange={(e) => gantiPajak("dpp", e.target.checked)} />
-          {kt.pajakDpp}</label>
         <label><input type="checkbox" checked={dtp}
                       onChange={(e) => gantiPajak("dtp", e.target.checked)} />
           {kt.pajakDtp}</label>
+        <label><input type="checkbox" checked={dpp}
+                      onChange={(e) => gantiPajak("dpp", e.target.checked)} />
+          {kt.pajakDpp}</label>
         <span className="cetak-huruf">{kt.tinggiBaris}
           <button onClick={() => setBaris((b) => Math.max(0.05, +(b - 0.1).toFixed(2)))} aria-label={kt.rapatkan}>−</button>
           <b>{Math.round((baris - 0.15) / 0.1) + 1}</b>

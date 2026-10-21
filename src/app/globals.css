@@ -3197,6 +3197,9 @@ ul.daftar-ubah li { margin: 1px 0; }
 @media print { .pl-lembar thead { display: table-header-group; } }
 /* Kolom harga sama lebar; judul cara bayar yang panjang dilipat. */
 .pl-lembar th.harga, .pl-lembar td.harga { width: 8.4em; min-width: 8.4em; max-width: 8.4em; }
+/* Judul kolom angka ("Harga Incld. PPN") lebih panjang daripada lebar
+   kolomnya: tanpa pelipatan tulisannya menjorok keluar dari garis kolom. */
+.pl-lembar thead th.harga { white-space: normal; word-break: break-word; line-height: 1.15; }
 .pl-lembar thead th.cb { white-space: normal; word-break: break-word; line-height: 1.15; }
 
 /* Data Pricelist: kolom harga sama lebar, judul panjang dilipat. */
