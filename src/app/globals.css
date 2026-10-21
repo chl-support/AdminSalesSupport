@@ -3188,6 +3188,9 @@ ul.daftar-ubah li { margin: 1px 0; }
   font-size: inherit; color: #000; white-space: nowrap; height: auto; }
 /* Warna judul kolom dapat disetel di langkah 4b: nilainya dipasang sebagai
    variabel pada lembarnya, dan pada tiap sel kelompok yang berwarna sendiri. */
+/* Huruf judul kolom: bawaannya Kapital Awal seperti judul tabel lain, tetapi
+   langkah 4b boleh menyetelnya (mis. "Land (m2)" yang harus tetap kecil). */
+.pl-lembar thead th { text-transform: var(--huruf-judul, capitalize); }
 .pl-lembar thead th { background: var(--kepala, #e8e8e8) !important; font-weight: 700;
   color: var(--kepala-teks, #000) !important; text-align: center; vertical-align: middle; }
 .pl-lembar thead th.cb { background: var(--cb, #d9d9d9) !important; }

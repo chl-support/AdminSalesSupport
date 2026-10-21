@@ -43,6 +43,14 @@ export const KATA = {
     cetak: "Cetak / Simpan PDF", tutup: "Tutup",
     ringkas: (u: number, c: number) => `${u} unit · ${c} cara bayar. Di dialog cetak pilih kertas`,
     pdf: "; untuk PDF pilih “Simpan sebagai PDF”.",
+    hurufJudul: "Huruf judul", hurufAsal: "Seperti diketik",
+    hurufKapital: "Kapital Awal", hurufBesar: "HURUF BESAR",
+    namaJudul: "Nama judul kolom",
+    namaInfo: "Ganti tulisan pada kepala tabel — mis. \"Tipe\" menjadi \"Type\" atau " +
+      "\"Cash Keras\" menjadi \"Harga Jual All In (Include PPN)\". Dikosongkan berarti memakai nama asalnya.",
+    namaReset: "Kembalikan nama asal",
+    namaCaraBayar: "Nama cara bayar pada cetakan",
+    namaIlustrasi: "Judul kelompok ilustrasi KPR",
     warnaJudul: "Warna judul kolom",
     warnaInfo: "Warna kepala tabel pada cetakan. Tiap cara bayar boleh berwarna sendiri.",
     warnaKepala: "Kepala tabel", warnaTeks: "Tulisan kepala",
@@ -81,6 +89,14 @@ export const KATA = {
     cetak: "Print / Save PDF", tutup: "Close",
     ringkas: (u: number, c: number) => `${u} units · ${c} payment schemes. In the print dialog choose`,
     pdf: " paper; for PDF choose “Save as PDF”.",
+    hurufJudul: "Header case", hurufAsal: "As typed",
+    hurufKapital: "Capitalised", hurufBesar: "UPPERCASE",
+    namaJudul: "Header wording",
+    namaInfo: "Change the wording in the table head — e.g. \"Tipe\" to \"Type\", or " +
+      "\"Cash Keras\" to \"Harga Jual All In (Include PPN)\". Leave empty to keep the original.",
+    namaReset: "Restore original wording",
+    namaCaraBayar: "Payment scheme wording on the printout",
+    namaIlustrasi: "Mortgage illustration group heading",
     warnaJudul: "Header colours",
     warnaInfo: "Colours of the table head on the printout. Each payment scheme may have its own.",
     warnaKepala: "Table head", warnaTeks: "Head text",
@@ -131,7 +147,17 @@ export type Pilihan = {
     kepala?: string; teks?: string; cb?: string; kpr?: string; selang?: string;
     kolom?: Record<string, string>;
   };
+  /**
+   * Judul kolom yang diganti sendiri, menurut kuncinya: kolom keterangan
+   * ("alamat", "lt", …), kolom tetap ("no", "unitNo", "area"), kolom harga
+   * ("harga", "dtp", "dpp"), nama cara bayar ("cb:<nama>"), dan judul
+   * kelompok ilustrasi ("ilus:<nama>"). Yang kosong memakai nama asalnya.
+   */
+  judul?: Record<string, string>;
+  /** Huruf judul kolom: seperti diketik, Kapital Awal (bawaan), atau besar semua. */
+  huruf?: "asal" | "kapital" | "besar";
 };
+const HURUF_CSS = { asal: "none", kapital: "capitalize", besar: "uppercase" };
 
 export const WARNA_AWAL = {
   kepala: "#e8e8e8", teks: "#000000", cb: "#d9d9d9", kpr: "#d9d9d9",
@@ -235,11 +261,13 @@ export function susunLembar(isi: Isi, p: Pilihan) {
     ...(dpp ? ["dpp" as const] : [])];
   const kpr = { ...KPR_AWAL, ...(p.kpr ?? {}) };
   const warna = { ...WARNA_AWAL, ...(p.warna ?? {}) };
+  /** Judul kolom: yang diketik orang, atau nama asalnya bila dikosongkan. */
+  const jud = (kunci: string, bawaan: string) => (p.judul ?? {})[kunci]?.trim() || bawaan;
   const kolom = isi.kolom.filter((k) => !p.kolom.includes(k));
   // Ilustrasi hanya untuk cara bayar yang memang ikut dicetak.
   const ilustrasi = kpr.kolom.filter((k) => kolom.includes(k));
   return {
-    hrg, dpp, dtp, kolPajak, kpr, ilustrasi, kolom, warna,
+    hrg, dpp, dtp, kolPajak, kpr, ilustrasi, kolom, warna, jud,
     unit: isi.unit.filter((u) => !p.alamat.includes(u.alamat || "(tanpa address)")),
     info: INFO.filter(([k]) => !(p.info ?? []).includes(k)),
     area: AREA.filter(([k]) => !(p.info ?? []).includes(k)),
@@ -259,8 +287,18 @@ export function AlatLembar({ isi, lembar, judul, children }: {
 }) {
   const kt = useKata(KATA);
   const { pilihan, setPilihan, tata, setTata, ukur, setMuatkan } = lembar;
-  const { kolom, unit, semuaAlamat, jumlahSembunyi, hrg, dpp, dtp, kpr, warna } =
+  const { kolom, unit, semuaAlamat, jumlahSembunyi, hrg, dpp, dtp, kpr, warna, jud } =
     susunLembar(isi, pilihan);
+  const setJudul = (kunci: string, teks: string) =>
+    setPilihan({ ...pilihan, judul: { ...(pilihan.judul ?? {}), [kunci]: teks } });
+  const kotakJudul = (kunci: string, bawaan: string) => (
+    <label key={`j-${kunci}`} style={{ display: "block" }}>
+      <input style={{ width: 230 }} placeholder={bawaan} aria-label={`Judul ${bawaan}`}
+             value={(pilihan.judul ?? {})[kunci] ?? ""}
+             onChange={(e) => setJudul(kunci, e.target.value)} />
+      {" "}<span className="hint" style={{ margin: 0 }}>{bawaan}</span>
+    </label>
+  );
   const setKpr = (n: Partial<typeof kpr>) => setPilihan({ ...pilihan, kpr: { ...kpr, ...n } });
   const setWarna = (n: Partial<typeof warna>) =>
     setPilihan({ ...pilihan, warna: { ...warna, ...n } });
@@ -353,6 +391,36 @@ export function AlatLembar({ isi, lembar, judul, children }: {
             <label key={k}><input type="checkbox" checked={!pilihan.kolom.includes(k)}
               onChange={(e) => ganti("kolom", k, e.target.checked)} /> {k}</label>
           ))}
+          {/* Nama judul kolom: lembar tiap proyek memakai istilah sendiri,
+              jadi judulnya boleh diketik ulang tanpa mengubah isian Harga. */}
+          <b>{kt.namaJudul}</b>
+          <label style={{ display: "block" }}>{kt.hurufJudul}{" "}
+            <select value={pilihan.huruf ?? "kapital"}
+                    onChange={(e) => setPilihan({ ...pilihan, huruf: e.target.value as Pilihan["huruf"] })}>
+              <option value="kapital">{kt.hurufKapital}</option>
+              <option value="asal">{kt.hurufAsal}</option>
+              <option value="besar">{kt.hurufBesar}</option>
+            </select>
+          </label>
+          <span className="hint" style={{ textAlign: "left", margin: 0 }}>{kt.namaInfo}</span>
+          {kotakJudul("no", kt.no)}
+          {kotakJudul("unitNo", kt.unitNo)}
+          {[...INFO, ...AREA].map(([k]) => kotakJudul(String(k), kt.kol[k]))}
+          {kotakJudul("area", kt.area)}
+          {kotakJudul("harga", kt.harga)}
+          {kotakJudul("dtp", kt.dtp)}
+          {kotakJudul("dpp", kt.dpp)}
+          <span className="hint" style={{ textAlign: "left", margin: 0 }}>{kt.namaCaraBayar}</span>
+          {isi.kolom.map((k) => kotakJudul(`cb:${k}`, k))}
+          {kpr.kolom.length > 0 && <>
+            <span className="hint" style={{ textAlign: "left", margin: 0 }}>{kt.namaIlustrasi}</span>
+            {kpr.kolom.map((k) => kotakJudul(`ilus:${k}`,
+              kt.kprKepala(jud(`cb:${k}`, k), String(kpr.bunga).replace(".", ","))))}
+          </>}
+          <div className="row" style={{ margin: "0 0 4px" }}>
+            <button className="kecil" onClick={() => setPilihan({ ...pilihan, judul: undefined })}>
+              {kt.namaReset}</button>
+          </div>
           {/* Warna kepala tabel: bawaannya abu-abu, boleh disetel per lembar
               dan per cara bayar. */}
           <b>{kt.warnaJudul}</b>
@@ -422,12 +490,12 @@ export function AlatLembar({ isi, lembar, judul, children }: {
 export function LembarHarga({ isi, lembar }: { isi: Isi; lembar: Lembar }) {
   const kt = useKata(KATA);
   const { pilihan, tata, setTata, muatkan, setMuatkan, setUkur } = lembar;
-  const { kolom, unit, info, area, kolPajak, kpr, ilustrasi, warna } = susunLembar(isi, pilihan);
+  const { kolom, unit, info, area, kolPajak, kpr, ilustrasi, warna, jud } = susunLembar(isi, pilihan);
   const satuHalaman = tata.pas !== "asli";
   const [skala, setSkala] = useState({ zoom: 1, lebar: 0 });
   const tabel = useRef<HTMLTableElement>(null);
   const kertas = useRef<HTMLDivElement>(null);
-  const judulPajak = { harga: kt.harga, dpp: kt.dpp, dtp: kt.dtp };
+  const judulPajak = { harga: jud("harga", kt.harga), dpp: jud("dpp", kt.dpp), dtp: jud("dtp", kt.dtp) };
   const angkaPajak = (u: UnitHarga, k: string, jenis: "harga" | "dpp" | "dtp") =>
     jenis === "harga" ? angka(u.harga[k]) : angka(u.pajak?.[k]?.[jenis]);
 
@@ -479,6 +547,7 @@ export function LembarHarga({ isi, lembar }: { isi: Isi; lembar: Lembar }) {
                       ["--kepala-teks" as string]: warna.teks,
                       ["--cb" as string]: warna.cb,
                       ["--selang" as string]: warna.selang,
+                      ["--huruf-judul" as string]: HURUF_CSS[pilihan.huruf ?? "kapital"],
                       ...(satuHalaman && skala.lebar ? { zoom: skala.zoom, width: skala.lebar } : {}) }}>
           <header>
             {isi.slug ? <img src={`/project/${isi.slug}.png`} alt="" className="tnc-logo" /> : <span />}
@@ -491,11 +560,13 @@ export function LembarHarga({ isi, lembar }: { isi: Isi; lembar: Lembar }) {
           <table ref={tabel}>
             <thead>
               <tr>
-                <th rowSpan={2}>{kt.no}</th>
-                {info.filter(([k]) => k === "alamat").map(([k]) => <th key={k} rowSpan={2}>{kt.kol[k]}</th>)}
-                <th rowSpan={2}>{kt.unitNo}</th>
-                {info.filter(([k]) => k !== "alamat").map(([k]) => <th key={k} rowSpan={2}>{kt.kol[k]}</th>)}
-                {area.length > 0 && <th colSpan={area.length}>{kt.area}</th>}
+                <th rowSpan={2}>{jud("no", kt.no)}</th>
+                {info.filter(([k]) => k === "alamat").map(([k]) =>
+                  <th key={k} rowSpan={2}>{jud(String(k), kt.kol[k])}</th>)}
+                <th rowSpan={2}>{jud("unitNo", kt.unitNo)}</th>
+                {info.filter(([k]) => k !== "alamat").map(([k]) =>
+                  <th key={k} rowSpan={2}>{jud(String(k), kt.kol[k])}</th>)}
+                {area.length > 0 && <th colSpan={area.length}>{jud("area", kt.area)}</th>}
                 {/* Judul cara bayar: kolom sama lebar, judul panjang dilipat.
                     Dengan satu kolom angka saja judulnya dua baris tinggi
                     (tidak perlu baris judul kedua). */}
@@ -503,21 +574,22 @@ export function LembarHarga({ isi, lembar }: { isi: Isi; lembar: Lembar }) {
                     variabelnya pada selnya. */}
                 {kolom.map((k) => kolPajak.length > 1
                   ? <th key={k} colSpan={kolPajak.length} className="cb"
-                        style={{ ["--cb" as string]: warna.kolom[k] ?? warna.cb }}>{k}</th>
+                        style={{ ["--cb" as string]: warna.kolom[k] ?? warna.cb }}>{jud(`cb:${k}`, k)}</th>
                   : kolPajak.length === 1
                     ? <th key={k} rowSpan={2} className="cb harga"
-                          style={{ ["--cb" as string]: warna.kolom[k] ?? warna.cb }}>{k}</th>
+                          style={{ ["--cb" as string]: warna.kolom[k] ?? warna.cb }}>{jud(`cb:${k}`, k)}</th>
                     : null)}
                 {/* Ilustrasi cicilan KPR: satu kelompok per cara bayar yang
                     dicentang, berisi satu kolom untuk tiap tenor. */}
                 {ilustrasi.map((k) => (
                   <th key={`kpr-${k}`} colSpan={kpr.tenor.length} className="cb"
                       style={{ ["--cb" as string]: warna.kpr }}>
-                    {kt.kprKepala(k, String(kpr.bunga).replace(".", ","))}</th>
+                    {jud(`ilus:${k}`,
+                         kt.kprKepala(jud(`cb:${k}`, k), String(kpr.bunga).replace(".", ",")))}</th>
                 ))}
               </tr>
               <tr>
-                {area.map(([k]) => <th key={k}>{kt.kol[k]}</th>)}
+                {area.map(([k]) => <th key={k}>{jud(String(k), kt.kol[k])}</th>)}
                 {kolom.map((k) => kolPajak.length > 1
                   ? kolPajak.map((j) =>
                       <th key={`${k}-${j}`} className="harga">{judulPajak[j]}</th>)
