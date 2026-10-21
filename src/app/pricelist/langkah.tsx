@@ -145,6 +145,10 @@ const KATA = {
     thMetode: "Perubahan Metode Pembayaran",
     optKoef: "Koefisien Data (IRR)", optTurunan: "Turunan kolom",
     tidakDipakai: "tidak dipakai di Harga",
+    thMetodeSub: "nama di Harga · pengali · pembulatan",
+    tampilkanDiHarga: "+ Tampilkan di Harga",
+    hapusDariHarga: "Hapus kolom ini dari Harga (kolom Data Harga tetap)",
+    susunanDiLangkah3: "Semua pengaturan harga ada di langkah 3. Data Harga: judul, tanggal berlaku, catatan kolom KPR, dan susunan kolom harga (kolom Perubahan Metode Pembayaran: nama, pengali, pembulatan). Langkah ini menampilkan rincian harganya.",
     geserAtas: "Geser ke atas", geserBawah: "Geser ke bawah",
     geserNamaAtas: (n: string) => `Geser ${n} ke atas`,
     geserNamaBawah: (n: string) => `Geser ${n} ke bawah`,
@@ -163,7 +167,7 @@ const KATA = {
     },
     // 4a. Harga
     cetakPlInfo: "Pratinjau dan cetak Harga di kertas A4 (atau simpan sebagai PDF)",
-    plHint: (lp: string) => "Kolom dengan pengali 100% mengambil harga Data Harga apa adanya; selain itu ROUND(harga × pengali, juta) — di Excel 111,5% untuk kolom KPR — atau ROUNDUP bila dipilih di kolom Pembulatan (Susunan kolom harga). " +
+    plHint: (lp: string) => "Kolom dengan pengali 100% mengambil harga Data Harga apa adanya; selain itu ROUND(harga × pengali, juta) — di Excel 111,5% untuk kolom KPR — atau ROUNDUP bila dipilih di langkah 3. Data Harga (kolom Perubahan Metode Pembayaran). " +
       `DPP = harga / (1 + PPN ${lp}); Nilai Bebas PPN DTP = harga − DPP. Tarif PPN diubah di langkah 2.`,
     judul: "Judul", tglBerlaku: "Tanggal berlaku", catatanKpr: "Catatan kolom KPR",
     susunan: (n: number) => `Susunan kolom harga (${n})`,
@@ -315,6 +319,10 @@ const KATA = {
     thMetode: "Payment Method Name",
     optKoef: "Data (IRR) coefficient", optTurunan: "Derived from column",
     tidakDipakai: "not used in the Price List",
+    thMetodeSub: "name in Price List · multiplier · rounding",
+    tampilkanDiHarga: "+ Show in Price List",
+    hapusDariHarga: "Remove this column from the Price List (the Price Data column stays)",
+    susunanDiLangkah3: "All price settings are in step 3. Price Data: title, effective date, KPR column note, and the price column layout (Payment Method Name column: name, multiplier, rounding). This step shows the price details.",
     geserAtas: "Move up", geserBawah: "Move down",
     geserNamaAtas: (n: string) => `Move ${n} up`,
     geserNamaBawah: (n: string) => `Move ${n} down`,
@@ -332,7 +340,7 @@ const KATA = {
       tipe: "Type", subTipe: "Sub-type", land: "Land", build: "Build",
     },
     cetakPlInfo: "Preview and print the Price List on A4 paper (or save as PDF)",
-    plHint: (lp: string) => "Columns with a 100% multiplier take the Price Data price as-is; otherwise ROUND(price × multiplier, million) — 111.5% for the KPR columns in Excel — or ROUNDUP if chosen in the Rounding column (Price column layout). " +
+    plHint: (lp: string) => "Columns with a 100% multiplier take the Price Data price as-is; otherwise ROUND(price × multiplier, million) — 111.5% for the KPR columns in Excel — or ROUNDUP if chosen in step 3. Price Data (Payment Method Name column). " +
       `DPP = price / (1 + VAT ${lp}); free VAT (DTP) amount = price − DPP. The VAT rate is changed in step 2.`,
     judul: "Title", tglBerlaku: "Effective date", catatanKpr: "KPR column note",
     susunan: (n: number) => `Price column layout (${n})`,
@@ -1496,6 +1504,23 @@ export function LangkahDataPl({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
    */
   const bolehTukar = (a: number) =>
     a >= 0 && a + 1 < kolom.length && kolom[a + 1].dari !== kolom[a].nama;
+  /** Ubah kolom Harga (langkah 4a) ke-j. */
+  const ubahPl = (j: number, f: (x: SusunPricelist["pricelist"]["kolom"][number]) => SusunPricelist["pricelist"]["kolom"][number]) =>
+    ubah((d) => ({ ...d, pricelist: { ...d.pricelist, kolom: d.pricelist.kolom.map((x, m) => m === j ? f(x) : x) } }));
+  /**
+   * Kolom Harga baru dari kolom Data Harga `dari` (pengali 100%), disisipkan
+   * mengikuti urutan kolom Data Harga; namanya dibuat unik.
+   */
+  const tampilkanDiHarga = (dari: string) => ubah((d) => {
+    const ada = new Set(d.pricelist.kolom.map((x) => x.nama));
+    let nama = dari, no = 2;
+    while (ada.has(nama)) nama = `${dari} (${no++})`;
+    const posisi = new Map(d.dataPricelist.kolom.map((x, j) => [x.nama, j]));
+    const pl = [...d.pricelist.kolom, { nama, dari, kali: 1 }].map((x, j) => ({ x, j }))
+      .sort((p, q) => (posisi.get(p.x.dari) ?? 1e9) - (posisi.get(q.x.dari) ?? 1e9) || p.j - q.j)
+      .map(({ x }) => x);
+    return { ...d, pricelist: { ...d.pricelist, kolom: pl } };
+  });
   const geser = (i: number, arah: -1 | 1) => ubah((d) => {
     const k = [...d.dataPricelist.kolom];
     const a = arah < 0 ? i - 1 : i;
@@ -1530,6 +1555,19 @@ export function LangkahDataPl({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
                  ubah={(n) => ubah((d) => ({ ...d, dataPricelist: { ...d.dataPricelist, tambahan: n } }))} />
         </div>
       </div>
+      {/* Judul, tanggal dan catatan Harga (langkah 4a) juga diatur di sini:
+          semua pengaturan harga di langkah 3, langkah 4a hanya rinciannya. */}
+      <div className="filters rapat" style={{ marginTop: 10 }}>
+        <div><div className="lbl">{kt.judul}</div>
+          <IsianTeks id="pl-judul" nilai={data.pricelist.judul} lebar={200} disabled={ro}
+                     ubah={(v) => ubah((d) => ({ ...d, pricelist: { ...d.pricelist, judul: v } }))} /></div>
+        <div><div className="lbl">{kt.tglBerlaku}</div>
+          <IsianTeks id="pl-tanggal" nilai={data.pricelist.tanggal} lebar={160} disabled={ro}
+                     ubah={(v) => ubah((d) => ({ ...d, pricelist: { ...d.pricelist, tanggal: v } }))} /></div>
+        <div style={{ gridColumn: "span 2" }}><div className="lbl">{kt.catatanKpr}</div>
+          <input id="pl-catatan" value={data.pricelist.catatan} disabled={ro}
+                 onChange={(e) => ubah((d) => ({ ...d, pricelist: { ...d.pricelist, catatan: e.target.value } }))} /></div>
+      </div>
 
       <div className="tscroll sp">
         <table className="tabel-ringkas tabel-isian tabel-rapat"><tbody>
@@ -1537,7 +1575,7 @@ export function LangkahDataPl({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
             <th title={kt.thNaikInfo}>
               {kt.thNaik}<br /><span style={{ fontWeight: 400 }}>{kt.thNaikSub}</span></th>
             <th title={kt.thMetodeInfo}>
-              {kt.thMetode}</th>{!ro && <th />}</tr>
+              {kt.thMetode}<br /><span style={{ fontWeight: 400 }}>{kt.thMetodeSub}</span></th>{!ro && <th />}</tr>
           {kolom.map((k, i) => (
             <tr key={i}>
               <td><IsianNama nilai={k.nama} lebar={190} disabled={ro}
@@ -1586,14 +1624,35 @@ export function LangkahDataPl({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
               </td>
               {/* Ganti nama yang tampil di Pricelist saja: kolom Pricelist yang
                   bersumber dari kolom ini diganti namanya, hitungannya tetap. */}
+              {/* Kolom Harga (langkah 4a) dari kolom ini diatur di sini juga —
+                  nama, pengali, pembulatan — supaya tidak ada dua tempat yang
+                  harus disamakan (langkah 4a hanya menampilkan ringkasannya). */}
               <td>
                 {data.pricelist.kolom.map((p, j) => p.dari !== k.nama ? null : (
-                  <IsianTeks key={j} nilai={p.nama} lebar={230} disabled={ro}
-                             ubah={(v) => ubah((d) => ({ ...d, pricelist: { ...d.pricelist,
-                               kolom: d.pricelist.kolom.map((x, m) => m === j ? { ...x, nama: v } : x) } }))} />
+                  <span key={j} className="row" style={{ margin: "0 0 4px", flexWrap: "nowrap", gap: 6 }}>
+                    <IsianTeks nilai={p.nama} lebar={210} disabled={ro}
+                               ubah={(v) => ubahPl(j, (x) => ({ ...x, nama: v }))} />
+                    <Isian jenis="persen" nilai={p.kali} lebar={60} disabled={ro}
+                           ubah={(n) => ubahPl(j, (x) => ({ ...x, kali: n }))} />
+                    <select value={p.bulatAtas ? "atas" : "biasa"} disabled={ro || p.kali === 1}
+                            title={p.kali === 1 ? kt.pengali100 : kt.thBulatInfo}
+                            onChange={(e) => ubahPl(j, (x) => ({ ...x, bulatAtas: e.target.value === "atas" || undefined }))}>
+                      <option value="biasa">ROUND</option>
+                      <option value="atas">ROUNDUP</option>
+                    </select>
+                    {!ro && (
+                      <button className="kecil" title={kt.hapusDariHarga} aria-label={kt.hapusDariHarga}
+                              disabled={data.pricelist.kolom.length <= 1}
+                              onClick={() => ubah((d) => ({ ...d, pricelist: { ...d.pricelist,
+                                kolom: d.pricelist.kolom.filter((_, m) => m !== j) } }))}>×</button>
+                    )}
+                  </span>
                 ))}
                 {!data.pricelist.kolom.some((p) => p.dari === k.nama) && (
-                  <span className="hint" style={{ margin: 0 }}>{kt.tidakDipakai}</span>
+                  <span className="hint" style={{ margin: "0 8px 0 0" }}>{kt.tidakDipakai}</span>
+                )}
+                {!ro && !data.pricelist.kolom.some((p) => p.dari === k.nama) && (
+                  <button className="kecil" onClick={() => tampilkanDiHarga(k.nama)}>{kt.tampilkanDiHarga}</button>
                 )}
               </td>
               {!ro && (
@@ -1707,7 +1766,6 @@ export function LangkahPricelist({ data, hasil, ubah, bolehUbah, aksi, slug }: P
   const ro = !bolehUbah;
   const [pajak, setPajak] = useState(true);
   const pl = data.pricelist;
-  const ubahPl = (f: (p: typeof pl) => typeof pl) => ubah((d) => ({ ...d, pricelist: f(d.pricelist) }));
   const kolomDp = data.dataPricelist.kolom.map((k) => k.nama);
 
   const isi = isiLembar(data, hasil, slug);
@@ -1720,59 +1778,27 @@ export function LangkahPricelist({ data, hasil, ubah, bolehUbah, aksi, slug }: P
           {kt.cetakA4}</button>
       </div>
       <p className="hint kiri">{kt.plHint(labelPpn(tarifPpn(data)))}</p>
-      <div className="filters rapat">
-        <div><div className="lbl">{kt.judul}</div>
-          <IsianTeks id="pl-judul" nilai={pl.judul} lebar={200} disabled={ro}
-                     ubah={(v) => ubahPl((p) => ({ ...p, judul: v }))} /></div>
-        <div><div className="lbl">{kt.tglBerlaku}</div>
-          <IsianTeks id="pl-tanggal" nilai={pl.tanggal} lebar={160} disabled={ro}
-                     ubah={(v) => ubahPl((p) => ({ ...p, tanggal: v }))} /></div>
-        <div style={{ gridColumn: "span 2" }}><div className="lbl">{kt.catatanKpr}</div>
-          <input id="pl-catatan" value={pl.catatan} disabled={ro}
-                 onChange={(e) => ubahPl((p) => ({ ...p, catatan: e.target.value }))} /></div>
-      </div>
+      <div className="banner info">{kt.susunanDiLangkah3}</div>
 
+      {/* Susunan kolom harga diatur di langkah 3 (kolom Perubahan Metode
+          Pembayaran); di sini hanya ringkasannya, supaya tidak ada dua tempat
+          yang harus disamakan. */}
       <details className="sp" style={{ marginTop: 12 }}>
         <summary className="hint kiri" style={{ cursor: "pointer" }}>{kt.susunan(pl.kolom.length)}</summary>
         <div className="tscroll" style={{ marginTop: 8 }}>
-          <table className="tabel-ringkas tabel-isian tabel-rapat"><tbody>
+          <table className="tabel-ringkas tabel-rapat"><tbody>
             <tr><th>{kt.thKolomPl}</th><th>{kt.thDariDp}</th><th>{kt.thPengali}</th>
-              <th title={kt.thBulatInfo}>{kt.thBulat}</th>
-              {bolehUbah && <th />}</tr>
+              <th title={kt.thBulatInfo}>{kt.thBulat}</th></tr>
             {pl.kolom.map((k, i) => (
               <tr key={i}>
-                <td><IsianTeks nilai={k.nama} lebar={230} disabled={ro}
-                               ubah={(v) => ubahPl((p) => ({ ...p, kolom: p.kolom.map((x, j) => j === i ? { ...x, nama: v } : x) }))} /></td>
-                <td><select value={k.dari} disabled={ro}
-                            onChange={(e) => ubahPl((p) => ({ ...p, kolom: p.kolom.map((x, j) => j === i ? { ...x, dari: e.target.value } : x) }))}>
-                  {!kolomDp.includes(k.dari) && <option value={k.dari}>{kt.tidakAda(k.dari)}</option>}
-                  {kolomDp.map((n) => <option key={n} value={n}>{n}</option>)}
-                </select></td>
-                <td><Isian jenis="persen" nilai={k.kali} lebar={70} disabled={ro}
-                           ubah={(n) => ubahPl((p) => ({ ...p, kolom: p.kolom.map((x, j) => j === i ? { ...x, kali: n } : x) }))} /></td>
-                <td><select value={k.bulatAtas ? "atas" : "biasa"} disabled={ro || k.kali === 1}
-                            title={k.kali === 1 ? kt.pengali100 : undefined}
-                            onChange={(e) => ubahPl((p) => ({ ...p, kolom: p.kolom.map((x, j) =>
-                              j === i ? { ...x, bulatAtas: e.target.value === "atas" || undefined } : x) }))}>
-                  <option value="biasa">ROUND</option>
-                  <option value="atas">ROUNDUP</option>
-                </select></td>
-                {bolehUbah && <td><button className="kecil" disabled={pl.kolom.length <= 1}
-                  onClick={() => ubahPl((p) => ({ ...p, kolom: p.kolom.filter((_, j) => j !== i) }))}>{kt.hapus}</button></td>}
+                <td>{k.nama}</td>
+                <td>{kolomDp.includes(k.dari) ? k.dari : kt.tidakAda(k.dari)}</td>
+                <td className="n">{(k.kali * 100).toLocaleString("id-ID", { maximumFractionDigits: 2 })}%</td>
+                <td>{k.kali === 1 ? "—" : k.bulatAtas ? "ROUNDUP" : "ROUND"}</td>
               </tr>
             ))}
           </tbody></table>
         </div>
-        {bolehUbah && (
-          <button style={{ marginTop: 8 }} onClick={() => ubahPl((p) => {
-            // Nama unik, supaya blok T&C-nya langsung terbentuk dan ikut saat diganti.
-            const ada = new Set(p.kolom.map((k) => k.nama));
-            let no = 1;
-            while (ada.has(`Kolom baru ${no}`)) no++;
-            return { ...p, kolom: [...p.kolom,
-              { nama: `Kolom baru ${no}`, dari: kolomDp[0] ?? "", kali: 1 }] };
-          })}>{kt.tambahKolom}</button>
-        )}
       </details>
 
       <div className="kepala-pl">
