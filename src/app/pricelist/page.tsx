@@ -28,6 +28,7 @@ import { basisProject, hitungSemua, unitBelumBerharga, type SusunPricelist } fro
 import {
   LangkahDataPl, LangkahIrr, LangkahPricelist, LangkahTnc, LangkahUnit, isiOtomatisCaraBayar, rapikanCaraBayar, sinkronTnc,
 } from "./langkah";
+import { LangkahHargaSpesial } from "./langkah-spesial";
 
 const KATA = {
   id: {
@@ -425,8 +426,8 @@ export default function PricelistPage() {
             <LangkahUnit key={1} {...props} slug={sesi.project_slug} />,
             <LangkahDataPl key={2} {...props} />,
             <LangkahPricelist key={3} {...props} aksi={panelBerlaku} slug={sesi.project_slug} />,
-            // 4b. Harga Special: masih kosong, isinya disusun kemudian.
-            <div key={4} className="banner info">{k.kosong4b}</div>,
+            // 4b. Harga Spesial: menyusun tampilan cetakan dari angka 4a.
+            <LangkahHargaSpesial key={4} {...props} slug={sesi.project_slug} />,
             <LangkahTnc key={5} {...props} slug={sesi.project_slug} />,
           ].map((isi, i) => i !== langkah ? null : (
             <section key={i} id={`langkah-${NOMOR[i]}`} className="panel sp bagian-langkah">

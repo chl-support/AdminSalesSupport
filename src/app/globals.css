@@ -3186,17 +3186,28 @@ ul.daftar-ubah li { margin: 1px 0; }
 .pl-lembar table { border-collapse: collapse; width: 100%; font-size: inherit; }
 .pl-lembar th, .pl-lembar td { border: 1px solid #555 !important; padding: var(--pad, .15em) .35em; background: none;
   font-size: inherit; color: #000; white-space: nowrap; height: auto; }
-.pl-lembar thead th { background: #e8e8e8 !important; font-weight: 700; text-align: center; vertical-align: middle; }
-.pl-lembar thead th.cb { background: #d9d9d9 !important; }
+/* Warna judul kolom dapat disetel di langkah 4b: nilainya dipasang sebagai
+   variabel pada lembarnya, dan pada tiap sel kelompok yang berwarna sendiri. */
+/* Huruf judul kolom: bawaannya Kapital Awal seperti judul tabel lain, tetapi
+   langkah 4b boleh menyetelnya (mis. "Land (m2)" yang harus tetap kecil). */
+.pl-lembar thead th { text-transform: var(--huruf-judul, capitalize); }
+.pl-lembar thead th { background: var(--kepala, #e8e8e8) !important; font-weight: 700;
+  color: var(--kepala-teks, #000) !important; text-align: center; vertical-align: middle; }
+.pl-lembar thead th.cb { background: var(--cb, #d9d9d9) !important; }
 .pl-lembar td.n { text-align: right; font-variant-numeric: tabular-nums; }
 .pl-lembar td.h { font-weight: 700; }
 .pl-lembar td.c { text-align: center; }
-.pl-lembar tbody tr:nth-child(even) td { background: #f6f6f6 !important; }
+.pl-lembar tbody tr:nth-child(even) td { background: var(--selang, #f6f6f6) !important; }
 .pl-lembar tr { break-inside: avoid; }
 .pl-lembar .pl-catatan { margin: .6em 0 0; font-style: italic; }
 @media print { .pl-lembar thead { display: table-header-group; } }
 /* Kolom harga sama lebar; judul cara bayar yang panjang dilipat. */
 .pl-lembar th.harga, .pl-lembar td.harga { width: 8.4em; min-width: 8.4em; max-width: 8.4em; }
+/* Langkah 4b: pratinjau kertas A4 di dalam panel langkah. Kertasnya lebih
+   lebar daripada panelnya, jadi digulung di tempat, bukan melebarkan layar. */
+.pratinjau-lembar { overflow: auto; max-height: 78vh; border: 1px solid var(--garis, #d7d7d7);
+                    border-radius: 8px; margin-top: 10px; }
+.pratinjau-lembar .cetak-latar { padding: 12px; min-height: 0; }
 /* Judul kolom angka ("Harga Incld. PPN") lebih panjang daripada lebar
    kolomnya: tanpa pelipatan tulisannya menjorok keluar dari garis kolom. */
 .pl-lembar thead th.harga { white-space: normal; word-break: break-word; line-height: 1.15; }

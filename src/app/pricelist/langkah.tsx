@@ -18,6 +18,7 @@ import {
 } from "@/lib/susun-pricelist";
 import type { UnitHarga } from "@/lib/simulasi";
 import { useKata } from "../bahasa";
+import { KUNCI, type Isi } from "./lembar-harga";
 import { PilihBerkas } from "../pilih-berkas";
 import { TabelHarga } from "../simulasi/unggah-pricelist";
 
@@ -1629,6 +1630,39 @@ export function LangkahDataPl({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
 
 // ── 4. Pricelist ───────────────────────────────────────────────────────────
 
+/**
+ * Isi lembar Harga: judul, tanggal, daftar cara bayar, dan unit beserta
+ * harganya — persis angka yang sedang tampil di langkah 4a, termasuk yang
+ * belum disimpan. Langkah 4b menyusun tampilannya dari isi yang sama.
+ */
+export function isiLembar(data: SusunPricelist, hasil: HasilSusun,
+                          slug?: string | null): Isi {
+  const pl = data.pricelist;
+  return {
+    judul: pl.judul, tanggal: pl.tanggal, catatan: pl.catatan, slug: slug ?? null,
+    kolom: pl.kolom.map((k) => k.nama),
+    unit: hasil.baris.map((b) => ({
+      kode: b.unit.kode, alamat: b.unit.alamat, tipe: b.unit.tipe,
+      lt: b.unit.lt, lb: b.unit.lb, phase: b.unit.phase, ukuran: b.unit.ukuran,
+      view: b.unit.view, subTipe: b.unit.subTipe,
+      harga: Object.fromEntries(pl.kolom.map((k) => [k.nama, b.pricelist[k.nama]?.harga])),
+      pajak: Object.fromEntries(pl.kolom.map((k) => [k.nama,
+        { dpp: b.pricelist[k.nama]?.dpp ?? null, dtp: b.pricelist[k.nama]?.dtp ?? null }])),
+    })),
+  };
+}
+
+/**
+ * Cetak A4: isi lembarnya diserahkan ke tab cetak lewat localStorage, lalu
+ * tab itu dibuka. Susunan tampilannya dibaca tab itu sendiri dari pilihan
+ * yang tersimpan per proyek.
+ */
+export function bukaCetak(isi: Isi) {
+  try { localStorage.setItem(KUNCI, JSON.stringify(isi)); }
+  catch { /* penyimpanan peramban penuh atau diblokir */ }
+  open("/pricelist/cetak-pl", "_blank");
+}
+
 export function LangkahPricelist({ data, hasil, ubah, bolehUbah, aksi, slug }: PropsLangkah & {
   /** Panel memberlakukan, disediakan halamannya. */
   aksi?: React.ReactNode;
@@ -1641,30 +1675,12 @@ export function LangkahPricelist({ data, hasil, ubah, bolehUbah, aksi, slug }: P
   const ubahPl = (f: (p: typeof pl) => typeof pl) => ubah((d) => ({ ...d, pricelist: f(d.pricelist) }));
   const kolomDp = data.dataPricelist.kolom.map((k) => k.nama);
 
-  const unit: UnitHarga[] = hasil.baris.map((b) => ({
-    kode: b.unit.kode, alamat: b.unit.alamat, tipe: b.unit.tipe,
-    lt: b.unit.lt, lb: b.unit.lb, phase: b.unit.phase, ukuran: b.unit.ukuran,
-    view: b.unit.view, subTipe: b.unit.subTipe,
-    harga: Object.fromEntries(pl.kolom.map((k) => [k.nama, b.pricelist[k.nama]?.harga])),
-    pajak: Object.fromEntries(pl.kolom.map((k) => [k.nama,
-      { dpp: b.pricelist[k.nama]?.dpp ?? null, dtp: b.pricelist[k.nama]?.dtp ?? null }])),
-  }));
-
-  // Cetak A4: isinya (termasuk yang belum disimpan) diserahkan ke tab cetak
-  // lewat localStorage, lalu tab itu dibuka.
-  const cetak = () => {
-    try {
-      localStorage.setItem("cetak-pl", JSON.stringify({
-        judul: pl.judul, tanggal: pl.tanggal, catatan: pl.catatan, slug: slug ?? null,
-        kolom: pl.kolom.map((k) => k.nama), unit }));
-    } catch { /* penyimpanan peramban penuh atau diblokir */ }
-    open("/pricelist/cetak-pl", "_blank");
-  };
+  const isi = isiLembar(data, hasil, slug);
 
   return (
     <>
       <div className="row" style={{ justifyContent: "flex-end", margin: 0 }}>
-        <button className="pri" onClick={cetak} disabled={!unit.length}
+        <button className="pri" onClick={() => bukaCetak(isi)} disabled={!isi.unit.length}
                 title={kt.cetakPlInfo}>
           {kt.cetakA4}</button>
       </div>
@@ -1734,10 +1750,10 @@ export function LangkahPricelist({ data, hasil, ubah, bolehUbah, aksi, slug }: P
           <input id="pl-pajak" type="checkbox" checked={pajak} onChange={(e) => setPajak(e.target.checked)} />
           {kt.tampilPajak}
         </label>
-        <span className="hint" style={{ margin: 0 }}>{kt.ringkasPl(unit.length, pl.kolom.length)}</span>
+        <span className="hint" style={{ margin: 0 }}>{kt.ringkasPl(isi.unit.length, pl.kolom.length)}</span>
       </div>
-      {unit.length ? (
-        <TabelHarga skema={pl.kolom.map((k) => k.nama)} unit={unit} pajak={pajak} tinggi={560} />
+      {isi.unit.length ? (
+        <TabelHarga skema={pl.kolom.map((k) => k.nama)} unit={isi.unit} pajak={pajak} tinggi={560} />
       ) : (
         <div className="banner info">{kt.belumUnit}</div>
       )}
