@@ -9,12 +9,12 @@
  * saling merujuk antarlembar.
  */
 
-import { Fragment, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { formatRupiah } from "@/lib/money";
 import {
-  faktorTampil, hargaKasIrr, hargaSesuaiSkema, labelPpn, namaTahap, tarifPpn, unitKosong,
-  kunciTnc, tingkatNaik, type BarisTnc, type HasilSusun, type SusunPricelist, type UnitData,
+  FAKTOR, faktorTampil, hargaKasIrr, hargaSesuaiSkema, labelPpn, namaTahap, tarifPpn, unitKosong,
+  kunciTnc, tingkatNaik, type BarisTnc, type KunciFaktor, type HasilSusun, type SusunPricelist, type UnitData,
 } from "@/lib/susun-pricelist";
 import type { UnitHarga } from "@/lib/simulasi";
 import { useKata } from "../bahasa";
@@ -113,6 +113,7 @@ const KATA = {
       tipeBangunan: "Tipe", view2: "Arah Hadap", bentuk: "Sub-Tipe Kavling/Irr/Irr Hoek", subTipe: "Sub-Tipe",
     } as Record<string, string>,
     tanahM2: "Tanah (m²)", hargaTanah: "Harga Tanah (dasar)",
+    floor: "Floor (m²)", pembulatan: "(Roundup)", biayaAjb: "Biaya AJB + BPHTB",
     excl: (lp: string) => `(Belum termasuk PPN ${lp})`,
     incl: (lp: string) => `(Termasuk PPN ${lp})`,
     gfaM2: "GFA (m²)", hargaBangunan: "GFA (dasar)",
@@ -284,6 +285,7 @@ const KATA = {
       tipeBangunan: "Type", view2: "View", bentuk: "Sub-type Kavling/Irr/Irr Hoek", subTipe: "Sub-type",
     } as Record<string, string>,
     tanahM2: "Land (m²)", hargaTanah: "Land Price (base)",
+    floor: "Floor (m²)", pembulatan: "(Roundup)", biayaAjb: "AJB + BPHTB Fee",
     excl: (lp: string) => `(Excl PPN. ${lp})`,
     incl: (lp: string) => `(Incl PPN. ${lp})`,
     gfaM2: "GFA (m²)", hargaBangunan: "GFA (base)",
@@ -909,6 +911,9 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah, baru }: PropsLangkah 
 
 // ── 2. Unit Data ───────────────────────────────────────────────────────────
 
+/** Faktor posisi BIO DISTRICT, urut seperti di berkas Unit Data-nya. */
+const FAKTOR_BIO: KunciFaktor[] = ["singleRow", "tusukSate", "roundAround", "hoek", "luckyNumber"];
+
 const TEKS_UNIT = [
   ["kode", "Code", 130], ["alamat", "Address", 130], ["view", "View", 85],
   ["no", "No", 40], ["ukuran", "Ukuran", 100], ["phase", "Phase", 45],
@@ -918,14 +923,29 @@ const TEKS_UNIT = [
 
 export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah & { slug?: string | null }) {
   const kt = useKata(KATA);
-  // BIO DISTRICT mengikuti berkas Unit Data-nya: kolom Tahap (Phase) sesudah
-  // GFA (dasar) Termasuk PPN, dan tanpa kolom Arah Hadap kedua (sesudah Tipe).
-  // Proyek lain tetap seperti semula.
-  const tahapKanan = slug === "bio-district";
-  const teksUnit = tahapKanan ? TEKS_UNIT.filter(([k]) => k !== "phase" && k !== "view2") : TEKS_UNIT;
+  // BIO DISTRICT mengikuti urutan kolom berkas Unit Data-nya: Tahap (Phase)
+  // sesudah GFA (dasar) Termasuk PPN, tanpa Arah Hadap kedua, faktor Single
+  // Row · Tusuk Sate · Round Around · Hoek · Lucky Number, Biaya AJB + BPHTB,
+  // Special %, dan harga Dasar/Setelah Faktor Belum PPN lalu Termasuk PPN.
+  // Kolom Floor, harga per m² Roundup (ROUNDUP ratus ribu, keterangan saja —
+  // harga tetap dihitung dengan rumus sistem), dan Biaya AJB + BPHTB hanya
+  // tampil di BIO. Proyek lain tetap seperti semula.
+  const bio = slug === "bio-district";
+  const teksUnit = bio ? TEKS_UNIT.filter(([k]) => k !== "phase" && k !== "view2") : TEKS_UNIT;
   const ro = !bolehUbah;
   const ppn = tarifPpn(data), lp = labelPpn(ppn);
-  const fk = faktorTampil(data.unit);
+  const fk = bio
+    ? [...FAKTOR_BIO.map((k) => FAKTOR.find(([x]) => x === k)!),
+       ...FAKTOR.filter(([k]) => !FAKTOR_BIO.includes(k) && data.unit.some((u) => u.faktor[k]))]
+    : faktorTampil(data.unit);
+  // Kolom Khusus (Rp) tidak ada di berkas BIO; tetap tampil bila ada isinya.
+  const kolomKhusus = !bio || data.unit.some((u) => u.special);
+  const kolomPlus = !bio || data.unit.some((u) => u.faktorTambah);
+  const ratusRibu = (n: number | undefined) => n == null ? undefined : Math.ceil(n / 1e5 - 1e-9) * 1e5;
+  const urutanHarga = (bio
+    ? [["base", "excl"], ["factored", "excl"], ["base", "incl"], ["factored", "incl"]]
+    : [["base", "excl"], ["base", "incl"], ["factored", "excl"], ["factored", "incl"]]) as
+    ["base" | "factored", "excl" | "incl"][];
   // Base dan Factored Price dalam dua bentuk, sebelum dan sesudah PPN. Yang
   // dihitung adalah basis project-nya (Incl PPN, atau Excl PPN untuk Permai
   // Indah); bentuk satunya diturunkan dengan tarif PPN yang sama.
@@ -1128,17 +1148,26 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
                 </th>
               )}
               <th className="no-unit">#</th>
-              {teksUnit.map(([k]) => <th key={k}>{kt.teksUnit[k]}</th>)}
+              {teksUnit.map(([k]) => <th key={k}>{bio && k === "ukuran" ? "Dimensi" : kt.teksUnit[k]}</th>)}
+              {bio && <th>{kt.floor}</th>}
               <th>{kt.tanahM2}</th>
-              <th>{kt.hargaTanah}<br />{kt.excl(lp)}</th><th className="incl">{kt.hargaTanah}<br />{kt.incl(lp)}</th>
+              <th>{kt.hargaTanah}<br />{kt.excl(lp)}</th>
+              {bio && <th className="incl">{kt.hargaTanah} {kt.pembulatan}<br />{kt.incl(lp)}</th>}
+              <th className="incl">{kt.hargaTanah}<br />{kt.incl(lp)}</th>
               <th>{kt.gfaM2}</th>
-              <th>{kt.hargaBangunan}<br />{kt.excl(lp)}</th><th className="incl">{kt.hargaBangunan}<br />{kt.incl(lp)}</th>
-              {tahapKanan && <th>{kt.teksUnit.phase}</th>}
+              <th>{kt.hargaBangunan}<br />{kt.excl(lp)}</th>
+              {bio && <th className="incl">{kt.hargaBangunan} {kt.pembulatan}<br />{kt.incl(lp)}</th>}
+              <th className="incl">{kt.hargaBangunan}<br />{kt.incl(lp)}</th>
+              {bio && <th>{kt.teksUnit.phase}</th>}
               <th>{kt.kenaikan}</th>
               {fk.map(([, l]) => <th key={l}>{l}</th>)}
-              <th>{kt.faktorPlus}</th><th>{kt.special}</th><th>{kt.showUnit}</th>
-              <th>{kt.hargaDasar}<br />{kt.excl(lp)}</th><th className="incl">{kt.hargaDasar}<br />{kt.incl(lp)}</th>
-              <th>{kt.hargaFaktor}<br />{kt.excl(lp)}</th><th className="incl">{kt.hargaFaktor}<br />{kt.incl(lp)}</th>
+              {kolomPlus && <th>{kt.faktorPlus}</th>}
+              {bio && <><th>{kt.biayaAjb}</th><th>Special %</th></>}
+              {kolomKhusus && <th>{kt.special}</th>}<th>{kt.showUnit}</th>
+              {urutanHarga.map(([h, j]) => (
+                <th key={h + j} className={j === "incl" ? "incl" : undefined}>
+                  {h === "base" ? kt.hargaDasar : kt.hargaFaktor}<br />{j === "incl" ? kt.incl(lp) : kt.excl(lp)}</th>
+              ))}
             </tr>
           </thead><tbody>
             {tampil.map(({ u, i, b }) => (
@@ -1169,13 +1198,16 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
                                          nilai={u[k] ?? ""} lebar={w} disabled={ro}
                                          ubah={(v) => ubahUnit(i, (x) => ({ ...x, [k]: v }))} /></td>
                 ))}
+                {bio && <td><Isian nilai={u.floor ?? 0} kosongNol lebar={60} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, floor: n }))} /></td>}
                 <td><Isian nilai={u.lt} desimal={1} lebar={70} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, lt: n }))} /></td>
                 <td><Isian jenis="rp" nilai={u.hargaTanah} lebar={95} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, hargaTanah: n }))} /></td>
+                {bio && <td className="n">{rpPolos(ratusRibu(b?.hasilUnit.hargaTanahPpn))}</td>}
                 <td className="n">{rpPolos(b?.hasilUnit.hargaTanahPpn)}</td>
                 <td><Isian nilai={u.lb} lebar={60} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, lb: n }))} /></td>
                 <td><Isian jenis="rp" nilai={u.hargaBangunan} lebar={95} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, hargaBangunan: n }))} /></td>
+                {bio && <td className="n">{rpPolos(ratusRibu(b?.hasilUnit.hargaBangunanPpn))}</td>}
                 <td className="n">{rpPolos(b?.hasilUnit.hargaBangunanPpn)}</td>
-                {tahapKanan && (
+                {bio && (
                   <td><IsianTeks nilai={u.phase ?? ""} lebar={70} disabled={ro}
                                  ubah={(v) => ubahUnit(i, (x) => ({ ...x, phase: v }))} /></td>
                 )}
@@ -1184,13 +1216,17 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
                   <td key={k}><Isian jenis="persen" kosongNol nilai={u.faktor[k] ?? 0} lebar={55} disabled={ro}
                                      ubah={(n) => ubahUnit(i, (x) => ({ ...x, faktor: { ...x.faktor, [k]: n } }))} /></td>
                 ))}
-                <td><Isian jenis="persen" desimal={1} nilai={u.faktorTambah} lebar={55} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, faktorTambah: n }))} /></td>
-                <td><Isian jenis="rp" kosongNol nilai={u.special} lebar={95} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, special: n }))} /></td>
+                {kolomPlus && <td><Isian jenis="persen" desimal={1} nilai={u.faktorTambah} lebar={55} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, faktorTambah: n }))} /></td>}
+                {bio && <>
+                  <td><Isian jenis="persen" kosongNol nilai={u.biayaAjb ?? 0} lebar={55} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, biayaAjb: n }))} /></td>
+                  <td><Isian jenis="persen" kosongNol nilai={u.specialPersen ?? 0} lebar={55} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, specialPersen: n }))} /></td>
+                </>}
+                {kolomKhusus && <td><Isian jenis="rp" kosongNol nilai={u.special} lebar={95} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, special: n }))} /></td>}
                 <td><Isian jenis="rp" kosongNol nilai={u.showUnit} lebar={95} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, showUnit: n }))} /></td>
-                <td className="n">{rp(ppnDua(b?.hasilUnit.base ?? NaN).excl)}</td>
-                <td className="n">{rp(ppnDua(b?.hasilUnit.base ?? NaN).incl)}</td>
-                <td className="n"><b>{rp(ppnDua(b?.hasilUnit.factored ?? NaN).excl)}</b></td>
-                <td className="n"><b>{rp(ppnDua(b?.hasilUnit.factored ?? NaN).incl)}</b></td>
+                {urutanHarga.map(([h, j]) => {
+                  const n = rp(ppnDua(b?.hasilUnit[h] ?? NaN)[j]);
+                  return <td key={h + j} className="n">{h === "factored" ? <b>{n}</b> : n}</td>;
+                })}
               </tr>
             ))}
           </tbody><tfoot>
@@ -1199,18 +1235,14 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
               <td className="aksi-unit">
                 {kt.totalUnit(tampil.length, q ? data.unit.length : undefined)}</td>
               <td colSpan={(bolehUbah ? 0 : -1) + 1 + teksUnit.length} />
-              <td className="n">{luas(tampil.reduce((a, { u }) => a + u.lt, 0), 1)}</td><td /><td />
-              <td className="n">{luas(tampil.reduce((a, { u }) => a + u.lb, 0))}</td><td /><td />{tahapKanan && <td />}<td />
+              {bio && <td />}
+              <td className="n">{luas(tampil.reduce((a, { u }) => a + u.lt, 0), 1)}</td><td /><td />{bio && <td />}
+              <td className="n">{luas(tampil.reduce((a, { u }) => a + u.lb, 0))}</td><td /><td />{bio && <><td /><td /></>}<td />
               {fk.map(([k]) => <td key={k} />)}
-              <td />
-              <td /><td />
-              {/* Urutan: Harga Dasar (excl, incl), lalu Harga Setelah Faktor (excl, incl). */}
-              {(["base", "factored"] as const).map((h) => (
-                <Fragment key={h}>
-                  {(["excl", "incl"] as const).map((j) => (
-                    <td key={j} className="n">{rp(ppnDua(tampil.reduce((a, { b }) => a + (b?.hasilUnit[h] ?? 0), 0))[j])}</td>
-                  ))}
-                </Fragment>
+              {kolomPlus && <td />}{bio && <><td /><td /></>}
+              {kolomKhusus && <td />}<td />
+              {urutanHarga.map(([h, j]) => (
+                <td key={h + j} className="n">{rp(ppnDua(tampil.reduce((a, { b }) => a + (b?.hasilUnit[h] ?? 0), 0))[j])}</td>
               ))}
             </tr>
           </tfoot></table>

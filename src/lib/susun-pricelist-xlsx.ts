@@ -119,7 +119,8 @@ function bacaLembarUnit(ws: ExcelJS.Worksheet, peringatan: string[]): UnitData[]
       else if (h.startsWith("special")) kol.special = c;
       else if (h.startsWith("show unit")) kol.showUnit = c;
       else if (h.startsWith("gimmick")) kol.gimmick = c;
-      if (h2 === "land" || /^tanah( \(m²\))?$/.test(h2)) kol.lt = c;
+      if (h2 === "floor") kol.floor = c;
+      else if (h2 === "land" || /^tanah( \(m²\))?$/.test(h2)) kol.lt = c;
       // Kolom harga sesudah PPN (Incl PPN) hanya hasil hitungan; yang dibaca
       // harga sebelum PPN.
       else if (h2.startsWith("land price (base)") && !h2.includes("incl")) kol.hargaTanah = c;
@@ -148,14 +149,15 @@ function bacaLembarUnit(ws: ExcelJS.Worksheet, peringatan: string[]): UnitData[]
         lb: n("lb"), hargaBangunan: n("hargaBangunan"), kenaikan: n("kenaikan"),
         // Gimmick (Trip, BPHTB, AKAD, Repair) di berkas Excel masuk ke (+) Factor;
         // Unit Data tidak punya kolom Gimmick tersendiri.
-        // Special % dan Biaya AJB + BPHTB dikalikan ke (+) Factor, sehingga
-        // (1 + (+) Factor) = (1 + factor)(1 + Biaya AJB)(1 + Special %) seperti di Excel-nya.
-        faktorTambah: (1 + n("faktorTambah") + n("gimmick")) * (1 + n("biayaAjb")) * (1 + n("specialPersen")) - 1,
+        faktorTambah: n("faktorTambah") + n("gimmick"),
         special: n("special"), showUnit: n("showUnit"),
         faktor: Object.fromEntries(FAKTOR.map(([k]) => [k, n(k)]).filter(([, v]) => v)),
       };
       if (kol.tipe) u.tipe = t("tipe");
       if (kol.view2) u.view2 = t("view2");
+      if (kol.floor) u.floor = n("floor");
+      if (kol.biayaAjb) u.biayaAjb = n("biayaAjb");
+      if (kol.specialPersen) u.specialPersen = n("specialPersen");
       for (const k of ANGKA_UNIT) {
         const v = kol[k] ? nilai(ws.getCell(r, kol[k])) : null;
         if (typeof v === "string" && !/^\s*-?[\d.,]+\s*%?\s*$/.test(v)) {
@@ -178,7 +180,7 @@ function bacaLembarUnit(ws: ExcelJS.Worksheet, peringatan: string[]): UnitData[]
 
 /** Kolom angka pada lembar UNIT DATA; isian teks di sana dibaca 0. */
 const ANGKA_UNIT = ["lt", "hargaTanah", "lb", "hargaBangunan", "kenaikan",
-  "faktorTambah", "specialPersen", "biayaAjb", "special", "showUnit", ...FAKTOR.map(([k]) => k)];
+  "faktorTambah", "specialPersen", "biayaAjb", "floor", "special", "showUnit", ...FAKTOR.map(([k]) => k)];
 
 /**
  * Template kosong lembar UNIT DATA untuk tombol "Unduh Template" di langkah 2.

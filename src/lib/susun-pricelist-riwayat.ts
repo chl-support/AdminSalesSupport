@@ -132,6 +132,8 @@ export function bedaSusun(lama: SusunPricelist | null, baru: SusunPricelist): st
     ...FAKTOR.map(([k, l]) => [l, (u: UnitData) => persen(u.faktor[k] ?? 0)] as [string, (u: UnitData) => string]),
     ["(+) Factor", (u) => persen(u.faktorTambah)], ["Special", (u) => angka(u.special, 0)],
     ["Show Unit", (u) => angka(u.showUnit, 0)],
+    ["Floor", (u) => angka(u.floor ?? 0)], ["Biaya AJB + BPHTB", (u) => persen(u.biayaAjb ?? 0)],
+    ["Special %", (u) => persen(u.specialPersen ?? 0)],
   ];
   for (const b of baru.unit) {
     const a = uA.get(b.kode);
