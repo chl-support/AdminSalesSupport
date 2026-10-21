@@ -3197,6 +3197,11 @@ ul.daftar-ubah li { margin: 1px 0; }
 @media print { .pl-lembar thead { display: table-header-group; } }
 /* Kolom harga sama lebar; judul cara bayar yang panjang dilipat. */
 .pl-lembar th.harga, .pl-lembar td.harga { width: 8.4em; min-width: 8.4em; max-width: 8.4em; }
+/* Langkah 4b: pratinjau kertas A4 di dalam panel langkah. Kertasnya lebih
+   lebar daripada panelnya, jadi digulung di tempat, bukan melebarkan layar. */
+.pratinjau-lembar { overflow: auto; max-height: 78vh; border: 1px solid var(--garis, #d7d7d7);
+                    border-radius: 8px; margin-top: 10px; }
+.pratinjau-lembar .cetak-latar { padding: 12px; min-height: 0; }
 /* Judul kolom angka ("Harga Incld. PPN") lebih panjang daripada lebar
    kolomnya: tanpa pelipatan tulisannya menjorok keluar dari garis kolom. */
 .pl-lembar thead th.harga { white-space: normal; word-break: break-word; line-height: 1.15; }
