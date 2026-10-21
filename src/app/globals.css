@@ -3203,6 +3203,10 @@ ul.daftar-ubah li { margin: 1px 0; }
 @media print { .pl-lembar thead { display: table-header-group; } }
 /* Kolom harga sama lebar; judul cara bayar yang panjang dilipat. */
 .pl-lembar th.harga, .pl-lembar td.harga { width: 8.4em; min-width: 8.4em; max-width: 8.4em; }
+/* Langkah 4b: harga dasar 4a ditulis kecil di bawah kotak harga spesialnya. */
+.tabel-spesial td { vertical-align: top; }
+.tabel-spesial small.asal-spesial { display: block; font-size: 10px; color: var(--note);
+                                    white-space: nowrap; margin-top: 2px; }
 /* Langkah 4b: pratinjau kertas A4 di dalam panel langkah. Kertasnya lebih
    lebar daripada panelnya, jadi digulung di tempat, bukan melebarkan layar. */
 .pratinjau-lembar { overflow: auto; max-height: 78vh; border: 1px solid var(--garis, #d7d7d7);

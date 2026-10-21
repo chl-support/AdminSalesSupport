@@ -313,6 +313,31 @@ export type SusunPricelist = {
     kolom: KolomPricelist[];
   };
   tnc: Tnc;
+  /**
+   * Harga spesial (langkah 4b): harga permintaan yang berangkat dari harga
+   * langkah 4a tanpa mengubahnya. Tiap set berdiri sendiri — satu untuk
+   * promo, satu untuk permintaan seorang konsumen — dan dipilih saat
+   * memberlakukan harga.
+   */
+  spesial?: { set: SetSpesial[] };
+};
+
+/**
+ * Satu set harga spesial.
+ *
+ * Dua lapis, dibaca berurutan: `unit` menggeser seluruh cara bayar sebuah
+ * unit sekaligus (diskon atau penambahan, rupiah atau persen), lalu `sel`
+ * menimpa harga satu cara bayar unit itu dengan angka yang diketik langsung.
+ * Yang tidak disebut mengikuti harga langkah 4a apa adanya.
+ */
+export type SetSpesial = {
+  id: string;
+  nama: string;
+  catatan?: string;
+  /** Kode unit → penggeseran; `nilai` negatif berarti diskon. */
+  unit: Record<string, { jenis: "rp" | "persen"; nilai: number }>;
+  /** Kode unit → nama cara bayar → harga rupiah yang diketik. */
+  sel: Record<string, Record<string, number>>;
 };
 
 export type BarisTnc = { label: string; nilai: string; waktu: string };
@@ -575,14 +600,44 @@ export type HasilSusun = {
   galat: string[];
 };
 
-export function hitungSemua(susun: SusunPricelist): HasilSusun {
+/**
+ * Harga satu sel menurut set spesial: timpaan selnya bila ada, bila tidak
+ * harga dasar yang digeser oleh penyesuaian unitnya. Hasil penggeseran
+ * dibulatkan ke ribuan — angka yang dihitung layar, bukan yang diketik.
+ */
+export function hargaSpesial(
+  set: SetSpesial, kode: string, kolom: string, dasar: number,
+): number {
+  const sel = set.sel[kode]?.[kolom];
+  if (sel != null && Number.isFinite(sel)) return sel;
+  const atur = set.unit[kode];
+  if (!atur || !atur.nilai || !Number.isFinite(dasar)) return dasar;
+  const n = atur.jenis === "persen" ? dasar * (1 + atur.nilai / 100) : dasar + atur.nilai;
+  return Math.max(0, roundExcel(n, 3));
+}
+
+/** Set spesial dengan id itu, bila ada. */
+export const setSpesial = (susun: SusunPricelist, id?: string | null) =>
+  (id ? susun.spesial?.set.find((s) => s.id === id) : undefined);
+
+export function hitungSemua(susun: SusunPricelist, spesial?: string | null): HasilSusun {
   const irr = hitungIrr(susun.irr);
+  const set = setSpesial(susun, spesial);
   const baris = susun.unit.map((unit) => {
     const hasilUnit = hitungUnit(unit, tarifPpn(susun), !!susun.basisExclPpn,
                                  susun.bulatBase ?? 6, !!susun.bulatBiasa,
                                  { bulatHargaM2: susun.bulatHargaM2, exclTerpisah: susun.exclTerpisah });
     const dataPl = hitungDataPl(susun, hasilUnit.factored, irr.koef);
-    return { unit, hasilUnit, dataPl, pricelist: hitungPricelist(susun, dataPl) };
+    const dasar = hitungPricelist(susun, dataPl);
+    // Harga spesial menggantikan harganya; DPP dan nilai free PPN DTP
+    // dihitung ulang dari harga itu, dengan pagu dan tarif yang sama.
+    const pricelist = !set ? dasar : Object.fromEntries(
+      Object.entries(dasar).map(([nama, h]) => {
+        const harga = hargaSpesial(set, unit.kode, nama, h.harga);
+        return [nama, harga === h.harga ? h
+          : { harga, ...pajakDtp(harga, susun.pricelist.batasDtp, tarifPpn(susun)) }];
+      }));
+    return { unit, hasilUnit, dataPl, pricelist };
   });
   return { irr, baris, galat: periksa(susun, irr, baris) };
 }

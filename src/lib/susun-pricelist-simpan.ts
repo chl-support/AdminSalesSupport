@@ -12,7 +12,7 @@ import { z } from "zod";
 
 import { audit, one, query, tx } from "./db";
 import { bacaPricelist, simpanPricelist } from "./pricelist";
-import { basisProject, hitungSemua, kunciTnc, unitBelumBerharga, type SusunPricelist } from "./susun-pricelist";
+import { basisProject, hitungSemua, kunciTnc, setSpesial, unitBelumBerharga, type SusunPricelist } from "./susun-pricelist";
 import { SUSUN_NARAYA } from "./susun-pricelist-naraya";
 import { eksporSusun } from "./susun-pricelist-xlsx";
 import { bedaSusun, catatRiwayat } from "./susun-pricelist-riwayat";
@@ -81,6 +81,18 @@ const SKEMA = z.object({
     pengantarRekening: teks,
     rekening: z.array(z.object({ bank: teks, noRek: teks, cabang: teks })).max(10),
   }),
+  // Harga spesial langkah 4b: tiap set hanya mencatat selisihnya terhadap
+  // harga langkah 4a — penyesuaian per unit dan timpaan per sel.
+  spesial: z.object({
+    set: z.array(z.object({
+      id: z.string().max(40),
+      nama: teks,
+      catatan: teks.optional(),
+      unit: z.record(z.string().max(60),
+                     z.object({ jenis: z.enum(["rp", "persen"]), nilai: angka })),
+      sel: z.record(z.string().max(60), z.record(z.string().max(200), angka)),
+    })).max(50),
+  }).optional(),
 });
 
 /** Periksa bentuk draf kiriman layar; pesan galatnya untuk dibaca orang. */
@@ -271,17 +283,22 @@ export async function berlakukanSusun(
   projectId: string, nama: string, aktor: string,
   /** false: simpan sebagai pricelist baru di riwayat tanpa memberlakukannya. */
   aktifkan = true,
+  /** Id set harga spesial langkah 4b; kosong berarti harga dasar langkah 4a. */
+  spesial?: string | null,
 ): Promise<{ id: string; nama: string; aktif: boolean }> {
   const draf = await bacaSusun(projectId);
   if (!draf) throw new Error("Belum ada isian pricelist untuk project ini.");
-  const galat = hitungSemua(draf.data).galat;
+  const set = setSpesial(draf.data, spesial);
+  if (spesial && !set) throw new Error("Set harga spesial itu sudah tidak ada.");
+  const galat = hitungSemua(draf.data, spesial).galat;
   if (galat.length) throw new Error(`Pricelist belum dapat diberlakukan: ${galat[0]}`);
   // Unit yang harganya belum dikeluarkan (bercatatan) tidak ikut pricelist.
   const ditahan = draf.data.unit.filter(unitBelumBerharga);
   if (ditahan.length === draf.data.unit.length) {
     throw new Error("Pricelist belum dapat diberlakukan: belum ada unit yang berharga.");
   }
-  const isi = await eksporSusun({ ...draf.data, unit: draf.data.unit.filter((u) => !unitBelumBerharga(u)) });
+  const isi = await eksporSusun(
+    { ...draf.data, unit: draf.data.unit.filter((u) => !unitBelumBerharga(u)) }, spesial);
   const hasil = await bacaPricelist(
     isi.buffer.slice(isi.byteOffset, isi.byteOffset + isi.byteLength) as ArrayBuffer,
     "Pricelist");
@@ -297,9 +314,10 @@ export async function berlakukanSusun(
     sumber: "susun",
   });
   await catatRiwayat(projectId, aktor, aktifkan ? "Berlakukan" : "Simpan sebagai",
-    [aktifkan
+    [(aktifkan
       ? `Diberlakukan sebagai "${judul}" (file ${namaBerkas}, ${hasil.unit.length} unit)`
-      : `Disimpan sebagai "${judul}" tanpa diberlakukan (file ${namaBerkas}, ${hasil.unit.length} unit)`,
+      : `Disimpan sebagai "${judul}" tanpa diberlakukan (file ${namaBerkas}, ${hasil.unit.length} unit)`)
+     + (set ? ` — harga spesial "${set.nama}"` : ""),
      ...ditahan.map((u) => `Unit ${u.kode} tidak ikut (belum berharga): ${u.catatan?.trim()}`)]);
   return { id, nama: judul, aktif: aktifkan };
 }

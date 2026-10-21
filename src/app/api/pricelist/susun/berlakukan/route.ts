@@ -11,10 +11,11 @@ import { berlakukanSusun } from "@/lib/susun-pricelist-simpan";
 export const POST = handler(async (req) => {
   const user = await requireRole(req, "admin_sales", "admin_system");
   const projectId = await projectAktif(req);
-  const { nama, berlakukan } = await body<{ nama?: string; berlakukan?: boolean }>(req);
+  const { nama, berlakukan, spesial } =
+    await body<{ nama?: string; berlakukan?: boolean; spesial?: string | null }>(req);
   try {
     return await berlakukanSusun(projectId, String(nama ?? "").slice(0, 120), user.username,
-                                 berlakukan !== false);
+                                 berlakukan !== false, spesial ? String(spesial) : null);
   } catch (e: any) {
     throw new WorkflowError(String(e?.message ?? e), "validation", 422);
   }

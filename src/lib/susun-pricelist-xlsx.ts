@@ -604,8 +604,9 @@ const tebal = (row: ExcelJS.Row) => row.eachCell((c) => {
 });
 
 /** Kelima lembar berisi angka hasil hitungan, untuk diunduh dan diunggah. */
-export async function eksporSusun(susun: SusunPricelist): Promise<Buffer> {
-  const h = hitungSemua(susun);
+export async function eksporSusun(susun: SusunPricelist,
+                                 spesial?: string | null): Promise<Buffer> {
+  const h = hitungSemua(susun, spesial);
   const wb = new ExcelJS.Workbook();
 
   // 1. Data (IRR)
