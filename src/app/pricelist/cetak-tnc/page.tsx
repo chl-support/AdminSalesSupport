@@ -22,7 +22,49 @@
 import { useEffect, useRef, useState } from "react";
 
 import type { Tnc } from "@/lib/susun-pricelist";
+import { useKata } from "../../bahasa";
 import { TeksBergaya, tanpaGaya } from "../gaya-teks";
+
+const KATA = {
+  id: {
+    kosong1: "Tidak ada isi untuk dicetak. Buka halaman Pricelist → langkah 5. Terms & Conditions,",
+    kosong2: "lalu klik", cetakA4: "Cetak A4",
+    judul: "Cetak Terms & Conditions (A4)",
+    orientasi: "Orientasi", lanskap: "Lanskap (mendatar)", potret: "Potret (tegak)",
+    kolomCb: "Kolom cara bayar",
+    ukuranHuruf: "Ukuran huruf", perkecil: "Perkecil huruf", perbesar: "Perbesar huruf",
+    lebih: "Lebih dari 1 halaman", muat: "Muat 1 halaman A4", muatkan: "Muatkan 1 halaman",
+    lampiran: "Lampiran", satuHalaman: "1 halaman",
+    satuHalamanInfo: "Gambar lampiran menyambung di bawah T&C; naik ke halaman yang sama bila muat",
+    dipisah: "Dipisah", dipisahInfo: "Gambar lampiran dicetak di halaman tersendiri",
+    pilihIsi: "Pilih isi yang dicetak", disembunyikan: (n: number) => ` (${n} disembunyikan)`,
+    pilihInfo: "Yang tidak dicentang hanya disembunyikan dari cetakan; isi Pricelist tidak berubah.",
+    centangSemua: "Centang semua", kosongkanSemua: "Kosongkan semua",
+    caraBayar: "Cara bayar", cbKe: (i: number) => `(cara bayar ${i})`,
+    catatan: "Catatan", rekening: "Rekening", lampiranGambar: "Lampiran gambar",
+    cetak: "Cetak / Simpan PDF", tutup: "Tutup",
+    dialog: "Di dialog cetak pilih kertas", pdf: "; untuk PDF pilih “Simpan sebagai PDF”.",
+  },
+  en: {
+    kosong1: "Nothing to print. Open the Price List page → step 5. Terms & Conditions,",
+    kosong2: "then click", cetakA4: "Print A4",
+    judul: "Print Terms & Conditions (A4)",
+    orientasi: "Orientation", lanskap: "Landscape", potret: "Portrait",
+    kolomCb: "Payment scheme columns",
+    ukuranHuruf: "Font size", perkecil: "Smaller font", perbesar: "Larger font",
+    lebih: "More than 1 page", muat: "Fits 1 A4 page", muatkan: "Fit to 1 page",
+    lampiran: "Attachments", satuHalaman: "1 page",
+    satuHalamanInfo: "Attachment images continue below the T&C; on the same page if they fit",
+    dipisah: "Separate", dipisahInfo: "Attachment images are printed on a page of their own",
+    pilihIsi: "Choose what to print", disembunyikan: (n: number) => ` (${n} hidden)`,
+    pilihInfo: "Unchecked items are only hidden from the printout; the price list itself is unchanged.",
+    centangSemua: "Check all", kosongkanSemua: "Clear all",
+    caraBayar: "Payment schemes", cbKe: (i: number) => `(payment scheme ${i})`,
+    catatan: "Notes", rekening: "Bank accounts", lampiranGambar: "Attachment images",
+    cetak: "Print / Save PDF", tutup: "Close",
+    dialog: "In the print dialog choose", pdf: " paper; for PDF choose “Save as PDF”.",
+  },
+};
 
 const KUNCI_CETAK_TNC = "cetak-tnc";
 
@@ -39,6 +81,7 @@ const TINGGI = { lanskap: (210 - 20) * 96 / 25.4, potret: (297 - 20) * 96 / 25.4
 const LEBAR = { lanskap: (297 - 20) * 96 / 25.4, potret: (210 - 20) * 96 / 25.4 };
 
 export default function CetakTnc() {
+  const kt = useKata(KATA);
   const [isi, setIsi] = useState<Isi | null>(null);
   const [arah, setArah] = useState<"lanskap" | "potret">("lanskap");
   const [huruf, setHuruf] = useState(8);
@@ -104,8 +147,8 @@ export default function CetakTnc() {
   if (!isi) {
     return (
       <main className="cetak-tnc-kosong">
-        <p>Tidak ada isi untuk dicetak. Buka halaman Pricelist → langkah 5. Terms &amp; Conditions,
-          lalu klik <b>Cetak A4</b>.</p>
+        <p>{kt.kosong1}{" "}
+          {kt.kosong2} <b>{kt.cetakA4}</b>.</p>
       </main>
     );
   }
@@ -140,71 +183,69 @@ export default function CetakTnc() {
       `}</style>
 
       <div className="cetak-alat">
-        <b>Cetak Terms &amp; Conditions (A4)</b>
-        <label>Orientasi
+        <b>{kt.judul}</b>
+        <label>{kt.orientasi}
           <select value={arah} onChange={(e) => setArah(e.target.value as typeof arah)}>
-            <option value="lanskap">Lanskap (mendatar)</option>
-            <option value="potret">Potret (tegak)</option>
+            <option value="lanskap">{kt.lanskap}</option>
+            <option value="potret">{kt.potret}</option>
           </select>
         </label>
-        <label>Kolom cara bayar
+        <label>{kt.kolomCb}
           <select value={kolom} onChange={(e) => setKolom(Number(e.target.value))}>
             <option value={1}>1</option><option value={2}>2</option><option value={3}>3</option>
           </select>
         </label>
-        <span className="cetak-huruf">Ukuran huruf
-          <button onClick={() => setHuruf((h) => Math.max(6, +(h - 0.5).toFixed(1)))} aria-label="Perkecil huruf">A−</button>
+        <span className="cetak-huruf">{kt.ukuranHuruf}
+          <button onClick={() => setHuruf((h) => Math.max(6, +(h - 0.5).toFixed(1)))} aria-label={kt.perkecil}>A−</button>
           <b>{huruf.toLocaleString("id-ID")} pt</b>
-          <button onClick={() => setHuruf((h) => Math.min(14, +(h + 0.5).toFixed(1)))} aria-label="Perbesar huruf">A+</button>
+          <button onClick={() => setHuruf((h) => Math.min(14, +(h + 0.5).toFixed(1)))} aria-label={kt.perbesar}>A+</button>
         </span>
         <span className={`pill ${lebih ? "warn" : "ok"}`}>
-          {lebih ? "Lebih dari 1 halaman" : "Muat 1 halaman A4"}</span>
-        {lebih && <button onClick={() => setMuatkan(true)}>Muatkan 1 halaman</button>}
+          {lebih ? kt.lebih : kt.muat}</span>
+        {lebih && <button onClick={() => setMuatkan(true)}>{kt.muatkan}</button>}
         {lampiran.length > 0 && (
-          <span className="cetak-huruf">Lampiran
+          <span className="cetak-huruf">{kt.lampiran}
             <button className={!pisah ? "pri" : undefined} onClick={() => setPisah(false)}
-                    title="Gambar lampiran menyambung di bawah T&C; naik ke halaman yang sama bila muat">
-              1 halaman</button>
+                    title={kt.satuHalamanInfo}>
+              {kt.satuHalaman}</button>
             <button className={pisah ? "pri" : undefined} onClick={() => setPisah(true)}
-                    title="Gambar lampiran dicetak di halaman tersendiri">Dipisah</button>
+                    title={kt.dipisahInfo}>{kt.dipisah}</button>
           </span>
         )}
         <details className="cetak-pilih">
-          <summary>Pilih isi yang dicetak{jumlahSembunyi ? ` (${jumlahSembunyi} disembunyikan)` : ""}</summary>
+          <summary>{kt.pilihIsi}{jumlahSembunyi ? kt.disembunyikan(jumlahSembunyi) : ""}</summary>
           <div className="cetak-pilih-isi">
-            <p className="hint">Yang tidak dicentang hanya disembunyikan dari cetakan; isi Pricelist
-              tidak berubah.</p>
+            <p className="hint">{kt.pilihInfo}</p>
             <div className="row" style={{ margin: "0 0 6px" }}>
-              <button className="kecil" onClick={() => semua(true)}>Centang semua</button>
-              <button className="kecil" onClick={() => semua(false)}>Kosongkan semua</button>
+              <button className="kecil" onClick={() => semua(true)}>{kt.centangSemua}</button>
+              <button className="kecil" onClick={() => semua(false)}>{kt.kosongkanSemua}</button>
             </div>
-            <b>Cara bayar</b>
+            <b>{kt.caraBayar}</b>
             {semuaTnc.caraBayar.map((c, i) => (
               <label key={`c${i}`}><input type="checkbox" checked={!sembunyi.caraBayar.includes(c.judul)}
-                onChange={(e) => ganti("caraBayar", c.judul, e.target.checked)} /> {tanpaGaya(c.judul) || `(cara bayar ${i + 1})`}</label>
+                onChange={(e) => ganti("caraBayar", c.judul, e.target.checked)} /> {tanpaGaya(c.judul) || kt.cbKe(i + 1)}</label>
             ))}
-            {semuaTnc.catatan.length > 0 && <b>Catatan</b>}
+            {semuaTnc.catatan.length > 0 && <b>{kt.catatan}</b>}
             {semuaTnc.catatan.map((c, i) => (
               <label key={`n${i}`}><input type="checkbox" checked={!sembunyi.catatan.includes(kunciCatatan(c))}
                 onChange={(e) => ganti("catatan", kunciCatatan(c), e.target.checked)} />
                 {" "}{i + 1}. {tanpaGaya(c.split("\n")[0]).slice(0, 70)}{c.length > 70 ? "…" : ""}</label>
             ))}
-            {semuaTnc.rekening.length > 0 && <b>Rekening</b>}
+            {semuaTnc.rekening.length > 0 && <b>{kt.rekening}</b>}
             {semuaTnc.rekening.map((r, i) => (
               <label key={`r${i}`}><input type="checkbox" checked={!sembunyi.rekening.includes(kunciRek(r))}
                 onChange={(e) => ganti("rekening", kunciRek(r), e.target.checked)} /> {r.bank} {r.noRek}</label>
             ))}
-            {lampiran.length > 0 && <b>Lampiran gambar</b>}
+            {lampiran.length > 0 && <b>{kt.lampiranGambar}</b>}
             {lampiran.map((g, i) => (
               <label key={`g${g.id}`}><input type="checkbox" checked={!sembunyi.gambar.includes(g.id)}
                 onChange={(e) => ganti("gambar", g.id, e.target.checked)} /> {i + 1}. {g.nama}</label>
             ))}
           </div>
         </details>
-        <button className="pri" onClick={() => print()}>Cetak / Simpan PDF</button>
-        <button onClick={() => close()}>Tutup</button>
-        <span className="hint">Di dialog cetak pilih kertas <b>A4</b>; untuk PDF pilih
-          “Simpan sebagai PDF”.</span>
+        <button className="pri" onClick={() => print()}>{kt.cetak}</button>
+        <button onClick={() => close()}>{kt.tutup}</button>
+        <span className="hint">{kt.dialog} <b>A4</b>{kt.pdf}</span>
       </div>
 
       <div className="cetak-latar">
