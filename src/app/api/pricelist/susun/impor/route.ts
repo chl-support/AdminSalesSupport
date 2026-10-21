@@ -4,6 +4,10 @@ import { imporSusun, imporUnitData } from "@/lib/susun-pricelist-xlsx";
 
 const BATAS = 5 * 1024 * 1024;
 
+// Berkas Excel besar (mis. Unit Data BIO DISTRICT, 2,5 MB) butuh beberapa
+// detik untuk dibaca; batas waktu bawaan dapat terlewati.
+export const maxDuration = 60;
+
 /**
  * Baca berkas Excel PL (lembar Data (IRR), Unit Data, Data Pricelist,
  * Pricelist, T&C) menjadi isian kelima langkah. Tidak menyimpan apa pun:
