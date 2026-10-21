@@ -916,8 +916,13 @@ const TEKS_UNIT = [
   ["subTipe", "Sub-Tipe", 110],
 ] as const;
 
-export function LangkahUnit({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
+export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah & { slug?: string | null }) {
   const kt = useKata(KATA);
+  // BIO DISTRICT mengikuti berkas Unit Data-nya: kolom Tahap (Phase) sesudah
+  // GFA (dasar) Termasuk PPN, dan tanpa kolom Arah Hadap kedua (sesudah Tipe).
+  // Proyek lain tetap seperti semula.
+  const tahapKanan = slug === "bio-district";
+  const teksUnit = tahapKanan ? TEKS_UNIT.filter(([k]) => k !== "phase" && k !== "view2") : TEKS_UNIT;
   const ro = !bolehUbah;
   const ppn = tarifPpn(data), lp = labelPpn(ppn);
   const fk = faktorTampil(data.unit);
@@ -1123,11 +1128,12 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
                 </th>
               )}
               <th className="no-unit">#</th>
-              {TEKS_UNIT.map(([k]) => <th key={k}>{kt.teksUnit[k]}</th>)}
+              {teksUnit.map(([k]) => <th key={k}>{kt.teksUnit[k]}</th>)}
               <th>{kt.tanahM2}</th>
               <th>{kt.hargaTanah}<br />{kt.excl(lp)}</th><th className="incl">{kt.hargaTanah}<br />{kt.incl(lp)}</th>
               <th>{kt.gfaM2}</th>
               <th>{kt.hargaBangunan}<br />{kt.excl(lp)}</th><th className="incl">{kt.hargaBangunan}<br />{kt.incl(lp)}</th>
+              {tahapKanan && <th>{kt.teksUnit.phase}</th>}
               <th>{kt.kenaikan}</th>
               {fk.map(([, l]) => <th key={l}>{l}</th>)}
               <th>{kt.faktorPlus}</th><th>{kt.special}</th><th>{kt.showUnit}</th>
@@ -1158,7 +1164,7 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
                   </td>
                 )}
                 <td className="n no-unit">{i + 1}</td>
-                {TEKS_UNIT.map(([k, , w]) => (
+                {teksUnit.map(([k, , w]) => (
                   <td key={k}><IsianTeks id={k === "kode" ? `unit-kode-${i}` : undefined}
                                          nilai={u[k] ?? ""} lebar={w} disabled={ro}
                                          ubah={(v) => ubahUnit(i, (x) => ({ ...x, [k]: v }))} /></td>
@@ -1169,6 +1175,10 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
                 <td><Isian nilai={u.lb} lebar={60} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, lb: n }))} /></td>
                 <td><Isian jenis="rp" nilai={u.hargaBangunan} lebar={95} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, hargaBangunan: n }))} /></td>
                 <td className="n">{rpPolos(b?.hasilUnit.hargaBangunanPpn)}</td>
+                {tahapKanan && (
+                  <td><IsianTeks nilai={u.phase ?? ""} lebar={70} disabled={ro}
+                                 ubah={(v) => ubahUnit(i, (x) => ({ ...x, phase: v }))} /></td>
+                )}
                 <td><Isian jenis="persen" kosongNol desimal={1} nilai={u.kenaikan} lebar={55} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, kenaikan: n }))} /></td>
                 {fk.map(([k]) => (
                   <td key={k}><Isian jenis="persen" kosongNol nilai={u.faktor[k] ?? 0} lebar={55} disabled={ro}
@@ -1188,9 +1198,9 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
             <tr className="total-unit">
               <td className="aksi-unit">
                 {kt.totalUnit(tampil.length, q ? data.unit.length : undefined)}</td>
-              <td colSpan={(bolehUbah ? 0 : -1) + 1 + TEKS_UNIT.length} />
+              <td colSpan={(bolehUbah ? 0 : -1) + 1 + teksUnit.length} />
               <td className="n">{luas(tampil.reduce((a, { u }) => a + u.lt, 0), 1)}</td><td /><td />
-              <td className="n">{luas(tampil.reduce((a, { u }) => a + u.lb, 0))}</td><td /><td /><td />
+              <td className="n">{luas(tampil.reduce((a, { u }) => a + u.lb, 0))}</td><td /><td />{tahapKanan && <td />}<td />
               {fk.map(([k]) => <td key={k} />)}
               <td />
               <td /><td />
