@@ -114,6 +114,7 @@ const KATA = {
     } as Record<string, string>,
     tanahM2: "Tanah (m²)", hargaTanah: "Harga Tanah (dasar)",
     floor: "Floor (m²)", pembulatan: "(Roundup)", biayaAjb: "Biaya AJB + BPHTB",
+    pembagi: "Pembagi Harga Dasar (Termasuk PPN)",
     excl: (lp: string) => `(Belum termasuk PPN ${lp})`,
     incl: (lp: string) => `(Termasuk PPN ${lp})`,
     gfaM2: "GFA (m²)", hargaBangunan: "GFA (dasar)",
@@ -286,6 +287,7 @@ const KATA = {
     } as Record<string, string>,
     tanahM2: "Land (m²)", hargaTanah: "Land Price (base)",
     floor: "Floor (m²)", pembulatan: "(Roundup)", biayaAjb: "AJB + BPHTB Fee",
+    pembagi: "Base Price Divisor (Incl. VAT)",
     excl: (lp: string) => `(Excl PPN. ${lp})`,
     incl: (lp: string) => `(Incl PPN. ${lp})`,
     gfaM2: "GFA (m²)", hargaBangunan: "GFA (base)",
@@ -941,6 +943,10 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
   // Kolom Khusus (Rp) tidak ada di berkas BIO; tetap tampil bila ada isinya.
   const kolomKhusus = !bio || data.unit.some((u) => u.special);
   const kolomPlus = !bio || data.unit.some((u) => u.faktorTambah);
+  // BIO: harga tampil dalam rupiah bulat seperti Excel-nya; nilainya tetap utuh.
+  const rpHarga = (n: number) => rp(bio && Number.isFinite(n) ? Math.round(n) : n);
+  // Pembagi Harga Dasar Termasuk PPN (Excel BIO: ROUNDUP(…)/1,005); tampil bila dipakai.
+  const kolomPembagi = bio && data.unit.some((u) => u.pembagiIncl);
   const ratusRibu = (n: number | undefined) => n == null ? undefined : Math.ceil(n / 1e5 - 1e-9) * 1e5;
   const urutanHarga = (bio
     ? [["base", "excl"], ["factored", "excl"], ["base", "incl"], ["factored", "incl"]]
@@ -1170,6 +1176,7 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
               {kolomPlus && <th>{kt.faktorPlus}</th>}
               {bio && <><th>{kt.biayaAjb}</th><th>Special %</th></>}
               {kolomKhusus && <th>{kt.special}</th>}<th>{kt.showUnit}</th>
+              {kolomPembagi && <th>{kt.pembagi}</th>}
               {urutanHarga.map(([h, j]) => (
                 <th key={h + j} className={j === "incl" ? "incl" : undefined}>
                   {h === "base" ? kt.hargaDasar : kt.hargaFaktor}<br />{j === "incl" ? kt.incl(lp) : kt.excl(lp)}</th>
@@ -1229,8 +1236,12 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
                 </>}
                 {kolomKhusus && <td><Isian jenis="rp" kosongNol nilai={u.special} lebar={95} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, special: n }))} /></td>}
                 <td><Isian jenis="rp" kosongNol nilai={u.showUnit} lebar={95} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, showUnit: n }))} /></td>
+                {kolomPembagi && (
+                  <td><Isian kosongNol nilai={u.pembagiIncl ?? 0} lebar={60} disabled={ro}
+                             ubah={(n) => ubahUnit(i, (x) => ({ ...x, pembagiIncl: n > 0 && n !== 1 ? n : undefined }))} /></td>
+                )}
                 {urutanHarga.map(([h, j]) => {
-                  const n = rp(hargaUnit(b?.hasilUnit, h)[j]);
+                  const n = rpHarga(hargaUnit(b?.hasilUnit, h)[j]);
                   return <td key={h + j} className="n">{h === "factored" ? <b>{n}</b> : n}</td>;
                 })}
               </tr>
@@ -1246,9 +1257,9 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
               <td className="n">{luas(tampil.reduce((a, { u }) => a + u.lb, 0))}</td><td /><td />{bio && <><td /><td /></>}<td />
               {fk.map(([k]) => <td key={k} />)}
               {kolomPlus && <td />}{bio && <><td /><td /></>}
-              {kolomKhusus && <td />}<td />
+              {kolomKhusus && <td />}<td />{kolomPembagi && <td />}
               {urutanHarga.map(([h, j]) => (
-                <td key={h + j} className="n">{rp(tampil.reduce((a, { b }) => a + (hargaUnit(b?.hasilUnit, h)[j] || 0), 0))}</td>
+                <td key={h + j} className="n">{rpHarga(tampil.reduce((a, { b }) => a + (hargaUnit(b?.hasilUnit, h)[j] || 0), 0))}</td>
               ))}
             </tr>
           </tfoot></table>

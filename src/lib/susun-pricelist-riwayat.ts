@@ -134,6 +134,7 @@ export function bedaSusun(lama: SusunPricelist | null, baru: SusunPricelist): st
     ["Show Unit", (u) => angka(u.showUnit, 0)],
     ["Floor", (u) => angka(u.floor ?? 0)], ["Biaya AJB + BPHTB", (u) => persen(u.biayaAjb ?? 0)],
     ["Special %", (u) => persen(u.specialPersen ?? 0)],
+    ["Pembagi Harga Dasar (Termasuk PPN)", (u) => angka(u.pembagiIncl ?? 1, 4)],
   ];
   for (const b of baru.unit) {
     const a = uA.get(b.kode);
