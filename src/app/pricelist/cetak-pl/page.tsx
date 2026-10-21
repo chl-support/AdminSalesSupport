@@ -23,7 +23,7 @@ const KATA = {
     kosong2: "klik", cetakA4: "Cetak A4",
     judul: "Cetak Harga (A4)",
     orientasi: "Orientasi", lanskap: "Lanskap (mendatar)", potret: "Potret (tegak)",
-    pajakDpp: "DPP", pajakDtp: "Nilai Bebas PPN DTP",
+    pajakHarga: "Harga Incld. PPN", pajakDpp: "Harga Excld. PPN", pajakDtp: "PPN DTP",
     tinggiBaris: "Tinggi baris", rapatkan: "Rapatkan baris", renggangkan: "Renggangkan baris",
     ukuranHuruf: "Ukuran huruf", perkecil: "Perkecil huruf", perbesar: "Perbesar huruf",
     ukuranCetak: "Ukuran cetak", pasLebar: "Pas lebar kertas (ke bawah boleh lebih)",
@@ -39,7 +39,8 @@ const KATA = {
     cetak: "Cetak / Simpan PDF", tutup: "Tutup",
     ringkas: (u: number, c: number) => `${u} unit · ${c} cara bayar. Di dialog cetak pilih kertas`,
     pdf: "; untuk PDF pilih “Simpan sebagai PDF”.",
-    no: "No", unitNo: "No Unit", area: "Luas (m²)", harga: "Harga", dpp: "DPP", dtp: "Bebas PPN DTP",
+    no: "No", unitNo: "No Unit", area: "Luas (m²)",
+    harga: "Harga Incld. PPN", dpp: "Harga Excld. PPN", dtp: "PPN DTP",
     kol: { alamat: "Alamat", phase: "Tahap", ukuran: "Ukuran", view: "Arah Hadap", tipe: "Tipe",
            subTipe: "Sub-Tipe", lt: "Tanah", lb: "Bangunan" } as Record<string, string>,
   },
@@ -48,7 +49,7 @@ const KATA = {
     kosong2: "click", cetakA4: "Print A4",
     judul: "Print Price List (A4)",
     orientasi: "Orientation", lanskap: "Landscape", potret: "Portrait",
-    pajakDpp: "DPP", pajakDtp: "VAT DTP free",
+    pajakHarga: "Price Incl. VAT", pajakDpp: "Price Excl. VAT", pajakDtp: "VAT DTP",
     tinggiBaris: "Row height", rapatkan: "Tighter rows", renggangkan: "Looser rows",
     ukuranHuruf: "Font size", perkecil: "Smaller font", perbesar: "Larger font",
     ukuranCetak: "Print size", pasLebar: "Fit paper width (may run onto more pages)",
@@ -64,7 +65,8 @@ const KATA = {
     cetak: "Print / Save PDF", tutup: "Close",
     ringkas: (u: number, c: number) => `${u} units · ${c} payment schemes. In the print dialog choose`,
     pdf: " paper; for PDF choose “Save as PDF”.",
-    no: "No", unitNo: "Unit No", area: "Area (m²)", harga: "Price", dpp: "DPP", dtp: "VAT DTP free",
+    no: "No", unitNo: "Unit No", area: "Area (m²)",
+    harga: "Price Incl. VAT", dpp: "Price Excl. VAT", dtp: "VAT DTP",
     kol: { alamat: "Address", phase: "Phase", ukuran: "Size", view: "View", tipe: "Type",
            subTipe: "Sub-type", lt: "Land", lb: "Build" } as Record<string, string>,
   },
@@ -77,14 +79,15 @@ type Isi = {
   kolom: string[]; unit: UnitHarga[];
 };
 /**
- * `dpp` dan `dtp`: kolom DPP dan kolom Nilai Free PPN DTP disembunyikan
+ * `hrg`, `dpp`, dan `dtp`: kolom Harga Incld. PPN, Harga Excld. PPN, dan PPN
+ * DTP disembunyikan
  * sendiri-sendiri. `pajak` adalah pilihan lama (keduanya sekaligus) yang
  * masih tersimpan di peramban sebagian orang — dipakai sebagai bawaan bila
  * dua kunci baru itu belum ada.
  */
 type Pilihan = {
   kolom: string[]; alamat: string[]; pajak: boolean;
-  dpp?: boolean; dtp?: boolean; info?: string[];
+  hrg?: boolean; dpp?: boolean; dtp?: boolean; info?: string[];
 };
 
 /**
@@ -148,10 +151,10 @@ export default function CetakPricelist() {
     try { localStorage.setItem(kunciPilihan, JSON.stringify(n)); } catch { /* abaikan */ }
   };
   /**
-   * Centang kolom DPP atau Nilai Free PPN DTP. `pajak` ikut ditulis supaya
+   * Centang salah satu kolom harga. `pajak` ikut ditulis supaya
    * pilihan ini tetap terbaca benar oleh versi layar yang lama.
    */
-  const gantiPajak = (jenis: "dpp" | "dtp", tampil: boolean) => {
+  const gantiPajak = (jenis: "hrg" | "dpp" | "dtp", tampil: boolean) => {
     const n = { ...sembunyi, [jenis]: !tampil };
     simpanPilihan({ ...n, pajak: (n.dpp ?? n.pajak) && (n.dtp ?? n.pajak) });
   };
@@ -202,10 +205,21 @@ export default function CetakPricelist() {
     );
   }
 
+  const hrg = !sembunyi.hrg;
   const dpp = !(sembunyi.dpp ?? sembunyi.pajak);
   const dtp = !(sembunyi.dtp ?? sembunyi.pajak);
-  /** Banyaknya kolom pajak di bawah tiap cara bayar (0, 1, atau 2). */
-  const nPajak = (dpp ? 1 : 0) + (dtp ? 1 : 0);
+  /**
+   * Kolom angka di bawah tiap cara bayar, dalam urutan tampilnya. Kosong
+   * berarti cara bayarnya tidak dicetak sama sekali — yang tersisa hanya
+   * keterangan unitnya.
+   */
+  const kolPajak: ("harga" | "dpp" | "dtp")[] = [
+    ...(hrg ? ["harga" as const] : []),
+    ...(dpp ? ["dpp" as const] : []),
+    ...(dtp ? ["dtp" as const] : [])];
+  const judulPajak = { harga: kt.harga, dpp: kt.dpp, dtp: kt.dtp };
+  const angkaPajak = (u: UnitHarga, k: string, jenis: "harga" | "dpp" | "dtp") =>
+    jenis === "harga" ? angka(u.harga[k]) : angka(u.pajak?.[k]?.[jenis]);
   const kolom = isi.kolom.filter((k) => !sembunyi.kolom.includes(k));
   const semuaAlamat = [...new Set(isi.unit.map((u) => u.alamat || "(tanpa address)"))];
   const unit = isi.unit.filter((u) => !sembunyi.alamat.includes(u.alamat || "(tanpa address)"));
@@ -234,6 +248,9 @@ export default function CetakPricelist() {
             <option value="potret">{kt.potret}</option>
           </select>
         </label>
+        <label><input type="checkbox" checked={hrg}
+                      onChange={(e) => gantiPajak("hrg", e.target.checked)} />
+          {kt.pajakHarga}</label>
         <label><input type="checkbox" checked={dpp}
                       onChange={(e) => gantiPajak("dpp", e.target.checked)} />
           {kt.pajakDpp}</label>
@@ -320,18 +337,20 @@ export default function CetakPricelist() {
                   <th rowSpan={2}>{kt.unitNo}</th>
                   {info.filter(([k]) => k !== "alamat").map(([k]) => <th key={k} rowSpan={2}>{kt.kol[k]}</th>)}
                   {area.length > 0 && <th colSpan={area.length}>{kt.area}</th>}
-                  {/* Judul cara bayar: kolom sama lebar, judul panjang dilipat. Tanpa
-                      DPP/DTP judulnya dua baris tinggi (tidak ada baris "Harga"). */}
-                  {kolom.map((k) => nPajak > 0
-                    ? <th key={k} colSpan={1 + nPajak} className="cb">{k}</th>
-                    : <th key={k} rowSpan={2} className="cb harga">{k}</th>)}
+                  {/* Judul cara bayar: kolom sama lebar, judul panjang dilipat.
+                      Dengan satu kolom angka saja judulnya dua baris tinggi
+                      (tidak perlu baris judul kedua). */}
+                  {kolom.map((k) => kolPajak.length > 1
+                    ? <th key={k} colSpan={kolPajak.length} className="cb">{k}</th>
+                    : kolPajak.length === 1
+                      ? <th key={k} rowSpan={2} className="cb harga">{k}</th>
+                      : null)}
                 </tr>
                 <tr>
                   {area.map(([k]) => <th key={k}>{kt.kol[k]}</th>)}
-                  {kolom.map((k) => nPajak > 0
-                    ? [<th key={`${k}h`} className="harga">{kt.harga}</th>,
-                       ...(dpp ? [<th key={`${k}d`} className="harga">{kt.dpp}</th>] : []),
-                       ...(dtp ? [<th key={`${k}t`} className="harga">{kt.dtp}</th>] : [])]
+                  {kolom.map((k) => kolPajak.length > 1
+                    ? kolPajak.map((j) =>
+                        <th key={`${k}-${j}`} className="harga">{judulPajak[j]}</th>)
                     : null)}
                 </tr>
               </thead>
@@ -345,11 +364,10 @@ export default function CetakPricelist() {
                       <td key={k} className={c || undefined}>{String(u[k] ?? "")}</td>)}
                     {area.map(([k]) => <td key={k} className="n">
                       {k === "lt" ? satuDesimal(u.lt) : angka(u[k] as number | null, 2)}</td>)}
-                    {kolom.map((k) => nPajak > 0
-                      ? [<td key={`${k}h`} className="n h harga">{angka(u.harga[k])}</td>,
-                         ...(dpp ? [<td key={`${k}d`} className="n harga">{angka(u.pajak?.[k]?.dpp)}</td>] : []),
-                         ...(dtp ? [<td key={`${k}t`} className="n harga">{angka(u.pajak?.[k]?.dtp)}</td>] : [])]
-                      : <td key={k} className="n h harga">{angka(u.harga[k])}</td>)}
+                    {kolom.map((k) => kolPajak.map((j) =>
+                      <td key={`${k}-${j}`}
+                          className={j === "harga" ? "n h harga" : "n harga"}>
+                        {angkaPajak(u, k, j)}</td>))}
                   </tr>
                 ))}
               </tbody>
