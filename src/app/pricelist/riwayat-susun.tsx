@@ -12,10 +12,10 @@ import { useKata } from "../bahasa";
 
 const KATA = {
   id: {
-    tglWaktu: "Tanggal & waktu", user: "User", aksi: "Aksi", diubah: "Yang diubah",
+    tglWaktu: "Tanggal & waktu", user: "Pengguna", aksi: "Aksi", diubah: "Yang diubah",
     lihatSemua: (n: number) => `Lihat semua (${n})`,
-    log: "Log Aktivitas Sistem",
-    kosong: "Tidak ada perubahan yang belum masuk pricelist tersimpan. Riwayat tiap pricelist ada di folder Master Pricelist.",
+    log: "Catatan Aktivitas Sistem",
+    kosong: "Tidak ada perubahan yang belum masuk harga tersimpan. Riwayat tiap harga ada di folder Master Harga.",
   },
   en: {
     tglWaktu: "Date & time", user: "User", aksi: "Action", diubah: "Changes",

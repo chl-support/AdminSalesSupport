@@ -27,18 +27,18 @@ import { TeksBergaya, tanpaGaya } from "../gaya-teks";
 
 const KATA = {
   id: {
-    kosong1: "Tidak ada isi untuk dicetak. Buka halaman Pricelist → langkah 5. Terms & Conditions,",
+    kosong1: "Tidak ada isi untuk dicetak. Buka halaman Harga → langkah 5. Syarat dan Ketentuan,",
     kosong2: "lalu klik", cetakA4: "Cetak A4",
-    judul: "Cetak Terms & Conditions (A4)",
+    judul: "Cetak Syarat dan Ketentuan (A4)",
     orientasi: "Orientasi", lanskap: "Lanskap (mendatar)", potret: "Potret (tegak)",
     kolomCb: "Kolom cara bayar",
     ukuranHuruf: "Ukuran huruf", perkecil: "Perkecil huruf", perbesar: "Perbesar huruf",
     lebih: "Lebih dari 1 halaman", muat: "Muat 1 halaman A4", muatkan: "Muatkan 1 halaman",
     lampiran: "Lampiran", satuHalaman: "1 halaman",
-    satuHalamanInfo: "Gambar lampiran menyambung di bawah T&C; naik ke halaman yang sama bila muat",
+    satuHalamanInfo: "Gambar lampiran menyambung di bawah S&K; naik ke halaman yang sama bila muat",
     dipisah: "Dipisah", dipisahInfo: "Gambar lampiran dicetak di halaman tersendiri",
     pilihIsi: "Pilih isi yang dicetak", disembunyikan: (n: number) => ` (${n} disembunyikan)`,
-    pilihInfo: "Yang tidak dicentang hanya disembunyikan dari cetakan; isi Pricelist tidak berubah.",
+    pilihInfo: "Yang tidak dicentang hanya disembunyikan dari cetakan; isi Harga tidak berubah.",
     centangSemua: "Centang semua", kosongkanSemua: "Kosongkan semua",
     caraBayar: "Cara bayar", cbKe: (i: number) => `(cara bayar ${i})`,
     catatan: "Catatan", rekening: "Rekening", lampiranGambar: "Lampiran gambar",
