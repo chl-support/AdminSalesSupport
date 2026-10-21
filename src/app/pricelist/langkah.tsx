@@ -454,6 +454,32 @@ export function Isian({ nilai, ubah, jenis = "angka", lebar = 90, disabled, id, 
   );
 }
 
+/**
+ * Kotak nama cara bayar / kolom yang dirujuk kolom lain. Namanya baru
+ * diganti saat kotak ditinggalkan atau Enter ditekan — bukan tiap ketikan —
+ * dan ditolak bila kosong atau sama dengan nama lain. Mengganti per ketikan
+ * dapat melewati nama yang sama dengan kolom lain (mis. saat isinya
+ * dihapus), sehingga rujukan kedua kolom tergabung dan tidak dapat dipisah
+ * lagi (kolom Harga merujuk kolom yang salah).
+ */
+function IsianNama({ nilai, ubah, lain, lebar = 110, disabled, id }: {
+  nilai: string; ubah: (s: string) => void; lain: string[]; lebar?: number; disabled?: boolean; id?: string;
+}) {
+  const [teks, setTeks] = useState<string | null>(null);
+  const t = (teks ?? nilai).trim();
+  const salah = teks != null && (!t || lain.includes(t));
+  const simpan = () => {
+    if (teks == null) return;
+    if (!salah && t !== nilai) ubah(t);
+    setTeks(null);
+  };
+  return <input id={id} value={teks ?? nilai} disabled={disabled} aria-invalid={salah || undefined}
+                title={salah ? (t ? "Nama ini sudah dipakai" : "Nama tidak boleh kosong") : undefined}
+                style={{ width: lebarIsi(teks ?? nilai, lebar) }}
+                onChange={(e) => setTeks(e.target.value)} onBlur={simpan}
+                onKeyDown={(e) => { if (e.key === "Enter") simpan(); if (e.key === "Escape") setTeks(null); }} />;
+}
+
 function IsianTeks({ nilai, ubah, lebar = 110, disabled, id }: {
   nilai: string; ubah: (s: string) => void; lebar?: number; disabled?: boolean; id?: string;
 }) {
@@ -773,7 +799,8 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah, baru }: PropsLangkah 
             {irr.skema.map((s, i) => (
               <th key={i}>
                 <span className="kepala-cb">
-                  <IsianTeks id={`irr-nama-${i}`} nilai={s.nama} disabled={ro} lebar={120}
+                  <IsianNama id={`irr-nama-${i}`} nilai={s.nama} disabled={ro} lebar={120}
+                             lain={irr.skema.filter((_, j) => j !== i).map((x) => x.nama)}
                              ubah={(v) => ganti(i, v)} />
                   {/* Hapus langsung dari judul kolom; konfirmasi di baris bawah tabel. */}
                   {bolehUbah && irr.skema.length > 1 && !s.acuan && (
@@ -1513,7 +1540,8 @@ export function LangkahDataPl({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
               {kt.thMetode}</th>{!ro && <th />}</tr>
           {kolom.map((k, i) => (
             <tr key={i}>
-              <td><IsianTeks nilai={k.nama} lebar={190} disabled={ro}
+              <td><IsianNama nilai={k.nama} lebar={190} disabled={ro}
+                             lain={kolom.filter((_, j) => j !== i).map((x) => x.nama)}
                              ubah={(v) => ubah((d) => {
                                const lama = d.dataPricelist.kolom[i].nama;
                                return { ...d,
