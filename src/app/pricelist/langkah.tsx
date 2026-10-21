@@ -1130,8 +1130,8 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
               <th>{kt.kenaikan}</th>
               {FAKTOR.map(([, l]) => <th key={l}>{l}</th>)}
               <th>{kt.faktorPlus}</th><th>{kt.special}</th><th>{kt.showUnit}</th>
-              <th>{kt.hargaDasar}<br />{kt.excl(lp)}</th><th>{kt.hargaFaktor}<br />{kt.excl(lp)}</th>
-              <th className="incl">{kt.hargaDasar}<br />{kt.incl(lp)}</th><th className="incl">{kt.hargaFaktor}<br />{kt.incl(lp)}</th>
+              <th>{kt.hargaDasar}<br />{kt.excl(lp)}</th><th className="incl">{kt.hargaDasar}<br />{kt.incl(lp)}</th>
+              <th>{kt.hargaFaktor}<br />{kt.excl(lp)}</th><th className="incl">{kt.hargaFaktor}<br />{kt.incl(lp)}</th>
             </tr>
           </thead><tbody>
             {tampil.map(({ u, i, b }) => (
@@ -1177,8 +1177,8 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
                 <td><Isian jenis="rp" kosongNol nilai={u.special} lebar={95} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, special: n }))} /></td>
                 <td><Isian jenis="rp" kosongNol nilai={u.showUnit} lebar={95} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, showUnit: n }))} /></td>
                 <td className="n">{rp(ppnDua(b?.hasilUnit.base ?? NaN).excl)}</td>
-                <td className="n"><b>{rp(ppnDua(b?.hasilUnit.factored ?? NaN).excl)}</b></td>
                 <td className="n">{rp(ppnDua(b?.hasilUnit.base ?? NaN).incl)}</td>
+                <td className="n"><b>{rp(ppnDua(b?.hasilUnit.factored ?? NaN).excl)}</b></td>
                 <td className="n"><b>{rp(ppnDua(b?.hasilUnit.factored ?? NaN).incl)}</b></td>
               </tr>
             ))}
@@ -1193,10 +1193,12 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
               {FAKTOR.map(([k]) => <td key={k} />)}
               <td />
               <td /><td />
-              {(["excl", "incl"] as const).map((j) => (
-                <Fragment key={j}>
-                  <td className="n">{rp(ppnDua(tampil.reduce((a, { b }) => a + (b?.hasilUnit.base ?? 0), 0))[j])}</td>
-                  <td className="n">{rp(ppnDua(tampil.reduce((a, { b }) => a + (b?.hasilUnit.factored ?? 0), 0))[j])}</td>
+              {/* Urutan: Harga Dasar (excl, incl), lalu Harga Setelah Faktor (excl, incl). */}
+              {(["base", "factored"] as const).map((h) => (
+                <Fragment key={h}>
+                  {(["excl", "incl"] as const).map((j) => (
+                    <td key={j} className="n">{rp(ppnDua(tampil.reduce((a, { b }) => a + (b?.hasilUnit[h] ?? 0), 0))[j])}</td>
+                  ))}
                 </Fragment>
               ))}
             </tr>
