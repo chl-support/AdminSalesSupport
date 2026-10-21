@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Cetak Pricelist (langkah 4) pada kertas A4, seperti lembar Pricelist
+ * Cetak Pricelist (langkah 4a) pada kertas A4, seperti lembar Pricelist
  * berkas PL Excel: logo, judul, tanggal, lalu tabel unit dengan harga tiap
  * cara bayar (dan DPP & Nilai Free PPN DTP bila dipilih).
  *
@@ -124,7 +124,7 @@ export default function CetakPricelist() {
   if (!isi) {
     return (
       <main className="cetak-tnc-kosong">
-        <p>Tidak ada isi untuk dicetak. Buka halaman Pricelist → langkah 4. Pricelist, lalu
+        <p>Tidak ada isi untuk dicetak. Buka halaman Pricelist → langkah 4a. Pricelist, lalu
           klik <b>Cetak A4</b>.</p>
       </main>
     );
