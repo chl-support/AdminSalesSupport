@@ -13,7 +13,7 @@ import { Fragment, useEffect, useState } from "react";
 
 import { formatRupiah } from "@/lib/money";
 import {
-  FAKTOR, hargaKasIrr, hargaSesuaiSkema, labelPpn, namaTahap, tarifPpn, unitKosong,
+  faktorTampil, hargaKasIrr, hargaSesuaiSkema, labelPpn, namaTahap, tarifPpn, unitKosong,
   kunciTnc, tingkatNaik, type BarisTnc, type HasilSusun, type SusunPricelist, type UnitData,
 } from "@/lib/susun-pricelist";
 import type { UnitHarga } from "@/lib/simulasi";
@@ -920,6 +920,7 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
   const kt = useKata(KATA);
   const ro = !bolehUbah;
   const ppn = tarifPpn(data), lp = labelPpn(ppn);
+  const fk = faktorTampil(data.unit);
   // Base dan Factored Price dalam dua bentuk, sebelum dan sesudah PPN. Yang
   // dihitung adalah basis project-nya (Incl PPN, atau Excl PPN untuk Permai
   // Indah); bentuk satunya diturunkan dengan tarif PPN yang sama.
@@ -1128,7 +1129,7 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
               <th>{kt.gfaM2}</th>
               <th>{kt.hargaBangunan}<br />{kt.excl(lp)}</th><th className="incl">{kt.hargaBangunan}<br />{kt.incl(lp)}</th>
               <th>{kt.kenaikan}</th>
-              {FAKTOR.map(([, l]) => <th key={l}>{l}</th>)}
+              {fk.map(([, l]) => <th key={l}>{l}</th>)}
               <th>{kt.faktorPlus}</th><th>{kt.special}</th><th>{kt.showUnit}</th>
               <th>{kt.hargaDasar}<br />{kt.excl(lp)}</th><th className="incl">{kt.hargaDasar}<br />{kt.incl(lp)}</th>
               <th>{kt.hargaFaktor}<br />{kt.excl(lp)}</th><th className="incl">{kt.hargaFaktor}<br />{kt.incl(lp)}</th>
@@ -1169,7 +1170,7 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
                 <td><Isian jenis="rp" nilai={u.hargaBangunan} lebar={95} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, hargaBangunan: n }))} /></td>
                 <td className="n">{rpPolos(b?.hasilUnit.hargaBangunanPpn)}</td>
                 <td><Isian jenis="persen" kosongNol desimal={1} nilai={u.kenaikan} lebar={55} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, kenaikan: n }))} /></td>
-                {FAKTOR.map(([k]) => (
+                {fk.map(([k]) => (
                   <td key={k}><Isian jenis="persen" kosongNol nilai={u.faktor[k] ?? 0} lebar={55} disabled={ro}
                                      ubah={(n) => ubahUnit(i, (x) => ({ ...x, faktor: { ...x.faktor, [k]: n } }))} /></td>
                 ))}
@@ -1190,7 +1191,7 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
               <td colSpan={(bolehUbah ? 0 : -1) + 1 + TEKS_UNIT.length} />
               <td className="n">{luas(tampil.reduce((a, { u }) => a + u.lt, 0), 1)}</td><td /><td />
               <td className="n">{luas(tampil.reduce((a, { u }) => a + u.lb, 0))}</td><td /><td /><td />
-              {FAKTOR.map(([k]) => <td key={k} />)}
+              {fk.map(([k]) => <td key={k} />)}
               <td />
               <td /><td />
               {/* Urutan: Harga Dasar (excl, incl), lalu Harga Setelah Faktor (excl, incl). */}

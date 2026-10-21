@@ -17,7 +17,7 @@
 import ExcelJS from "exceljs";
 
 import {
-  FAKTOR, HARGA_KAS_AWAL, labelPpn, tarifPpn, hargaKasIrr, hargaSesuaiSkema, hitungSemua, namaTahap, susunAwal, unitKosong,
+  FAKTOR, FAKTOR_OPSIONAL, HARGA_KAS_AWAL, labelPpn, tarifPpn, hargaKasIrr, hargaSesuaiSkema, hitungSemua, namaTahap, susunAwal, unitKosong,
   type KolomDataPl, type KolomPricelist, type SkemaIrr, type SusunPricelist,
   type Tnc, type UnitData,
 } from "./susun-pricelist";
@@ -98,26 +98,32 @@ function bacaLembarUnit(ws: ExcelJS.Worksheet, peringatan: string[]): UnitData[]
     const view: number[] = [];
     for (let c = 1; c <= ws.columnCount; c++) {
       const h = H(c), h2 = H2(c);
+      // Judul Inggris (template, berkas PL) atau Indonesia (mis. BIO DISTRICT:
+      // Alamat, Arah Hadap, Dimension, Tipe, Tanah (m²), GFA (m²)).
       if (KODE.test(h)) kol.kode = c;
-      else if (h === "address") kol.alamat = c;
-      else if (h === "view") view.push(c);
+      else if (h === "address" || h === "alamat") kol.alamat = c;
+      else if (h === "view" || h === "arah hadap") view.push(c);
       else if (h === "no" && kol.kode) kol.no = c;
-      else if (h === "ukuran") kol.ukuran = c;
-      else if (h === "type") kol.tipeBangunan = c;
+      else if (h === "ukuran" || h === "dimension") kol.ukuran = c;
+      else if (h === "type" || h === "tipe") kol.tipeBangunan = c;
       else if (h === "tipe pl") kol.tipe = c;
       else if (h === "bentuk" || h.startsWith("sub-tipe kavling")) kol.bentuk = c;
       else if (h === "sub-tipe") kol.subTipe = c;
       else if (h === "phase") kol.phase = c;
       else if (h.startsWith("increase")) kol.kenaikan = c;
       else if (h.startsWith("(+) factor")) kol.faktorTambah = c;
+      // Special % dan Biaya AJB + BPHTB berupa pengali (1 + x), sama seperti
+      // (+) Factor; Special tanpa % adalah rupiah.
+      else if (/^special\s*%/.test(h)) kol.specialPersen = c;
+      else if (h.startsWith("biaya ajb")) kol.biayaAjb = c;
       else if (h.startsWith("special")) kol.special = c;
       else if (h.startsWith("show unit")) kol.showUnit = c;
       else if (h.startsWith("gimmick")) kol.gimmick = c;
-      if (h2 === "land") kol.lt = c;
+      if (h2 === "land" || /^tanah( \(m²\))?$/.test(h2)) kol.lt = c;
       // Kolom harga sesudah PPN (Incl PPN) hanya hasil hitungan; yang dibaca
       // harga sebelum PPN.
       else if (h2.startsWith("land price (base)") && !h2.includes("incl")) kol.hargaTanah = c;
-      else if (h2 === "gfa") kol.lb = c;
+      else if (h2 === "gfa" || h2 === "gfa (m²)") kol.lb = c;
       else if (h2.startsWith("gfa (base)") && !h2.includes("incl")) kol.hargaBangunan = c;
       for (const [k, label] of FAKTOR) if (h === label.toLowerCase()) kol[k] = c;
     }
@@ -142,7 +148,10 @@ function bacaLembarUnit(ws: ExcelJS.Worksheet, peringatan: string[]): UnitData[]
         lb: n("lb"), hargaBangunan: n("hargaBangunan"), kenaikan: n("kenaikan"),
         // Gimmick (Trip, BPHTB, AKAD, Repair) di berkas Excel masuk ke (+) Factor;
         // Unit Data tidak punya kolom Gimmick tersendiri.
-        faktorTambah: n("faktorTambah") + n("gimmick"), special: n("special"), showUnit: n("showUnit"),
+        // Special % dan Biaya AJB + BPHTB dikalikan ke (+) Factor, sehingga
+        // (1 + (+) Factor) = (1 + factor)(1 + Biaya AJB)(1 + Special %) seperti di Excel-nya.
+        faktorTambah: (1 + n("faktorTambah") + n("gimmick")) * (1 + n("biayaAjb")) * (1 + n("specialPersen")) - 1,
+        special: n("special"), showUnit: n("showUnit"),
         faktor: Object.fromEntries(FAKTOR.map(([k]) => [k, n(k)]).filter(([, v]) => v)),
       };
       if (kol.tipe) u.tipe = t("tipe");
@@ -155,6 +164,10 @@ function bacaLembarUnit(ws: ExcelJS.Worksheet, peringatan: string[]): UnitData[]
       }
       unit.push(u);
     }
+    const kosong = unit.filter((u) => !u.lt && !u.lb).map((u) => u.kode);
+    if (kosong.length) {
+      peringatan.push(`Unit tanpa luas tanah/bangunan (harga 0): ${kosong.join(", ")}.`);
+    }
     const kembar = unit.map((u) => u.kode).filter((k, i, a) => a.indexOf(k) !== i);
     if (kembar.length) {
       peringatan.push(`Code ganda: ${[...new Set(kembar)].join(", ")}.`);
@@ -165,7 +178,7 @@ function bacaLembarUnit(ws: ExcelJS.Worksheet, peringatan: string[]): UnitData[]
 
 /** Kolom angka pada lembar UNIT DATA; isian teks di sana dibaca 0. */
 const ANGKA_UNIT = ["lt", "hargaTanah", "lb", "hargaBangunan", "kenaikan",
-  "faktorTambah", "special", "showUnit", ...FAKTOR.map(([k]) => k)];
+  "faktorTambah", "specialPersen", "biayaAjb", "special", "showUnit", ...FAKTOR.map(([k]) => k)];
 
 /**
  * Template kosong lembar UNIT DATA untuk tombol "Unduh Template" di langkah 2.
@@ -188,7 +201,7 @@ export async function templatUnitData(): Promise<Buffer> {
     ["lt", "Tanah", "Land", 9], ["hargaTanah", "", "Land Price (base) (Excl PPN. 11%)", 18],
     ["lb", "Bangunan", "GFA", 9], ["hargaBangunan", "", "GFA (base) (Excl PPN. 11%)", 18],
     ["kenaikan", "Increase (%)", "", 11],
-    ...FAKTOR.map(([k, l]) => [k, l, "", 11] as [string, string, string, number]),
+    ...FAKTOR.filter(([k]) => !FAKTOR_OPSIONAL.has(k)).map(([k, l]) => [k, l, "", 11] as [string, string, string, number]),
     ["faktorTambah", "(+) Factor", "", 11], ["special", "Special", "", 14],
     ["showUnit", "Show Unit", "", 14],
   ];
@@ -262,10 +275,14 @@ export async function imporUnitData(isi: ArrayBuffer): Promise<{ unit: UnitData[
   } catch {
     throw new Error("Berkas tidak dapat dibaca sebagai Excel .xlsx.");
   }
-  const ws = wb.worksheets.find((w) => w.state === "visible" && /^unit data$/i.test(w.name.trim()));
+  const terbuka = wb.worksheets.filter((w) => w.state === "visible");
+  // Lembar UNIT DATA; bila tidak ada, lembar terbuka pertama yang punya kolom
+  // Kode/Code (mis. berkas BIO DISTRICT yang lembarnya bernama Sheet1).
+  const ws = terbuka.find((w) => /^unit data$/i.test(w.name.trim()))
+    ?? terbuka.find((w) => cari(w, KODE, 10));
   if (!ws) {
-    throw new Error("Berkas ini tidak punya lembar UNIT DATA yang terbuka. " +
-                    "Buka (unhide) lembar UNIT DATA di Excel, lalu unggah ulang.");
+    throw new Error("Berkas ini tidak punya lembar UNIT DATA (atau lembar berkolom Kode) yang terbuka. " +
+                    "Buka (unhide) lembarnya di Excel, lalu unggah ulang.");
   }
   const peringatan: string[] = [];
   return { unit: bacaLembarUnit(ws, peringatan), peringatan };
