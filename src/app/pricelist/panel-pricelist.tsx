@@ -28,8 +28,8 @@ const KATA = {
     sumber: "Sumber angka", sOtomatis: "Otomatis", sManual: "Manual",
     sOtomatisInfo: "Otomatis: angka dari layar Harga, yang terakhir Anda Simpan & berlakukan.",
     sManualInfo: "Manual: angka dari berkas Excel yang diunggah dan diberlakukan.",
-    sKosongSusun: "Belum ada harga dari layar Harga. Susun isiannya lalu tekan Simpan & berlakukan.",
-    sKosongUnggah: "Belum ada harga dari berkas unggahan pada proyek ini.",
+    sKosongSusun: "Tombol Otomatis mati: proyek ini belum punya harga dari layar Harga. Susun isiannya lalu tekan Simpan & berlakukan.",
+    sKosongUnggah: "Tombol Manual mati: proyek ini belum punya harga dari berkas unggahan. Berkas pada Catatan impor data yang bersumber Otomatis tidak terhitung — unggah berkas Excel-nya di panel Upload D-Pricelist lalu berlakukan.",
     sBerpindah: "Memindahkan…",
     tidakAda: "Proyek ini belum punya harga.",
     ringkas: (u: number, s: number) => `${u} unit · ${s} cara bayar`,
@@ -44,7 +44,7 @@ const KATA = {
     riwayatPl: (n: number) => `Riwayat perubahan (${n})`,
     folderKosong: "Belum ada harga yang disimpan dengan nama. Isi nama di langkah 4a lalu Simpan.",
     rNama: "Nama", rBerkas: "Berkas", rUnit: "Unit", rSkema: "Cara bayar",
-    rOleh: "Diunggah oleh", rPada: "Tanggal", rStatus: "Status",
+    rOleh: "Diunggah oleh", rPada: "Tanggal", rSumber: "Sumber", rStatus: "Status",
     sBerlaku: "Berlaku",
     berlakukan: "Berlakukan", hapus: "Hapus",
     yakinHapus: "Hapus harga ini?", ya: "Ya, hapus", batal: "Batal",
@@ -63,8 +63,8 @@ const KATA = {
     sumber: "Source", sOtomatis: "Automatic", sManual: "Manual",
     sOtomatisInfo: "Automatic: figures from the Price List screen, the last one you saved and applied.",
     sManualInfo: "Manual: figures from the Excel file you uploaded and applied.",
-    sKosongSusun: "No price list from the Price List screen yet. Fill it in, then press Save & apply.",
-    sKosongUnggah: "No uploaded price list for this project yet.",
+    sKosongSusun: "Automatic is off: this project has no price list from the Price List screen. Fill it in, then press Save & apply.",
+    sKosongUnggah: "Manual is off: this project has no price list from an uploaded file. Files in the data import log whose source is Automatic do not count — upload the Excel file in the Upload D-Pricelist panel, then apply it.",
     sBerpindah: "Switching…",
     tidakAda: "This project has no price list yet.",
     ringkas: (u: number, s: number) => `${u} units · ${s} payment schemes`,
@@ -79,7 +79,7 @@ const KATA = {
     riwayatPl: (n: number) => `Change history (${n})`,
     folderKosong: "No price list saved under a name yet. Enter a name in step 4a, then save.",
     rNama: "Name", rBerkas: "File", rUnit: "Units", rSkema: "Schemes",
-    rOleh: "Uploaded by", rPada: "Date", rStatus: "Status",
+    rOleh: "Uploaded by", rPada: "Date", rSumber: "Source", rStatus: "Status",
     sBerlaku: "In force",
     berlakukan: "Apply", hapus: "Delete",
     yakinHapus: "Delete this price list?", ya: "Yes, delete", batal: "Cancel",
@@ -297,7 +297,7 @@ export function PanelPricelist({ sesi, versi, onBerubah, onEdit, onAmbilTnc }: {
             <tr>
               <th>{k.rNama}</th><th>{k.rBerkas}</th><th>{k.rUnit}</th>
               <th>{k.rSkema}</th><th>{k.rOleh}</th><th>{k.rPada}</th>
-              <th>{k.rStatus}</th>
+              <th>{k.rSumber}</th><th>{k.rStatus}</th>
             </tr>
             {riwayat.map((r) => (
               <tr key={r.id} className={r.aktif ? "terpilih" : undefined}>
@@ -317,6 +317,10 @@ export function PanelPricelist({ sesi, versi, onBerubah, onEdit, onAmbilTnc }: {
                 <td className="n">{r.jumlah_skema}</td>
                 <td>{r.diunggah_oleh ?? "—"}</td>
                 <td>{tgl(r.diunggah_pada)}</td>
+                {/* Asal angkanya: disusun di layar Pricelist (Otomatis) atau
+                    dari berkas Excel yang diunggah (Manual). Tanpa ini orang
+                    tak dapat tahu mengapa salah satu tombol Sumber mati. */}
+                <td>{(r.sumber ?? "unggah") === "susun" ? k.sOtomatis : k.sManual}</td>
                 <td>
                   {aksiBaris(r)}
                 </td>
@@ -351,6 +355,10 @@ export function PanelPricelist({ sesi, versi, onBerubah, onEdit, onAmbilTnc }: {
       {bolehUbah && sumberAktif && (
         <p className="hint kiri" style={{ marginTop: 0 }}>
           {sumberAktif === "susun" ? k.sOtomatisInfo : k.sManualInfo}
+          {/* Tombol yang mati karena projectnya belum punya pricelist dari
+              sumber itu: alasannya ditulis, sebab tooltip mudah terlewat. */}
+          {!ada("unggah") && <><br />{k.sKosongUnggah}</>}
+          {!ada("susun") && <><br />{k.sKosongSusun}</>}
         </p>
       )}
       </>)}

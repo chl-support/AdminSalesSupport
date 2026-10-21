@@ -3,7 +3,7 @@
 /**
  * Cetak Pricelist (langkah 4a) pada kertas A4, seperti lembar Pricelist
  * berkas PL Excel: logo, judul, tanggal, lalu tabel unit dengan harga tiap
- * cara bayar (dan DPP & Nilai Free PPN DTP bila dipilih).
+ * cara bayar (dan kolom DPP dan/atau Nilai Free PPN DTP bila dicentang).
  *
  * Isinya dikirim halaman Pricelist lewat localStorage tepat sebelum tab ini
  * dibuka. Cara bayar dan cluster (Address) yang tidak dicentang hanya
@@ -23,7 +23,7 @@ const KATA = {
     kosong2: "klik", cetakA4: "Cetak A4",
     judul: "Cetak Harga (A4)",
     orientasi: "Orientasi", lanskap: "Lanskap (mendatar)", potret: "Potret (tegak)",
-    pajak: "DPP & Nilai Bebas PPN DTP",
+    pajakDpp: "DPP", pajakDtp: "Nilai Bebas PPN DTP",
     tinggiBaris: "Tinggi baris", rapatkan: "Rapatkan baris", renggangkan: "Renggangkan baris",
     ukuranHuruf: "Ukuran huruf", perkecil: "Perkecil huruf", perbesar: "Perbesar huruf",
     ukuranCetak: "Ukuran cetak", pasLebar: "Pas lebar kertas (ke bawah boleh lebih)",
@@ -48,7 +48,7 @@ const KATA = {
     kosong2: "click", cetakA4: "Print A4",
     judul: "Print Price List (A4)",
     orientasi: "Orientation", lanskap: "Landscape", potret: "Portrait",
-    pajak: "DPP & VAT DTP free",
+    pajakDpp: "DPP", pajakDtp: "VAT DTP free",
     tinggiBaris: "Row height", rapatkan: "Tighter rows", renggangkan: "Looser rows",
     ukuranHuruf: "Font size", perkecil: "Smaller font", perbesar: "Larger font",
     ukuranCetak: "Print size", pasLebar: "Fit paper width (may run onto more pages)",
@@ -76,7 +76,16 @@ type Isi = {
   judul: string; tanggal: string; catatan: string; slug: string | null;
   kolom: string[]; unit: UnitHarga[];
 };
-type Pilihan = { kolom: string[]; alamat: string[]; pajak: boolean; info?: string[] };
+/**
+ * `dpp` dan `dtp`: kolom DPP dan kolom Nilai Free PPN DTP disembunyikan
+ * sendiri-sendiri. `pajak` adalah pilihan lama (keduanya sekaligus) yang
+ * masih tersimpan di peramban sebagian orang — dipakai sebagai bawaan bila
+ * dua kunci baru itu belum ada.
+ */
+type Pilihan = {
+  kolom: string[]; alamat: string[]; pajak: boolean;
+  dpp?: boolean; dtp?: boolean; info?: string[];
+};
 
 /**
  * Kolom keterangan unit yang dapat disembunyikan dari cetakan. Makin sedikit
@@ -138,6 +147,14 @@ export default function CetakPricelist() {
     setSembunyi(n);
     try { localStorage.setItem(kunciPilihan, JSON.stringify(n)); } catch { /* abaikan */ }
   };
+  /**
+   * Centang kolom DPP atau Nilai Free PPN DTP. `pajak` ikut ditulis supaya
+   * pilihan ini tetap terbaca benar oleh versi layar yang lama.
+   */
+  const gantiPajak = (jenis: "dpp" | "dtp", tampil: boolean) => {
+    const n = { ...sembunyi, [jenis]: !tampil };
+    simpanPilihan({ ...n, pajak: (n.dpp ?? n.pajak) && (n.dtp ?? n.pajak) });
+  };
   const ganti = (jenis: "kolom" | "alamat", k: string, tampil: boolean) =>
     simpanPilihan({ ...sembunyi, [jenis]: tampil ? sembunyi[jenis].filter((x) => x !== k)
                                                  : [...sembunyi[jenis], k] });
@@ -185,7 +202,10 @@ export default function CetakPricelist() {
     );
   }
 
-  const pajak = !sembunyi.pajak;
+  const dpp = !(sembunyi.dpp ?? sembunyi.pajak);
+  const dtp = !(sembunyi.dtp ?? sembunyi.pajak);
+  /** Banyaknya kolom pajak di bawah tiap cara bayar (0, 1, atau 2). */
+  const nPajak = (dpp ? 1 : 0) + (dtp ? 1 : 0);
   const kolom = isi.kolom.filter((k) => !sembunyi.kolom.includes(k));
   const semuaAlamat = [...new Set(isi.unit.map((u) => u.alamat || "(tanpa address)"))];
   const unit = isi.unit.filter((u) => !sembunyi.alamat.includes(u.alamat || "(tanpa address)"));
@@ -214,9 +234,12 @@ export default function CetakPricelist() {
             <option value="potret">{kt.potret}</option>
           </select>
         </label>
-        <label><input type="checkbox" checked={pajak}
-                      onChange={(e) => simpanPilihan({ ...sembunyi, pajak: !e.target.checked })} />
-          {kt.pajak}</label>
+        <label><input type="checkbox" checked={dpp}
+                      onChange={(e) => gantiPajak("dpp", e.target.checked)} />
+          {kt.pajakDpp}</label>
+        <label><input type="checkbox" checked={dtp}
+                      onChange={(e) => gantiPajak("dtp", e.target.checked)} />
+          {kt.pajakDtp}</label>
         <span className="cetak-huruf">{kt.tinggiBaris}
           <button onClick={() => setBaris((b) => Math.max(0.05, +(b - 0.1).toFixed(2)))} aria-label={kt.rapatkan}>−</button>
           <b>{Math.round((baris - 0.15) / 0.1) + 1}</b>
@@ -299,15 +322,16 @@ export default function CetakPricelist() {
                   {area.length > 0 && <th colSpan={area.length}>{kt.area}</th>}
                   {/* Judul cara bayar: kolom sama lebar, judul panjang dilipat. Tanpa
                       DPP/DTP judulnya dua baris tinggi (tidak ada baris "Harga"). */}
-                  {kolom.map((k) => pajak
-                    ? <th key={k} colSpan={3} className="cb">{k}</th>
+                  {kolom.map((k) => nPajak > 0
+                    ? <th key={k} colSpan={1 + nPajak} className="cb">{k}</th>
                     : <th key={k} rowSpan={2} className="cb harga">{k}</th>)}
                 </tr>
                 <tr>
                   {area.map(([k]) => <th key={k}>{kt.kol[k]}</th>)}
-                  {kolom.map((k) => pajak
-                    ? [<th key={`${k}h`} className="harga">{kt.harga}</th>, <th key={`${k}d`} className="harga">{kt.dpp}</th>,
-                       <th key={`${k}t`} className="harga">{kt.dtp}</th>]
+                  {kolom.map((k) => nPajak > 0
+                    ? [<th key={`${k}h`} className="harga">{kt.harga}</th>,
+                       ...(dpp ? [<th key={`${k}d`} className="harga">{kt.dpp}</th>] : []),
+                       ...(dtp ? [<th key={`${k}t`} className="harga">{kt.dtp}</th>] : [])]
                     : null)}
                 </tr>
               </thead>
@@ -321,10 +345,10 @@ export default function CetakPricelist() {
                       <td key={k} className={c || undefined}>{String(u[k] ?? "")}</td>)}
                     {area.map(([k]) => <td key={k} className="n">
                       {k === "lt" ? satuDesimal(u.lt) : angka(u[k] as number | null, 2)}</td>)}
-                    {kolom.map((k) => pajak
+                    {kolom.map((k) => nPajak > 0
                       ? [<td key={`${k}h`} className="n h harga">{angka(u.harga[k])}</td>,
-                         <td key={`${k}d`} className="n harga">{angka(u.pajak?.[k]?.dpp)}</td>,
-                         <td key={`${k}t`} className="n harga">{angka(u.pajak?.[k]?.dtp)}</td>]
+                         ...(dpp ? [<td key={`${k}d`} className="n harga">{angka(u.pajak?.[k]?.dpp)}</td>] : []),
+                         ...(dtp ? [<td key={`${k}t`} className="n harga">{angka(u.pajak?.[k]?.dtp)}</td>] : [])]
                       : <td key={k} className="n h harga">{angka(u.harga[k])}</td>)}
                   </tr>
                 ))}
