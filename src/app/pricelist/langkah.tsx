@@ -951,6 +951,12 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
   // Indah); bentuk satunya diturunkan dengan tarif PPN yang sama.
   const ppnDua = (n: number) => data.basisExclPpn
     ? { excl: n, incl: Math.round(n * (1 + ppn)) } : { excl: Math.round(n / (1 + ppn)), incl: n };
+  // Harga satu unit: Belum PPN yang dihitung sendiri (BIO DISTRICT) bila ada,
+  // selain itu diturunkan dari harga Termasuk PPN.
+  const hargaUnit = (h: HasilSusun["baris"][number]["hasilUnit"] | undefined, k: "base" | "factored") => {
+    const x = h?.[k === "base" ? "baseExcl" : "factoredExcl"];
+    return x != null ? { excl: x, incl: h![k] } : ppnDua(h?.[k] ?? NaN);
+  };
   const [cari, setCari] = useState("");
   const ubahUnit = (i: number, f: (u: UnitData) => UnitData) =>
     ubah((d) => ({ ...d, unit: d.unit.map((u, j) => j === i ? f(u) : u) }));
@@ -1227,7 +1233,7 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
                 {kolomKhusus && <td><Isian jenis="rp" kosongNol nilai={u.special} lebar={95} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, special: n }))} /></td>}
                 <td><Isian jenis="rp" kosongNol nilai={u.showUnit} lebar={95} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, showUnit: n }))} /></td>
                 {urutanHarga.map(([h, j]) => {
-                  const n = rp(ppnDua(b?.hasilUnit[h] ?? NaN)[j]);
+                  const n = rp(hargaUnit(b?.hasilUnit, h)[j]);
                   return <td key={h + j} className="n">{h === "factored" ? <b>{n}</b> : n}</td>;
                 })}
               </tr>
@@ -1245,7 +1251,7 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
               {kolomPlus && <td />}{bio && <><td /><td /></>}
               {kolomKhusus && <td />}<td />
               {urutanHarga.map(([h, j]) => (
-                <td key={h + j} className="n">{rp(ppnDua(tampil.reduce((a, { b }) => a + (b?.hasilUnit[h] ?? 0), 0))[j])}</td>
+                <td key={h + j} className="n">{rp(tampil.reduce((a, { b }) => a + (hargaUnit(b?.hasilUnit, h)[j] || 0), 0))}</td>
               ))}
             </tr>
           </tfoot></table>

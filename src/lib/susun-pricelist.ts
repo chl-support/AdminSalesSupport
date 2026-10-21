@@ -270,6 +270,17 @@ export type SusunPricelist = {
    */
   bulatBiasa?: boolean;
   /**
+   * Harga per m² sesudah PPN dibulatkan ke atas ke 10^n rupiah sebelum dikali
+   * luas; kosong = tidak dibulatkan. BIO DISTRICT: 5 (ratusan ribu).
+   */
+  bulatHargaM2?: number;
+  /**
+   * Harga Belum PPN dihitung sendiri dari harga per m² Excl PPN dan
+   * dibulatkan seperti Base Price, bukan Termasuk PPN dibagi (1 + PPN).
+   * BIO DISTRICT: ya.
+   */
+  exclTerpisah?: boolean;
+  /**
    * Tanda bahwa T&C draf ini sudah disamakan dengan patokan (T&C Naraya
    * Serpong) — sekali saja; sesudahnya T&C disunting manual dan tidak
    * ditimpa lagi. Lihat samakanTncPatokan.
@@ -419,6 +430,8 @@ export const tarifPpn = (s: Pick<SusunPricelist, "ppn">) =>
 
 /** Project yang Base Price-nya dihitung dari harga Excl PPN (slug). */
 const BASIS_EXCL_PPN = new Set(["permai-indah"]);
+/** Project yang mengikuti rumus berkas Unit Data BIO DISTRICT (slug). */
+const RUMUS_BIO = new Set(["bio-district"]);
 
 /**
  * Pasang aturan basis harga project pada draf yang belum menyatakannya:
@@ -427,8 +440,13 @@ const BASIS_EXCL_PPN = new Set(["permai-indah"]);
  * jutaan. Aturan yang sudah dinyatakan draf dibiarkan.
  */
 export function basisProject<
-  T extends Pick<SusunPricelist, "basisExclPpn" | "bulatBase" | "bulatBiasa">,
+  T extends Pick<SusunPricelist, "basisExclPpn" | "bulatBase" | "bulatBiasa" | "bulatHargaM2" | "exclTerpisah">,
 >(slug: string | null | undefined, data: T): T {
+  // BIO DISTRICT: harga per m² Termasuk PPN dibulatkan ke atas ke ratusan
+  // ribu, dan harga Belum PPN dihitung sendiri — seperti berkas Excel-nya.
+  if (slug && RUMUS_BIO.has(slug)) {
+    return { ...data, bulatHargaM2: data.bulatHargaM2 ?? 5, exclTerpisah: data.exclTerpisah ?? true };
+  }
   if (!slug || !BASIS_EXCL_PPN.has(slug)) return data;
   return { ...data, basisExclPpn: data.basisExclPpn ?? true,
            bulatBase: data.bulatBase ?? 4, bulatBiasa: data.bulatBiasa ?? true };
@@ -448,22 +466,35 @@ export type HasilUnit = {
   faktor: number;
   /** Factored Price. */
   factored: number;
+  /** Base dan Factored Price Belum PPN yang dihitung sendiri (exclTerpisah). */
+  baseExcl?: number;
+  factoredExcl?: number;
 };
 
+export type OpsiHitungUnit = { bulatHargaM2?: number; exclTerpisah?: boolean };
+
 export function hitungUnit(u: UnitData, ppn = PPN, exclPpn = false, bulat = 6,
-                           bulatBiasa = false): HasilUnit {
+                           bulatBiasa = false, opsi: OpsiHitungUnit = {}): HasilUnit {
   const hargaTanahPpn = u.hargaTanah * (1 + ppn);
   const hargaBangunanPpn = u.hargaBangunan * (1 + ppn);
+  const m2 = (x: number) => opsi.bulatHargaM2 != null ? roundUp(x, opsi.bulatHargaM2) : x;
   // Pricelist Permai Indah mengalikan luas dengan harga Excl PPN.
   const [tanah, bangunan] = exclPpn ? [u.hargaTanah, u.hargaBangunan]
-    : [hargaTanahPpn, hargaBangunanPpn];
-  const base = (bulatBiasa ? roundExcel : roundUp)(
-    (u.lt * tanah + u.lb * bangunan) * (1 + u.kenaikan), bulat);
+    : [m2(hargaTanahPpn), m2(hargaBangunanPpn)];
+  const bulatkan = (x: number) => (bulatBiasa ? roundExcel : roundUp)(x * (1 + u.kenaikan), bulat);
+  const base = bulatkan(u.lt * tanah + u.lb * bangunan);
   const faktor = FAKTOR.reduce((a, [k]) => a + (u.faktor[k] ?? 0), 0);
-  const factored = base * (1 + faktor) * (1 + u.faktorTambah)
+  const kaliFaktor = (b: number) => b * (1 + faktor) * (1 + u.faktorTambah)
                    * (1 + (u.biayaAjb ?? 0)) * (1 + (u.specialPersen ?? 0)) + u.special
                    + u.showUnit * (1 + u.kenaikan);
-  return { hargaTanahPpn, hargaBangunanPpn, base, faktor, factored };
+  const factored = kaliFaktor(base);
+  const hasil: HasilUnit = { hargaTanahPpn, hargaBangunanPpn, base, faktor, factored };
+  if (opsi.exclTerpisah && !exclPpn) {
+    // Seperti Excel BIO: ROUNDUP((Tanah × harga Excl + GFA × harga Excl) × (1 + kenaikan), juta).
+    hasil.baseExcl = bulatkan(u.lt * u.hargaTanah + u.lb * u.hargaBangunan);
+    hasil.factoredExcl = kaliFaktor(hasil.baseExcl);
+  }
+  return hasil;
 }
 
 // ── 3. Data Pricelist ──────────────────────────────────────────────────────
@@ -542,7 +573,8 @@ export function hitungSemua(susun: SusunPricelist): HasilSusun {
   const irr = hitungIrr(susun.irr);
   const baris = susun.unit.map((unit) => {
     const hasilUnit = hitungUnit(unit, tarifPpn(susun), !!susun.basisExclPpn,
-                                 susun.bulatBase ?? 6, !!susun.bulatBiasa);
+                                 susun.bulatBase ?? 6, !!susun.bulatBiasa,
+                                 { bulatHargaM2: susun.bulatHargaM2, exclTerpisah: susun.exclTerpisah });
     const dataPl = hitungDataPl(susun, hasilUnit.factored, irr.koef);
     return { unit, hasilUnit, dataPl, pricelist: hitungPricelist(susun, dataPl) };
   });
