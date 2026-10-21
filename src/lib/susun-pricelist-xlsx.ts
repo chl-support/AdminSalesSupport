@@ -120,9 +120,10 @@ function bacaLembarUnit(ws: ExcelJS.Worksheet, peringatan: string[]): UnitData[]
       else if (h.startsWith("special")) kol.special = c;
       else if (h.startsWith("show unit")) kol.showUnit = c;
       else if (h.startsWith("gimmick")) kol.gimmick = c;
-      // Harga Dasar (Termasuk PPN): hanya rumusnya yang dibaca, untuk pembagi
-      // seperti ROUNDUP(…)/1.005 pada sebagian unit BIO DISTRICT.
-      if (h.startsWith("harga dasar") && h.includes("termasuk ppn")) kol.hargaDasarIncl = c;
+      // Harga Dasar (Termasuk PPN) — di berkas PL BIO: "Base Price": hanya
+      // rumusnya yang dibaca, untuk pembagi seperti ROUNDUP(…)/1.005 pada
+      // sebagian unit BIO DISTRICT.
+      if ((h.startsWith("harga dasar") && h.includes("termasuk ppn")) || h === "base price") kol.hargaDasarIncl = c;
       if (h2 === "floor") kol.floor = c;
       else if (h2 === "land" || /^tanah( \(m²\))?$/.test(h2)) kol.lt = c;
       // Kolom harga sesudah PPN (Incl PPN) hanya hasil hitungan; yang dibaca
@@ -426,7 +427,8 @@ export async function imporSusun(isi: ArrayBuffer): Promise<HasilImpor> {
   }
 
   // 2. Unit Data
-  const wsUnit = lembar(wb, /^unit data$/i);
+  // "Unit Data", atau "Unit Data (Standart)" seperti berkas PL BIO DISTRICT.
+  const wsUnit = lembar(wb, /^unit data$/i) ?? lembar(wb, /^unit data\b/i);
   const unitPerKode = new Map<string, UnitData>();
   if (!wsUnit) {
     peringatan.push("Lembar Unit Data tidak ada; daftar unit kosong.");
@@ -478,7 +480,10 @@ export async function imporSusun(isi: ArrayBuffer): Promise<HasilImpor> {
         const ref = /'?Data \(IRR\)'?!\$?([A-Z]+)\$?\d+/i.exec(rumus(wsDp.getCell(j.r - 1, c)));
         const skema = ref && wsIrr
           ? susun.irr.skema[noKolom(ref[1]) - 2]?.nama : undefined;
-        kolom.push({ nama, skema: skema ?? susun.irr.skema.find((s) => s.nama === nama)?.nama ?? nama });
+        // Pengali sesudah koefisien, mis. BIO DISTRICT: …*'Data Pricelist'!T$2*124%,-6)
+        const kali = /\*\s*([\d.]+)%\s*,\s*-6\)\s*$/.exec(f);
+        kolom.push({ nama, skema: skema ?? susun.irr.skema.find((s) => s.nama === nama)?.nama ?? nama,
+                     ...(kali && Number(kali[1]) !== 100 && { kali: Number(kali[1]) / 100 }) });
       }
       if (kolom.length) susun.dataPricelist.kolom = kolom;
     }
