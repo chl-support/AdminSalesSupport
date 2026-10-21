@@ -26,6 +26,8 @@ const SKEMA = z.object({
   tncPatokan: z.string().max(40).optional(),
   bulatBase: z.number().int().min(0).max(9).optional(),
   bulatBiasa: z.boolean().optional(),
+  bulatHargaM2: z.number().int().min(0).max(9).optional(),
+  exclTerpisah: z.boolean().optional(),
   catatanUnit: z.string().max(5000).optional(),
   catatanGambar: z.array(z.object({ id: z.string().regex(/^\d{1,18}$/), nama: teks }))
     .max(10).optional(),

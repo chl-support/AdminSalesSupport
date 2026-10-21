@@ -951,6 +951,12 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
   // Indah); bentuk satunya diturunkan dengan tarif PPN yang sama.
   const ppnDua = (n: number) => data.basisExclPpn
     ? { excl: n, incl: Math.round(n * (1 + ppn)) } : { excl: Math.round(n / (1 + ppn)), incl: n };
+  // Harga satu unit: Belum PPN yang dihitung sendiri (BIO DISTRICT) bila ada,
+  // selain itu diturunkan dari harga Termasuk PPN.
+  const hargaUnit = (h: HasilSusun["baris"][number]["hasilUnit"] | undefined, k: "base" | "factored") => {
+    const x = h?.[k === "base" ? "baseExcl" : "factoredExcl"];
+    return x != null ? { excl: x, incl: h![k] } : ppnDua(h?.[k] ?? NaN);
+  };
   const [cari, setCari] = useState("");
   const ubahUnit = (i: number, f: (u: UnitData) => UnitData) =>
     ubah((d) => ({ ...d, unit: d.unit.map((u, j) => j === i ? f(u) : u) }));
@@ -1039,9 +1045,6 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
         const lama = new Map(d.unit.map((u) => [u.kode, u]));
         return { ...d, unit: unit.map((u) => ({
           ...u,
-          // BIO DISTRICT: Increase dibulatkan ke persen bulat (Excel-nya
-          // 1,02×1,01×1,015×1,01−1 = 5,61% → 6%).
-          kenaikan: bio ? Math.round(u.kenaikan * 100) / 100 : u.kenaikan,
           phase: u.phase || lama.get(u.kode)?.phase || "1",
           tipe: u.tipe || lama.get(u.kode)?.tipe || "",
         })) };
@@ -1214,7 +1217,7 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
                   <td><IsianTeks nilai={u.phase ?? ""} lebar={70} disabled={ro}
                                  ubah={(v) => ubahUnit(i, (x) => ({ ...x, phase: v }))} /></td>
                 )}
-                <td><Isian jenis="persen" kosongNol desimal={bio ? undefined : 1} nilai={u.kenaikan} lebar={55} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, kenaikan: n }))} /></td>
+                <td><Isian jenis="persen" kosongNol desimal={bio ? 2 : 1} nilai={u.kenaikan} lebar={55} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, kenaikan: n }))} /></td>
                 {fk.map(([k]) => (
                   <td key={k}><Isian jenis="persen" kosongNol desimal={bio ? 1 : undefined} nilai={u.faktor[k] ?? 0} lebar={55} disabled={ro}
                                      ubah={(n) => ubahUnit(i, (x) => ({ ...x, faktor: { ...x.faktor, [k]: n } }))} /></td>
@@ -1227,7 +1230,7 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
                 {kolomKhusus && <td><Isian jenis="rp" kosongNol nilai={u.special} lebar={95} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, special: n }))} /></td>}
                 <td><Isian jenis="rp" kosongNol nilai={u.showUnit} lebar={95} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, showUnit: n }))} /></td>
                 {urutanHarga.map(([h, j]) => {
-                  const n = rp(ppnDua(b?.hasilUnit[h] ?? NaN)[j]);
+                  const n = rp(hargaUnit(b?.hasilUnit, h)[j]);
                   return <td key={h + j} className="n">{h === "factored" ? <b>{n}</b> : n}</td>;
                 })}
               </tr>
@@ -1245,7 +1248,7 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
               {kolomPlus && <td />}{bio && <><td /><td /></>}
               {kolomKhusus && <td />}<td />
               {urutanHarga.map(([h, j]) => (
-                <td key={h + j} className="n">{rp(ppnDua(tampil.reduce((a, { b }) => a + (b?.hasilUnit[h] ?? 0), 0))[j])}</td>
+                <td key={h + j} className="n">{rp(tampil.reduce((a, { b }) => a + (hargaUnit(b?.hasilUnit, h)[j] || 0), 0))}</td>
               ))}
             </tr>
           </tfoot></table>
