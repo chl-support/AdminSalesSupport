@@ -120,6 +120,9 @@ function bacaLembarUnit(ws: ExcelJS.Worksheet, peringatan: string[]): UnitData[]
       else if (h.startsWith("special")) kol.special = c;
       else if (h.startsWith("show unit")) kol.showUnit = c;
       else if (h.startsWith("gimmick")) kol.gimmick = c;
+      // Harga Dasar (Termasuk PPN): hanya rumusnya yang dibaca, untuk pembagi
+      // seperti ROUNDUP(…)/1.005 pada sebagian unit BIO DISTRICT.
+      if (h.startsWith("harga dasar") && h.includes("termasuk ppn")) kol.hargaDasarIncl = c;
       if (h2 === "floor") kol.floor = c;
       else if (h2 === "land" || /^tanah( \(m²\))?$/.test(h2)) kol.lt = c;
       // Kolom harga sesudah PPN (Incl PPN) hanya hasil hitungan; yang dibaca
@@ -157,6 +160,10 @@ function bacaLembarUnit(ws: ExcelJS.Worksheet, peringatan: string[]): UnitData[]
       if (kol.tipe) u.tipe = t("tipe");
       if (kol.view2) u.view2 = t("view2");
       if (kol.floor) u.floor = n("floor");
+      if (kol.hargaDasarIncl) {
+        const bagi = /\)\s*\/\s*([\d.]+)\s*$/.exec(rumus(ws.getCell(r, kol.hargaDasarIncl)));
+        if (bagi && Number(bagi[1]) > 0 && Number(bagi[1]) !== 1) u.pembagiIncl = Number(bagi[1]);
+      }
       if (kol.biayaAjb) u.biayaAjb = n("biayaAjb");
       if (kol.specialPersen) u.specialPersen = n("specialPersen");
       for (const k of ANGKA_UNIT) {

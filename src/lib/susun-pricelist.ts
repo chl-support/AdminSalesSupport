@@ -186,6 +186,11 @@ export type UnitData = {
   /** Special %, pecahan; pengali (1 + x) seperti (+) Factor. */
   specialPersen?: number;
   /**
+   * Pembagi Harga Dasar Termasuk PPN, mis. 1,005 (berkas BIO DISTRICT menulis
+   * ROUNDUP(…)/1,005 untuk beberapa unit). Kosong = tidak dibagi.
+   */
+  pembagiIncl?: number;
+  /**
    * Alasan unit tanpa luas / harga tanah, mis. "Harga belum ditentukan
    * management". Unit itu tidak ikut pricelist yang disimpan.
    */
@@ -482,7 +487,8 @@ export function hitungUnit(u: UnitData, ppn = PPN, exclPpn = false, bulat = 6,
   const [tanah, bangunan] = exclPpn ? [u.hargaTanah, u.hargaBangunan]
     : [m2(hargaTanahPpn), m2(hargaBangunanPpn)];
   const bulatkan = (x: number) => (bulatBiasa ? roundExcel : roundUp)(x * (1 + u.kenaikan), bulat);
-  const base = bulatkan(u.lt * tanah + u.lb * bangunan);
+  const base = bulatkan(u.lt * tanah + u.lb * bangunan)
+    / (u.pembagiIncl && !exclPpn ? u.pembagiIncl : 1);
   const faktor = FAKTOR.reduce((a, [k]) => a + (u.faktor[k] ?? 0), 0);
   const kaliFaktor = (b: number) => b * (1 + faktor) * (1 + u.faktorTambah)
                    * (1 + (u.biayaAjb ?? 0)) * (1 + (u.specialPersen ?? 0)) + u.special
