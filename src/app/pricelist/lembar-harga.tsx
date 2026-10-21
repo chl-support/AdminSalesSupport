@@ -43,6 +43,12 @@ export const KATA = {
     cetak: "Cetak / Simpan PDF", tutup: "Tutup",
     ringkas: (u: number, c: number) => `${u} unit · ${c} cara bayar. Di dialog cetak pilih kertas`,
     pdf: "; untuk PDF pilih “Simpan sebagai PDF”.",
+    warnaJudul: "Warna judul kolom",
+    warnaInfo: "Warna kepala tabel pada cetakan. Tiap cara bayar boleh berwarna sendiri.",
+    warnaKepala: "Kepala tabel", warnaTeks: "Tulisan kepala",
+    warnaCb: "Judul cara bayar", warnaKpr: "Judul ilustrasi KPR",
+    warnaSelang: "Baris selang-seling", warnaReset: "Kembalikan warna asal",
+    warnaPerKolom: "Warna sendiri per cara bayar",
     kprJudul: "Ilustrasi cicilan KPR",
     kprInfo: "Angsuran bulanan anuitas dari harga cara bayar yang dicentang — sebagai ilustrasi di samping harganya.",
     kprBunga: "Bunga (% per tahun)", kprTenor: "Tenor (tahun, dipisah koma)",
@@ -75,6 +81,12 @@ export const KATA = {
     cetak: "Print / Save PDF", tutup: "Close",
     ringkas: (u: number, c: number) => `${u} units · ${c} payment schemes. In the print dialog choose`,
     pdf: " paper; for PDF choose “Save as PDF”.",
+    warnaJudul: "Header colours",
+    warnaInfo: "Colours of the table head on the printout. Each payment scheme may have its own.",
+    warnaKepala: "Table head", warnaTeks: "Head text",
+    warnaCb: "Scheme heading", warnaKpr: "Illustration heading",
+    warnaSelang: "Alternating rows", warnaReset: "Restore default colours",
+    warnaPerKolom: "Own colour per payment scheme",
     kprJudul: "Mortgage instalment illustration",
     kprInfo: "Monthly annuity instalment from the price of each ticked payment scheme — an illustration beside its price.",
     kprBunga: "Interest (% per year)", kprTenor: "Tenor (years, comma separated)",
@@ -110,6 +122,20 @@ export type Pilihan = {
    * kosong berarti tidak ada ilustrasi yang dicetak.
    */
   kpr?: { bunga: number; tenor: number[]; kolom: string[] };
+  /**
+   * Warna kepala tabel pada cetakan. `kolom` memberi warna sendiri kepada
+   * judul cara bayar tertentu — lembar yang dibagikan ke konsumen kerap
+   * membedakan kelompok harganya dengan warna.
+   */
+  warna?: {
+    kepala?: string; teks?: string; cb?: string; kpr?: string; selang?: string;
+    kolom?: Record<string, string>;
+  };
+};
+
+export const WARNA_AWAL = {
+  kepala: "#e8e8e8", teks: "#000000", cb: "#d9d9d9", kpr: "#d9d9d9",
+  selang: "#f6f6f6", kolom: {} as Record<string, string>,
 };
 
 export const KPR_AWAL = { bunga: 2.75, tenor: [25, 20, 15], kolom: [] as string[] };
@@ -208,11 +234,12 @@ export function susunLembar(isi: Isi, p: Pilihan) {
     ...(dtp ? ["dtp" as const] : []),
     ...(dpp ? ["dpp" as const] : [])];
   const kpr = { ...KPR_AWAL, ...(p.kpr ?? {}) };
+  const warna = { ...WARNA_AWAL, ...(p.warna ?? {}) };
   const kolom = isi.kolom.filter((k) => !p.kolom.includes(k));
   // Ilustrasi hanya untuk cara bayar yang memang ikut dicetak.
   const ilustrasi = kpr.kolom.filter((k) => kolom.includes(k));
   return {
-    hrg, dpp, dtp, kolPajak, kpr, ilustrasi, kolom,
+    hrg, dpp, dtp, kolPajak, kpr, ilustrasi, kolom, warna,
     unit: isi.unit.filter((u) => !p.alamat.includes(u.alamat || "(tanpa address)")),
     info: INFO.filter(([k]) => !(p.info ?? []).includes(k)),
     area: AREA.filter(([k]) => !(p.info ?? []).includes(k)),
@@ -232,8 +259,17 @@ export function AlatLembar({ isi, lembar, judul, children }: {
 }) {
   const kt = useKata(KATA);
   const { pilihan, setPilihan, tata, setTata, ukur, setMuatkan } = lembar;
-  const { kolom, unit, semuaAlamat, jumlahSembunyi, hrg, dpp, dtp, kpr } = susunLembar(isi, pilihan);
+  const { kolom, unit, semuaAlamat, jumlahSembunyi, hrg, dpp, dtp, kpr, warna } =
+    susunLembar(isi, pilihan);
   const setKpr = (n: Partial<typeof kpr>) => setPilihan({ ...pilihan, kpr: { ...kpr, ...n } });
+  const setWarna = (n: Partial<typeof warna>) =>
+    setPilihan({ ...pilihan, warna: { ...warna, ...n } });
+  const kotakWarna = (label: string, kunci: "kepala" | "teks" | "cb" | "kpr" | "selang") => (
+    <label style={{ display: "block" }}>
+      <input type="color" value={warna[kunci]} aria-label={label}
+             onChange={(e) => setWarna({ [kunci]: e.target.value })} /> {label}
+    </label>
+  );
   /** "25, 20, 15" → [25, 20, 15]; yang bukan angka diabaikan. */
   const bacaTenor = (teks: string) => teks.split(/[^\d.,]+/)
     .map((x) => Number(x.replace(",", "."))).filter((n) => n > 0 && n <= 40);
@@ -317,6 +353,35 @@ export function AlatLembar({ isi, lembar, judul, children }: {
             <label key={k}><input type="checkbox" checked={!pilihan.kolom.includes(k)}
               onChange={(e) => ganti("kolom", k, e.target.checked)} /> {k}</label>
           ))}
+          {/* Warna kepala tabel: bawaannya abu-abu, boleh disetel per lembar
+              dan per cara bayar. */}
+          <b>{kt.warnaJudul}</b>
+          <span className="hint" style={{ textAlign: "left", margin: 0 }}>{kt.warnaInfo}</span>
+          {kotakWarna(kt.warnaKepala, "kepala")}
+          {kotakWarna(kt.warnaTeks, "teks")}
+          {kotakWarna(kt.warnaCb, "cb")}
+          {kotakWarna(kt.warnaKpr, "kpr")}
+          {kotakWarna(kt.warnaSelang, "selang")}
+          <span className="hint" style={{ textAlign: "left", margin: 0 }}>{kt.warnaPerKolom}</span>
+          {isi.kolom.map((k) => (
+            <label key={`w-${k}`} style={{ display: "block" }}>
+              <input type="color" aria-label={`${kt.warnaCb} — ${k}`}
+                     value={warna.kolom[k] ?? warna.cb}
+                     onChange={(e) => setWarna({ kolom: { ...warna.kolom, [k]: e.target.value } })} />
+              {" "}{k}
+              {warna.kolom[k] && (
+                <button className="kecil" style={{ marginLeft: 6 }}
+                        onClick={() => {
+                          const sisa = { ...warna.kolom };
+                          delete sisa[k];
+                          setWarna({ kolom: sisa });
+                        }}>×</button>)}
+            </label>
+          ))}
+          <div className="row" style={{ margin: "0 0 4px" }}>
+            <button className="kecil" onClick={() => setPilihan({ ...pilihan, warna: undefined })}>
+              {kt.warnaReset}</button>
+          </div>
           {/* Ilustrasi cicilan KPR: kolom tambahan di samping harga, seperti
               pada lembar yang dibagikan ke konsumen. */}
           <b>{kt.kprJudul}</b>
@@ -357,7 +422,7 @@ export function AlatLembar({ isi, lembar, judul, children }: {
 export function LembarHarga({ isi, lembar }: { isi: Isi; lembar: Lembar }) {
   const kt = useKata(KATA);
   const { pilihan, tata, setTata, muatkan, setMuatkan, setUkur } = lembar;
-  const { kolom, unit, info, area, kolPajak, kpr, ilustrasi } = susunLembar(isi, pilihan);
+  const { kolom, unit, info, area, kolPajak, kpr, ilustrasi, warna } = susunLembar(isi, pilihan);
   const satuHalaman = tata.pas !== "asli";
   const [skala, setSkala] = useState({ zoom: 1, lebar: 0 });
   const tabel = useRef<HTMLTableElement>(null);
@@ -410,6 +475,10 @@ export function LembarHarga({ isi, lembar }: { isi: Isi; lembar: Lembar }) {
            style={{ width: LEBAR[tata.arah] + 2 * 30, minHeight: TINGGI[tata.arah] + 2 * 30, padding: 30 }}>
         <div ref={kertas} className="pl-lembar"
              style={{ fontSize: `${tata.huruf}pt`, ["--pad" as string]: `${tata.baris}em`,
+                      ["--kepala" as string]: warna.kepala,
+                      ["--kepala-teks" as string]: warna.teks,
+                      ["--cb" as string]: warna.cb,
+                      ["--selang" as string]: warna.selang,
                       ...(satuHalaman && skala.lebar ? { zoom: skala.zoom, width: skala.lebar } : {}) }}>
           <header>
             {isi.slug ? <img src={`/project/${isi.slug}.png`} alt="" className="tnc-logo" /> : <span />}
@@ -430,15 +499,20 @@ export function LembarHarga({ isi, lembar }: { isi: Isi; lembar: Lembar }) {
                 {/* Judul cara bayar: kolom sama lebar, judul panjang dilipat.
                     Dengan satu kolom angka saja judulnya dua baris tinggi
                     (tidak perlu baris judul kedua). */}
+                {/* Cara bayar yang diberi warna sendiri cukup menyetel ulang
+                    variabelnya pada selnya. */}
                 {kolom.map((k) => kolPajak.length > 1
-                  ? <th key={k} colSpan={kolPajak.length} className="cb">{k}</th>
+                  ? <th key={k} colSpan={kolPajak.length} className="cb"
+                        style={{ ["--cb" as string]: warna.kolom[k] ?? warna.cb }}>{k}</th>
                   : kolPajak.length === 1
-                    ? <th key={k} rowSpan={2} className="cb harga">{k}</th>
+                    ? <th key={k} rowSpan={2} className="cb harga"
+                          style={{ ["--cb" as string]: warna.kolom[k] ?? warna.cb }}>{k}</th>
                     : null)}
                 {/* Ilustrasi cicilan KPR: satu kelompok per cara bayar yang
                     dicentang, berisi satu kolom untuk tiap tenor. */}
                 {ilustrasi.map((k) => (
-                  <th key={`kpr-${k}`} colSpan={kpr.tenor.length} className="cb">
+                  <th key={`kpr-${k}`} colSpan={kpr.tenor.length} className="cb"
+                      style={{ ["--cb" as string]: warna.kpr }}>
                     {kt.kprKepala(k, String(kpr.bunga).replace(".", ","))}</th>
                 ))}
               </tr>

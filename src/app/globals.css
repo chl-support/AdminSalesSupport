@@ -3186,12 +3186,15 @@ ul.daftar-ubah li { margin: 1px 0; }
 .pl-lembar table { border-collapse: collapse; width: 100%; font-size: inherit; }
 .pl-lembar th, .pl-lembar td { border: 1px solid #555 !important; padding: var(--pad, .15em) .35em; background: none;
   font-size: inherit; color: #000; white-space: nowrap; height: auto; }
-.pl-lembar thead th { background: #e8e8e8 !important; font-weight: 700; text-align: center; vertical-align: middle; }
-.pl-lembar thead th.cb { background: #d9d9d9 !important; }
+/* Warna judul kolom dapat disetel di langkah 4b: nilainya dipasang sebagai
+   variabel pada lembarnya, dan pada tiap sel kelompok yang berwarna sendiri. */
+.pl-lembar thead th { background: var(--kepala, #e8e8e8) !important; font-weight: 700;
+  color: var(--kepala-teks, #000) !important; text-align: center; vertical-align: middle; }
+.pl-lembar thead th.cb { background: var(--cb, #d9d9d9) !important; }
 .pl-lembar td.n { text-align: right; font-variant-numeric: tabular-nums; }
 .pl-lembar td.h { font-weight: 700; }
 .pl-lembar td.c { text-align: center; }
-.pl-lembar tbody tr:nth-child(even) td { background: #f6f6f6 !important; }
+.pl-lembar tbody tr:nth-child(even) td { background: var(--selang, #f6f6f6) !important; }
 .pl-lembar tr { break-inside: avoid; }
 .pl-lembar .pl-catatan { margin: .6em 0 0; font-style: italic; }
 @media print { .pl-lembar thead { display: table-header-group; } }
