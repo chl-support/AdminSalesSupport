@@ -136,7 +136,7 @@ const KATA = {
     tambahTingkatInfo: "Tambah tingkat kenaikan (dihitung dari hasil tingkat sebelumnya)",
     tambahTingkat: "+ Tingkat", tambahKenaikan: "+ Kenaikan",
     // 3. Data Harga
-    dpHint: "Harga per cara bayar = ROUNDUP(Harga Setelah Faktor × koefisien Data (IRR), juta) + tambahan; lalu kenaikan bertingkat khusus cara bayar itu bila diisi — tiap tingkat dari hasil tingkat sebelumnya: ROUNDUP(harga × (1 + %), juta) + Nilai (Rp). Kolom turunan dihitung dari kolom lain di sebelah kirinya: ROUNDUP(kolom itu × pengali, juta), tanpa tambahan.",
+    dpHint: "Harga per cara bayar = ROUNDUP(Harga Setelah Faktor × koefisien Data (IRR) × pengali, juta) + tambahan (pengali bawaan 100%, mis. 124% untuk KPR Extra Ultra Express); lalu kenaikan bertingkat khusus cara bayar itu bila diisi — tiap tingkat dari hasil tingkat sebelumnya: ROUNDUP(harga × (1 + %), juta) + Nilai (Rp). Kolom turunan dihitung dari kolom lain di sebelah kirinya: ROUNDUP(kolom itu × pengali, juta), tanpa tambahan.",
     tambahanPerUnit: "Tambahan per unit (Rp)",
     thKolom: "Kolom", thDari: "Dihitung dari", thKoef: "Koefisien / pengali",
     thNaikInfo: "Kenaikan khusus cara bayar ini. Tiap tingkat dihitung dari hasil tingkat sebelumnya: ROUNDUP(harga × (1 + %), juta) + Nilai (Rp)",
@@ -306,7 +306,7 @@ const KATA = {
     hapusTingkat: (n: number) => `Remove tier ${n}`,
     tambahTingkatInfo: "Add an increase tier (calculated from the previous tier's result)",
     tambahTingkat: "+ Tier", tambahKenaikan: "+ Increase",
-    dpHint: "Price per payment scheme = ROUNDUP(Factored Price × Data (IRR) coefficient, million) + addition; then that scheme's own tiered increase if filled in — each tier from the previous tier's result: ROUNDUP(price × (1 + %), million) + Amount (Rp). Derived columns are calculated from another column to their left: ROUNDUP(that column × multiplier, million), with no addition.",
+    dpHint: "Price per payment scheme = ROUNDUP(Factored Price × Data (IRR) coefficient × multiplier, million) + addition (multiplier defaults to 100%, e.g. 124% for KPR Extra Ultra Express); then that scheme's own tiered increase if filled in — each tier from the previous tier's result: ROUNDUP(price × (1 + %), million) + Amount (Rp). Derived columns are calculated from another column to their left: ROUNDUP(that column × multiplier, million), with no addition.",
     tambahanPerUnit: "Addition per unit (Rp)",
     thKolom: "Column", thDari: "Calculated from", thKoef: "Coefficient / multiplier",
     thNaikInfo: "Increase specific to this payment scheme. Each tier is calculated from the previous tier's result: ROUNDUP(price × (1 + %), million) + Amount (Rp)",
@@ -1540,8 +1540,15 @@ export function LangkahDataPl({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
                 </select>
               </td>
               <td className="n">
-                {k.skema ? (Number.isFinite(hasil.irr.koef[k.skema]) ? hasil.irr.koef[k.skema].toFixed(3) : "—")
-                  : <Isian jenis="persen" nilai={k.kali ?? 1} lebar={70} disabled={ro}
+                {k.skema ? (
+                  // Koefisien Data (IRR) × pengali, dibulatkan sekali (kosong = 100%).
+                  <span className="row" style={{ margin: 0, flexWrap: "nowrap", gap: 6, justifyContent: "flex-end" }}>
+                    {Number.isFinite(hasil.irr.koef[k.skema]) ? hasil.irr.koef[k.skema].toFixed(3) : "—"}
+                    <span className="hint" style={{ margin: 0 }}>×</span>
+                    <Isian jenis="persen" nilai={k.kali ?? 1} lebar={70} disabled={ro}
+                           ubah={(n) => ubahKolom(i, (x) => ({ ...x, kali: n === 1 ? undefined : n }))} />
+                  </span>
+                ) : <Isian jenis="persen" nilai={k.kali ?? 1} lebar={70} disabled={ro}
                            ubah={(n) => ubahKolom(i, (x) => ({ ...x, kali: n }))} />}
               </td>
               <td>

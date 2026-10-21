@@ -205,7 +205,9 @@ export type KolomDataPl = {
   nama: string;
   /**
    * Cara bayar Data (IRR) yang koefisiennya dipakai:
-   * harga = ROUNDUP(Factored Price × koefisien, juta) + tambahan.
+   * harga = ROUNDUP(Factored Price × koefisien × kali, juta) + tambahan.
+   * `kali` (kosong = 100%) dikalikan sebelum dibulatkan, seperti Excel BIO
+   * DISTRICT: KPR Extra Ultra Express = ROUNDUP(harga × koefisien × 124%, -6).
    */
   skema?: string;
   /**
@@ -539,7 +541,7 @@ export function hitungDataPl(
     if (k.skema) {
       const c = koef[k.skema];
       harga[k.nama] = Number.isFinite(c)
-        ? roundUp(factored * c, 6) + susun.dataPricelist.tambahan : NaN;
+        ? roundUp(factored * c * (k.kali ?? 1), 6) + susun.dataPricelist.tambahan : NaN;
     } else if (k.dari) {
       const asal = harga[k.dari];
       harga[k.nama] = asal == null ? NaN : roundUp(asal * (k.kali ?? 1), 6);
