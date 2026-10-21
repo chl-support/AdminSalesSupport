@@ -32,13 +32,15 @@ import {
 const KATA = {
   id: {
     judul: "Pricelist",
-    langkah: ["Data (IRR)", "Unit Data", "Data Pricelist", "Pricelist", "Terms & Conditions"],
+    langkah: ["Data (IRR)", "Unit Data", "Data Pricelist", "Pricelist", "Harga Special", "Terms & Conditions"],
+    kosong4b: "Halaman Harga Special masih kosong — isinya akan disusun kemudian.",
     folder: "Data & Master Pricelist", folderUraian: "Master Pricelist & riwayat perubahan",
     uraian: [
       "Koefisien harga tiap cara bayar",
       "Harga dasar tiap unit",
       "Harga per cara bayar",
       "Harga jual, DPP & PPN DTP",
+      "Harga khusus",
       "Ketentuan pembayaran",
     ],
     pilihProject: "Pilih project lebih dulu.",
@@ -58,7 +60,7 @@ const KATA = {
     catatanUnit: "Catatan, mis. harga belum ditentukan management",
     berlakuInfo: "Pricelist ini menggantikan pricelist yang berlaku dan langsung dipakai layar Simulasi / NPV. Pricelist lama tetap ada di riwayatnya.",
     yakinBuka: "Isian di layar belum disimpan dan akan diganti. Lanjutkan?",
-    dibuka: (n: string) => `Pricelist "${n}" dibuka untuk diedit. Setelah selesai, beri nama baru di langkah 4 lalu Simpan & berlakukan — pricelist "${n}" tetap ada di riwayat.`,
+    dibuka: (n: string) => `Pricelist "${n}" dibuka untuk diedit. Setelah selesai, beri nama baru di langkah 4a lalu Simpan & berlakukan — pricelist "${n}" tetap ada di riwayat.`,
     fNama: "Nama pricelist (juga nama file Excel-nya)", berlakukan: "Simpan & berlakukan", memberlakukan: "Memberlakukan…",
     diberlakukan: (n: string) => `Pricelist "${n}" berlaku. Buka Simulasi / NPV untuk memakainya.`,
     simpanSbg: "Simpan dengan nama baru (tanpa memberlakukan)",
@@ -68,13 +70,15 @@ const KATA = {
   },
   en: {
     judul: "Price List",
-    langkah: ["Data (IRR)", "Unit Data", "Price Data", "Price List", "Terms & Conditions"],
+    langkah: ["Data (IRR)", "Unit Data", "Price Data", "Price List", "Special Price", "Terms & Conditions"],
+    kosong4b: "The Special Price page is still empty — its content will be built later.",
     folder: "Price List Data & Master", folderUraian: "Master price list & change history",
     uraian: [
       "Price coefficient per payment scheme",
       "Base price per unit",
       "Price per payment scheme",
       "Selling price, DPP & VAT DTP",
+      "Special prices",
       "Payment terms",
     ],
     pilihProject: "Select a project first.",
@@ -94,7 +98,7 @@ const KATA = {
     catatanUnit: "Note, e.g. price not yet set by management",
     berlakuInfo: "This price list replaces the one in force and is used by Simulation / NPV right away. The old one stays in the history.",
     yakinBuka: "Unsaved changes on screen will be replaced. Continue?",
-    dibuka: (n: string) => `Price list "${n}" opened for editing. When done, give it a new name in step 4 and Save & apply — "${n}" stays in the history.`,
+    dibuka: (n: string) => `Price list "${n}" opened for editing. When done, give it a new name in step 4a and Save & apply — "${n}" stays in the history.`,
     fNama: "Price list name (also its Excel file name)", berlakukan: "Save & apply", memberlakukan: "Applying…",
     diberlakukan: (n: string) => `Price list "${n}" is in force. Open Simulation / NPV to use it.`,
     simpanSbg: "Save under a new name (without applying)",
@@ -108,6 +112,9 @@ type Draf = {
   baru: boolean; data: SusunPricelist;
   diubah_oleh: string | null; diubah_pada: string | null;
 };
+
+/** Nomor tampil tiap langkah: Pricelist (4a) dan Harga Special (4b) berdampingan. */
+const NOMOR = ["1", "2", "3", "4a", "4b", "5"];
 
 /** Nomor "langkah" untuk folder Data & Master Pricelist di depan langkah 1. */
 const FOLDER = -1;
@@ -387,7 +394,7 @@ export default function PricelistPage() {
                         document.querySelector(".langkah-pl")
                           ?.scrollIntoView({ behavior: "smooth", block: "start" });
                       }}>
-                <b>{i + 1}. {l}</b>{k.uraian[i]}
+                <b><span className="no-langkah">{NOMOR[i]}.</span> {l}</b>{k.uraian[i]}
               </button>
             ))}
           </nav>
@@ -407,10 +414,12 @@ export default function PricelistPage() {
             <LangkahUnit key={1} {...props} />,
             <LangkahDataPl key={2} {...props} />,
             <LangkahPricelist key={3} {...props} aksi={panelBerlaku} slug={sesi.project_slug} />,
-            <LangkahTnc key={4} {...props} slug={sesi.project_slug} />,
+            // 4b. Harga Special: masih kosong, isinya disusun kemudian.
+            <div key={4} className="banner info">{k.kosong4b}</div>,
+            <LangkahTnc key={5} {...props} slug={sesi.project_slug} />,
           ].map((isi, i) => i !== langkah ? null : (
-            <section key={i} id={`langkah-${i + 1}`} className="panel sp bagian-langkah">
-              <h2>{i + 1}. {k.langkah[i]}<span className="hint" style={{ margin: 0 }}>{k.uraian[i]}</span></h2>
+            <section key={i} id={`langkah-${NOMOR[i]}`} className="panel sp bagian-langkah">
+              <h2>{NOMOR[i]}. {k.langkah[i]}<span className="hint" style={{ margin: 0 }}>{k.uraian[i]}</span></h2>
               {isi}
             </section>
           ))}

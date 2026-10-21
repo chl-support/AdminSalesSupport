@@ -701,7 +701,7 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
         </div>
         <p className="hint kiri" style={{ margin: 0, alignSelf: "flex-end", maxWidth: 520 }}>
           Ubah bila tarif PPN dari pemerintah berubah. Dipakai untuk kolom Incl PPN
-          di sini serta DPP dan Nilai Free PPN DTP di langkah 4.
+          di sini serta DPP dan Nilai Free PPN DTP di langkah 4a.
         </p>
       </div>
       <div className="row">
@@ -877,7 +877,7 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
           <button onClick={() => tambah()}>+ Tambah unit di akhir tabel</button>
           <span className="hint" style={{ margin: 0 }}>
             Unit yang ditambah atau dihapus baru tersimpan setelah <b>Simpan</b>, dan baru
-            dipakai Simulasi setelah diberlakukan di langkah 4.
+            dipakai Simulasi setelah diberlakukan di langkah 4a.
           </span>
         </div>
       )}
@@ -1209,7 +1209,7 @@ export function LangkahDataPl({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
           <span className="hint" style={{ margin: 0 }}>
             Cara bayar baru <b>masuk Data (IRR)</b>: isi DP, cicilan dan bulan tahapnya di langkah 1 —
             koefisiennya dihitung otomatis, Allocation dibagi otomatis (tidak memengaruhi harga), dan
-            kolomnya langsung ada di langkah 4 dan 5.
+            kolomnya langsung ada di langkah 4a dan 5.
           </span>
         </div>
       )}
