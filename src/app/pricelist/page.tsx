@@ -422,7 +422,7 @@ export default function PricelistPage() {
 
           {[
             <LangkahIrr key={0} {...props} baru={[baruCb, setBaruCb]} />,
-            <LangkahUnit key={1} {...props} />,
+            <LangkahUnit key={1} {...props} slug={sesi.project_slug} />,
             <LangkahDataPl key={2} {...props} />,
             <LangkahPricelist key={3} {...props} aksi={panelBerlaku} slug={sesi.project_slug} />,
             // 4b. Harga Special: masih kosong, isinya disusun kemudian.
