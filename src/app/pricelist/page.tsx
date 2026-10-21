@@ -63,6 +63,9 @@ const KATA = {
     yakinBuka: "Isian di layar belum disimpan dan akan diganti. Lanjutkan?",
     dibuka: (n: string) => `Harga "${n}" dibuka untuk diubah. Setelah selesai, beri nama baru di langkah 4a lalu Simpan & berlakukan — harga "${n}" tetap ada di riwayat.`,
     fNama: "Nama harga (juga nama berkas Excel-nya)", berlakukan: "Simpan & berlakukan", memberlakukan: "Memberlakukan…",
+    fHarga: "Harga yang diberlakukan",
+    hargaDasar: "Harga Dasar (langkah 4a)",
+    hargaSpesial: "Harga spesial langkah 4b",
     diberlakukan: (n: string) => `Harga "${n}" berlaku. Buka Simulasi / NPV untuk memakainya.`,
     simpanSbg: "Simpan dengan nama baru (tanpa memberlakukan)",
     simpanSbgInfo: "Simpan dengan nama baru: tersimpan di Master Harga untuk dibuka lagi nanti, harga yang berlaku tidak berganti.",
@@ -107,6 +110,9 @@ const KATA = {
     yakinBuka: "Unsaved changes on screen will be replaced. Continue?",
     dibuka: (n: string) => `Price list "${n}" opened for editing. When done, give it a new name in step 4a and Save & apply — "${n}" stays in the history.`,
     fNama: "Price list name (also its Excel file name)", berlakukan: "Save & apply", memberlakukan: "Applying…",
+    fHarga: "Prices to apply",
+    hargaDasar: "Base prices (step 4a)",
+    hargaSpesial: "Special prices from step 4b",
     diberlakukan: (n: string) => `Price list "${n}" is in force. Open Simulation / NPV to use it.`,
     simpanSbg: "Save under a new name (without applying)",
     simpanSbgInfo: "Save under a new name: kept in the upload history to reopen later; the price list in force does not change.",
@@ -150,6 +156,8 @@ export default function PricelistPage() {
   const [berkas, setBerkas] = useState<File | null>(null);
   const [peringatan, setPeringatan] = useState<string[]>([]);
   const [namaPl, setNamaPl] = useState("");
+  /** Set harga spesial yang akan diberlakukan; kosong = harga dasar 4a. */
+  const [hargaSet, setHargaSet] = useState("");
   const [berlaku, setBerlaku] = useState<string | null>(null);
   /** Nama pricelist yang baru disimpan tanpa diberlakukan. */
   const [tersimpanSbg, setTersimpanSbg] = useState<string | null>(null);
@@ -266,7 +274,7 @@ export default function PricelistPage() {
     setBerlaku(null); setTersimpanSbg(null);
     const b = await kirim("/api/pricelist/susun/berlakukan", {
       method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ nama: namaPl, berlakukan: aktifkan }),
+      body: JSON.stringify({ nama: namaPl, berlakukan: aktifkan, spesial: hargaSet || null }),
     });
     setSibuk(null);
     if (!b) return;
@@ -280,6 +288,10 @@ export default function PricelistPage() {
     // Parameter cara bayar baru diisi otomatis dari namanya.
     setData((d) => (d ? isiOtomatisCaraBayar(sinkronTnc(d, f(d))) : d));
   };
+
+  /** Harga yang diberlakukan: kosong = harga dasar langkah 4a. */
+  const setSpesial = data?.spesial?.set ?? [];
+  const hargaSetAda = setSpesial.some((x) => x.id === hargaSet);
 
   const tgl = (s: string) => new Date(s).toLocaleString("id-ID",
     { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
@@ -315,6 +327,19 @@ export default function PricelistPage() {
       ) : (
         <>
           <p className="hint kiri" style={{ marginTop: 0 }}>{k.berlakuInfo}</p>
+          {/* Harga mana yang dijadikan pricelist: dasar langkah 4a, atau
+              salah satu set harga spesial langkah 4b. */}
+          {setSpesial.length > 0 && (
+            <div style={{ marginBottom: 10 }}>
+              <label className="lbl" htmlFor="pl-harga">{k.fHarga}</label>
+              <select id="pl-harga" value={hargaSetAda ? hargaSet : ""}
+                      onChange={(e) => setHargaSet(e.target.value)}>
+                <option value="">{k.hargaDasar}</option>
+                {setSpesial.map((x) => <option key={x.id} value={x.id}>{x.nama}</option>)}
+              </select>
+              {hargaSetAda && <span className="pill warn" style={{ marginLeft: 8 }}>{k.hargaSpesial}</span>}
+            </div>
+          )}
           <label className="lbl" htmlFor="pl-nama">{k.fNama}</label>
           <div className="row">
             <input id="pl-nama" value={namaPl} maxLength={120} style={{ width: 320 }}
@@ -426,8 +451,8 @@ export default function PricelistPage() {
             <LangkahUnit key={1} {...props} slug={sesi.project_slug} />,
             <LangkahDataPl key={2} {...props} />,
             <LangkahPricelist key={3} {...props} aksi={panelBerlaku} slug={sesi.project_slug} />,
-            // 4b. Harga Spesial: menyusun tampilan cetakan dari angka 4a.
-            <LangkahHargaSpesial key={4} {...props} slug={sesi.project_slug} />,
+            // 4b. Harga Spesial: harga permintaan di atas harga 4a.
+            <LangkahHargaSpesial key={4} {...props} />,
             <LangkahTnc key={5} {...props} slug={sesi.project_slug} />,
           ].map((isi, i) => i !== langkah ? null : (
             <section key={i} id={`langkah-${NOMOR[i]}`} className="panel sp bagian-langkah">

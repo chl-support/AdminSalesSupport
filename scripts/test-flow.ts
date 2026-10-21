@@ -2027,6 +2027,42 @@ async function main() {
     assert(SUSUN_NARAYA.tnc.rekening.length === 2, "rekening T&C");
   });
 
+  // Langkah 4b: harga spesial menggeser harga yang diberlakukan tanpa
+  // menyentuh harga dasar langkah 4a.
+  await check("harga spesial 4b menggeser harga tanpa mengubah harga dasar", async () => {
+    const { SUSUN_NARAYA } = await import("../src/lib/susun-pricelist-naraya");
+    const { hitungSemua } = await import("../src/lib/susun-pricelist");
+    const kolom = SUSUN_NARAYA.pricelist.kolom.map((k) => k.nama);
+    const [cash, cicilan] = kolom;
+    const susun = {
+      ...SUSUN_NARAYA,
+      spesial: { set: [{
+        id: "uji", nama: "Uji",
+        unit: { "NS-NR1-01": { jenis: "persen" as const, nilai: -5 } },
+        sel: { "NS-NR1-01": { [cicilan]: 1_750_000_000 } },
+      }] },
+    };
+    const unit = (h: any, kode: string) => h.baris.find((x: any) => x.unit.kode === kode)!;
+    const dasar = hitungSemua(susun);
+    const khusus = hitungSemua(susun, "uji");
+    // Harga dasar tidak bergeser sedikit pun, baik dengan set dipakai maupun tidak.
+    assert(unit(dasar, "NS-NR1-01").pricelist[cash].harga === 1_817_000_000,
+           `dasar: ${unit(dasar, "NS-NR1-01").pricelist[cash].harga}`);
+    // Penyesuaian unit −5% menggeser seluruh cara bayar unit itu…
+    assert(unit(khusus, "NS-NR1-01").pricelist[cash].harga === 1_726_150_000,
+           `−5%: ${unit(khusus, "NS-NR1-01").pricelist[cash].harga}`);
+    // …kecuali sel yang diketik sendiri, yang dipakai apa adanya.
+    assert(unit(khusus, "NS-NR1-01").pricelist[cicilan].harga === 1_750_000_000,
+           `sel: ${unit(khusus, "NS-NR1-01").pricelist[cicilan].harga}`);
+    // Unit lain tidak ikut bergeser.
+    assert(unit(khusus, "NS-NR1-03").pricelist[cash].harga
+             === unit(dasar, "NS-NR1-03").pricelist[cash].harga, "unit lain tetap");
+    // DPP dan nilai free PPN DTP dihitung ulang dari harga spesialnya.
+    const p = unit(khusus, "NS-NR1-01").pricelist[cash];
+    assert(Math.abs(p.dpp + p.dtp - p.harga) < 1 || p.dtp === 0,
+           `dpp+dtp: ${p.dpp} + ${p.dtp} vs ${p.harga}`);
+  });
+
   // Data (IRR): Adjusted Price tersimpan (hasil Goal Seek Excel) menentukan
   // koefisien persis seperti Excel (Adjusted / Cash); mengubah arus kasnya
   // kembali ke perhitungan tepat pada target.
