@@ -75,7 +75,7 @@ const KATA = {
       `${n} unit dimuat dari lembar UNIT DATA ${berkas}. Periksa tabelnya, lalu Simpan.` +
       (peringatan ? ` Perhatikan: ${peringatan}` : ""),
     unitHint: (fungsi: string, excl: boolean, bulat: number, lp: string) =>
-      `Harga Dasar = ${fungsi}((Tanah × harga tanah + Luas Bangunan × harga bangunan)${excl ? " (Belum termasuk PPN)" : " × (1 + PPN)"} × ` +
+      `Harga Dasar = ${fungsi}((Tanah × harga tanah + GFA × harga bangunan)${excl ? " (Belum termasuk PPN)" : " × (1 + PPN)"} × ` +
       `(1 + kenaikan), ${bulat === 6 ? "juta" : (10 ** bulat).toLocaleString("id-ID")}). Harga Setelah Faktor = Harga Dasar × (1 + jumlah faktor posisi) ` +
       `× (1 + (+) Faktor) + Khusus + Unit Contoh × (1 + kenaikan). Harga per m² ditulis sebelum PPN ${lp}; faktor dan kenaikan dalam persen.`,
     tarifPpn: "Tarif PPN",
@@ -115,7 +115,7 @@ const KATA = {
     tanahM2: "Tanah (m²)", hargaTanah: "Harga Tanah (dasar)",
     excl: (lp: string) => `(Belum termasuk PPN ${lp})`,
     incl: (lp: string) => `(Termasuk PPN ${lp})`,
-    gfaM2: "Luas Bangunan (m²)", hargaBangunan: "Harga Bangunan (dasar)",
+    gfaM2: "GFA (m²)", hargaBangunan: "GFA (dasar)",
     special: "Khusus (Rp)", showUnit: "Unit Contoh (Rp)",
     hargaDasar: "Harga Dasar", hargaFaktor: "Harga Setelah Faktor",
     totalUnit: (n: number, dari?: number) => `Total ${n} unit${dari != null ? ` (dari ${dari})` : ""}`,
