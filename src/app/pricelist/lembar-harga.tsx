@@ -43,6 +43,12 @@ export const KATA = {
     cetak: "Cetak / Simpan PDF", tutup: "Tutup",
     ringkas: (u: number, c: number) => `${u} unit · ${c} cara bayar. Di dialog cetak pilih kertas`,
     pdf: "; untuk PDF pilih “Simpan sebagai PDF”.",
+    kprJudul: "Ilustrasi cicilan KPR",
+    kprInfo: "Angsuran bulanan anuitas dari harga cara bayar yang dicentang — sebagai ilustrasi di samping harganya.",
+    kprBunga: "Bunga (% per tahun)", kprTenor: "Tenor (tahun, dipisah koma)",
+    kprUntuk: "Ilustrasi untuk cara bayar",
+    kprKepala: (nama: string, bunga: string) => `Ilustrasi ${nama} (Cicilan KPR Bunga ${bunga}%)`,
+    kprTahun: (n: number) => `${n} tahun`,
     no: "No", unitNo: "No Unit", area: "Luas (m²)",
     harga: "Harga Incld. PPN", dpp: "Harga Excld. PPN", dtp: "PPN DTP",
     kol: { alamat: "Alamat", phase: "Tahap", ukuran: "Ukuran", view: "Arah Hadap", tipe: "Tipe",
@@ -69,6 +75,12 @@ export const KATA = {
     cetak: "Print / Save PDF", tutup: "Close",
     ringkas: (u: number, c: number) => `${u} units · ${c} payment schemes. In the print dialog choose`,
     pdf: " paper; for PDF choose “Save as PDF”.",
+    kprJudul: "Mortgage instalment illustration",
+    kprInfo: "Monthly annuity instalment from the price of each ticked payment scheme — an illustration beside its price.",
+    kprBunga: "Interest (% per year)", kprTenor: "Tenor (years, comma separated)",
+    kprUntuk: "Illustration for payment schemes",
+    kprKepala: (nama: string, bunga: string) => `${nama} illustration (mortgage at ${bunga}%)`,
+    kprTahun: (n: number) => `${n} years`,
     no: "No", unitNo: "Unit No", area: "Area (m²)",
     harga: "Price Incl. VAT", dpp: "Price Excl. VAT", dtp: "VAT DTP",
     kol: { alamat: "Address", phase: "Phase", ukuran: "Size", view: "View", tipe: "Type",
@@ -92,7 +104,30 @@ export type Isi = {
 export type Pilihan = {
   kolom: string[]; alamat: string[]; pajak: boolean;
   hrg?: boolean; dpp?: boolean; dtp?: boolean; info?: string[];
+  /**
+   * Ilustrasi cicilan KPR di samping harga: bunga setahun, tenor dalam
+   * tahun, dan cara bayar mana yang diberi ilustrasi. Daftar cara bayar
+   * kosong berarti tidak ada ilustrasi yang dicetak.
+   */
+  kpr?: { bunga: number; tenor: number[]; kolom: string[] };
 };
+
+export const KPR_AWAL = { bunga: 2.75, tenor: [25, 20, 15], kolom: [] as string[] };
+
+/**
+ * Angsuran bulanan anuitas: pokok, bunga setahun (persen), tenor (tahun).
+ *
+ * Rumus yang sama dengan lembar PL yang dibagikan ke konsumen — bunga
+ * setahun dibagi dua belas, lalu anuitas biasa. Bunga nol berarti pokoknya
+ * dibagi rata sebanyak bulannya.
+ */
+export function angsuranKpr(pokok: number, bungaTahun: number, tahun: number): number {
+  const n = Math.round(tahun * 12);
+  if (!(pokok > 0) || !(n > 0)) return 0;
+  const i = bungaTahun / 100 / 12;
+  if (!(i > 0)) return pokok / n;
+  return pokok * i / (1 - Math.pow(1 + i, -n));
+}
 
 /**
  * Kolom keterangan unit yang dapat disembunyikan dari cetakan. Makin sedikit
@@ -172,9 +207,12 @@ export function susunLembar(isi: Isi, p: Pilihan) {
     ...(hrg ? ["harga" as const] : []),
     ...(dtp ? ["dtp" as const] : []),
     ...(dpp ? ["dpp" as const] : [])];
+  const kpr = { ...KPR_AWAL, ...(p.kpr ?? {}) };
+  const kolom = isi.kolom.filter((k) => !p.kolom.includes(k));
+  // Ilustrasi hanya untuk cara bayar yang memang ikut dicetak.
+  const ilustrasi = kpr.kolom.filter((k) => kolom.includes(k));
   return {
-    hrg, dpp, dtp, kolPajak,
-    kolom: isi.kolom.filter((k) => !p.kolom.includes(k)),
+    hrg, dpp, dtp, kolPajak, kpr, ilustrasi, kolom,
     unit: isi.unit.filter((u) => !p.alamat.includes(u.alamat || "(tanpa address)")),
     info: INFO.filter(([k]) => !(p.info ?? []).includes(k)),
     area: AREA.filter(([k]) => !(p.info ?? []).includes(k)),
@@ -194,7 +232,11 @@ export function AlatLembar({ isi, lembar, judul, children }: {
 }) {
   const kt = useKata(KATA);
   const { pilihan, setPilihan, tata, setTata, ukur, setMuatkan } = lembar;
-  const { kolom, unit, semuaAlamat, jumlahSembunyi, hrg, dpp, dtp } = susunLembar(isi, pilihan);
+  const { kolom, unit, semuaAlamat, jumlahSembunyi, hrg, dpp, dtp, kpr } = susunLembar(isi, pilihan);
+  const setKpr = (n: Partial<typeof kpr>) => setPilihan({ ...pilihan, kpr: { ...kpr, ...n } });
+  /** "25, 20, 15" → [25, 20, 15]; yang bukan angka diabaikan. */
+  const bacaTenor = (teks: string) => teks.split(/[^\d.,]+/)
+    .map((x) => Number(x.replace(",", "."))).filter((n) => n > 0 && n <= 40);
   const satuHalaman = tata.pas !== "asli";
   /**
    * Centang salah satu kolom harga. `pajak` ikut ditulis supaya pilihan ini
@@ -275,6 +317,25 @@ export function AlatLembar({ isi, lembar, judul, children }: {
             <label key={k}><input type="checkbox" checked={!pilihan.kolom.includes(k)}
               onChange={(e) => ganti("kolom", k, e.target.checked)} /> {k}</label>
           ))}
+          {/* Ilustrasi cicilan KPR: kolom tambahan di samping harga, seperti
+              pada lembar yang dibagikan ke konsumen. */}
+          <b>{kt.kprJudul}</b>
+          <span className="hint" style={{ textAlign: "left", margin: 0 }}>{kt.kprInfo}</span>
+          <label style={{ display: "block" }}>{kt.kprBunga}{" "}
+            <input className="n" inputMode="decimal" style={{ width: 70 }}
+                   value={String(kpr.bunga).replace(".", ",")}
+                   onChange={(e) => setKpr({ bunga: Number(e.target.value.replace(",", ".")) || 0 })} />
+          </label>
+          <label style={{ display: "block" }}>{kt.kprTenor}{" "}
+            <input style={{ width: 110 }} value={kpr.tenor.join(", ")}
+                   onChange={(e) => setKpr({ tenor: bacaTenor(e.target.value) })} />
+          </label>
+          <span className="hint" style={{ textAlign: "left", margin: 0 }}>{kt.kprUntuk}</span>
+          {isi.kolom.map((k) => (
+            <label key={`kpr-${k}`}><input type="checkbox" checked={kpr.kolom.includes(k)}
+              onChange={(e) => setKpr({ kolom: e.target.checked
+                ? [...kpr.kolom, k] : kpr.kolom.filter((x) => x !== k) })} /> {k}</label>
+          ))}
           {semuaAlamat.length > 1 && <>
             <b>{kt.cluster}</b>
             {semuaAlamat.map((a) => (
@@ -296,7 +357,7 @@ export function AlatLembar({ isi, lembar, judul, children }: {
 export function LembarHarga({ isi, lembar }: { isi: Isi; lembar: Lembar }) {
   const kt = useKata(KATA);
   const { pilihan, tata, setTata, muatkan, setMuatkan, setUkur } = lembar;
-  const { kolom, unit, info, area, kolPajak } = susunLembar(isi, pilihan);
+  const { kolom, unit, info, area, kolPajak, kpr, ilustrasi } = susunLembar(isi, pilihan);
   const satuHalaman = tata.pas !== "asli";
   const [skala, setSkala] = useState({ zoom: 1, lebar: 0 });
   const tabel = useRef<HTMLTableElement>(null);
@@ -374,6 +435,12 @@ export function LembarHarga({ isi, lembar }: { isi: Isi; lembar: Lembar }) {
                   : kolPajak.length === 1
                     ? <th key={k} rowSpan={2} className="cb harga">{k}</th>
                     : null)}
+                {/* Ilustrasi cicilan KPR: satu kelompok per cara bayar yang
+                    dicentang, berisi satu kolom untuk tiap tenor. */}
+                {ilustrasi.map((k) => (
+                  <th key={`kpr-${k}`} colSpan={kpr.tenor.length} className="cb">
+                    {kt.kprKepala(k, String(kpr.bunga).replace(".", ","))}</th>
+                ))}
               </tr>
               <tr>
                 {area.map(([k]) => <th key={k}>{kt.kol[k]}</th>)}
@@ -381,6 +448,8 @@ export function LembarHarga({ isi, lembar }: { isi: Isi; lembar: Lembar }) {
                   ? kolPajak.map((j) =>
                       <th key={`${k}-${j}`} className="harga">{judulPajak[j]}</th>)
                   : null)}
+                {ilustrasi.map((k) => kpr.tenor.map((t) =>
+                  <th key={`kpr-${k}-${t}`} className="harga">{kt.kprTahun(t)}</th>))}
               </tr>
             </thead>
             <tbody>
@@ -397,6 +466,9 @@ export function LembarHarga({ isi, lembar }: { isi: Isi; lembar: Lembar }) {
                     <td key={`${k}-${j}`}
                         className={j === "harga" ? "n h harga" : "n harga"}>
                       {angkaPajak(u, k, j)}</td>))}
+                  {ilustrasi.map((k) => kpr.tenor.map((t) =>
+                    <td key={`kpr-${k}-${t}`} className="n harga">
+                      {angka(angsuranKpr(u.harga[k] ?? 0, kpr.bunga, t))}</td>))}
                 </tr>
               ))}
             </tbody>
