@@ -1318,6 +1318,7 @@ export default function SimulasiPage() {
                   setUbah((u) => u ?? hasilStandar!.termin.map((t) => ({
                     ket: t.ket, tgl: iso(t.tgl), nilaiAsli: t.nilai, teks: null,
                     sembunyi: false, tambahan: false })));
+                  setTotalTeks(null);
                   setModeUbah(true);
                 }}>{k.eUbah}</button>
               ) : (
@@ -1454,26 +1455,28 @@ export default function SimulasiPage() {
                     </tr>
                   );
                 })}
-                {/* Baris TOTAL: Nilai dan Tagihan dapat diketik. Yang
+                {/* Baris TOTAL: Nilai dan Tagihan dapat diketik selama mode
+                    edit jadwal menyala — di luar itu terkunci seperti kolom
+                    lainnya, supaya harga tidak tergeser oleh salah ketik. Yang
                     diketik di sini bukan jadwalnya melainkan harganya —
                     selisihnya terhadap harga PL masuk ke Diskon atau
                     Penambahan Harga; lihat `ubahTotal`. */}
                 <tr className="baris-total">
                   <td colSpan={3}>{k.total}</td>
                   <td className="n">{persenPl(hasil.jumlahNilai)}</td>
-                  <td className="n">
-                    <input className="n" inputMode="decimal" aria-label={k.tTotalNilai}
-                           value={totalTeks?.kolom === "nilai" ? totalTeks.teks
-                                  : Math.round(hasil.jumlahNilai).toLocaleString("id-ID")}
-                           onChange={(e) => ubahTotal("nilai", e.target.value)} />
-                  </td>
+                  <td className="n">{modeUbah
+                    ? <input className="n" inputMode="decimal" aria-label={k.tTotalNilai}
+                             value={totalTeks?.kolom === "nilai" ? totalTeks.teks
+                                    : Math.round(hasil.jumlahNilai).toLocaleString("id-ID")}
+                             onChange={(e) => ubahTotal("nilai", e.target.value)} />
+                    : angkaLembar(hasil.jumlahNilai)}</td>
                   <td className="n">{angkaLembar(hasil.jumlahPv)}</td>
-                  <td className="n">
-                    <input className="n" inputMode="decimal" aria-label={k.tTotalTagihan}
-                           value={totalTeks?.kolom === "tagihan" ? totalTeks.teks
-                                  : Math.round(hasil.jumlahTagihan).toLocaleString("id-ID")}
-                           onChange={(e) => ubahTotal("tagihan", e.target.value)} />
-                  </td>
+                  <td className="n">{modeUbah
+                    ? <input className="n" inputMode="decimal" aria-label={k.tTotalTagihan}
+                             value={totalTeks?.kolom === "tagihan" ? totalTeks.teks
+                                    : Math.round(hasil.jumlahTagihan).toLocaleString("id-ID")}
+                             onChange={(e) => ubahTotal("tagihan", e.target.value)} />
+                    : angkaLembar(hasil.jumlahTagihan)}</td>
                   <td className="n">{angkaLembar(hasil.jumlahDtp)}</td>
                   {modeUbah && <td />}
                 </tr>
