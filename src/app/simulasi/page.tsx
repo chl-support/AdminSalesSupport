@@ -692,8 +692,15 @@ export default function SimulasiPage() {
    * dengan harga transaksi — yaitu harga PL ketika tidak ada diskon maupun
    * penambahan harga.
    *
-   * Yang di atasnya tidak disentuh: itu angka yang sudah disepakati, dan
-   * membetulkan baris keempat tidak boleh menggeser baris kedua.
+   * Yang di atasnya tidak disentuh selama masih ada baris di bawahnya: itu
+   * angka yang sudah disepakati, dan membetulkan baris keempat tidak boleh
+   * menggeser baris kedua.
+   *
+   * Termin terakhir tidak punya baris di bawahnya, dan di situ aturannya
+   * berbalik: yang menanggung sisanya adalah baris-baris di atasnya, selain
+   * booking fee yang nilainya tetap. Tanpa itu, menyunting baris Pelunasan
+   * selalu membuat jadwalnya tidak lagi berjumlah harga transaksi — padahal
+   * justru baris itu yang paling sering dibulatkan ke angka kesepakatan.
    *
    * Baris yang disembunyikan tidak ikut dibagi — tetapi nilainya tetap
    * dihitung ke dalam total, sama seperti pada lembar cetak.
@@ -704,22 +711,26 @@ export default function SimulasiPage() {
    */
   const bagiSisa = (baris: BarisUbah[], i: number): BarisUbah[] => {
     const target = Math.round(hasilStandar?.hargaTransaksi ?? 0);
-    const sesudah = baris
+    const tampil = baris
       .map((x, j) => ({ x, j }))
-      .filter(({ x, j }) => j > i && !x.sembunyi)
+      .filter(({ x }) => !x.sembunyi)
       .map(({ j }) => j);
-    if (!sesudah.length || !(target > 0)) return baris;
+    const sesudah = tampil.filter((j) => j > i);
+    // Baris 0 adalah booking fee: nilainya tetap, jadi ia tidak pernah ikut
+    // menanggung sisa ketika yang disunting justru termin terakhir.
+    const penanggung = sesudah.length ? sesudah : tampil.filter((j) => j > 0 && j < i);
+    if (!penanggung.length || !(target > 0)) return baris;
 
     const diluar = baris.reduce(
-      (t, x, j) => t + (sesudah.includes(j) ? 0 : nilaiBaris(x)), 0);
+      (t, x, j) => t + (penanggung.includes(j) ? 0 : nilaiBaris(x)), 0);
     const sisa = Math.max(0, Math.round(target - diluar));
     // Bulat ribuan, dan baris terakhir menanggung selisihnya — ia pun ikut
     // bulat selama sisanya bulat ribuan.
-    const per = bulatRibu(sisa / sesudah.length);
+    const per = bulatRibu(sisa / penanggung.length);
     const hasilBaris = [...baris];
-    sesudah.forEach((j, urut) => {
-      const nilai = urut === sesudah.length - 1
-        ? sisa - per * (sesudah.length - 1) : per;
+    penanggung.forEach((j, urut) => {
+      const nilai = urut === penanggung.length - 1
+        ? sisa - per * (penanggung.length - 1) : per;
       hasilBaris[j] = { ...hasilBaris[j], teks: nilai.toLocaleString("id-ID"),
                         persenTeks: null, tagihanTeks: null };
     });
@@ -745,14 +756,20 @@ export default function SimulasiPage() {
    *
    * Menghapus termin pertama berarti tidak ada lagi yang "di atas", dan
    * seluruh sisanya — yaitu seluruh harga transaksi — dibagi kepada yang
-   * tersisa. Menghapus termin terakhir tidak punya siapa pun di bawahnya:
-   * jumlahnya berkurang, dan peringatan selisih di atas tabel menyebut
-   * berapa.
+   * tersisa. Menghapus termin terakhir tidak punya siapa pun di bawahnya,
+   * jadi sisanya ditanggung baris-baris di atasnya selain booking fee.
    */
   const hapusBaris = (i: number) => {
-    setUbah((u) => (u && u.length > 1
-      ? bagiSisa(u.filter((_, j) => j !== i), i - 1)
-      : u));
+    setUbah((u) => {
+      if (!u || u.length < 2) return u;
+      const sisa = u.filter((_, j) => j !== i);
+      // Masih ada termin di bawah lubangnya: merekalah yang menanggung, dan
+      // baris di atas lubang tidak bergeser. Bila tidak ada lagi — yang
+      // dihapus termin terakhir — seluruh baris di atasnya (selain booking
+      // fee) yang membagi, jadi dipakai titik di ujung daftar.
+      const adaDiBawah = u.some((x, j) => j > i && !x.sembunyi);
+      return bagiSisa(sisa, adaDiBawah ? i - 1 : sisa.length);
+    });
   };
 
   /**
