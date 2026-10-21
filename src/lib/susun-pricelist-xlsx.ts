@@ -15,6 +15,7 @@
  */
 
 import ExcelJS from "exceljs";
+import JSZip from "jszip";
 
 import {
   FAKTOR, FAKTOR_OPSIONAL, HARGA_KAS_AWAL, labelPpn, tarifPpn, hargaKasIrr, hargaSesuaiSkema, hitungSemua, namaTahap, susunAwal, unitKosong,
@@ -264,6 +265,41 @@ export async function templatUnitData(): Promise<Buffer> {
 }
 
 /**
+ * Isi lembar tersembunyi dikosongkan sebelum berkas dibaca. Impor Unit Data
+ * hanya membaca lembar yang terbuka, sedangkan berkas seperti Unit Data BIO
+ * DISTRICT (2,5 MB, 28 lembar tersembunyi berisi simulasi dan pricelist
+ * lama) terlalu lama dibaca utuh — di server bisa melewati batas waktu,
+ * sehingga impor gagal. Nilai rumus di lembar terbuka tetap terbaca karena
+ * hasilnya tersimpan di sel itu sendiri.
+ */
+async function kosongkanLembarTersembunyi(isi: ArrayBuffer): Promise<ArrayBuffer> {
+  try {
+    const zip = await JSZip.loadAsync(isi);
+    const wbXml = await zip.file("xl/workbook.xml")?.async("string");
+    const rels = await zip.file("xl/_rels/workbook.xml.rels")?.async("string");
+    if (!wbXml || !rels) return isi;
+    const target = new Map<string, string>();
+    for (const m of rels.matchAll(/<Relationship\b[^>]*>/g)) {
+      const id = /\bId="([^"]+)"/.exec(m[0])?.[1], t = /\bTarget="([^"]+)"/.exec(m[0])?.[1];
+      if (id && t) target.set(id, t.replace(/^\/?(xl\/)?/, "xl/"));
+    }
+    let ada = false;
+    for (const m of wbXml.matchAll(/<sheet\b[^>]*>/g)) {
+      if (!/\bstate="(hidden|veryHidden)"/.test(m[0])) continue;
+      const berkas = target.get(/\br:id="([^"]+)"/.exec(m[0])?.[1] ?? "");
+      if (!berkas || !zip.file(berkas)) continue;
+      zip.file(berkas, '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData/></worksheet>');
+      zip.remove(berkas.replace(/([^/]+)$/, "_rels/$1.rels"));
+      ada = true;
+    }
+    return ada ? await zip.generateAsync({ type: "arraybuffer", compression: "STORE" }) : isi;
+  } catch {
+    return isi;
+  }
+}
+
+/**
  * Lembar UNIT DATA saja, untuk tombol "Impor Unit Data" di langkah 2.
  *
  * Hanya lembar yang terbuka (tidak disembunyikan) yang dibaca, atas
@@ -273,7 +309,7 @@ export async function templatUnitData(): Promise<Buffer> {
 export async function imporUnitData(isi: ArrayBuffer): Promise<{ unit: UnitData[]; peringatan: string[] }> {
   const wb = new ExcelJS.Workbook();
   try {
-    await wb.xlsx.load(isi as any);
+    await wb.xlsx.load(await kosongkanLembarTersembunyi(isi) as any);
   } catch {
     throw new Error("Berkas tidak dapat dibaca sebagai Excel .xlsx.");
   }
