@@ -352,6 +352,94 @@ export async function imporUnitData(isi: ArrayBuffer): Promise<{ unit: UnitData[
   return { unit: bacaLembarUnit(ws, peringatan), peringatan };
 }
 
+// ── Cocokkan dengan Excel ────────────────────────────────────────────────
+
+export type HargaExcel = {
+  /** Judul kolom harga per cara bayar di lembar Data Pricelist. */
+  kolom: string[];
+  /** Harga per kode unit per kolom. */
+  harga: Record<string, Record<string, number>>;
+  /** Harga Setelah Faktor (Termasuk PPN) per kode unit, dari lembar Unit Data. */
+  factored: Record<string, number>;
+  peringatan: string[];
+};
+
+/**
+ * Angka hasil berkas Excel PL — harga per cara bayar (Data Pricelist) dan
+ * Harga Setelah Faktor (Unit Data) — untuk dicocokkan dengan hitungan
+ * sistem. Hanya membaca nilai sel (hasil rumus), tidak menyimpan apa pun.
+ */
+export async function bacaHargaExcel(isi: ArrayBuffer): Promise<HargaExcel> {
+  const wb = new ExcelJS.Workbook();
+  try {
+    await wb.xlsx.load(await kosongkanLembarTersembunyi(isi) as any);
+  } catch {
+    throw new Error("Berkas tidak dapat dibaca sebagai Excel .xlsx.");
+  }
+  const terbuka = wb.worksheets.filter((w) => w.state === "visible");
+  const hasil: HargaExcel = { kolom: [], harga: {}, factored: {}, peringatan: [] };
+
+  const wsDp = terbuka.find((w) => /^data pricelist$/i.test(w.name.trim()));
+  const j = wsDp && cari(wsDp, KODE);
+  if (!wsDp || !j) {
+    hasil.peringatan.push("Lembar Data Pricelist (dengan kolom Code) tidak ditemukan.");
+  } else {
+    const hdr = (c: number) => teks(wsDp.getCell(j.r, c));
+    let kKode = 0, kAwal = 0;
+    for (let c = 1; c <= wsDp.columnCount; c++) {
+      if (!kKode && KODE.test(hdr(c))) kKode = c;
+      if (/^(build|gfa|bangunan)$/i.test(hdr(c))) kAwal = c;
+    }
+    // Kolom harga: berjudul, sesudah kolom Build, dan isinya angka rupiah.
+    const kolom: { c: number; nama: string }[] = [];
+    for (let c = (kAwal || kKode) + 1; c <= wsDp.columnCount; c++) {
+      const nama = hdr(c);
+      if (!nama) continue;
+      let rupiah = false;
+      for (let r = j.r + 1; r <= Math.min(wsDp.rowCount, j.r + 10); r++) {
+        const v = nilai(wsDp.getCell(r, c));
+        if (typeof v === "number" && v >= 1e7) { rupiah = true; break; }
+      }
+      if (rupiah) kolom.push({ c, nama });
+    }
+    hasil.kolom = kolom.map((k) => k.nama);
+    for (let r = j.r + 1; r <= wsDp.rowCount; r++) {
+      const kode = teks(wsDp.getCell(r, kKode));
+      if (!kode || KODE.test(kode)) continue;
+      const baris: Record<string, number> = {};
+      for (const k of kolom) {
+        const v = nilai(wsDp.getCell(r, k.c));
+        if (typeof v === "number") baris[k.nama] = v;
+      }
+      if (Object.keys(baris).length) hasil.harga[kode] = baris;
+    }
+  }
+
+  // Harga Setelah Faktor: lembar Unit Data, atau lembar terbuka lain yang
+  // punya kolom Code dan Factored Price / Harga Setelah Faktor.
+  for (const ws of [...terbuka].sort((a, b) => Number(/^unit data/i.test(b.name.trim())) - Number(/^unit data/i.test(a.name.trim())))) {
+    const jj = cari(ws, KODE);
+    if (!jj) continue;
+    let kKode = 0, kFac = 0, kFacIncl = 0;
+    for (let c = 1; c <= ws.columnCount; c++) {
+      const h = teks(ws.getCell(jj.r, c)).toLowerCase(), h2 = teks(ws.getCell(jj.r + 1, c)).toLowerCase();
+      if (!kKode && KODE.test(h)) kKode = c;
+      const fac = (x: string) => x.startsWith("factored price") || x.startsWith("harga setelah faktor");
+      if ((fac(h) || fac(h2)) && !kFac) kFac = c;
+      const incl = /termasuk|incl/.test(h + h2) && !/belum|excl/.test(h + h2);
+      if ((fac(h) || fac(h2)) && incl && !kFacIncl) kFacIncl = c;
+    }
+    const k = kFacIncl || kFac;
+    if (!kKode || !k) continue;
+    for (let r = jj.r + 1; r <= ws.rowCount; r++) {
+      const kode = teks(ws.getCell(r, kKode)), v = nilai(ws.getCell(r, k));
+      if (kode && !KODE.test(kode) && typeof v === "number") hasil.factored[kode] = v;
+    }
+    break;
+  }
+  return hasil;
+}
+
 // ── Impor ──────────────────────────────────────────────────────────────────
 
 export type HasilImpor = { susun: SusunPricelist; peringatan: string[] };

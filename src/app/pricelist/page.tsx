@@ -20,6 +20,7 @@ import { Kerangka, MemeriksaSesi } from "../kerangka";
 import { TautanLayar } from "../nav";
 import { PilihBerkas } from "../pilih-berkas";
 import { PanelPricelist } from "./panel-pricelist";
+import { ringkasXlsx } from "./ringkas-xlsx";
 import { RiwayatSusun } from "./riwayat-susun";
 import { BilahGaya } from "./gaya-teks";
 import { useSesi } from "../session";
@@ -259,7 +260,7 @@ export default function PricelistPage() {
   const impor = async () => {
     if (!berkas) return;
     setSibuk("impor"); setGalat(null); setInfo(null);
-    const fd = new FormData(); fd.append("file", berkas);
+    const fd = new FormData(); fd.append("file", await ringkasXlsx(berkas));
     const b = await kirim("/api/pricelist/susun/impor", { method: "POST", body: fd });
     setSibuk(null);
     if (!b) return;
