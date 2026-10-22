@@ -18,7 +18,7 @@ import ExcelJS from "exceljs";
 import JSZip from "jszip";
 
 import {
-  FAKTOR, FAKTOR_OPSIONAL, HARGA_KAS_AWAL, labelPpn, tarifPpn, hargaKasIrr, hargaSesuaiSkema, hitungSemua, namaTahap, susunAwal, unitKosong,
+  FAKTOR, FAKTOR_INGGRIS, FAKTOR_OPSIONAL, HARGA_KAS_AWAL, labelPpn, tarifPpn, hargaKasIrr, hargaSesuaiSkema, hitungSemua, namaTahap, susunAwal, unitKosong,
   type KolomDataPl, type KolomPricelist, type SkemaIrr, type SusunPricelist,
   type Tnc, type UnitData,
 } from "./susun-pricelist";
@@ -131,7 +131,9 @@ function bacaLembarUnit(ws: ExcelJS.Worksheet, peringatan: string[]): UnitData[]
       else if (h2.startsWith("land price (base)") && !h2.includes("incl")) kol.hargaTanah = c;
       else if (h2 === "gfa" || h2 === "gfa (m²)") kol.lb = c;
       else if (h2.startsWith("gfa (base)") && !h2.includes("incl")) kol.hargaBangunan = c;
-      for (const [k, label] of FAKTOR) if (h === label.toLowerCase()) kol[k] = c;
+      for (const [k, label] of FAKTOR) {
+        if (h === label.toLowerCase() || h === FAKTOR_INGGRIS[k]?.toLowerCase()) kol[k] = c;
+      }
     }
     // View pertama adalah arah (UTARA/SELATAN). Berkas Data Pricelist lama
     // menjuduli kolom bentuk (Irregullar) dengan "View" kedua; bila ada kolom
@@ -260,7 +262,7 @@ export async function templatUnitData(): Promise<Buffer> {
     "Isi satu unit per baris mulai baris 3. Jangan mengubah, memindah, atau menghapus dua baris judul.",
     "Code wajib diisi dan tidak boleh sama. Pembacaan berhenti pada baris pertama yang Code-nya kosong, jadi jangan ada baris kosong di tengah.",
     "Land dan GFA dalam m². Land Price (base) dan GFA (base) adalah harga per m² sebelum PPN 11%, angka saja tanpa \"Rp\" atau titik ketik manual.",
-    "Increase, faktor posisi (Single Row s.d. Side Garden) dan (+) Factor diisi persen, mis. ketik 5% atau 0,05. Kosongkan bila tidak ada.",
+    "Increase, faktor posisi (Single Row s.d. Taman Belakang) dan (+) Factor diisi persen, mis. ketik 5% atau 0,05. Kosongkan bila tidak ada.",
     "Special dan Show Unit dalam rupiah. Kosongkan bila tidak ada.",
     "Phase boleh kosong: dianggap 1, dan untuk unit yang Code-nya sudah ada di tabel, isian lamanya dipakai.",
     "Jangan ganti nama lembar UNIT DATA dan jangan sembunyikan (hide) lembarnya. Lembar PETUNJUK ini boleh dibiarkan.",

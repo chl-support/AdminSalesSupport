@@ -127,13 +127,23 @@ export const FAKTOR = [
   ["hdpBarat", "Hdp Barat"],
   ["hdpTimur", "Hdp Timur"],
   ["hoek", "Hoek"],
-  ["hoekGarden", "Hoek Garden"],
-  ["sideGarden", "Side Garden"],
+  ["hoekGarden", "Taman Sudut"],
+  ["sideGarden", "Taman Samping"],
+  ["backGarden", "Taman Belakang"],
   ["tusukSate", "Tusuk Sate"],
   ["roundAround", "Round Around"],
   ["luckyNumber", "Lucky Number"],
 ] as const;
 export type KunciFaktor = (typeof FAKTOR)[number][0];
+
+/**
+ * Nama Inggris faktor yang judulnya kini berbahasa Indonesia: judul kolom
+ * berkas Excel lama tetap dikenali saat impor, dan dipakai di tampilan
+ * bahasa Inggris.
+ */
+export const FAKTOR_INGGRIS: Partial<Record<KunciFaktor, string>> = {
+  hoekGarden: "Hoek Garden", sideGarden: "Side Garden", backGarden: "Back Garden",
+};
 
 /**
  * Faktor yang hanya dipakai sebagian proyek (mis. BIO DISTRICT). Kolomnya di
