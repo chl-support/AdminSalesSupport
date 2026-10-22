@@ -524,7 +524,8 @@ function IsianTeks({ nilai, ubah, lebar = 110, disabled, id }: {
                 onChange={(e) => ubah(e.target.value)} />;
 }
 
-const rp = (n: number) => (Number.isFinite(n) ? formatRupiah(n) : "—");
+/** Rupiah bulat, seperti tampilan Excel; nilai hitungannya tetap utuh. */
+const rp = (n: number) => (Number.isFinite(n) ? formatRupiah(Math.round(n)) : "—");
 /** Harga per m² tanpa "Rp", sejajar dengan kotak isian harga di sebelahnya. */
 const rpPolos = (n?: number) =>
   n != null && Number.isFinite(n) ? Math.round(n).toLocaleString("id-ID") : "—";

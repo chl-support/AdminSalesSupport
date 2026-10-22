@@ -109,7 +109,7 @@ export function TabelHarga({ skema, unit, batas, pajak, tinggi = 420 }: {
   const denganPajak = !!pajak && unit.some((u) => u.pajak);
   const lebarSkema = denganPajak ? 3 : 1;
   const jumlahKolom = 6 + ket.length + (adaSub ? 1 : 0) + skema.length * lebarSkema;
-  const rp = (n: number | null | undefined) => (n ? formatRupiah(n) : "—");
+  const rp = (n: number | null | undefined) => (n ? formatRupiah(Math.round(n)) : "—");
   return (
     <div className="tscroll tabel-pl" style={{ maxHeight: tinggi, overflowY: "auto" }}>
       {/* Tanpa pindah baris: kode unit dan rupiah yang terpotong dua baris
