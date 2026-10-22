@@ -13,11 +13,11 @@ import { useEffect, useState } from "react";
 
 import { formatRupiah } from "@/lib/money";
 import {
-  FAKTOR, faktorTampil, hargaKasIrr, hargaSesuaiSkema, labelPpn, namaTahap, tarifPpn, unitKosong,
+  FAKTOR, FAKTOR_INGGRIS, faktorTampil, hargaKasIrr, hargaSesuaiSkema, labelPpn, namaTahap, tarifPpn, unitKosong,
   kunciTnc, tingkatNaik, type BarisTnc, type KunciFaktor, type HasilSusun, type SusunPricelist, type UnitData,
 } from "@/lib/susun-pricelist";
 import type { UnitHarga } from "@/lib/simulasi";
-import { useKata } from "../bahasa";
+import { useBahasa, useKata } from "../bahasa";
 import { KUNCI, type Isi } from "./lembar-harga";
 import { PilihBerkas } from "../pilih-berkas";
 import { TabelHarga } from "../simulasi/unggah-pricelist";
@@ -973,6 +973,7 @@ const TEKS_UNIT = [
 
 export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah & { slug?: string | null }) {
   const kt = useKata(KATA);
+  const { bahasa } = useBahasa();
   // BIO DISTRICT mengikuti urutan kolom berkas Unit Data-nya: Tahap (Phase)
   // sesudah GFA (dasar) Termasuk PPN, tanpa Arah Hadap kedua, faktor Single
   // Row · Tusuk Sate · Round Around · Hoek · Lucky Number, Biaya AJB + BPHTB,
@@ -1220,7 +1221,7 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
               <th className="incl">{kt.hargaBangunan}<br />{kt.incl(lp)}</th>
               {bio && <th>{kt.teksUnit.phase}</th>}
               <th>{kt.kenaikan}</th>
-              {fk.map(([, l]) => <th key={l}>{l}</th>)}
+              {fk.map(([k, l]) => <th key={k}>{bahasa === "en" ? FAKTOR_INGGRIS[k] ?? l : l}</th>)}
               {kolomPlus && <th>{kt.faktorPlus}</th>}
               {bio && <><th>{kt.biayaAjb}</th><th>Special %</th></>}
               {kolomKhusus && <th>{kt.special}</th>}<th>{kt.showUnit}</th>
