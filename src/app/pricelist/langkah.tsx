@@ -85,6 +85,7 @@ const KATA = {
     aturan: "Aturan pembulatan proyek ini",
     aturanInfo: "Disamakan dengan Excel proyeknya. Berlaku untuk semua unit; harga langsung dihitung ulang. Disimpan bersama draf.",
     aturM2: "Harga per m² (Termasuk PPN)", m2Tidak: "Tidak dibulatkan", m2Ratus: "ROUNDUP ke Rp 100.000",
+    m2TidakBerlaku: "Tidak berlaku bila Harga Dasar dihitung dari harga Belum termasuk PPN",
     aturDasar: "Harga Dasar", dasarJuta: "ROUNDUP ke juta", dasarTidak: "Tidak dibulatkan", dasarPuluh: "ROUND ke Rp 10.000",
     aturDari: "Harga Dasar dihitung dari", dariIncl: "Harga per m² Termasuk PPN", dariExcl: "Harga per m² Belum termasuk PPN",
     aturExcl: "Kolom Belum termasuk PPN", exclBagi: "Termasuk PPN ÷ (1 + PPN)", exclSendiri: "Dihitung sendiri dari harga Belum PPN",
@@ -274,6 +275,7 @@ const KATA = {
     aturan: "Rounding rules for this project",
     aturanInfo: "Match the project's Excel. Applies to every unit; prices are recalculated at once. Saved with the draft.",
     aturM2: "Price per m² (incl. VAT)", m2Tidak: "Not rounded", m2Ratus: "ROUNDUP to Rp 100,000",
+    m2TidakBerlaku: "Does not apply when the Base Price is calculated from excl. VAT prices",
     aturDasar: "Base Price", dasarJuta: "ROUNDUP to million", dasarTidak: "Not rounded", dasarPuluh: "ROUND to Rp 10,000",
     aturDari: "Base Price calculated from", dariIncl: "Price per m² incl. VAT", dariExcl: "Price per m² excl. VAT",
     aturExcl: "Excl. VAT column", exclBagi: "Incl. VAT ÷ (1 + VAT)", exclSendiri: "Calculated separately from excl. VAT prices",
@@ -1010,7 +1012,13 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
   const rpHarga = (n: number) => rp(bio && Number.isFinite(n) ? Math.round(n) : n);
   // Pembagi Harga Dasar Termasuk PPN (Excel BIO: ROUNDUP(…)/1,005); tampil bila dipakai.
   const kolomPembagi = bio && data.unit.some((u) => u.pembagiIncl);
-  const ratusRibu = (n: number | undefined) => n == null ? undefined : Math.ceil(n / 1e5 - 1e-9) * 1e5;
+  // Kolom harga per m² Roundup: tampil bila aturan pembulatan per m² dipakai
+  // (BIO, Mazenta, atau dipilih di Aturan pembulatan), supaya angka yang
+  // dipakai hitungan terlihat.
+  const bulatM2 = data.bulatHargaM2 ?? -1;
+  const kolomRoundup = bulatM2 >= 0 && !data.basisExclPpn;
+  const ratusRibu = (n: number | undefined) => n == null ? undefined
+    : Math.ceil(n / 10 ** bulatM2 - 1e-9) * 10 ** bulatM2;
   const urutanHarga = (bio
     ? [["base", "excl"], ["factored", "excl"], ["base", "incl"], ["factored", "incl"]]
     : [["base", "excl"], ["base", "incl"], ["factored", "excl"], ["factored", "incl"]]) as
@@ -1149,7 +1157,8 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
         <b>{kt.aturan}</b> <span className="hint" style={{ margin: 0 }}>{kt.aturanInfo}</span>
         <div className="filters rapat" style={{ marginTop: 8 }}>
           <div><div className="lbl">{kt.aturM2}</div>
-            <select id="atur-m2" disabled={ro} value={(data.bulatHargaM2 ?? -1) >= 0 ? "ratus" : "tidak"}
+            <select id="atur-m2" disabled={ro || !!data.basisExclPpn} title={data.basisExclPpn ? kt.m2TidakBerlaku : undefined}
+                    value={(data.bulatHargaM2 ?? -1) >= 0 ? "ratus" : "tidak"}
                     onChange={(e) => ubah((d) => ({ ...d, bulatHargaM2: e.target.value === "ratus" ? 5 : -1 }))}>
               <option value="tidak">{kt.m2Tidak}</option>
               <option value="ratus">{kt.m2Ratus}</option>
@@ -1266,11 +1275,11 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
               {bio && <th>{kt.floor}</th>}
               <th>{kt.tanahM2}</th>
               <th>{kt.hargaTanah}<br />{kt.excl(lp)}</th>
-              {bio && <th className="incl">{kt.hargaTanah} {kt.pembulatan}<br />{kt.incl(lp)}</th>}
+              {kolomRoundup && <th className="incl">{kt.hargaTanah} {kt.pembulatan}<br />{kt.incl(lp)}</th>}
               <th className="incl">{kt.hargaTanah}<br />{kt.incl(lp)}</th>
               <th>{kt.gfaM2}</th>
               <th>{kt.hargaBangunan}<br />{kt.excl(lp)}</th>
-              {bio && <th className="incl">{kt.hargaBangunan} {kt.pembulatan}<br />{kt.incl(lp)}</th>}
+              {kolomRoundup && <th className="incl">{kt.hargaBangunan} {kt.pembulatan}<br />{kt.incl(lp)}</th>}
               <th className="incl">{kt.hargaBangunan}<br />{kt.incl(lp)}</th>
               {bio && <th>{kt.teksUnit.phase}</th>}
               <th>{kt.kenaikan}</th>
@@ -1316,11 +1325,11 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
                 {bio && <td><Isian nilai={u.floor ?? 0} kosongNol desimal={1} lebar={70} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, floor: n }))} /></td>}
                 <td><Isian nilai={u.lt} desimal={1} lebar={70} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, lt: n }))} /></td>
                 <td><Isian jenis="rp" nilai={u.hargaTanah} lebar={95} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, hargaTanah: n }))} /></td>
-                {bio && <td className="n">{rpPolos(ratusRibu(b?.hasilUnit.hargaTanahPpn))}</td>}
+                {kolomRoundup && <td className="n">{rpPolos(ratusRibu(b?.hasilUnit.hargaTanahPpn))}</td>}
                 <td className="n">{rpPolos(b?.hasilUnit.hargaTanahPpn)}</td>
                 <td><Isian nilai={u.lb} desimal={bio ? 1 : undefined} lebar={bio ? 70 : 60} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, lb: n }))} /></td>
                 <td><Isian jenis="rp" nilai={u.hargaBangunan} lebar={95} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, hargaBangunan: n }))} /></td>
-                {bio && <td className="n">{rpPolos(ratusRibu(b?.hasilUnit.hargaBangunanPpn))}</td>}
+                {kolomRoundup && <td className="n">{rpPolos(ratusRibu(b?.hasilUnit.hargaBangunanPpn))}</td>}
                 <td className="n">{rpPolos(b?.hasilUnit.hargaBangunanPpn)}</td>
                 {bio && (
                   <td><IsianTeks nilai={u.phase ?? ""} lebar={70} disabled={ro}
@@ -1355,8 +1364,8 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
                 {kt.totalUnit(tampil.length, q ? data.unit.length : undefined)}</td>
               <td colSpan={(bolehUbah ? 0 : -1) + 1 + teksUnit.length} />
               {bio && <td />}
-              <td className="n">{luas(tampil.reduce((a, { u }) => a + u.lt, 0), 1)}</td><td /><td />{bio && <td />}
-              <td className="n">{luas(tampil.reduce((a, { u }) => a + u.lb, 0))}</td><td /><td />{bio && <><td /><td /></>}<td />
+              <td className="n">{luas(tampil.reduce((a, { u }) => a + u.lt, 0), 1)}</td><td /><td />{kolomRoundup && <td />}
+              <td className="n">{luas(tampil.reduce((a, { u }) => a + u.lb, 0))}</td><td /><td />{kolomRoundup && <td />}{bio && <td />}<td />
               {fk.map(([k]) => <td key={k} />)}
               {kolomPlus && <td />}{bio && <><td /><td /></>}
               {kolomKhusus && <td />}<td />{kolomPembagi && <td />}
