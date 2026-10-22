@@ -847,7 +847,7 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah, baru }: PropsLangkah 
             <b className={Math.abs(hasil.irr.totalAlokasi - 1) > 1e-9 ? "alokasi-kurang" : "alokasi-pas"}>
               {persen(hasil.irr.totalAlokasi, 1, 1)}</b></td>{irr.skema.map((s, i) => (
             <td key={i}>
-              <Isian jenis="persen" desimal={1} nilai={s.alokasi} lebar={60} disabled={ro}
+              <Isian id={`irr-alokasi-${i}`} jenis="persen" desimal={1} nilai={s.alokasi} lebar={60} disabled={ro}
                      ubah={(n) => ubah((d) => ({ ...d, irr: { ...d.irr,
                        skema: aturAlokasi(d.irr.skema, i, n) } }))} />
             </td>))}</tr>
@@ -1626,7 +1626,7 @@ export function LangkahDataPl({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
             <th title={kt.thMetodeInfo}>
               {kt.thMetode}<br /><span style={{ fontWeight: 400 }}>{kt.thMetodeSub}</span></th>{!ro && <th />}</tr>
           {kolom.map((k, i) => (
-            <tr key={i}>
+            <tr key={i} id={`dp-kolom-${i}`}>
               <td><IsianNama nilai={k.nama} lebar={190} disabled={ro}
                              lain={kolom.filter((_, j) => j !== i).map((x) => x.nama)}
                              ubah={(v) => ubah((d) => {
@@ -1678,7 +1678,7 @@ export function LangkahDataPl({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
                   harus disamakan (langkah 4a hanya menampilkan ringkasannya). */}
               <td>
                 {data.pricelist.kolom.map((p, j) => p.dari !== k.nama ? null : (
-                  <span key={j} className="row" style={{ margin: "0 0 4px", flexWrap: "nowrap", gap: 6 }}>
+                  <span key={j} id={`pl-kolom-${j}`} className="row" style={{ margin: "0 0 4px", flexWrap: "nowrap", gap: 6 }}>
                     <IsianTeks nilai={p.nama} lebar={210} disabled={ro}
                                ubah={(v) => ubahPl(j, (x) => ({ ...x, nama: v }))} />
                     <Isian jenis="persen" nilai={p.kali} lebar={60} disabled={ro}

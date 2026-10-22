@@ -25,7 +25,7 @@ import { BilahGaya } from "./gaya-teks";
 import { useSesi } from "../session";
 import { PENGUNGGAH } from "../simulasi/unggah-pricelist";
 import { basisProject, hitungSemua, unitBelumBerharga, type SusunPricelist } from "@/lib/susun-pricelist";
-import { periksaSusun } from "@/lib/susun-pricelist-periksa";
+import { periksaSusun, type Temuan } from "@/lib/susun-pricelist-periksa";
 import {
   LangkahDataPl, LangkahIrr, LangkahPricelist, LangkahTnc, LangkahUnit, isiOtomatisCaraBayar, rapikanCaraBayar, sinkronTnc,
 } from "./langkah";
@@ -58,6 +58,7 @@ const KATA = {
     hanyaBaca: "Hanya Admin Sales dan Admin IT yang dapat mengubah harga.",
     galatJudul: "Belum dapat diberlakukan",
     tandaJudul: { ok: "Langkah ini sudah lengkap", stop: "kesalahan", cek: "perlu dicek" },
+    tunjukkan: "Tunjukkan →",
     temuanJudul: (n: number) => `Pemeriksaan otomatis: ${n} hal di langkah ini`,
     berlakuJudul: "Simpan / berlakukan harga",
     belumBerharga: "Unit tanpa luas / harga tanah — isi catatan bila harganya memang belum dikeluarkan; unit ini tidak ikut harga yang disimpan.",
@@ -107,6 +108,7 @@ const KATA = {
     hanyaBaca: "Only Sales Admin and IT Admin can change the price list.",
     galatJudul: "Cannot be applied yet",
     tandaJudul: { ok: "This step is complete", stop: "errors", cek: "to check" },
+    tunjukkan: "Show →",
     temuanJudul: (n: number) => `Automatic check: ${n} item(s) in this step`,
     berlakuJudul: "Apply price list",
     belumBerharga: "Units without land area / price — add a note if their price is not released yet; these units are left out of the saved price list.",
@@ -204,6 +206,23 @@ export default function PricelistPage() {
   // Daftar cek per langkah: kesalahan (stop) dan hal yang patut dicek.
   const { bahasa } = useBahasa();
   const temuan = useMemo(() => (data && hasil ? periksaSusun(data, hasil) : []), [data, hasil]);
+  /**
+   * Tunjukkan isian yang perlu dicek: pindah ke langkahnya, gulir ke isian
+   * itu dan sorot sebentar (kotak isiannya juga langsung dipilih).
+   */
+  const tunjuk = (x: Temuan) => {
+    setLangkah(x.langkah);
+    if (!x.sasaran) return;
+    setTimeout(() => {
+      const el = document.getElementById(x.sasaran!);
+      if (!el) return;
+      el.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
+      el.classList.add("sorot-temuan");
+      const isian = el.matches("input, select") ? el : el.querySelector("input, select");
+      (isian as HTMLElement | null)?.focus({ preventScroll: true });
+      setTimeout(() => el.classList.remove("sorot-temuan"), 3000);
+    }, 150);
+  };
   const berubah = !!data && !!draf && (draf.baru || JSON.stringify(data) !== JSON.stringify(draf.data));
 
   // Peringatan sebelum meninggalkan halaman dengan perubahan yang belum disimpan.
@@ -348,7 +367,10 @@ export default function PricelistPage() {
       {hasil.galat.length > 0 ? (
         <div className="banner stop">
           <b>{k.galatJudul}</b>
-          <ul style={{ margin: "4px 0 0 16px" }}>{hasil.galat.map((g) => <li key={g}>{g}</li>)}</ul>
+          <ul style={{ margin: "4px 0 0 16px" }}>{temuan.filter((x) => x.jenis === "stop").map((x) => (
+            <li key={x.id}>{bahasa === "en" ? x.en : x.id}
+              <button className="kecil tunjuk-temuan" onClick={() => tunjuk(x)}>{k.tunjukkan}</button></li>
+          ))}</ul>
         </div>
       ) : (
         <>
@@ -489,7 +511,10 @@ export default function PricelistPage() {
                   <summary><b>{k.temuanJudul(temuan.filter((x) => x.langkah === i).length)}</b></summary>
                   <ul style={{ margin: "4px 0 0 16px" }}>
                     {temuan.filter((x) => x.langkah === i).map((x) => (
-                      <li key={x.id}>{x.jenis === "stop" ? "✕ " : "⚠ "}{bahasa === "en" ? x.en : x.id}</li>
+                      <li key={x.id}>{x.jenis === "stop" ? "✕ " : "⚠ "}{bahasa === "en" ? x.en : x.id}
+                        {x.sasaran && (
+                          <button className="kecil tunjuk-temuan" onClick={() => tunjuk(x)}>{k.tunjukkan}</button>
+                        )}</li>
                     ))}
                   </ul>
                 </details>

@@ -3295,3 +3295,7 @@ ul.daftar-ubah li { margin: 1px 0; }
 .tanda-langkah.cek { color: #8a5a00; background: #fdf1d6; }
 .temuan-langkah summary { cursor: pointer; display: list-item; text-transform: none; }
 .temuan-langkah summary b { display: inline; text-transform: none; }
+.tunjuk-temuan { margin-left: 8px; }
+/* Isian yang ditunjuk dari daftar pemeriksaan: disorot sebentar. */
+.sorot-temuan, .sorot-temuan > td { outline: 3px solid #d33; outline-offset: 2px; background: #fff3c4 !important;
+  transition: background .3s; }
