@@ -1008,8 +1008,8 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
   // Kolom Khusus (Rp) tidak ada di berkas BIO; tetap tampil bila ada isinya.
   const kolomKhusus = !bio || data.unit.some((u) => u.special);
   const kolomPlus = !bio || data.unit.some((u) => u.faktorTambah);
-  // BIO: harga tampil dalam rupiah bulat seperti Excel-nya; nilainya tetap utuh.
-  const rpHarga = (n: number) => rp(bio && Number.isFinite(n) ? Math.round(n) : n);
+  // Harga tampil dalam rupiah bulat seperti Excel; nilai hitungannya tetap utuh.
+  const rpHarga = (n: number) => rp(Number.isFinite(n) ? Math.round(n) : n);
   // Pembagi Harga Dasar Termasuk PPN (Excel BIO: ROUNDUP(…)/1,005); tampil bila dipakai.
   const kolomPembagi = bio && data.unit.some((u) => u.pembagiIncl);
   // Kolom harga per m² Roundup: tampil bila aturan pembulatan per m² dipakai
