@@ -315,7 +315,7 @@ export async function templatUnitData(): Promise<Buffer> {
     "Code wajib diisi dan tidak boleh sama. Pembacaan berhenti pada baris pertama yang Code-nya kosong, jadi jangan ada baris kosong di tengah.",
     "Land dan GFA dalam m². Land Price (base) dan GFA (base) adalah harga per m² sebelum PPN 11%, angka saja tanpa \"Rp\" atau titik ketik manual.",
     "Increase, faktor posisi (Single Row s.d. Taman Belakang) dan (+) Factor diisi persen, mis. ketik 5% atau 0,05. Kosongkan bila tidak ada.",
-    "Special dan Show Unit dalam rupiah. Kosongkan bila tidak ada.",
+    "Special dan Show Unit dalam rupiah. Special DITAMBAHKAN ke Harga Setelah Faktor: potongan harga diisi MINUS, mis. -972000000 (bukan 972000000). Kosongkan bila tidak ada.",
     "Phase boleh kosong: dianggap 1, dan untuk unit yang Code-nya sudah ada di tabel, isian lamanya dipakai.",
     "Jangan ganti nama lembar UNIT DATA dan jangan sembunyikan (hide) lembarnya. Lembar PETUNJUK ini boleh dibiarkan.",
     "Unggah lewat langkah 2. Unit Data → Impor Unit Data dari Excel. Hasilnya tampil di tabel untuk diperiksa sebelum Simpan.",
