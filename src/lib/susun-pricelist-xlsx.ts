@@ -205,6 +205,42 @@ function bacaLembarUnit(ws: ExcelJS.Worksheet, peringatan: string[]): UnitData[]
   return unit;
 }
 
+/**
+ * Aturan pembulatan yang dipakai berkas Excel-nya, dibaca dari rumus Base
+ * Price unit pertama di lembar Unit Data: merujuk kolom harga per m²
+ * "(Roundup)" → per m² ROUNDUP ratusan ribu (Naraya punya kolom Roundup
+ * tetapi rumusnya merujuk kolom tanpa pembulatan); ROUNDUP(…,-6) /
+ * ROUND(…,-n) / tanpa pembulatan. Yang tidak terbaca dibiarkan.
+ */
+function aturanDariLembar(ws: ExcelJS.Worksheet): Partial<SusunPricelist> {
+  const j = cari(ws, KODE);
+  if (!j) return {};
+  const aturan: Partial<SusunPricelist> = {};
+  const roundup: string[] = [];
+  let kBase = 0, kKode = 0;
+  for (let c = 1; c <= ws.columnCount; c++) {
+    const h = teks(ws.getCell(j.r, c)).toLowerCase(), h2 = teks(ws.getCell(j.r + 1, c)).toLowerCase();
+    if (!kKode && KODE.test(h)) kKode = c;
+    if (/\(roundup\)/.test(h + " " + h2)) roundup.push(ws.getColumn(c).letter);
+    const hh = h + " " + h2;
+    if (!kBase && (h === "base price" || (/^harga dasar/.test(h) && /termasuk/.test(hh) && !/belum/.test(hh)))) kBase = c;
+  }
+  if (kBase && kKode) {
+    for (let r = j.r + 1; r <= Math.min(ws.rowCount, j.r + 6); r++) {
+      if (!teks(ws.getCell(r, kKode)) || KODE.test(teks(ws.getCell(r, kKode)))) continue;
+      const f = rumus(ws.getCell(r, kBase)).replace(/\s/g, "");
+      if (!f) break;
+      aturan.bulatHargaM2 = roundup.some((h) => new RegExp(`\\$?${h}\\$?${r}\\b`, "i").test(f)) ? 5 : -1;
+      const atas = /^ROUNDUP\(.*,-(\d)\)$/i.exec(f), biasa = /^ROUND\(.*,-(\d)\)$/i.exec(f);
+      if (atas) Object.assign(aturan, { baseTanpaBulat: false, bulatBase: Number(atas[1]), bulatBiasa: false });
+      else if (biasa) Object.assign(aturan, { baseTanpaBulat: false, bulatBase: Number(biasa[1]), bulatBiasa: true });
+      else if (!/ROUND/i.test(f)) aturan.baseTanpaBulat = true;
+      break;
+    }
+  }
+  return aturan;
+}
+
 /** Kolom angka pada lembar UNIT DATA; isian teks di sana dibaca 0. */
 const ANGKA_UNIT = ["lt", "hargaTanah", "lb", "hargaBangunan", "kenaikan",
   "faktorTambah", "specialPersen", "biayaAjb", "floor", "special", "showUnit", ...FAKTOR.map(([k]) => k)];
@@ -543,6 +579,7 @@ export async function imporSusun(isi: ArrayBuffer): Promise<HasilImpor> {
       unitPerKode.set(u.kode, u);
       susun.unit.push(u);
     }
+    Object.assign(susun, aturanDariLembar(wsUnit));
   }
 
   // 3. Data Pricelist: Phase dan Tipe per unit, susunan kolom, tambahan.
