@@ -115,24 +115,28 @@ function bacaLembarUnit(ws: ExcelJS.Worksheet, peringatan: string[]): UnitData[]
       else if (h.startsWith("(+) factor")) kol.faktorTambah = c;
       // Special % dan Biaya AJB + BPHTB berupa pengali (1 + x), sama seperti
       // (+) Factor; Special tanpa % adalah rupiah.
-      else if (/^special\s*%/.test(h)) kol.specialPersen = c;
+      else if (/^special\s*\(?%/.test(h)) kol.specialPersen = c;
       else if (h.startsWith("biaya ajb")) kol.biayaAjb = c;
       else if (h.startsWith("special")) kol.special = c;
       else if (h.startsWith("show unit")) kol.showUnit = c;
+      else if ((h.startsWith("factored price") || h.startsWith("harga setelah faktor")) && !kol.factored) kol.factored = c;
       else if (h.startsWith("gimmick")) kol.gimmick = c;
       // Harga Dasar (Termasuk PPN) — di berkas PL BIO: "Base Price": hanya
       // rumusnya yang dibaca, untuk pembagi seperti ROUNDUP(…)/1.005 pada
       // sebagian unit BIO DISTRICT.
       if ((h.startsWith("harga dasar") && h.includes("termasuk ppn")) || h === "base price") kol.hargaDasarIncl = c;
+      // Kolom pertama yang dipakai: berkas Mazenta punya kolom Land / Base
+      // Price kedua di kanan tabel (catatan lama) yang bukan isian unitnya.
       if (h2 === "floor") kol.floor = c;
-      else if (h2 === "land" || /^tanah( \(m²\))?$/.test(h2)) kol.lt = c;
+      else if (h2 === "land" || /^tanah( \(m²\))?$/.test(h2)) kol.lt ??= c;
       // Kolom harga sesudah PPN (Incl PPN) hanya hasil hitungan; yang dibaca
       // harga sebelum PPN.
-      else if (h2.startsWith("land price (base)") && !h2.includes("incl")) kol.hargaTanah = c;
-      else if (h2 === "gfa" || h2 === "gfa (m²)") kol.lb = c;
-      else if (h2.startsWith("gfa (base)") && !h2.includes("incl")) kol.hargaBangunan = c;
+      else if (h2.startsWith("land price (base)") && !h2.includes("incl")) kol.hargaTanah ??= c;
+      else if (h2 === "gfa" || h2 === "gfa (m²)") kol.lb ??= c;
+      else if (h2.startsWith("gfa (base)") && !h2.includes("incl")) kol.hargaBangunan ??= c;
       for (const [k, label] of FAKTOR) {
-        if (h === label.toLowerCase() || h === FAKTOR_INGGRIS[k]?.toLowerCase()) kol[k] = c;
+        if (h === label.toLowerCase() || h === FAKTOR_INGGRIS[k]?.toLowerCase()
+            || (k === "hoek" && h === "hook")) kol[k] = c;
       }
     }
     // View pertama adalah arah (UTARA/SELATAN). Berkas Data Pricelist lama
@@ -168,7 +172,19 @@ function bacaLembarUnit(ws: ExcelJS.Worksheet, peringatan: string[]): UnitData[]
         if (bagi && Number(bagi[1]) > 0 && Number(bagi[1]) !== 1) u.pembagiIncl = Number(bagi[1]);
       }
       if (kol.biayaAjb) u.biayaAjb = n("biayaAjb");
-      if (kol.specialPersen) u.specialPersen = n("specialPersen");
+      if (kol.specialPersen) {
+        // Kolom Special (%) kadang diisi rupiah, bukan persen: berkas PL
+        // Mazenta menulis potongan mis. 972.000.000 di sana dan rumus
+        // Factored Price-nya "… - Y18". Angka ≥ 1 dibaca sebagai rupiah
+        // (Special), bertanda minus bila rumus Factored Price menguranginya.
+        const sp = n("specialPersen");
+        if (Math.abs(sp) >= 1) {
+          const huruf = ws.getColumn(kol.specialPersen).letter;
+          const f = kol.factored ? rumus(ws.getCell(r, kol.factored)) : "";
+          const kurang = new RegExp(`-\\s*\\$?${huruf}\\$?${r}\\b`, "i").test(f);
+          u.special += kurang ? -sp : sp;
+        } else u.specialPersen = sp;
+      }
       for (const k of ANGKA_UNIT) {
         const v = kol[k] ? nilai(ws.getCell(r, kol[k])) : null;
         if (typeof v === "string" && !/^\s*-?[\d.,]+\s*%?\s*$/.test(v)) {
@@ -472,6 +488,12 @@ export async function imporSusun(isi: ArrayBuffer): Promise<HasilImpor> {
         const f = rumus(wsDp.getCell(r1, c));
         const tambah = /\+\s*(\d{5,})\s*$/.exec(f);
         if (tambah) susun.dataPricelist.tambahan = Number(tambah[1]);
+        // Atau dari sel lain, mis. Mazenta: …,-6)+$M$1 (Kenaikan Hrg All In 450.000.000).
+        const tambahSel = /\+\s*\$?([A-Z]{1,3})\$?(\d+)\s*$/.exec(f);
+        if (tambahSel) {
+          const x = angka(wsDp.getCell(`${tambahSel[1]}${tambahSel[2]}`));
+          if (x >= 10000) susun.dataPricelist.tambahan = x;
+        }
         // Turunan kolom lain, mis. =ROUNDUP((R4*112%),-6)
         const turun = /^ROUNDUP\(\(?\$?([A-Z]+)\$?\d+\s*\*\s*([\d.]+)%\)?\s*,\s*-6\)$/i.exec(f);
         if (turun && namaKol.has(noKolom(turun[1]))) {
