@@ -288,7 +288,9 @@ export type SusunPricelist = {
   bulatBiasa?: boolean;
   /**
    * Harga per m² sesudah PPN dibulatkan ke atas ke 10^n rupiah sebelum dikali
-   * luas; kosong = tidak dibulatkan. BIO DISTRICT: 5 (ratusan ribu).
+   * luas; kosong atau -1 = tidak dibulatkan (-1: dipilih tegas di layar,
+   * supaya aturan bawaan project tidak memasangnya lagi). BIO DISTRICT dan
+   * Mazenta: 5 (ratusan ribu).
    */
   bulatHargaM2?: number;
   /**
@@ -532,7 +534,7 @@ export function hitungUnit(u: UnitData, ppn = PPN, exclPpn = false, bulat = 6,
                            bulatBiasa = false, opsi: OpsiHitungUnit = {}): HasilUnit {
   const hargaTanahPpn = u.hargaTanah * (1 + ppn);
   const hargaBangunanPpn = u.hargaBangunan * (1 + ppn);
-  const m2 = (x: number) => opsi.bulatHargaM2 != null ? roundUp(x, opsi.bulatHargaM2) : x;
+  const m2 = (x: number) => opsi.bulatHargaM2 != null && opsi.bulatHargaM2 >= 0 ? roundUp(x, opsi.bulatHargaM2) : x;
   // Pricelist Permai Indah mengalikan luas dengan harga Excl PPN.
   const [tanah, bangunan] = exclPpn ? [u.hargaTanah, u.hargaBangunan]
     : [m2(hargaTanahPpn), m2(hargaBangunanPpn)];

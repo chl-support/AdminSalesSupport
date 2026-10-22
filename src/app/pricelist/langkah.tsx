@@ -20,6 +20,8 @@ import type { UnitHarga } from "@/lib/simulasi";
 import { useBahasa, useKata } from "../bahasa";
 import { KUNCI, type Isi } from "./lembar-harga";
 import { PilihBerkas } from "../pilih-berkas";
+import { CocokkanExcel } from "./cocokkan-excel";
+import { ringkasXlsx } from "./ringkas-xlsx";
 import { TabelHarga } from "../simulasi/unggah-pricelist";
 
 /**
@@ -77,9 +79,15 @@ const KATA = {
       (peringatan ? ` Perhatikan: ${peringatan}` : ""),
     unitHint: (fungsi: string, excl: boolean, bulat: number, lp: string) =>
       `Harga Dasar = ${fungsi}((Tanah × harga tanah + GFA × harga bangunan)${excl ? " (Belum termasuk PPN)" : " × (1 + PPN)"} × ` +
-      `(1 + kenaikan), ${bulat === 6 ? "juta" : (10 ** bulat).toLocaleString("id-ID")}). Harga Setelah Faktor = Harga Dasar × (1 + jumlah faktor posisi) ` +
+      `(1 + kenaikan)${fungsi ? `, ${bulat === 6 ? "juta" : (10 ** bulat).toLocaleString("id-ID")})` : ")"}. Harga Setelah Faktor = Harga Dasar × (1 + jumlah faktor posisi) ` +
       `× (1 + (+) Faktor) + Khusus + Unit Contoh × (1 + kenaikan). Harga per m² ditulis sebelum PPN ${lp}; faktor dan kenaikan dalam persen.`,
     tarifPpn: "Tarif PPN",
+    aturan: "Aturan pembulatan proyek ini",
+    aturanInfo: "Disamakan dengan Excel proyeknya. Berlaku untuk semua unit; harga langsung dihitung ulang. Disimpan bersama draf.",
+    aturM2: "Harga per m² (Termasuk PPN)", m2Tidak: "Tidak dibulatkan", m2Ratus: "ROUNDUP ke Rp 100.000",
+    aturDasar: "Harga Dasar", dasarJuta: "ROUNDUP ke juta", dasarTidak: "Tidak dibulatkan", dasarPuluh: "ROUND ke Rp 10.000",
+    aturDari: "Harga Dasar dihitung dari", dariIncl: "Harga per m² Termasuk PPN", dariExcl: "Harga per m² Belum termasuk PPN",
+    aturExcl: "Kolom Belum termasuk PPN", exclBagi: "Termasuk PPN ÷ (1 + PPN)", exclSendiri: "Dihitung sendiri dari harga Belum PPN",
     ppnInfo: "Ubah bila tarif PPN dari pemerintah berubah. Dipakai untuk kolom Termasuk PPN di sini serta DPP dan Nilai Bebas PPN DTP di langkah 4a.",
     cariUnit: "Cari kode, alamat, arah hadap…",
     ringkasUnit: (n: number) => `${n} unit · total Harga Setelah Faktor`,
@@ -260,9 +268,15 @@ const KATA = {
       (peringatan ? ` Note: ${peringatan}` : ""),
     unitHint: (fungsi: string, excl: boolean, bulat: number, lp: string) =>
       `Base Price = ${fungsi}((Land × land price + GFA × building price)${excl ? " (Excl VAT)" : " × (1 + VAT)"} × ` +
-      `(1 + increase), ${bulat === 6 ? "million" : (10 ** bulat).toLocaleString("id-ID")}). Factored Price = Base × (1 + sum of position factors) ` +
+      `(1 + increase)${fungsi ? `, ${bulat === 6 ? "million" : (10 ** bulat).toLocaleString("id-ID")})` : ")"}. Factored Price = Base × (1 + sum of position factors) ` +
       `× (1 + (+) Factor) + Special + Show Unit × (1 + increase). Prices per m² are entered before VAT ${lp}; factors and increases are in percent.`,
     tarifPpn: "VAT rate",
+    aturan: "Rounding rules for this project",
+    aturanInfo: "Match the project's Excel. Applies to every unit; prices are recalculated at once. Saved with the draft.",
+    aturM2: "Price per m² (incl. VAT)", m2Tidak: "Not rounded", m2Ratus: "ROUNDUP to Rp 100,000",
+    aturDasar: "Base Price", dasarJuta: "ROUNDUP to million", dasarTidak: "Not rounded", dasarPuluh: "ROUND to Rp 10,000",
+    aturDari: "Base Price calculated from", dariIncl: "Price per m² incl. VAT", dariExcl: "Price per m² excl. VAT",
+    aturExcl: "Excl. VAT column", exclBagi: "Incl. VAT ÷ (1 + VAT)", exclSendiri: "Calculated separately from excl. VAT prices",
     ppnInfo: "Change it when the government VAT rate changes. Used for the Incl PPN columns here and for DPP and the free VAT (DTP) amount in step 4a.",
     cariUnit: "Search code, address, view…",
     ringkasUnit: (n: number) => `${n} units · total Factored Price`,
@@ -1083,7 +1097,7 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
     if (!berkas) return;
     setSibuk(true); setPesan(null);
     try {
-      const fd = new FormData(); fd.append("file", berkas);
+      const fd = new FormData(); fd.append("file", await ringkasXlsx(berkas));
       const res = await fetch("/api/pricelist/susun/impor?bagian=unit", { method: "POST", body: fd });
       const b = await res.json().catch(() => ({}));
       if (res.status === 401) { location.href = "/login"; return; }
@@ -1115,7 +1129,7 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
   return (
     <>
       <p className="hint kiri">
-        {kt.unitHint(data.bulatBiasa ? "ROUND" : "ROUNDUP", !!data.basisExclPpn, data.bulatBase ?? 6, lp)}
+        {kt.unitHint(data.baseTanpaBulat ? "" : data.bulatBiasa ? "ROUND" : "ROUNDUP", !!data.basisExclPpn, data.bulatBase ?? 6, lp)}
       </p>
       <div className="filters rapat param-irr" style={{ marginBottom: 12 }}>
         <div>
@@ -1126,6 +1140,45 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
         <p className="hint kiri" style={{ margin: 0, alignSelf: "flex-end", maxWidth: 520 }}>
           {kt.ppnInfo}
         </p>
+      </div>
+      {/* Aturan pembulatan per project, sebagai pilihan — bukan tertanam di
+          program — supaya project baru tinggal memilih yang sama dengan
+          Excel-nya. Nilai bawaan project (BIO, Mazenta, Permai) dipasang
+          basisProject bila draf belum menyatakannya. */}
+      <div className="form-blok" style={{ marginBottom: 12 }}>
+        <b>{kt.aturan}</b> <span className="hint" style={{ margin: 0 }}>{kt.aturanInfo}</span>
+        <div className="filters rapat" style={{ marginTop: 8 }}>
+          <div><div className="lbl">{kt.aturM2}</div>
+            <select id="atur-m2" disabled={ro} value={(data.bulatHargaM2 ?? -1) >= 0 ? "ratus" : "tidak"}
+                    onChange={(e) => ubah((d) => ({ ...d, bulatHargaM2: e.target.value === "ratus" ? 5 : -1 }))}>
+              <option value="tidak">{kt.m2Tidak}</option>
+              <option value="ratus">{kt.m2Ratus}</option>
+            </select></div>
+          <div><div className="lbl">{kt.aturDasar}</div>
+            <select id="atur-dasar" disabled={ro}
+                    value={data.baseTanpaBulat ? "tidak" : data.bulatBiasa && (data.bulatBase ?? 6) === 4 ? "puluh" : "juta"}
+                    onChange={(e) => ubah((d) => ({ ...d, ...(e.target.value === "tidak"
+                      ? { baseTanpaBulat: true }
+                      : e.target.value === "puluh"
+                        ? { baseTanpaBulat: false, bulatBase: 4, bulatBiasa: true }
+                        : { baseTanpaBulat: false, bulatBase: 6, bulatBiasa: false }) }))}>
+              <option value="juta">{kt.dasarJuta}</option>
+              <option value="tidak">{kt.dasarTidak}</option>
+              <option value="puluh">{kt.dasarPuluh}</option>
+            </select></div>
+          <div><div className="lbl">{kt.aturDari}</div>
+            <select id="atur-dari" disabled={ro} value={data.basisExclPpn ? "excl" : "incl"}
+                    onChange={(e) => ubah((d) => ({ ...d, basisExclPpn: e.target.value === "excl" }))}>
+              <option value="incl">{kt.dariIncl}</option>
+              <option value="excl">{kt.dariExcl}</option>
+            </select></div>
+          <div><div className="lbl">{kt.aturExcl}</div>
+            <select id="atur-excl" disabled={ro || !!data.basisExclPpn} value={data.exclTerpisah ? "sendiri" : "bagi"}
+                    onChange={(e) => ubah((d) => ({ ...d, exclTerpisah: e.target.value === "sendiri" }))}>
+              <option value="bagi">{kt.exclBagi}</option>
+              <option value="sendiri">{kt.exclSendiri}</option>
+            </select></div>
+        </div>
       </div>
       <div className="row">
         <input id="unit-cari" type="search" placeholder={kt.cariUnit}
@@ -1598,6 +1651,7 @@ export function LangkahDataPl({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
         </div>
       )}
       {pesanAtur && <div className={`banner ${pesanAtur.ok ? "ok" : "stop"}`}>{pesanAtur.teks}</div>}
+      <CocokkanExcel data={data} hasil={hasil} />
       <div className="filters rapat" style={{ maxWidth: 300 }}>
         <div>
           <div className="lbl">{kt.tambahanPerUnit}</div>

@@ -3299,3 +3299,7 @@ ul.daftar-ubah li { margin: 1px 0; }
 /* Isian yang ditunjuk dari daftar pemeriksaan: disorot sebentar. */
 .sorot-temuan, .sorot-temuan > td { outline: 3px solid #d33; outline-offset: 2px; background: #fff3c4 !important;
   transition: background .3s; }
+/* Cocokkan dengan Excel: tabel selebar isinya, angka rata kanan berjarak. */
+.tabel-cocok { width: auto !important; }
+.tabel-cocok th, .tabel-cocok td { padding: 4px 14px !important; white-space: nowrap; }
+.tabel-cocok td.n { text-align: right; background: transparent; }
