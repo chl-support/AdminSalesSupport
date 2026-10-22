@@ -723,6 +723,16 @@ function periksa(susun: SusunPricelist, irr: HasilIrr, baris: BarisHasil[]): str
  * ketentuan seperti berkas PL Naraya, tanpa unit. Angka-angkanya patokan
  * bagian penjualan saat ini; semuanya dapat diubah di layarnya.
  */
+/**
+ * Aturan pembulatan standar untuk project baru (disepakati Oktober 2026,
+ * mengikuti BIO DISTRICT): harga per m² Termasuk PPN ROUNDUP ke Rp 100.000,
+ * Harga Dasar ROUNDUP ke juta, dihitung dari harga Termasuk PPN. Draf
+ * project lama tidak diubah; aturannya tetap dapat diganti di langkah 2.
+ */
+export const ATURAN_STANDAR = {
+  bulatHargaM2: 5, bulatBase: 6, bulatBiasa: false, baseTanpaBulat: false, basisExclPpn: false,
+} as const satisfies Partial<SusunPricelist>;
+
 export function susunAwal(): SusunPricelist {
   const sk = (nama: string, kelompok: string, alokasi: number, dp: number,
               kali: number, bulan: [number, number, number, number],
