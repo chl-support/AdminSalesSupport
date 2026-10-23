@@ -3308,3 +3308,8 @@ ul.daftar-ubah li { margin: 1px 0; }
 .atur-faktor { display: flex; gap: 4px; align-items: center; justify-content: center; margin-top: 4px; font-weight: 400; }
 .atur-faktor select { padding: 2px 4px; font-size: 12px; }
 .atur-faktor button { white-space: nowrap; }
+/* Kenaikan: tombol buka/tutup kolom Catatan Kenaikan; tanda unit yang punya catatan. */
+.tombol-catatan { display: block; margin: 4px auto 0; font-weight: 400; }
+td.ada-catatan { position: relative; }
+td.ada-catatan::after { content: ""; position: absolute; top: 3px; right: 3px; border: 4px solid transparent;
+  border-top-color: #c58a00; border-right-color: #c58a00; }
