@@ -113,6 +113,8 @@ function bacaLembarUnit(ws: ExcelJS.Worksheet, peringatan: string[]): UnitData[]
       else if (h === "phase") kol.phase = c;
       else if (h.startsWith("increase")) kol.kenaikan = c;
       else if (/^\(\+\) fa[ck]tor\s*\(rp\)/.test(h)) kol.faktorTambahRp = c;
+      else if (/^\([-−]\) fa[ck]tor\s*\(rp\)/.test(h)) kol.faktorKurangRp = c;
+      else if (/^\([-−]\) fa[ck]tor/.test(h)) kol.faktorKurang = c;
       else if (h.startsWith("(+) factor")) kol.faktorTambah = c;
       // Special % dan Biaya AJB + BPHTB berupa pengali (1 + x), sama seperti
       // (+) Factor; Special tanpa % adalah rupiah.
@@ -169,6 +171,8 @@ function bacaLembarUnit(ws: ExcelJS.Worksheet, peringatan: string[]): UnitData[]
       if (kol.view2) u.view2 = t("view2");
       if (kol.floor) u.floor = n("floor");
       if (kol.faktorTambahRp) u.faktorTambahRp = n("faktorTambahRp") || undefined;
+      if (kol.faktorKurang) u.faktorKurang = Math.abs(n("faktorKurang")) || undefined;
+      if (kol.faktorKurangRp) u.faktorKurangRp = Math.abs(n("faktorKurangRp")) || undefined;
       if (kol.hargaDasarIncl) {
         const bagi = /\)\s*\/\s*([\d.]+)\s*$/.exec(rumus(ws.getCell(r, kol.hargaDasarIncl)));
         if (bagi && Number(bagi[1]) > 0 && Number(bagi[1]) !== 1) u.pembagiIncl = Number(bagi[1]);
@@ -245,7 +249,7 @@ function aturanDariLembar(ws: ExcelJS.Worksheet): Partial<SusunPricelist> {
 
 /** Kolom angka pada lembar UNIT DATA; isian teks di sana dibaca 0. */
 const ANGKA_UNIT = ["lt", "hargaTanah", "lb", "hargaBangunan", "kenaikan",
-  "faktorTambah", "faktorTambahRp", "specialPersen", "biayaAjb", "floor", "special", "showUnit", ...FAKTOR.map(([k]) => k)];
+  "faktorTambah", "faktorTambahRp", "faktorKurang", "faktorKurangRp", "specialPersen", "biayaAjb", "floor", "special", "showUnit", ...FAKTOR.map(([k]) => k)];
 
 /**
  * Template kosong lembar UNIT DATA untuk tombol "Unduh Template" di langkah 2.

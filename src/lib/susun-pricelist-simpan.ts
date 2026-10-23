@@ -57,6 +57,7 @@ const SKEMA = z.object({
     pembagiIncl: angka.positive().optional(),
     penyesuaian: angka.min(-1).max(10).optional(), penyesuaianRp: angka.optional(),
     faktorTambahRp: angka.optional(),
+    faktorKurang: angka.min(0).max(1).optional(), faktorKurangRp: angka.min(0).optional(),
     catatan: teks.optional(),
   })).max(5000),
   dataPricelist: z.object({
