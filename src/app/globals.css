@@ -3303,3 +3303,8 @@ ul.daftar-ubah li { margin: 1px 0; }
 .tabel-cocok { width: auto !important; }
 .tabel-cocok th, .tabel-cocok td { padding: 4px 14px !important; white-space: nowrap; }
 .tabel-cocok td.n { text-align: right; background: transparent; }
+/* (+) Faktor: pengaturan massal di judul kolomnya (% / Rp, Semua, Terpilih). */
+.th-faktor { white-space: nowrap; }
+.atur-faktor { display: flex; gap: 4px; align-items: center; justify-content: center; margin-top: 4px; font-weight: 400; }
+.atur-faktor select { padding: 2px 4px; font-size: 12px; }
+.atur-faktor button { white-space: nowrap; }

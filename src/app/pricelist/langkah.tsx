@@ -112,6 +112,7 @@ const KATA = {
     faktorPlus: "(+) Faktor",
     faktorInfo: "Mis. Gimmick (Trip, BPHTB, AKAD, Repair) 1% atau senilai Rp: nilai (+) Faktor unit diganti dengan angka ini. Persen dikalikan, rupiah ditambahkan.",
     faktorPersen: "Persen (%)", faktorRp: "Nilai (Rp)", thFaktorRp: "(+) Faktor (Rp)",
+    faktorSemua: "Semua", faktorTerpilih: (n: number) => `Terpilih (${n})`,
     imporHint1: "Berkas Excel dengan lembar",
     imporHint2: "(kolom Code Unit, Address, View, Ukuran, Land, Land Price, GFA, dan seterusnya). Seluruh unit di tabel ini diganti dengan isi berkas; langkah lain tidak berubah. Untuk proyek baru, isi",
     imporHint3: "templat Data Unit",
@@ -310,6 +311,7 @@ const KATA = {
     faktorPlus: "(+) Factor",
     faktorInfo: "E.g. Gimmick (Trip, BPHTB, AKAD, Repair) 1% or a rupiah amount: each unit's (+) Factor is replaced with this figure. Percent is multiplied, rupiah is added.",
     faktorPersen: "Percent (%)", faktorRp: "Amount (Rp)", thFaktorRp: "(+) Factor (Rp)",
+    faktorSemua: "All", faktorTerpilih: (n: number) => `Selected (${n})`,
     imporHint1: "An Excel file with the sheet",
     imporHint2: "(columns Code Unit, Address, View, Ukuran, Land, Land Price, GFA, and so on). Every unit in this table is replaced with the file's content; other steps are unchanged. For a new project, fill in the",
     imporHint3: "Unit Data template",
@@ -1084,7 +1086,7 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
       ? (faktorRp ? { ...u, faktorTambahRp: faktorTambah || undefined } : { ...u, faktorTambah }) : u) }));
     setPesanFaktor(kt.pesanFaktor(faktorRp ? rp(faktorTambah) : persen(faktorTambah, 2, 1), n, hanyaTerpilih));
   };
-  const kolomFaktorRp = data.unit.some((u) => u.faktorTambahRp);
+  const kolomFaktorRp = kolomPlus || data.unit.some((u) => u.faktorTambahRp);
   // Penyesuaian harga massal: turun/naik persen atau potongan/tambahan
   // rupiah untuk semua unit atau unit terpilih. Menerapkan lagi mengganti
   // nilai sebelumnya (tidak bertumpuk); "Kembalikan semula" menghapusnya.
@@ -1272,26 +1274,6 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
       )}
       {bolehUbah && data.unit.length > 0 && (
         <div className="row increase-massal">
-          <b>{kt.faktorPlus}</b>
-          <select id="unit-faktor-jenis" value={faktorRp ? "rp" : "persen"}
-                  onChange={(e) => { setFaktorRp(e.target.value === "rp"); setFaktorTambah(0); setPesanFaktor(null); }}>
-            <option value="persen">{kt.faktorPersen}</option>
-            <option value="rp">{kt.faktorRp}</option>
-          </select>
-          <Isian id="unit-faktor-massal" key={faktorRp ? "rp" : "persen"} jenis={faktorRp ? "rp" : "persen"}
-                  desimal={faktorRp ? undefined : 1} nilai={faktorTambah} lebar={faktorRp ? 130 : 70}
-                  ubah={(n) => { setFaktorTambah(n); setPesanFaktor(null); }} />
-          <button onClick={() => terapkanFaktor(false)}>{kt.semuaUnit(data.unit.length)}</button>
-          <button disabled={!pilih.size} onClick={() => terapkanFaktor(true)}
-                  title={pilih.size ? undefined : kt.centangDulu}>
-            {kt.unitTerpilih(pilih.size)}</button>
-          <span className="hint" style={{ margin: 0 }}>
-            {pesanFaktor ?? kt.faktorInfo}
-          </span>
-        </div>
-      )}
-      {bolehUbah && data.unit.length > 0 && (
-        <div className="row increase-massal">
           <b>{kt.sesuai}</b>
           <select id="unit-sesuai-mode" value={modeSesuai}
                   onChange={(e) => { setModeSesuai(e.target.value as typeof modeSesuai); setNilaiSesuai(0); setPesanSesuai(null); }}>
@@ -1328,6 +1310,7 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
         </div>
       )}
       {pesan && <div className={`banner ${pesan.ok ? "ok" : "stop"}`}>{pesan.teks}</div>}
+      {pesanFaktor && <div className="banner ok">{pesanFaktor}</div>}
       {!data.unit.length ? (
         <div className="banner info">
           {kt.kosongUnit1} <b>{kt.imporUnit}</b>{kt.kosongUnit2} <b>{kt.imporSemua}</b> {kt.kosongUnit3}
@@ -1357,7 +1340,28 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
               {bio && <th>{kt.teksUnit.phase}</th>}
               <th>{kt.kenaikan}</th>
               {fk.map(([k, l]) => <th key={k}>{bahasa === "en" ? FAKTOR_INGGRIS[k] ?? l : l}</th>)}
-              {kolomPlus && <th>{kt.faktorPlus}</th>}
+              {/* (+) Faktor diatur langsung di judul kolomnya: % atau Rp, lalu
+                  Semua unit atau unit yang dicentang. */}
+              {kolomPlus && (
+                <th className="th-faktor">
+                  {kt.faktorPlus}
+                  {bolehUbah && (
+                    <span className="atur-faktor">
+                      <select id="unit-faktor-jenis" value={faktorRp ? "rp" : "persen"} aria-label={kt.faktorPlus}
+                              onChange={(e) => { setFaktorRp(e.target.value === "rp"); setFaktorTambah(0); setPesanFaktor(null); }}>
+                        <option value="persen">%</option>
+                        <option value="rp">Rp</option>
+                      </select>
+                      <Isian id="unit-faktor-massal" key={faktorRp ? "rp" : "persen"} jenis={faktorRp ? "rp" : "persen"}
+                             desimal={faktorRp ? undefined : 1} nilai={faktorTambah} lebar={faktorRp ? 110 : 55}
+                             ubah={(n) => { setFaktorTambah(n); setPesanFaktor(null); }} />
+                      <button className="kecil" onClick={() => terapkanFaktor(false)} title={kt.faktorInfo}>{kt.faktorSemua}</button>
+                      <button className="kecil" disabled={!pilih.size} onClick={() => terapkanFaktor(true)}
+                              title={pilih.size ? kt.faktorInfo : kt.centangDulu}>{kt.faktorTerpilih(pilih.size)}</button>
+                    </span>
+                  )}
+                </th>
+              )}
               {kolomFaktorRp && <th>{kt.thFaktorRp}</th>}
               {bio && <><th>{kt.biayaAjb}</th><th>Special %</th></>}
               {kolomKhusus && <th>{kt.special}</th>}<th>{kt.showUnit}</th>
