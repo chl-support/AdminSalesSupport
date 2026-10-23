@@ -111,6 +111,7 @@ function bacaLembarUnit(ws: ExcelJS.Worksheet, peringatan: string[]): UnitData[]
       else if (h === "bentuk" || h.startsWith("sub-tipe kavling")) kol.bentuk = c;
       else if (h === "sub-tipe") kol.subTipe = c;
       else if (h === "phase") kol.phase = c;
+      else if (h === "catatan kenaikan" || h === "rumus kenaikan") kol.kenaikanCatatan = c;
       else if (h.startsWith("increase")) kol.kenaikan = c;
       else if (/^\(\+\) fa[ck]tor\s*\(rp\)/.test(h)) kol.faktorTambahRp = c;
       else if (/^\([-−]\) fa[ck]tor\s*\(rp\)/.test(h)) kol.faktorKurangRp = c;
@@ -175,6 +176,8 @@ function bacaLembarUnit(ws: ExcelJS.Worksheet, peringatan: string[]): UnitData[]
         const f = rumus(ws.getCell(r, kol.kenaikan));
         if (f && /[*/+\-]/.test(f) && !/[A-Z]\$?\d/i.test(f)) u.kenaikanCatatan = f.replace(/\./g, ",");
       }
+      // Kolom Catatan Kenaikan (template) didahulukan dari rumus sel Increase.
+      if (kol.kenaikanCatatan && t("kenaikanCatatan")) u.kenaikanCatatan = t("kenaikanCatatan");
       if (kol.faktorTambahRp) u.faktorTambahRp = n("faktorTambahRp") || undefined;
       if (kol.faktorKurang) u.faktorKurang = Math.abs(n("faktorKurang")) || undefined;
       if (kol.faktorKurangRp) u.faktorKurangRp = Math.abs(n("faktorKurangRp")) || undefined;
@@ -276,7 +279,7 @@ export async function templatUnitData(): Promise<Buffer> {
     ["subTipe", "Sub-Tipe", "", 14],
     ["lt", "Tanah", "Land", 9], ["hargaTanah", "", "Land Price (base) (Excl PPN. 11%)", 18],
     ["lb", "Bangunan", "GFA", 9], ["hargaBangunan", "", "GFA (base) (Excl PPN. 11%)", 18],
-    ["kenaikan", "Increase (%)", "", 11],
+    ["kenaikan", "Increase (%)", "", 11], ["kenaikanCatatan", "Catatan Kenaikan", "", 40],
     ...FAKTOR.filter(([k]) => !FAKTOR_OPSIONAL.has(k)).map(([k, l]) => [k, l, "", 11] as [string, string, string, number]),
     ["faktorTambah", "(+) Factor", "", 11], ["special", "Special", "", 14],
     ["showUnit", "Show Unit", "", 14],
@@ -326,6 +329,7 @@ export async function templatUnitData(): Promise<Buffer> {
     "Code wajib diisi dan tidak boleh sama. Pembacaan berhenti pada baris pertama yang Code-nya kosong, jadi jangan ada baris kosong di tengah.",
     "Land dan GFA dalam m². Land Price (base) dan GFA (base) adalah harga per m² sebelum PPN 11%, angka saja tanpa \"Rp\" atau titik ketik manual.",
     "Increase, faktor posisi (Single Row s.d. Taman Belakang) dan (+) Factor diisi persen, mis. ketik 5% atau 0,05. Kosongkan bila tidak ada.",
+    "Catatan Kenaikan (boleh kosong): asal angka Increase, mis. 1,025*1,025*1,01*1,002-1. Tersimpan sebagai catatan di sistem.",
     "Special dan Show Unit dalam rupiah. Special DITAMBAHKAN ke Harga Setelah Faktor: potongan harga diisi MINUS, mis. -972000000 (bukan 972000000). Kosongkan bila tidak ada.",
     "Phase boleh kosong: dianggap 1, dan untuk unit yang Code-nya sudah ada di tabel, isian lamanya dipakai.",
     "Jangan ganti nama lembar UNIT DATA dan jangan sembunyikan (hide) lembarnya. Lembar PETUNJUK ini boleh dibiarkan.",
