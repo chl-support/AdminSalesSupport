@@ -128,7 +128,7 @@ export function bedaSusun(lama: SusunPricelist | null, baru: SusunPricelist): st
     ["Sub-Tipe Kavling/Irr/Irr Hoek", (u) => teks(u.bentuk)], ["Sub-Tipe", (u) => teks(u.subTipe)],
     ["Land", (u) => angka(u.lt)], [`Land Price (base) (Excl PPN. ${lp})`, (u) => angka(u.hargaTanah, 0)],
     ["GFA", (u) => angka(u.lb)], [`GFA (base) (Excl PPN. ${lp})`, (u) => angka(u.hargaBangunan, 0)],
-    ["Increase", (u) => persen(u.kenaikan)],
+    ["Increase", (u) => persen(u.kenaikan)], ["Catatan Kenaikan", (u) => teks(u.kenaikanCatatan)],
     ...FAKTOR.map(([k, l]) => [l, (u: UnitData) => persen(u.faktor[k] ?? 0)] as [string, (u: UnitData) => string]),
     ["(+) Factor", (u) => persen(u.faktorTambah)], ["(+) Factor (Rp)", (u) => angka(u.faktorTambahRp ?? 0, 0)],
     ["(−) Faktor", (u) => persen(u.faktorKurang ?? 0)], ["(−) Faktor (Rp)", (u) => angka(u.faktorKurangRp ?? 0, 0)], ["Special", (u) => angka(u.special, 0)],

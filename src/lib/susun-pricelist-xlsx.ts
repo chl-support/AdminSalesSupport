@@ -170,6 +170,11 @@ function bacaLembarUnit(ws: ExcelJS.Worksheet, peringatan: string[]): UnitData[]
       if (kol.tipe) u.tipe = t("tipe");
       if (kol.view2) u.view2 = t("view2");
       if (kol.floor) u.floor = n("floor");
+      // Rumus Increase di Excel (=1.025*1.025*…-1) menjadi catatan kenaikan.
+      if (kol.kenaikan) {
+        const f = rumus(ws.getCell(r, kol.kenaikan));
+        if (f && /[*/+\-]/.test(f) && !/[A-Z]\$?\d/i.test(f)) u.kenaikanCatatan = f.replace(/\./g, ",");
+      }
       if (kol.faktorTambahRp) u.faktorTambahRp = n("faktorTambahRp") || undefined;
       if (kol.faktorKurang) u.faktorKurang = Math.abs(n("faktorKurang")) || undefined;
       if (kol.faktorKurangRp) u.faktorKurangRp = Math.abs(n("faktorKurangRp")) || undefined;

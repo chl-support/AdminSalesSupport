@@ -13,7 +13,7 @@ import { useEffect, useState } from "react";
 
 import { formatRupiah } from "@/lib/money";
 import {
-  FAKTOR, FAKTOR_INGGRIS, faktorTampil, hargaKasIrr, hargaSesuaiSkema, labelPpn, namaTahap, tarifPpn, unitKosong,
+  FAKTOR, FAKTOR_INGGRIS, faktorTampil, hitungRumus, hargaKasIrr, hargaSesuaiSkema, labelPpn, namaTahap, tarifPpn, unitKosong,
   kunciTnc, tingkatNaik, type BarisTnc, type KunciFaktor, type HasilSusun, type SusunPricelist, type UnitData,
 } from "@/lib/susun-pricelist";
 import type { UnitHarga } from "@/lib/simulasi";
@@ -108,7 +108,9 @@ const KATA = {
     thSesuaiPersen: "Penyesuaian (%)", thSesuaiRp: "Penyesuaian (Rp)",
     unitTerpilih: (n: number) => `Unit Terpilih (${n})`,
     centangDulu: "Centang unit di tabel lebih dulu",
-    kenaikanInfo: "Isi persen, lalu terapkan ke semua unit atau ke unit yang dicentang di tabel.",
+    kenaikanInfo: "Isi persen atau rumus (mis. 1,025*1,025*1,01-1), lalu terapkan ke semua unit atau ke unit yang dicentang di tabel. Rumusnya tersimpan sebagai Catatan Kenaikan.",
+    catatanKenaikan: "Catatan Kenaikan", rumusKenaikan: "rumus / catatan (opsional)",
+    catatanKenaikanInfo: "Asal angka kenaikan. Rumus (mis. 1,025*1,025*1,01-1) langsung menghitung Kenaikan; teks biasa hanya catatan.",
     faktorPlus: "(+) Faktor",
     faktorInfo: "Mis. Gimmick (Trip, BPHTB, AKAD, Repair) 1% atau senilai Rp: nilai (+) Faktor unit diganti dengan angka ini. Persen dikalikan, rupiah ditambahkan.",
     faktorPersen: "Persen (%)", faktorRp: "Nilai (Rp)", thFaktorRp: "(+) Faktor (Rp)",
@@ -274,6 +276,8 @@ const KATA = {
     genapkan: "Normalize to 100%", bagiRata: "Split evenly",
     pesanKenaikan: (p: string, n: number, terpilih: boolean) =>
       `Increase ${p} applied to ${n}${terpilih ? " selected" : ""} units. Save to keep it.`,
+    catatanKenaikan: "Increase Note", rumusKenaikan: "formula / note (optional)",
+    catatanKenaikanInfo: "Where the increase comes from. A formula (e.g. 1.025*1.025*1.01-1) sets the Increase at once; plain text is just a note.",
     pesanFaktor: (p: string, n: number, terpilih: boolean) =>
       `(+) Factor ${p} applied to ${n}${terpilih ? " selected" : ""} units. Save to keep it.`,
     tidakAdaUnit: "No units in this file's UNIT DATA sheet.",
@@ -311,7 +315,7 @@ const KATA = {
     thSesuaiPersen: "Adjustment (%)", thSesuaiRp: "Adjustment (Rp)",
     unitTerpilih: (n: number) => `Selected Units (${n})`,
     centangDulu: "Tick units in the table first",
-    kenaikanInfo: "Enter a percentage, then apply it to all units or to the units ticked in the table.",
+    kenaikanInfo: "Enter a percentage or a formula (e.g. 1.025*1.025*1.01-1), then apply it to all units or to the units ticked in the table. The formula is kept as the Increase Note.",
     faktorPlus: "(+) Factor",
     faktorInfo: "E.g. Gimmick (Trip, BPHTB, AKAD, Repair) 1% or a rupiah amount: each unit's (+) Factor is replaced with this figure. Percent is multiplied, rupiah is added.",
     faktorPersen: "Percent (%)", faktorRp: "Amount (Rp)", thFaktorRp: "(+) Factor (Rp)",
@@ -1076,12 +1080,18 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
   const [pilih, setPilih] = useState<Set<number>>(new Set());
   // Increase massal: satu persen untuk semua unit atau hanya unit terpilih.
   const [kenaikan, setKenaikan] = useState(0);
+  // Rumus / catatan asal kenaikan: rumus yang dapat dihitung menggantikan angka di atas.
+  const [kenaikanCatatan, setKenaikanCatatan] = useState("");
   const [pesanKenaikan, setPesanKenaikan] = useState<string | null>(null);
   const terapkanKenaikan = (hanyaTerpilih: boolean) => {
     const n = hanyaTerpilih ? pilih.size : data.unit.length;
+    const dariRumus = hitungRumus(kenaikanCatatan);
+    const nilai = dariRumus ?? kenaikan;
+    const catatan = kenaikanCatatan.trim() || undefined;
     ubah((d) => ({ ...d, unit: d.unit.map((u, j) =>
-      !hanyaTerpilih || pilih.has(j) ? { ...u, kenaikan } : u) }));
-    setPesanKenaikan(kt.pesanKenaikan(persen(kenaikan), n, hanyaTerpilih));
+      !hanyaTerpilih || pilih.has(j) ? { ...u, kenaikan: nilai, kenaikanCatatan: catatan } : u) }));
+    if (dariRumus != null) setKenaikan(dariRumus);
+    setPesanKenaikan(kt.pesanKenaikan(persen(nilai), n, hanyaTerpilih));
   };
   // (+) Factor massal (mis. Gimmick 1%), sama caranya dengan Increase massal.
   // Persen (dikalikan) atau nilai rupiah (ditambahkan), mis. Gimmick senilai tertentu.
@@ -1291,6 +1301,13 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
           <b>{kt.kenaikan}</b>
           <Isian id="unit-increase-massal" jenis="persen" nilai={kenaikan} lebar={70}
                   ubah={(n) => { setKenaikan(n); setPesanKenaikan(null); }} />
+          <input id="unit-increase-catatan" value={kenaikanCatatan} placeholder={kt.rumusKenaikan}
+                 title={kt.catatanKenaikanInfo} style={{ width: 300 }}
+                 onChange={(e) => {
+                   setKenaikanCatatan(e.target.value); setPesanKenaikan(null);
+                   const v = hitungRumus(e.target.value);
+                   if (v != null) setKenaikan(v);
+                 }} />
           <button onClick={() => terapkanKenaikan(false)}>{kt.semuaUnit(data.unit.length)}</button>
           <button disabled={!pilih.size} onClick={() => terapkanKenaikan(true)}
                   title={pilih.size ? undefined : kt.centangDulu}>
@@ -1367,6 +1384,7 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
               <th className="incl">{kt.hargaBangunan}<br />{kt.incl(lp)}</th>
               {bio && <th>{kt.teksUnit.phase}</th>}
               <th>{kt.kenaikan}</th>
+              <th title={kt.catatanKenaikanInfo}>{kt.catatanKenaikan}</th>
               {fk.map(([k, l]) => <th key={k}>{bahasa === "en" ? FAKTOR_INGGRIS[k] ?? l : l}</th>)}
               {/* Kolom faktor: isian massal di judul masing-masing kolom. */}
               {kolomPlus && kepalaMassal(`${kt.faktorPlus} (%)`, "faktorTambah", kt.faktorInfo)}
@@ -1426,6 +1444,12 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
                                  ubah={(v) => ubahUnit(i, (x) => ({ ...x, phase: v }))} /></td>
                 )}
                 <td><Isian jenis="persen" kosongNol desimal={bio ? 2 : 1} nilai={u.kenaikan} lebar={55} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, kenaikan: n }))} /></td>
+                {/* Catatan asal kenaikan; rumus yang dapat dihitung mengisi Kenaikan. */}
+                <td><IsianTeks nilai={u.kenaikanCatatan ?? ""} lebar={170} disabled={ro}
+                               ubah={(v) => ubahUnit(i, (x) => {
+                                 const n = hitungRumus(v);
+                                 return { ...x, kenaikanCatatan: v || undefined, ...(n != null && { kenaikan: n }) };
+                               })} /></td>
                 {fk.map(([k]) => (
                   <td key={k}><Isian jenis="persen" kosongNol desimal={bio ? 1 : undefined} nilai={u.faktor[k] ?? 0} lebar={55} disabled={ro}
                                      ubah={(n) => ubahUnit(i, (x) => ({ ...x, faktor: { ...x.faktor, [k]: n } }))} /></td>
@@ -1466,7 +1490,7 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
               <td colSpan={(bolehUbah ? 0 : -1) + 1 + teksUnit.length} />
               {bio && <td />}
               <td className="n">{luas(tampil.reduce((a, { u }) => a + u.lt, 0), 1)}</td><td /><td />{kolomRoundup && <td />}
-              <td className="n">{luas(tampil.reduce((a, { u }) => a + u.lb, 0))}</td><td /><td />{kolomRoundup && <td />}{bio && <td />}<td />
+              <td className="n">{luas(tampil.reduce((a, { u }) => a + u.lb, 0))}</td><td /><td />{kolomRoundup && <td />}{bio && <td />}<td /><td />
               {fk.map(([k]) => <td key={k} />)}
               {kolomPlus && <td />}{kolomFaktorRp && <td />}{kolomMinus && <><td /><td /></>}{bio && <><td /><td /></>}
               {kolomKhusus && <td />}<td />{kolomPembagi && <td />}{kolomSesuai && <td />}{kolomSesuaiRp && <td />}
