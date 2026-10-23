@@ -110,6 +110,8 @@ const KATA = {
     centangDulu: "Centang unit di tabel lebih dulu",
     kenaikanInfo: "Isi persen atau rumus (mis. 1,025*1,025*1,01-1), lalu terapkan ke semua unit atau ke unit yang dicentang di tabel. Rumusnya tersimpan sebagai Catatan Kenaikan.",
     catatanKenaikan: "Catatan Kenaikan", rumusKenaikan: "rumus / catatan (opsional)",
+    bukaCatatan: "▸ Catatan", tutupCatatan: "◂ Sembunyikan",
+    bukaCatatanInfo: "Tampilkan / sembunyikan kolom Catatan Kenaikan (asal angka kenaikan)",
     catatanKenaikanInfo: "Asal angka kenaikan. Rumus (mis. 1,025*1,025*1,01-1) langsung menghitung Kenaikan; teks biasa hanya catatan.",
     faktorPlus: "(+) Faktor",
     faktorInfo: "Mis. Gimmick (Trip, BPHTB, AKAD, Repair) 1% atau senilai Rp: nilai (+) Faktor unit diganti dengan angka ini. Persen dikalikan, rupiah ditambahkan.",
@@ -277,6 +279,8 @@ const KATA = {
     pesanKenaikan: (p: string, n: number, terpilih: boolean) =>
       `Increase ${p} applied to ${n}${terpilih ? " selected" : ""} units. Save to keep it.`,
     catatanKenaikan: "Increase Note", rumusKenaikan: "formula / note (optional)",
+    bukaCatatan: "▸ Note", tutupCatatan: "◂ Hide",
+    bukaCatatanInfo: "Show / hide the Increase Note column (where the increase comes from)",
     catatanKenaikanInfo: "Where the increase comes from. A formula (e.g. 1.025*1.025*1.01-1) sets the Increase at once; plain text is just a note.",
     pesanFaktor: (p: string, n: number, terpilih: boolean) =>
       `(+) Factor ${p} applied to ${n}${terpilih ? " selected" : ""} units. Save to keep it.`,
@@ -1080,6 +1084,16 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
   const [pilih, setPilih] = useState<Set<number>>(new Set());
   // Increase massal: satu persen untuk semua unit atau hanya unit terpilih.
   const [kenaikan, setKenaikan] = useState(0);
+  // Kolom Catatan Kenaikan disembunyikan bawaannya; dibuka/ditutup dari
+  // judul kolom Kenaikan dan diingat di peramban ini.
+  const [lihatCatatan, setLihatCatatan] = useState(false);
+  useEffect(() => {
+    try { setLihatCatatan(localStorage.getItem("chl.catatanKenaikan") === "1"); } catch { /* tidak apa-apa */ }
+  }, []);
+  const gantiLihatCatatan = () => setLihatCatatan((x) => {
+    try { localStorage.setItem("chl.catatanKenaikan", x ? "0" : "1"); } catch { /* tidak apa-apa */ }
+    return !x;
+  });
   // Rumus / catatan asal kenaikan: rumus yang dapat dihitung menggantikan angka di atas.
   const [kenaikanCatatan, setKenaikanCatatan] = useState("");
   const [pesanKenaikan, setPesanKenaikan] = useState<string | null>(null);
@@ -1383,8 +1397,12 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
               {kolomRoundup && <th className="incl">{kt.hargaBangunan} {kt.pembulatan}<br />{kt.incl(lp)}</th>}
               <th className="incl">{kt.hargaBangunan}<br />{kt.incl(lp)}</th>
               {bio && <th>{kt.teksUnit.phase}</th>}
-              <th>{kt.kenaikan}</th>
-              <th title={kt.catatanKenaikanInfo}>{kt.catatanKenaikan}</th>
+              <th>
+                {kt.kenaikan}
+                <button className="kecil tombol-catatan" title={kt.bukaCatatanInfo} onClick={gantiLihatCatatan}>
+                  {lihatCatatan ? kt.tutupCatatan : kt.bukaCatatan}</button>
+              </th>
+              {lihatCatatan && <th title={kt.catatanKenaikanInfo}>{kt.catatanKenaikan}</th>}
               {fk.map(([k, l]) => <th key={k}>{bahasa === "en" ? FAKTOR_INGGRIS[k] ?? l : l}</th>)}
               {/* Kolom faktor: isian massal di judul masing-masing kolom. */}
               {kolomPlus && kepalaMassal(`${kt.faktorPlus} (%)`, "faktorTambah", kt.faktorInfo)}
@@ -1443,13 +1461,15 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
                   <td><IsianTeks nilai={u.phase ?? ""} lebar={70} disabled={ro}
                                  ubah={(v) => ubahUnit(i, (x) => ({ ...x, phase: v }))} /></td>
                 )}
-                <td><Isian jenis="persen" kosongNol desimal={bio ? 2 : 1} nilai={u.kenaikan} lebar={55} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, kenaikan: n }))} /></td>
+                <td title={!lihatCatatan && u.kenaikanCatatan ? `${kt.catatanKenaikan}: ${u.kenaikanCatatan}` : undefined}
+                    className={!lihatCatatan && u.kenaikanCatatan ? "ada-catatan" : undefined}>
+                  <Isian jenis="persen" kosongNol desimal={bio ? 2 : 1} nilai={u.kenaikan} lebar={55} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, kenaikan: n }))} /></td>
                 {/* Catatan asal kenaikan; rumus yang dapat dihitung mengisi Kenaikan. */}
-                <td><IsianTeks nilai={u.kenaikanCatatan ?? ""} lebar={170} disabled={ro}
+                {lihatCatatan && <td><IsianTeks nilai={u.kenaikanCatatan ?? ""} lebar={170} disabled={ro}
                                ubah={(v) => ubahUnit(i, (x) => {
                                  const n = hitungRumus(v);
                                  return { ...x, kenaikanCatatan: v || undefined, ...(n != null && { kenaikan: n }) };
-                               })} /></td>
+                               })} /></td>}
                 {fk.map(([k]) => (
                   <td key={k}><Isian jenis="persen" kosongNol desimal={bio ? 1 : undefined} nilai={u.faktor[k] ?? 0} lebar={55} disabled={ro}
                                      ubah={(n) => ubahUnit(i, (x) => ({ ...x, faktor: { ...x.faktor, [k]: n } }))} /></td>
@@ -1490,7 +1510,7 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
               <td colSpan={(bolehUbah ? 0 : -1) + 1 + teksUnit.length} />
               {bio && <td />}
               <td className="n">{luas(tampil.reduce((a, { u }) => a + u.lt, 0), 1)}</td><td /><td />{kolomRoundup && <td />}
-              <td className="n">{luas(tampil.reduce((a, { u }) => a + u.lb, 0))}</td><td /><td />{kolomRoundup && <td />}{bio && <td />}<td /><td />
+              <td className="n">{luas(tampil.reduce((a, { u }) => a + u.lb, 0))}</td><td /><td />{kolomRoundup && <td />}{bio && <td />}<td />{lihatCatatan && <td />}
               {fk.map(([k]) => <td key={k} />)}
               {kolomPlus && <td />}{kolomFaktorRp && <td />}{kolomMinus && <><td /><td /></>}{bio && <><td /><td /></>}
               {kolomKhusus && <td />}<td />{kolomPembagi && <td />}{kolomSesuai && <td />}{kolomSesuaiRp && <td />}
