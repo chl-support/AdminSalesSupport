@@ -187,6 +187,11 @@ export type UnitData = {
   faktorTambah: number;
   /** Special, rupiah. */
   special: number;
+  /**
+   * (+) Faktor dalam rupiah (Termasuk PPN), mis. Gimmick senilai tertentu;
+   * ditambahkan sesudah faktor persen. Melengkapi faktorTambah (persen).
+   */
+  faktorTambahRp?: number;
   /** Show Unit, rupiah; ikut naik sebesar kenaikan. */
   showUnit: number;
   /** Floor (luas lantai), m²; keterangan saja (berkas BIO DISTRICT). */
@@ -551,9 +556,10 @@ export function hitungUnit(u: UnitData, ppn = PPN, exclPpn = false, bulat = 6,
   const base = bulatkan(u.lt * tanah + u.lb * bangunan)
     / (u.pembagiIncl && !exclPpn ? u.pembagiIncl : 1);
   const faktor = FAKTOR.reduce((a, [k]) => a + (u.faktor[k] ?? 0), 0);
-  const kaliFaktor = (b: number) => b * (1 + faktor) * (1 + u.faktorTambah)
+  // skala: 1 untuk harga Termasuk PPN, 1 / (1 + PPN) untuk Belum PPN (exclTerpisah).
+  const kaliFaktor = (b: number, skala = 1) => b * (1 + faktor) * (1 + u.faktorTambah)
                    * (1 + (u.biayaAjb ?? 0)) * (1 + (u.specialPersen ?? 0)) + u.special
-                   + u.showUnit * (1 + u.kenaikan);
+                   + (u.faktorTambahRp ?? 0) * skala + u.showUnit * (1 + u.kenaikan);
   // Penyesuaian harga unit (turun/naik persen, lalu potongan/tambahan rupiah).
   const sesuaikan = (x: number, rp: number) => x * (1 + (u.penyesuaian ?? 0)) + rp;
   const factored = sesuaikan(kaliFaktor(base), u.penyesuaianRp ?? 0);
@@ -561,7 +567,7 @@ export function hitungUnit(u: UnitData, ppn = PPN, exclPpn = false, bulat = 6,
   if (opsi.exclTerpisah && !exclPpn) {
     // Seperti Excel BIO: ROUNDUP((Tanah × harga Excl + GFA × harga Excl) × (1 + kenaikan), juta).
     hasil.baseExcl = bulatkan(u.lt * u.hargaTanah + u.lb * u.hargaBangunan);
-    hasil.factoredExcl = sesuaikan(kaliFaktor(hasil.baseExcl), (u.penyesuaianRp ?? 0) / (1 + ppn));
+    hasil.factoredExcl = sesuaikan(kaliFaktor(hasil.baseExcl, 1 / (1 + ppn)), (u.penyesuaianRp ?? 0) / (1 + ppn));
   }
   return hasil;
 }

@@ -110,7 +110,8 @@ const KATA = {
     centangDulu: "Centang unit di tabel lebih dulu",
     kenaikanInfo: "Isi persen, lalu terapkan ke semua unit atau ke unit yang dicentang di tabel.",
     faktorPlus: "(+) Faktor",
-    faktorInfo: "Mis. Gimmick (Trip, BPHTB, AKAD, Repair) 1%: nilai (+) Faktor unit diganti dengan angka ini.",
+    faktorInfo: "Mis. Gimmick (Trip, BPHTB, AKAD, Repair) 1% atau senilai Rp: nilai (+) Faktor unit diganti dengan angka ini. Persen dikalikan, rupiah ditambahkan.",
+    faktorPersen: "Persen (%)", faktorRp: "Nilai (Rp)", thFaktorRp: "(+) Faktor (Rp)",
     imporHint1: "Berkas Excel dengan lembar",
     imporHint2: "(kolom Code Unit, Address, View, Ukuran, Land, Land Price, GFA, dan seterusnya). Seluruh unit di tabel ini diganti dengan isi berkas; langkah lain tidak berubah. Untuk proyek baru, isi",
     imporHint3: "templat Data Unit",
@@ -307,7 +308,8 @@ const KATA = {
     centangDulu: "Tick units in the table first",
     kenaikanInfo: "Enter a percentage, then apply it to all units or to the units ticked in the table.",
     faktorPlus: "(+) Factor",
-    faktorInfo: "E.g. Gimmick (Trip, BPHTB, AKAD, Repair) 1%: each unit's (+) Factor is replaced with this figure.",
+    faktorInfo: "E.g. Gimmick (Trip, BPHTB, AKAD, Repair) 1% or a rupiah amount: each unit's (+) Factor is replaced with this figure. Percent is multiplied, rupiah is added.",
+    faktorPersen: "Percent (%)", faktorRp: "Amount (Rp)", thFaktorRp: "(+) Factor (Rp)",
     imporHint1: "An Excel file with the sheet",
     imporHint2: "(columns Code Unit, Address, View, Ukuran, Land, Land Price, GFA, and so on). Every unit in this table is replaced with the file's content; other steps are unchanged. For a new project, fill in the",
     imporHint3: "Unit Data template",
@@ -1072,14 +1074,17 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
     setPesanKenaikan(kt.pesanKenaikan(persen(kenaikan), n, hanyaTerpilih));
   };
   // (+) Factor massal (mis. Gimmick 1%), sama caranya dengan Increase massal.
+  // Persen (dikalikan) atau nilai rupiah (ditambahkan), mis. Gimmick senilai tertentu.
   const [faktorTambah, setFaktorTambah] = useState(0);
+  const [faktorRp, setFaktorRp] = useState(false);
   const [pesanFaktor, setPesanFaktor] = useState<string | null>(null);
   const terapkanFaktor = (hanyaTerpilih: boolean) => {
     const n = hanyaTerpilih ? pilih.size : data.unit.length;
-    ubah((d) => ({ ...d, unit: d.unit.map((u, j) =>
-      !hanyaTerpilih || pilih.has(j) ? { ...u, faktorTambah } : u) }));
-    setPesanFaktor(kt.pesanFaktor(persen(faktorTambah, 2, 1), n, hanyaTerpilih));
+    ubah((d) => ({ ...d, unit: d.unit.map((u, j) => !hanyaTerpilih || pilih.has(j)
+      ? (faktorRp ? { ...u, faktorTambahRp: faktorTambah || undefined } : { ...u, faktorTambah }) : u) }));
+    setPesanFaktor(kt.pesanFaktor(faktorRp ? rp(faktorTambah) : persen(faktorTambah, 2, 1), n, hanyaTerpilih));
   };
+  const kolomFaktorRp = data.unit.some((u) => u.faktorTambahRp);
   // Penyesuaian harga massal: turun/naik persen atau potongan/tambahan
   // rupiah untuk semua unit atau unit terpilih. Menerapkan lagi mengganti
   // nilai sebelumnya (tidak bertumpuk); "Kembalikan semula" menghapusnya.
@@ -1268,7 +1273,13 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
       {bolehUbah && data.unit.length > 0 && (
         <div className="row increase-massal">
           <b>{kt.faktorPlus}</b>
-          <Isian id="unit-faktor-massal" jenis="persen" desimal={1} nilai={faktorTambah} lebar={70}
+          <select id="unit-faktor-jenis" value={faktorRp ? "rp" : "persen"}
+                  onChange={(e) => { setFaktorRp(e.target.value === "rp"); setFaktorTambah(0); setPesanFaktor(null); }}>
+            <option value="persen">{kt.faktorPersen}</option>
+            <option value="rp">{kt.faktorRp}</option>
+          </select>
+          <Isian id="unit-faktor-massal" key={faktorRp ? "rp" : "persen"} jenis={faktorRp ? "rp" : "persen"}
+                  desimal={faktorRp ? undefined : 1} nilai={faktorTambah} lebar={faktorRp ? 130 : 70}
                   ubah={(n) => { setFaktorTambah(n); setPesanFaktor(null); }} />
           <button onClick={() => terapkanFaktor(false)}>{kt.semuaUnit(data.unit.length)}</button>
           <button disabled={!pilih.size} onClick={() => terapkanFaktor(true)}
@@ -1347,6 +1358,7 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
               <th>{kt.kenaikan}</th>
               {fk.map(([k, l]) => <th key={k}>{bahasa === "en" ? FAKTOR_INGGRIS[k] ?? l : l}</th>)}
               {kolomPlus && <th>{kt.faktorPlus}</th>}
+              {kolomFaktorRp && <th>{kt.thFaktorRp}</th>}
               {bio && <><th>{kt.biayaAjb}</th><th>Special %</th></>}
               {kolomKhusus && <th>{kt.special}</th>}<th>{kt.showUnit}</th>
               {kolomPembagi && <th>{kt.pembagi}</th>}
@@ -1405,6 +1417,7 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
                                      ubah={(n) => ubahUnit(i, (x) => ({ ...x, faktor: { ...x.faktor, [k]: n } }))} /></td>
                 ))}
                 {kolomPlus && <td><Isian jenis="persen" desimal={1} nilai={u.faktorTambah} lebar={55} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, faktorTambah: n }))} /></td>}
+                {kolomFaktorRp && <td><Isian jenis="rp" kosongNol nilai={u.faktorTambahRp ?? 0} lebar={110} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, faktorTambahRp: n || undefined }))} /></td>}
                 {bio && <>
                   <td><Isian jenis="persen" kosongNol desimal={1} nilai={u.biayaAjb ?? 0} lebar={55} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, biayaAjb: n }))} /></td>
                   <td><Isian jenis="persen" kosongNol desimal={1} nilai={u.specialPersen ?? 0} lebar={55} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, specialPersen: n }))} /></td>
@@ -1439,7 +1452,7 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
               <td className="n">{luas(tampil.reduce((a, { u }) => a + u.lt, 0), 1)}</td><td /><td />{kolomRoundup && <td />}
               <td className="n">{luas(tampil.reduce((a, { u }) => a + u.lb, 0))}</td><td /><td />{kolomRoundup && <td />}{bio && <td />}<td />
               {fk.map(([k]) => <td key={k} />)}
-              {kolomPlus && <td />}{bio && <><td /><td /></>}
+              {kolomPlus && <td />}{kolomFaktorRp && <td />}{bio && <><td /><td /></>}
               {kolomKhusus && <td />}<td />{kolomPembagi && <td />}{kolomSesuai && <td />}{kolomSesuaiRp && <td />}
               {urutanHarga.map(([h, j]) => (
                 <td key={h + j} className="n">{rpHarga(tampil.reduce((a, { b }) => a + (hargaUnit(b?.hasilUnit, h)[j] || 0), 0))}</td>
