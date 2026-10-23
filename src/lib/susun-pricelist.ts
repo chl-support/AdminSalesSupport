@@ -182,6 +182,11 @@ export type UnitData = {
   hargaBangunan: number;
   /** Kenaikan harga, pecahan. */
   kenaikan: number;
+  /**
+   * Catatan asal angka kenaikan, mis. rumus "1,025*1,025*1,01*1,002-1".
+   * Rumus yang dapat dihitung mengisi kenaikan; teks biasa hanya catatan.
+   */
+  kenaikanCatatan?: string;
   faktor: Partial<Record<KunciFaktor, number>>;
   /** (+) Factor, pecahan; di Excel =1%+1%. */
   faktorTambah: number;
@@ -756,6 +761,52 @@ function periksa(susun: SusunPricelist, irr: HasilIrr, baris: BarisHasil[]): str
 export const ATURAN_STANDAR = {
   bulatHargaM2: 5, bulatBase: 6, bulatBiasa: false, baseTanpaBulat: false, basisExclPpn: false,
 } as const satisfies Partial<SusunPricelist>;
+
+/**
+ * Hitung rumus sederhana yang ditulis orang, mis. catatan Kenaikan
+ * "=1,025*1,025*1,01*1,002*1,01*1,02*1,03*1,03-1": angka (koma atau titik
+ * desimal), + − × ÷ ^, kurung, dan persen. null bila bukan rumus (tanpa
+ * operator, kecuali diawali "=") atau tidak dapat dihitung. Tanpa eval.
+ */
+export function hitungRumus(teks: string): number | null {
+  let s = teks.trim().replace(/[×x]/g, "*").replace(/[÷:]/g, "/").replace(/[−–]/g, "-");
+  const tegas = s.startsWith("=");
+  if (tegas) s = s.slice(1);
+  s = s.replace(/\s+/g, "");
+  // Koma desimal Indonesia; titik ribuan tidak dipakai di rumus.
+  if (s.includes(",")) s = s.replace(/,/g, ".");
+  if (!s || /[^0-9.+\-*/^()%]/.test(s)) return null;
+  if (!tegas && !/[0-9)%]\s*[+\-*/^]/.test(s)) return null;
+  let i = 0;
+  const lihat = () => s[i];
+  const angkaAtauKurung = (): number => {
+    if (lihat() === "(") { i++; const v = jumlah(); if (lihat() !== ")") throw 0; i++; return persen(v); }
+    if (lihat() === "-") { i++; return -angkaAtauKurung(); }
+    if (lihat() === "+") { i++; return angkaAtauKurung(); }
+    const m = /^\d*\.?\d+(?:[eE][-+]?\d+)?/.exec(s.slice(i));
+    if (!m) throw 0;
+    i += m[0].length;
+    return persen(Number(m[0]));
+  };
+  const persen = (v: number) => { if (lihat() === "%") { i++; return v / 100; } return v; };
+  const pangkat = (): number => { const a = angkaAtauKurung(); if (lihat() === "^") { i++; return a ** pangkat(); } return a; };
+  const kali = (): number => {
+    let v = pangkat();
+    while (lihat() === "*" || lihat() === "/") { const o = s[i++]; const b = pangkat(); v = o === "*" ? v * b : v / b; }
+    return v;
+  };
+  const jumlah = (): number => {
+    let v = kali();
+    while (lihat() === "+" || lihat() === "-") { const o = s[i++]; const b = kali(); v = o === "+" ? v + b : v - b; }
+    return v;
+  };
+  try {
+    const v = jumlah();
+    return i === s.length && Number.isFinite(v) ? v : null;
+  } catch {
+    return null;
+  }
+}
 
 export function susunAwal(): SusunPricelist {
   const sk = (nama: string, kelompok: string, alokasi: number, dp: number,

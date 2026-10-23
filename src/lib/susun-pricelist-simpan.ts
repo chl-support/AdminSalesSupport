@@ -56,7 +56,7 @@ const SKEMA = z.object({
     floor: angka.optional(), biayaAjb: angka.optional(), specialPersen: angka.optional(),
     pembagiIncl: angka.positive().optional(),
     penyesuaian: angka.min(-1).max(10).optional(), penyesuaianRp: angka.optional(),
-    faktorTambahRp: angka.optional(),
+    faktorTambahRp: angka.optional(), kenaikanCatatan: teks.max(300).optional(),
     faktorKurang: angka.min(0).max(1).optional(), faktorKurangRp: angka.min(0).optional(),
     catatan: teks.optional(),
   })).max(5000),
