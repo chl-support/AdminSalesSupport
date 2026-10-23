@@ -192,6 +192,12 @@ export type UnitData = {
    * ditambahkan sesudah faktor persen. Melengkapi faktorTambah (persen).
    */
   faktorTambahRp?: number;
+  /**
+   * (−) Faktor: pengurang harga, persen (pecahan positif; harga × (1 − x))
+   * dan/atau rupiah (positif; dikurangkan). Kebalikan (+) Faktor.
+   */
+  faktorKurang?: number;
+  faktorKurangRp?: number;
   /** Show Unit, rupiah; ikut naik sebesar kenaikan. */
   showUnit: number;
   /** Floor (luas lantai), m²; keterangan saja (berkas BIO DISTRICT). */
@@ -558,8 +564,10 @@ export function hitungUnit(u: UnitData, ppn = PPN, exclPpn = false, bulat = 6,
   const faktor = FAKTOR.reduce((a, [k]) => a + (u.faktor[k] ?? 0), 0);
   // skala: 1 untuk harga Termasuk PPN, 1 / (1 + PPN) untuk Belum PPN (exclTerpisah).
   const kaliFaktor = (b: number, skala = 1) => b * (1 + faktor) * (1 + u.faktorTambah)
+                   * (1 - (u.faktorKurang ?? 0))
                    * (1 + (u.biayaAjb ?? 0)) * (1 + (u.specialPersen ?? 0)) + u.special
-                   + (u.faktorTambahRp ?? 0) * skala + u.showUnit * (1 + u.kenaikan);
+                   + ((u.faktorTambahRp ?? 0) - (u.faktorKurangRp ?? 0)) * skala
+                   + u.showUnit * (1 + u.kenaikan);
   // Penyesuaian harga unit (turun/naik persen, lalu potongan/tambahan rupiah).
   const sesuaikan = (x: number, rp: number) => x * (1 + (u.penyesuaian ?? 0)) + rp;
   const factored = sesuaikan(kaliFaktor(base), u.penyesuaianRp ?? 0);
