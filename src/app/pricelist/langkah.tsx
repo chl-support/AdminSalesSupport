@@ -1085,26 +1085,35 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
   };
   // (+) Factor massal (mis. Gimmick 1%), sama caranya dengan Increase massal.
   // Persen (dikalikan) atau nilai rupiah (ditambahkan), mis. Gimmick senilai tertentu.
-  const [faktorTambah, setFaktorTambah] = useState(0);
-  const [faktorRp, setFaktorRp] = useState(false);
+  // Isian massal di judul tiap kolom faktor: angka di judul kolom itu
+  // diterapkan ke Semua unit atau unit Terpilih (nilai unit diganti).
+  type KolomMassal = "faktorTambah" | "faktorTambahRp" | "faktorKurang" | "faktorKurangRp";
+  const [massal, setMassal] = useState<Record<KolomMassal, number>>(
+    { faktorTambah: 0, faktorTambahRp: 0, faktorKurang: 0, faktorKurangRp: 0 });
   const [pesanFaktor, setPesanFaktor] = useState<string | null>(null);
-  const terapkanFaktor = (hanyaTerpilih: boolean) => {
+  const terapkanMassal = (k: KolomMassal, hanyaTerpilih: boolean) => {
     const n = hanyaTerpilih ? pilih.size : data.unit.length;
-    ubah((d) => ({ ...d, unit: d.unit.map((u, j) => !hanyaTerpilih || pilih.has(j)
-      ? (faktorRp ? { ...u, faktorTambahRp: faktorTambah || undefined } : { ...u, faktorTambah }) : u) }));
-    setPesanFaktor(kt.pesanFaktor(faktorRp ? rp(faktorTambah) : persen(faktorTambah, 2, 1), n, hanyaTerpilih));
+    const x = k === "faktorTambah" ? massal[k] : Math.abs(massal[k]) || undefined;
+    ubah((d) => ({ ...d, unit: d.unit.map((u, j) => !hanyaTerpilih || pilih.has(j) ? { ...u, [k]: x } : u) }));
+    const label = k.endsWith("Rp") ? rp(Math.abs(massal[k])) : persen(Math.abs(massal[k]), 2, 1);
+    setPesanFaktor((k.startsWith("faktorTambah") ? kt.pesanFaktor : kt.pesanFaktorMinus)(label, n, hanyaTerpilih));
   };
+  const kepalaMassal = (judul: string, k: KolomMassal, info: string) => (
+    <th className="th-faktor">
+      {judul}
+      {bolehUbah && (
+        <span className="atur-faktor">
+          <Isian id={`unit-massal-${k}`} jenis={k.endsWith("Rp") ? "rp" : "persen"}
+                 desimal={k.endsWith("Rp") ? undefined : 1} nilai={massal[k]} lebar={k.endsWith("Rp") ? 100 : 50}
+                 ubah={(n) => { setMassal((m) => ({ ...m, [k]: k === "faktorTambah" ? n : Math.abs(n) })); setPesanFaktor(null); }} />
+          <button className="kecil" onClick={() => terapkanMassal(k, false)} title={info}>{kt.faktorSemua}</button>
+          <button className="kecil" disabled={!pilih.size} onClick={() => terapkanMassal(k, true)}
+                  title={pilih.size ? info : kt.centangDulu}>{kt.faktorTerpilih(pilih.size)}</button>
+        </span>
+      )}
+    </th>
+  );
   const kolomFaktorRp = kolomPlus || data.unit.some((u) => u.faktorTambahRp);
-  // (−) Faktor: pengurang harga, persen atau rupiah, cara pakainya sama.
-  const [faktorKurang, setFaktorKurang] = useState(0);
-  const [faktorKurangRp, setFaktorKurangRp] = useState(false);
-  const terapkanFaktorKurang = (hanyaTerpilih: boolean) => {
-    const n = hanyaTerpilih ? pilih.size : data.unit.length;
-    const x = Math.abs(faktorKurang) || undefined;
-    ubah((d) => ({ ...d, unit: d.unit.map((u, j) => !hanyaTerpilih || pilih.has(j)
-      ? (faktorKurangRp ? { ...u, faktorKurangRp: x } : { ...u, faktorKurang: x }) : u) }));
-    setPesanFaktor(kt.pesanFaktorMinus(faktorKurangRp ? rp(Math.abs(faktorKurang)) : persen(Math.abs(faktorKurang), 2, 1), n, hanyaTerpilih));
-  };
   const kolomMinus = kolomPlus || data.unit.some((u) => u.faktorKurang || u.faktorKurangRp);
   // Penyesuaian harga massal: turun/naik persen atau potongan/tambahan
   // rupiah untuk semua unit atau unit terpilih. Menerapkan lagi mengganti
@@ -1359,50 +1368,11 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
               {bio && <th>{kt.teksUnit.phase}</th>}
               <th>{kt.kenaikan}</th>
               {fk.map(([k, l]) => <th key={k}>{bahasa === "en" ? FAKTOR_INGGRIS[k] ?? l : l}</th>)}
-              {/* (+) Faktor diatur langsung di judul kolomnya: % atau Rp, lalu
-                  Semua unit atau unit yang dicentang. */}
-              {kolomPlus && (
-                <th className="th-faktor">
-                  {kt.faktorPlus}
-                  {bolehUbah && (
-                    <span className="atur-faktor">
-                      <select id="unit-faktor-jenis" value={faktorRp ? "rp" : "persen"} aria-label={kt.faktorPlus}
-                              onChange={(e) => { setFaktorRp(e.target.value === "rp"); setFaktorTambah(0); setPesanFaktor(null); }}>
-                        <option value="persen">%</option>
-                        <option value="rp">Rp</option>
-                      </select>
-                      <Isian id="unit-faktor-massal" key={faktorRp ? "rp" : "persen"} jenis={faktorRp ? "rp" : "persen"}
-                             desimal={faktorRp ? undefined : 1} nilai={faktorTambah} lebar={faktorRp ? 110 : 55}
-                             ubah={(n) => { setFaktorTambah(n); setPesanFaktor(null); }} />
-                      <button className="kecil" onClick={() => terapkanFaktor(false)} title={kt.faktorInfo}>{kt.faktorSemua}</button>
-                      <button className="kecil" disabled={!pilih.size} onClick={() => terapkanFaktor(true)}
-                              title={pilih.size ? kt.faktorInfo : kt.centangDulu}>{kt.faktorTerpilih(pilih.size)}</button>
-                    </span>
-                  )}
-                </th>
-              )}
-              {kolomFaktorRp && <th>{kt.thFaktorRp}</th>}
-              {kolomMinus && (
-                <th className="th-faktor">
-                  {kt.faktorMinus}
-                  {bolehUbah && (
-                    <span className="atur-faktor">
-                      <select id="unit-faktorkurang-jenis" value={faktorKurangRp ? "rp" : "persen"} aria-label={kt.faktorMinus}
-                              onChange={(e) => { setFaktorKurangRp(e.target.value === "rp"); setFaktorKurang(0); setPesanFaktor(null); }}>
-                        <option value="persen">%</option>
-                        <option value="rp">Rp</option>
-                      </select>
-                      <Isian id="unit-faktorkurang-massal" key={faktorKurangRp ? "rp" : "persen"} jenis={faktorKurangRp ? "rp" : "persen"}
-                             desimal={faktorKurangRp ? undefined : 1} nilai={faktorKurang} lebar={faktorKurangRp ? 110 : 55}
-                             ubah={(n) => { setFaktorKurang(Math.abs(n)); setPesanFaktor(null); }} />
-                      <button className="kecil" onClick={() => terapkanFaktorKurang(false)} title={kt.faktorMinusInfo}>{kt.faktorSemua}</button>
-                      <button className="kecil" disabled={!pilih.size} onClick={() => terapkanFaktorKurang(true)}
-                              title={pilih.size ? kt.faktorMinusInfo : kt.centangDulu}>{kt.faktorTerpilih(pilih.size)}</button>
-                    </span>
-                  )}
-                </th>
-              )}
-              {kolomMinus && <th>{kt.thFaktorMinusRp}</th>}
+              {/* Kolom faktor: isian massal di judul masing-masing kolom. */}
+              {kolomPlus && kepalaMassal(`${kt.faktorPlus} (%)`, "faktorTambah", kt.faktorInfo)}
+              {kolomFaktorRp && kepalaMassal(kt.thFaktorRp, "faktorTambahRp", kt.faktorInfo)}
+              {kolomMinus && kepalaMassal(`${kt.faktorMinus} (%)`, "faktorKurang", kt.faktorMinusInfo)}
+              {kolomMinus && kepalaMassal(kt.thFaktorMinusRp, "faktorKurangRp", kt.faktorMinusInfo)}
               {bio && <><th>{kt.biayaAjb}</th><th>Special %</th></>}
               {kolomKhusus && <th>{kt.special}</th>}<th>{kt.showUnit}</th>
               {kolomPembagi && <th>{kt.pembagi}</th>}
