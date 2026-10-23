@@ -99,6 +99,13 @@ const KATA = {
     unduhTemplat: "Unduh Templat Data Unit",
     kenaikan: "Kenaikan",
     semuaUnit: (n: number) => `Semua Unit (${n})`,
+    sesuai: "Penyesuaian harga", sesuaiTurunPersen: "Turunkan (%)", sesuaiNaikPersen: "Naikkan (%)",
+    sesuaiPotongRp: "Potongan (Rp)", sesuaiTambahRp: "Tambahan (Rp)", sesuaiKembali: "↺ Kembalikan semula",
+    sesuaiKembaliInfo: "Hapus penyesuaian harga unit yang dicentang, atau semua unit bila tidak ada yang dicentang",
+    sesuaiInfo: "Mengubah Harga Setelah Faktor tanpa mengubah Kenaikan: persen dikalikan (turun 5% = × 95%), rupiah ditambahkan/dikurangkan. Menerapkan lagi mengganti nilai sebelumnya, tidak bertumpuk.",
+    pesanSesuai: (t: string, n: number, terpilih: boolean) => `${t} diterapkan ke ${n} unit${terpilih ? " terpilih" : ""}. Periksa kolom Penyesuaian dan harganya, lalu Simpan.`,
+    pesanKembali: (n: number) => `Penyesuaian harga ${n} unit dihapus.`,
+    thSesuaiPersen: "Penyesuaian (%)", thSesuaiRp: "Penyesuaian (Rp)",
     unitTerpilih: (n: number) => `Unit Terpilih (${n})`,
     centangDulu: "Centang unit di tabel lebih dulu",
     kenaikanInfo: "Isi persen, lalu terapkan ke semua unit atau ke unit yang dicentang di tabel.",
@@ -289,6 +296,13 @@ const KATA = {
     unduhTemplat: "Download Unit Data Template",
     kenaikan: "Increase",
     semuaUnit: (n: number) => `All Units (${n})`,
+    sesuai: "Price adjustment", sesuaiTurunPersen: "Decrease (%)", sesuaiNaikPersen: "Increase (%)",
+    sesuaiPotongRp: "Discount (Rp)", sesuaiTambahRp: "Addition (Rp)", sesuaiKembali: "↺ Restore",
+    sesuaiKembaliInfo: "Remove the price adjustment of the ticked units, or of all units if none is ticked",
+    sesuaiInfo: "Changes the Factored Price without changing the Increase: percent is multiplied (down 5% = × 95%), rupiah is added/subtracted. Applying again replaces the previous value, it does not stack.",
+    pesanSesuai: (t: string, n: number, terpilih: boolean) => `${t} applied to ${n}${terpilih ? " selected" : ""} units. Check the Adjustment columns and prices, then Save.`,
+    pesanKembali: (n: number) => `Price adjustment removed from ${n} units.`,
+    thSesuaiPersen: "Adjustment (%)", thSesuaiRp: "Adjustment (Rp)",
     unitTerpilih: (n: number) => `Selected Units (${n})`,
     centangDulu: "Tick units in the table first",
     kenaikanInfo: "Enter a percentage, then apply it to all units or to the units ticked in the table.",
@@ -1066,6 +1080,30 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
       !hanyaTerpilih || pilih.has(j) ? { ...u, faktorTambah } : u) }));
     setPesanFaktor(kt.pesanFaktor(persen(faktorTambah, 2, 1), n, hanyaTerpilih));
   };
+  // Penyesuaian harga massal: turun/naik persen atau potongan/tambahan
+  // rupiah untuk semua unit atau unit terpilih. Menerapkan lagi mengganti
+  // nilai sebelumnya (tidak bertumpuk); "Kembalikan semula" menghapusnya.
+  const [modeSesuai, setModeSesuai] = useState<"turun" | "naik" | "potong" | "tambah">("turun");
+  const [nilaiSesuai, setNilaiSesuai] = useState(0);
+  const [pesanSesuai, setPesanSesuai] = useState<string | null>(null);
+  const persenSesuai = modeSesuai === "turun" || modeSesuai === "naik";
+  const terapkanSesuai = (hanyaTerpilih: boolean) => {
+    const n = hanyaTerpilih ? pilih.size : data.unit.length;
+    const tanda = modeSesuai === "turun" || modeSesuai === "potong" ? -1 : 1;
+    const x = tanda * Math.abs(nilaiSesuai);
+    ubah((d) => ({ ...d, unit: d.unit.map((u, j) => !hanyaTerpilih || pilih.has(j)
+      ? (persenSesuai ? { ...u, penyesuaian: x || undefined } : { ...u, penyesuaianRp: x || undefined }) : u) }));
+    const label = persenSesuai ? `${tanda < 0 ? "−" : "+"}${persen(Math.abs(nilaiSesuai), 2, 1)}`
+      : `${tanda < 0 ? "−" : "+"}${rp(Math.abs(nilaiSesuai))}`;
+    setPesanSesuai(kt.pesanSesuai(label, n, hanyaTerpilih));
+  };
+  const kembalikanSesuai = () => {
+    const semua = !pilih.size;
+    ubah((d) => ({ ...d, unit: d.unit.map((u, j) => semua || pilih.has(j)
+      ? { ...u, penyesuaian: undefined, penyesuaianRp: undefined } : u) }));
+    setPesanSesuai(kt.pesanKembali(semua ? data.unit.length : pilih.size));
+  };
+  const kolomSesuai = data.unit.some((u) => u.penyesuaian), kolomSesuaiRp = data.unit.some((u) => u.penyesuaianRp);
   const [yakin, setYakin] = useState<number | "pilihan" | null>(null);
   const [fokus, setFokus] = useState<number | null>(null);
   useEffect(() => {
@@ -1241,6 +1279,29 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
           </span>
         </div>
       )}
+      {bolehUbah && data.unit.length > 0 && (
+        <div className="row increase-massal">
+          <b>{kt.sesuai}</b>
+          <select id="unit-sesuai-mode" value={modeSesuai}
+                  onChange={(e) => { setModeSesuai(e.target.value as typeof modeSesuai); setNilaiSesuai(0); setPesanSesuai(null); }}>
+            <option value="turun">{kt.sesuaiTurunPersen}</option>
+            <option value="naik">{kt.sesuaiNaikPersen}</option>
+            <option value="potong">{kt.sesuaiPotongRp}</option>
+            <option value="tambah">{kt.sesuaiTambahRp}</option>
+          </select>
+          <Isian id="unit-sesuai-nilai" key={modeSesuai} jenis={persenSesuai ? "persen" : "rp"} nilai={nilaiSesuai}
+                 lebar={persenSesuai ? 70 : 130} ubah={(n) => { setNilaiSesuai(Math.abs(n)); setPesanSesuai(null); }} />
+          <button disabled={!nilaiSesuai} onClick={() => terapkanSesuai(false)}>{kt.semuaUnit(data.unit.length)}</button>
+          <button disabled={!nilaiSesuai || !pilih.size} onClick={() => terapkanSesuai(true)}
+                  title={pilih.size ? undefined : kt.centangDulu}>
+            {kt.unitTerpilih(pilih.size)}</button>
+          <button disabled={!kolomSesuai && !kolomSesuaiRp} title={kt.sesuaiKembaliInfo}
+                  onClick={kembalikanSesuai}>{kt.sesuaiKembali}</button>
+          <span className="hint" style={{ margin: 0 }}>
+            {pesanSesuai ?? kt.sesuaiInfo}
+          </span>
+        </div>
+      )}
       {buka && (
         <div className="form-blok">
           <p className="hint kiri" style={{ marginTop: 0 }}>
@@ -1289,6 +1350,8 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
               {bio && <><th>{kt.biayaAjb}</th><th>Special %</th></>}
               {kolomKhusus && <th>{kt.special}</th>}<th>{kt.showUnit}</th>
               {kolomPembagi && <th>{kt.pembagi}</th>}
+              {kolomSesuai && <th>{kt.thSesuaiPersen}</th>}
+              {kolomSesuaiRp && <th>{kt.thSesuaiRp}</th>}
               {urutanHarga.map(([h, j]) => (
                 <th key={h + j} className={j === "incl" ? "incl" : undefined}>
                   {h === "base" ? kt.hargaDasar : kt.hargaFaktor}<br />{j === "incl" ? kt.incl(lp) : kt.excl(lp)}</th>
@@ -1352,6 +1415,14 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
                   <td><Isian kosongNol nilai={u.pembagiIncl ?? 0} lebar={60} disabled={ro}
                              ubah={(n) => ubahUnit(i, (x) => ({ ...x, pembagiIncl: n > 0 && n !== 1 ? n : undefined }))} /></td>
                 )}
+                {kolomSesuai && (
+                  <td><Isian jenis="persen" kosongNol desimal={1} nilai={u.penyesuaian ?? 0} lebar={60} disabled={ro}
+                             ubah={(n) => ubahUnit(i, (x) => ({ ...x, penyesuaian: n || undefined }))} /></td>
+                )}
+                {kolomSesuaiRp && (
+                  <td><Isian jenis="rp" kosongNol nilai={u.penyesuaianRp ?? 0} lebar={110} disabled={ro}
+                             ubah={(n) => ubahUnit(i, (x) => ({ ...x, penyesuaianRp: n || undefined }))} /></td>
+                )}
                 {urutanHarga.map(([h, j]) => {
                   const n = rpHarga(hargaUnit(b?.hasilUnit, h)[j]);
                   return <td key={h + j} className="n">{h === "factored" ? <b>{n}</b> : n}</td>;
@@ -1369,7 +1440,7 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
               <td className="n">{luas(tampil.reduce((a, { u }) => a + u.lb, 0))}</td><td /><td />{kolomRoundup && <td />}{bio && <td />}<td />
               {fk.map(([k]) => <td key={k} />)}
               {kolomPlus && <td />}{bio && <><td /><td /></>}
-              {kolomKhusus && <td />}<td />{kolomPembagi && <td />}
+              {kolomKhusus && <td />}<td />{kolomPembagi && <td />}{kolomSesuai && <td />}{kolomSesuaiRp && <td />}
               {urutanHarga.map(([h, j]) => (
                 <td key={h + j} className="n">{rpHarga(tampil.reduce((a, { b }) => a + (hargaUnit(b?.hasilUnit, h)[j] || 0), 0))}</td>
               ))}
