@@ -201,6 +201,14 @@ export type UnitData = {
    */
   pembagiIncl?: number;
   /**
+   * Penyesuaian harga unit ini, pecahan: Harga Setelah Faktor × (1 + x);
+   * minus = turun, mis. -0,05 = turun 5%. Diisi dari "Penyesuaian harga"
+   * di langkah 2 (semua unit atau unit terpilih).
+   */
+  penyesuaian?: number;
+  /** Penyesuaian rupiah (Termasuk PPN) sesudah persen di atas; minus = potongan. */
+  penyesuaianRp?: number;
+  /**
    * Alasan unit tanpa luas / harga tanah, mis. "Harga belum ditentukan
    * management". Unit itu tidak ikut pricelist yang disimpan.
    */
@@ -546,12 +554,14 @@ export function hitungUnit(u: UnitData, ppn = PPN, exclPpn = false, bulat = 6,
   const kaliFaktor = (b: number) => b * (1 + faktor) * (1 + u.faktorTambah)
                    * (1 + (u.biayaAjb ?? 0)) * (1 + (u.specialPersen ?? 0)) + u.special
                    + u.showUnit * (1 + u.kenaikan);
-  const factored = kaliFaktor(base);
+  // Penyesuaian harga unit (turun/naik persen, lalu potongan/tambahan rupiah).
+  const sesuaikan = (x: number, rp: number) => x * (1 + (u.penyesuaian ?? 0)) + rp;
+  const factored = sesuaikan(kaliFaktor(base), u.penyesuaianRp ?? 0);
   const hasil: HasilUnit = { hargaTanahPpn, hargaBangunanPpn, base, faktor, factored };
   if (opsi.exclTerpisah && !exclPpn) {
     // Seperti Excel BIO: ROUNDUP((Tanah × harga Excl + GFA × harga Excl) × (1 + kenaikan), juta).
     hasil.baseExcl = bulatkan(u.lt * u.hargaTanah + u.lb * u.hargaBangunan);
-    hasil.factoredExcl = kaliFaktor(hasil.baseExcl);
+    hasil.factoredExcl = sesuaikan(kaliFaktor(hasil.baseExcl), (u.penyesuaianRp ?? 0) / (1 + ppn));
   }
   return hasil;
 }
