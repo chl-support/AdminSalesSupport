@@ -35,6 +35,8 @@ export const PROJECT_BAWAAN: ProjectBawaan[] = [
     company_name: "PT. Serpong Bangun Lestari", urutan: 5 },
   { slug: "permai-indah", name: "Permai Indah",
     company_name: "PT. Bumi Mahardika Makmur", urutan: 6 },
+  { slug: "scotts-vale", name: "Scotts Vale",
+    company_name: "PT. Bhakti Bangun Lestari", urutan: 7 },
 ];
 
 /** Terapkan daftar di atas. Idempoten, aman dipanggil berulang kali. */
