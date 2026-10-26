@@ -155,6 +155,9 @@ const KATA = {
     incl: (lp: string) => `(Termasuk PPN ${lp})`,
     gfaM2: "GFA (m²)", hargaBangunan: "GFA (dasar)",
     special: "Khusus (Rp)", showUnit: "Unit Contoh (Rp)",
+    modePpnSemua: "Kolom: Termasuk & Belum PPN", modePpnIncl: (p: string) => `Kolom: Termasuk ${p} saja`,
+    modePpnExcl: (p: string) => `Kolom: Belum termasuk ${p} saja`,
+    modePpnInfo: "Pilih kolom harga yang tampil. Hanya tampilan; hitungan tidak berubah. Isian harga per m² Belum PPN selalu tampil.",
     hargaDasar: "Harga Dasar", hargaFaktor: "Harga Setelah Faktor", terendah: "(Terendah)", kenaikanTh: "(Kenaikan)",
     totalUnit: (n: number, dari?: number) => `Total ${n} unit${dari != null ? ` (dari ${dari})` : ""}`,
     tambahAkhir: "+ Tambah unit di akhir tabel",
@@ -371,6 +374,9 @@ const KATA = {
     incl: (lp: string) => `(Incl PPN. ${lp})`,
     gfaM2: "GFA (m²)", hargaBangunan: "GFA (base)",
     special: "Special (Rp)", showUnit: "Show Unit (Rp)",
+    modePpnSemua: "Columns: incl. & excl. VAT", modePpnIncl: (p: string) => `Columns: incl. ${p} only`,
+    modePpnExcl: (p: string) => `Columns: excl. ${p} only`,
+    modePpnInfo: "Choose which price columns are shown. Display only; calculations are unchanged. Per-m² prices excl. VAT are always shown as they are the inputs.",
     hargaDasar: "Base Price", hargaFaktor: "Factored Price", terendah: "(Lowest)", kenaikanTh: "(Increased)",
     totalUnit: (n: number, dari?: number) => `Total ${n} units${dari != null ? ` (of ${dari})` : ""}`,
     tambahAkhir: "+ Add unit at the end of the table",
@@ -1226,6 +1232,22 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
     try { localStorage.setItem("chl.catatanKenaikan", x ? "0" : "1"); } catch { /* tidak apa-apa */ }
     return !x;
   });
+  // Kolom harga yang tampil: Termasuk PPN, Belum termasuk PPN, atau
+  // keduanya; diingat di peramban ini. Isian harga per m² Belum PPN selalu
+  // tampil karena di situlah harganya diketik.
+  const [modePpn, setModePpn] = useState<"semua" | "incl" | "excl">("semua");
+  useEffect(() => {
+    try {
+      const m = localStorage.getItem("chl.kolomPpn");
+      if (m === "incl" || m === "excl") setModePpn(m);
+    } catch { /* tidak apa-apa */ }
+  }, []);
+  const gantiModePpn = (m: typeof modePpn) => {
+    setModePpn(m);
+    try { localStorage.setItem("chl.kolomPpn", m); } catch { /* tidak apa-apa */ }
+  };
+  const lihatIncl = modePpn !== "excl";
+  const hargaTampil = urutanHarga.filter(([, j]) => modePpn === "semua" || modePpn === j);
   // Rumus / catatan asal kenaikan: rumus yang dapat dihitung menggantikan angka di atas.
   const [kenaikanCatatan, setKenaikanCatatan] = useState("");
   const [pesanKenaikan, setPesanKenaikan] = useState<string | null>(null);
@@ -1425,6 +1447,12 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
         <span className="hint" style={{ margin: 0 }}>
           {kt.ringkasUnit(data.unit.length)} <b>{rp(total)}</b>
         </span>
+        <select id="unit-mode-ppn" value={modePpn} title={kt.modePpnInfo} style={{ width: "auto" }}
+                onChange={(e) => gantiModePpn(e.target.value as typeof modePpn)}>
+          <option value="semua">{kt.modePpnSemua}</option>
+          <option value="incl">{kt.modePpnIncl(lp)}</option>
+          <option value="excl">{kt.modePpnExcl(lp)}</option>
+        </select>
         {bolehUbah && <button className="pri" onClick={() => tambah()}>{kt.tambahUnit}</button>}
         {bolehUbah && pilih.size > 0 && (yakin === "pilihan" ? (
           <span className="yakin-hapus">
@@ -1522,12 +1550,12 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
               {bio && <th>{kt.floor}</th>}
               <th>{kt.tanahM2}</th>
               <th>{kt.hargaTanah}<br />{kt.excl(lp)}</th>
-              {kolomRoundup && <th className="incl">{kt.hargaTanah} {kt.pembulatan}<br />{kt.incl(lp)}</th>}
-              <th className="incl">{kt.hargaTanah}<br />{kt.incl(lp)}</th>
+              {lihatIncl && kolomRoundup && <th className="incl">{kt.hargaTanah} {kt.pembulatan}<br />{kt.incl(lp)}</th>}
+              {lihatIncl && <th className="incl">{kt.hargaTanah}<br />{kt.incl(lp)}</th>}
               <th>{kt.gfaM2}</th>
               <th>{kt.hargaBangunan}<br />{kt.excl(lp)}</th>
-              {kolomRoundup && <th className="incl">{kt.hargaBangunan} {kt.pembulatan}<br />{kt.incl(lp)}</th>}
-              <th className="incl">{kt.hargaBangunan}<br />{kt.incl(lp)}</th>
+              {lihatIncl && kolomRoundup && <th className="incl">{kt.hargaBangunan} {kt.pembulatan}<br />{kt.incl(lp)}</th>}
+              {lihatIncl && <th className="incl">{kt.hargaBangunan}<br />{kt.incl(lp)}</th>}
               {bio && <th>{kt.teksUnit.phase}</th>}
               <th>
                 {kt.kenaikan}
@@ -1546,7 +1574,7 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
               {kolomPembagi && <th>{kt.pembagi}</th>}
               {kolomSesuai && <th>{kt.thSesuaiPersen}</th>}
               {kolomSesuaiRp && <th>{kt.thSesuaiRp}</th>}
-              {urutanHarga.map(([h, j]) => (
+              {hargaTampil.map(([h, j]) => (
                 <th key={h + j} className={j === "incl" ? "incl" : undefined}>
                   {h === "baseR" ? kt.hargaDasar : kt.hargaFaktor}<br />{j === "incl" ? kt.incl(lp) : kt.excl(lp)}
                   <br />{h === "factored" ? kt.kenaikanTh : kt.terendah}</th>
@@ -1584,12 +1612,12 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
                 {bio && <td><Isian nilai={u.floor ?? 0} kosongNol desimal={1} lebar={70} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, floor: n }))} /></td>}
                 <td><Isian nilai={u.lt} desimal={1} lebar={70} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, lt: n }))} /></td>
                 <td><Isian jenis="rp" nilai={u.hargaTanah} lebar={95} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, hargaTanah: n }))} /></td>
-                {kolomRoundup && <td className="n">{rpPolos(ratusRibu(b?.hasilUnit.hargaTanahPpn))}</td>}
-                <td className="n">{rpPolos(b?.hasilUnit.hargaTanahPpn)}</td>
+                {lihatIncl && kolomRoundup && <td className="n">{rpPolos(ratusRibu(b?.hasilUnit.hargaTanahPpn))}</td>}
+                {lihatIncl && <td className="n">{rpPolos(b?.hasilUnit.hargaTanahPpn)}</td>}
                 <td><Isian nilai={u.lb} desimal={bio ? 1 : undefined} lebar={bio ? 70 : 60} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, lb: n }))} /></td>
                 <td><Isian jenis="rp" nilai={u.hargaBangunan} lebar={95} disabled={ro} ubah={(n) => ubahUnit(i, (x) => ({ ...x, hargaBangunan: n }))} /></td>
-                {kolomRoundup && <td className="n">{rpPolos(ratusRibu(b?.hasilUnit.hargaBangunanPpn))}</td>}
-                <td className="n">{rpPolos(b?.hasilUnit.hargaBangunanPpn)}</td>
+                {lihatIncl && kolomRoundup && <td className="n">{rpPolos(ratusRibu(b?.hasilUnit.hargaBangunanPpn))}</td>}
+                {lihatIncl && <td className="n">{rpPolos(b?.hasilUnit.hargaBangunanPpn)}</td>}
                 {bio && (
                   <td><IsianTeks nilai={u.phase ?? ""} lebar={70} disabled={ro}
                                  ubah={(v) => ubahUnit(i, (x) => ({ ...x, phase: v }))} /></td>
@@ -1629,7 +1657,7 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
                   <td><Isian jenis="rp" kosongNol nilai={u.penyesuaianRp ?? 0} lebar={110} disabled={ro}
                              ubah={(n) => ubahUnit(i, (x) => ({ ...x, penyesuaianRp: n || undefined }))} /></td>
                 )}
-                {urutanHarga.map(([h, j]) => {
+                {hargaTampil.map(([h, j]) => {
                   const n = rpHarga(hargaUnit(i, h)[j]);
                   return <td key={h + j} className="n">{h === "factored" ? <b>{n}</b> : n}</td>;
                 })}
@@ -1642,12 +1670,12 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
                 {kt.totalUnit(tampil.length, q ? data.unit.length : undefined)}</td>
               <td colSpan={(bolehUbah ? 0 : -1) + 1 + teksUnit.length} />
               {bio && <td />}
-              <td className="n">{luas(tampil.reduce((a, { u }) => a + u.lt, 0), 1)}</td><td /><td />{kolomRoundup && <td />}
-              <td className="n">{luas(tampil.reduce((a, { u }) => a + u.lb, 0))}</td><td /><td />{kolomRoundup && <td />}{bio && <td />}<td />{lihatCatatan && <td />}
+              <td className="n">{luas(tampil.reduce((a, { u }) => a + u.lt, 0), 1)}</td><td />{lihatIncl && <td />}{lihatIncl && kolomRoundup && <td />}
+              <td className="n">{luas(tampil.reduce((a, { u }) => a + u.lb, 0))}</td><td />{lihatIncl && <td />}{lihatIncl && kolomRoundup && <td />}{bio && <td />}<td />{lihatCatatan && <td />}
               {fk.map(([k]) => <td key={k} />)}
               {kolomPlus && <td />}{kolomFaktorRp && <td />}{kolomMinus && <><td /><td /></>}{bio && <><td /><td /></>}
               {kolomKhusus && <td />}<td />{kolomPembagi && <td />}{kolomSesuai && <td />}{kolomSesuaiRp && <td />}
-              {urutanHarga.map(([h, j]) => (
+              {hargaTampil.map(([h, j]) => (
                 <td key={h + j} className="n">{rpHarga(tampil.reduce((a, { i }) => a + (hargaUnit(i, h)[j] || 0), 0))}</td>
               ))}
             </tr>
