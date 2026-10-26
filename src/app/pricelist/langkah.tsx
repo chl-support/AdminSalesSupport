@@ -1196,11 +1196,9 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
   // Seperti Excel: Harga Dasar dan Harga Setelah Faktor Terendah (sebelum
   // Kenaikan), lalu Harga Setelah Faktor Kenaikan (sesudah Kenaikan).
   type JenisHarga = "baseR" | "factoredR" | "factored";
-  const urutanHarga = (bio
-    ? [["baseR", "excl"], ["factoredR", "excl"], ["factored", "excl"],
-       ["baseR", "incl"], ["factoredR", "incl"], ["factored", "incl"]]
-    : [["baseR", "excl"], ["baseR", "incl"], ["factoredR", "excl"], ["factoredR", "incl"],
-       ["factored", "excl"], ["factored", "incl"]]) as [JenisHarga, "excl" | "incl"][];
+  // Urutan sama untuk semua project (termasuk BIO DISTRICT).
+  const urutanHarga = [["baseR", "excl"], ["baseR", "incl"], ["factoredR", "excl"], ["factoredR", "incl"],
+    ["factored", "excl"], ["factored", "incl"]] as [JenisHarga, "excl" | "incl"][];
   // Harga tiap unit tanpa Kenaikan, dengan rumus dan aturan yang sama.
   const rendah = data.unit.map((u) => hitungUnit({ ...u, kenaikan: 0 }, ppn, !!data.basisExclPpn,
     data.bulatBase ?? 6, !!data.bulatBiasa, { bulatHargaM2: data.bulatHargaM2,
