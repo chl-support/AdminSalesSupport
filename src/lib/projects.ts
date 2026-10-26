@@ -44,47 +44,57 @@ export const PROJECT_BAWAAN: ProjectBawaan[] = [
 export const PROJECT_DIBUANG: string[] = [];
 
 /**
- * Project yang dihapus permanen atas permintaan, beserta data Pricelist-nya
- * (draf, riwayat, gambar catatan, pricelist tersimpan, jadwal simulasi);
- * sesi yang sedang memilihnya dilepas. Bila project itu ternyata punya data
- * lain (unit, klaim, marketing, memo, …) penghapusan dibatalkan dan project
- * hanya dimatikan, supaya tidak ada data transaksi yang ikut hilang.
+ * Project yang dihapus permanen atas permintaan, beserta SEMUA datanya:
+ * setiap baris yang merujuk project itu (dan baris yang merujuk baris itu,
+ * dan seterusnya) dihapus, dibaca dari katalog basis data. Sesi yang sedang
+ * memilihnya hanya dilepas. Gambar catatan yang dipakai Lampiran T&C (milik
+ * semua project) dipindah ke Naraya Serpong supaya project lain tetap utuh.
+ * Bila gagal, semuanya dibatalkan dan project hanya dimatikan.
  */
 export const PROJECT_DIHAPUS: string[] = [
   "scotts-vale", // Scotts Vale (The Sanctuary Collection), 26 Okt 2026
 ];
 
-/** Tabel yang boleh ikut dikosongkan saat project dihapus permanen. */
-const DATA_PRICELIST = new Set([
-  "pricelist_susun", "pricelist_susun_riwayat", "pricelist_susun_gambar", "pricelists", "simulasi_jadwal",
-]);
+type Klien = Parameters<Parameters<typeof tx>[0]>[0];
+const nama = (x: string) => `"${x.replace(/"/g, '""')}"`;
+
+/** Hapus baris `tabel` yang memenuhi `kondisi`, beserta baris yang merujuknya. */
+async function hapusBerantai(c: Klien, tabel: string, kondisi: string, nilai: unknown[], dalam = 0): Promise<void> {
+  if (dalam > 8) throw new Error(`rujukan terlalu dalam di ${tabel}`);
+  const anak = (await c.query<{ tabel: string; kolom: string; induk: string }>(
+    `SELECT cl.relname AS tabel, a.attname AS kolom, pa.attname AS induk
+       FROM pg_constraint k
+       JOIN pg_class cl ON cl.oid = k.conrelid
+       JOIN pg_attribute a ON a.attrelid = k.conrelid AND a.attnum = k.conkey[1]
+       JOIN pg_attribute pa ON pa.attrelid = k.confrelid AND pa.attnum = k.confkey[1]
+      WHERE k.contype = 'f' AND k.confrelid = $1::regclass`, [tabel])).rows;
+  for (const r of anak) {
+    if (r.tabel === tabel) continue;
+    const sub = `${nama(r.kolom)} IN (SELECT ${nama(r.induk)} FROM ${nama(tabel)} WHERE ${kondisi})`;
+    if (r.tabel === "sessions") {
+      await c.query(`UPDATE sessions SET ${nama(r.kolom)} = NULL WHERE ${sub}`, nilai);
+    } else {
+      await hapusBerantai(c, r.tabel, sub, nilai, dalam + 1);
+    }
+  }
+  await c.query(`DELETE FROM ${nama(tabel)} WHERE ${kondisi}`, nilai);
+}
 
 async function hapusPermanen(slug: string): Promise<void> {
   try {
     await tx(async (c) => {
       const p = (await c.query<{ id: string }>("SELECT id FROM projects WHERE slug=$1", [slug])).rows[0];
       if (!p) return;
-      // Semua kolom yang merujuk projects(id), dibaca dari katalog basis data.
-      const rujukan = (await c.query<{ tabel: string; kolom: string }>(
-        `SELECT cl.relname AS tabel, a.attname AS kolom
-           FROM pg_constraint k
-           JOIN pg_class cl ON cl.oid = k.conrelid
-           JOIN pg_attribute a ON a.attrelid = k.conrelid AND a.attnum = ANY(k.conkey)
-          WHERE k.contype = 'f' AND k.confrelid = 'projects'::regclass`)).rows;
-      for (const { tabel, kolom } of rujukan) {
-        const t = `"${tabel.replace(/"/g, '""')}"`, k = `"${kolom.replace(/"/g, '""')}"`;
-        if (tabel === "sessions") {
-          await c.query(`UPDATE ${t} SET ${k} = NULL WHERE ${k} = $1`, [p.id]);
-        } else if (DATA_PRICELIST.has(tabel)) {
-          await c.query(`DELETE FROM ${t} WHERE ${k} = $1`, [p.id]);
-        } else if ((await c.query(`SELECT 1 FROM ${t} WHERE ${k} = $1 LIMIT 1`, [p.id])).rowCount) {
-          throw new Error(`${slug} masih punya data di ${tabel}`);
-        }
+      const ada = async (t: string) => !!(await c.query("SELECT to_regclass($1) AS r", [t])).rows[0]?.r;
+      if (await ada("tnc_lampiran") && await ada("pricelist_susun_gambar")) {
+        await c.query(
+          `UPDATE pricelist_susun_gambar SET project_id = (SELECT id FROM projects WHERE slug = 'naraya-serpong')
+            WHERE project_id = $1 AND id IN (SELECT gambar_id FROM tnc_lampiran)`, [p.id]);
       }
-      await c.query("DELETE FROM projects WHERE id = $1", [p.id]);
+      await hapusBerantai(c, "projects", "id = $1", [p.id]);
     });
   } catch (e) {
-    console.error(`Hapus permanen project ${slug} dibatalkan, project dimatikan saja:`, e);
+    console.error(`Hapus permanen project ${slug} gagal, project dimatikan saja:`, e);
     await query("UPDATE projects SET active = false WHERE slug = $1", [slug]);
   }
 }
