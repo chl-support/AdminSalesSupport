@@ -48,12 +48,6 @@ const KATA = {
     ],
     pilihProject: "Pilih proyek lebih dulu.",
     memuat: "Memuat…",
-    drafKosong: "Draf Kosong",
-    drafKosongInfo: "Ganti isi layar dengan draf kosong rumus standar, untuk mencoba dari awal",
-    drafKosongYakin: (p: string) => `Isi layar ${p} diganti draf kosong (rumus standar, tanpa unit).\n\n` +
-      "Draf tersimpan, riwayat dan pricelist yang berlaku TIDAK terhapus selama Anda belum klik Simpan — " +
-      "muat ulang halaman untuk kembali. Lanjutkan?",
-    drafKosongSiap: "Draf kosong dimuat. Belum tersimpan: klik Simpan bila ingin menggantikan draf lama, atau muat ulang halaman untuk kembali.",
     impor: "Impor dari Excel", imporInfo: "Berkas PL dengan lembar Data (IRR), Unit Data, Data Pricelist, Pricelist dan T&C.",
     membaca: "Membaca…", baca: "Baca berkas", batal: "Batal",
     terimpor: (u: number) => `${u} unit dan seluruh langkah terisi dari berkas. Periksa tiap langkah, lalu Simpan.`,
@@ -104,12 +98,6 @@ const KATA = {
     ],
     pilihProject: "Select a project first.",
     memuat: "Loading…",
-    drafKosong: "Empty Draft",
-    drafKosongInfo: "Replace the screen with an empty standard draft, to try from scratch",
-    drafKosongYakin: (p: string) => `The ${p} screen is replaced by an empty draft (standard formula, no units).\n\n` +
-      "The saved draft, history and active price list are NOT deleted until you click Save — " +
-      "reload the page to go back. Continue?",
-    drafKosongSiap: "Empty draft loaded. Not saved yet: click Save to replace the old draft, or reload the page to go back.",
     impor: "Import from Excel", imporInfo: "A PL file with the sheets Data (IRR), Unit Data, Data Pricelist, Pricelist and T&C.",
     membaca: "Reading…", baca: "Read file", batal: "Cancel",
     terimpor: (u: number) => `${u} units and every step filled from the file. Review each step, then Save.`,
@@ -258,23 +246,6 @@ export default function PricelistPage() {
     if (res.status === 401) { location.href = "/login"; return null; }
     if (!res.ok) { setGalat(b.detail ?? b.title ?? `HTTP ${res.status}`); return null; }
     return b;
-  };
-
-  /**
-   * Draf kosong standar di layar, tanpa menyentuh yang tersimpan: aturan
-   * pembulatan project ini dibawa, selebihnya mulai dari awal.
-   */
-  const drafKosong = async () => {
-    if (!data || !confirm(k.drafKosongYakin(sesi.project_name ?? ""))) return;
-    setGalat(null); setInfo(null);
-    const b = await kirim("/api/pricelist/susun?kosong=1", { method: "GET" });
-    if (!b) return;
-    const { bulatHargaM2, bulatBase, bulatBiasa, baseTanpaBulat, basisExclPpn, exclTerpisah } = data;
-    const kosong = rapikanCaraBayar(basisProject(sesi.project_slug, { ...b.data,
-      bulatHargaM2, bulatBase, bulatBiasa, baseTanpaBulat, basisExclPpn, exclTerpisah }));
-    setData(sinkronTnc(kosong, terapkanNamaOtomatis(kosong)));
-    setBaruCb(0); setNamaPl(""); setLangkah(0);
-    setInfo(k.drafKosongSiap);
   };
 
   const simpan = async () => {
@@ -460,8 +431,6 @@ export default function PricelistPage() {
               {bolehUbah && (
                 <>
                   <button onClick={() => setBukaImpor((x) => !x)}>{k.impor}</button>
-                  <button disabled={!!sibuk} title={k.drafKosongInfo} onClick={() => void drafKosong()}>
-                    {k.drafKosong}</button>
                   <button className="pri" disabled={!berubah || !!sibuk} onClick={() => void simpan()}>
                     {sibuk === "simpan" ? k.menyimpan : k.simpan}</button>
                 </>

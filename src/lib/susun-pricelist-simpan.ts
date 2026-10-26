@@ -360,6 +360,37 @@ export async function berlakukanSusun(
 }
 
 /**
+ * Pengosongan sekali jalan atas permintaan pemakai (tanpa tombol di layar):
+ * project → kunci. Saat drafnya pertama dibuka sesudah deploy, draf,
+ * riwayat perubahan dan pricelist tersimpan (bukan yang berlaku) dihapus
+ * lewat `mulaiDariAwal`, lalu kuncinya dicatat supaya tidak terulang.
+ */
+const KOSONGKAN_SEKALI: Record<string, string> = {
+  // 26 Okt 2026: Mazenta dikosongkan untuk mencoba Data (IRR) standar.
+  "mazenta-residence": "mazenta-2026-10-26",
+};
+
+export async function kosongkanSekali(projectId: string): Promise<void> {
+  const p = await one<{ slug: string }>("SELECT slug FROM projects WHERE id=$1", [projectId]);
+  const kunci = p && KOSONGKAN_SEKALI[p.slug];
+  if (!kunci) return;
+  await query(`CREATE TABLE IF NOT EXISTS pricelist_kosongkan_sekali (
+                 kunci TEXT PRIMARY KEY, pada TIMESTAMPTZ NOT NULL DEFAULT now())`);
+  // Hanya permintaan pertama yang mendapat kuncinya (aman bila bersamaan).
+  const baru = await one<{ kunci: string }>(
+    `INSERT INTO pricelist_kosongkan_sekali (kunci) VALUES ($1)
+     ON CONFLICT DO NOTHING RETURNING kunci`, [kunci]);
+  if (!baru) return;
+  try {
+    await mulaiDariAwal(projectId, "sistem (permintaan pengosongan)", false);
+  } catch (e) {
+    // Gagal: kuncinya dilepas supaya dicoba lagi pada pembukaan berikutnya.
+    await query("DELETE FROM pricelist_kosongkan_sekali WHERE kunci=$1", [kunci]);
+    throw e;
+  }
+}
+
+/**
  * Mulai dari awal: hapus draf kelima langkah, riwayat perubahannya, gambar
  * catatannya, dan pricelist tersimpan project ini. Pricelist yang sedang
  * berlaku ikut dihapus hanya bila diminta — tanpanya layar Simulasi / NPV
