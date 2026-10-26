@@ -4,7 +4,7 @@
  * layar lain saat project ini terpilih diarahkan ke /pricelist. Hapus slug
  * dari sini bila project-nya sudah siap memakai semua menu.
  */
-export const HANYA_PRICELIST: ReadonlySet<string> = new Set(["scotts-vale"]);
+export const HANYA_PRICELIST: ReadonlySet<string> = new Set<string>([]);
 
 /** Layar yang tetap boleh dibuka saat project terpilih hanya untuk Pricelist. */
 export const LAYAR_PRICELIST = ["/pricelist", "/project", "/admin", "/audit", "/login"];

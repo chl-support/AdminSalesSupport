@@ -35,8 +35,14 @@ export const PROJECT_BAWAAN: ProjectBawaan[] = [
     company_name: "PT. Serpong Bangun Lestari", urutan: 5 },
   { slug: "permai-indah", name: "Permai Indah",
     company_name: "PT. Bumi Mahardika Makmur", urutan: 6 },
-  { slug: "scotts-vale", name: "Scotts Vale",
-    company_name: "PT. Bhakti Bangun Lestari", urutan: 7 },
+];
+
+/**
+ * Project yang dibuang dari pemilih project. Barisnya tidak dihapus (data
+ * yang sempat diisi tetap ada), hanya dimatikan lewat kolom `active`.
+ */
+export const PROJECT_DIBUANG: string[] = [
+  "scotts-vale", // Scotts Vale (The Sanctuary Collection), 26 Okt 2026
 ];
 
 /** Terapkan daftar di atas. Idempoten, aman dipanggil berulang kali. */
@@ -50,6 +56,9 @@ export async function ensureProjects(): Promise<void> {
              urutan = EXCLUDED.urutan`,
       [p.slug, p.name, p.company_name, p.urutan],
     );
+  }
+  if (PROJECT_DIBUANG.length) {
+    await query("UPDATE projects SET active = false WHERE slug = ANY($1) AND active", [PROJECT_DIBUANG]);
   }
 }
 
