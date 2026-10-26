@@ -163,7 +163,8 @@ const KATA = {
     modePpnSemua: "Kolom: Termasuk & Belum PPN", modePpnIncl: (p: string) => `Kolom: Termasuk ${p} saja`,
     modePpnExcl: (p: string) => `Kolom: Belum termasuk ${p} saja`,
     modePpnInfo: "Pilih kolom harga yang tampil. Hanya tampilan; hitungan tidak berubah. Isian harga per m² Belum PPN selalu tampil.",
-    hargaDasar: "Harga Dasar", hargaFaktor: "Harga Setelah Faktor", terendah: "(Terendah)", kenaikanTh: "(Kenaikan)",
+    hargaDasar: "Harga Dasar", hargaFaktor: "Harga Setelah Faktor", terendah: "(Terendah)",
+    hargaPenyesuaian: "Harga Setelah Penyesuaian", hargaKenaikan: "Harga Setelah Kenaikan", kenaikanTh: "(Kenaikan)",
     totalUnit: (n: number, dari?: number) => `Total ${n} unit${dari != null ? ` (dari ${dari})` : ""}`,
     tambahAkhir: "+ Tambah unit di akhir tabel",
     simpanInfo1: "Unit yang ditambah atau dihapus baru tersimpan setelah",
@@ -387,7 +388,8 @@ const KATA = {
     modePpnSemua: "Columns: incl. & excl. VAT", modePpnIncl: (p: string) => `Columns: incl. ${p} only`,
     modePpnExcl: (p: string) => `Columns: excl. ${p} only`,
     modePpnInfo: "Choose which price columns are shown. Display only; calculations are unchanged. Per-m² prices excl. VAT are always shown as they are the inputs.",
-    hargaDasar: "Base Price", hargaFaktor: "Factored Price", terendah: "(Lowest)", kenaikanTh: "(Increased)",
+    hargaDasar: "Base Price", hargaFaktor: "Factored Price", terendah: "(Lowest)",
+    hargaPenyesuaian: "Adjusted Price", hargaKenaikan: "Increased Price", kenaikanTh: "(Increased)",
     totalUnit: (n: number, dari?: number) => `Total ${n} units${dari != null ? ` (of ${dari})` : ""}`,
     tambahAkhir: "+ Add unit at the end of the table",
     simpanInfo1: "Units added or deleted are only stored after",
@@ -1593,8 +1595,9 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
               {kepalaMassal(kt.thKenaikanFaktor, "kenaikanFaktor", kt.kenaikanFaktorInfo)}
               {hargaTampil.map(([h, j]) => (
                 <th key={h + j} className={`kolom-harga${j === "incl" ? " incl" : ""}`}>
-                  {h === "baseR" ? kt.hargaDasar : kt.hargaFaktor}<br />{j === "incl" ? kt.incl(lp) : kt.excl(lp)}
-                  <br />{h === "factored" ? kt.kenaikanTh : kt.terendah}</th>
+                  {h === "baseR" ? kt.hargaDasar : h === "factoredR" ? kt.hargaPenyesuaian : kt.hargaKenaikan}
+                  <br />{j === "incl" ? kt.incl(lp) : kt.excl(lp)}
+                  {h !== "factored" && <><br />{kt.terendah}</>}</th>
               ))}
             </tr>
           </thead><tbody>
