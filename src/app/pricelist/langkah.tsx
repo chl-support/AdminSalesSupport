@@ -872,6 +872,13 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah, baru }: PropsLangkah 
     });
   };
 
+  // Lebar kolom cara bayar: cukup untuk Harga Penyesuaian terpanjang
+  // (± 8 px per karakter, 12,5 px) dan nama cara bayarnya; paling sedikit 142 px.
+  const lebarSkema = Math.max(142, ...irr.skema.map((s) => {
+    const harga = Math.round(hargaSesuaiSkema(irr, hasil.irr.koef[s.nama])).toLocaleString("id-ID").length * 8 + 46;
+    return Math.max(harga + (bolehUbah && s.hargaSesuai ? 74 : 0), s.nama.length * 8 + 40);
+  }));
+
   return (
     <>
       <p className="hint kiri">{kt.irrHint}</p>
@@ -917,12 +924,14 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah, baru }: PropsLangkah 
         </div>
       )}
       {/* Grid tetap: setiap cara bayar selebar sama, kotak isian memenuhi
-          kolomnya, tanda % sejajar, dan baris dikelompokkan. */}
+          kolomnya, tanda % sejajar, dan baris dikelompokkan. Lebarnya
+          menyesuaikan angka terpanjang (Harga Penyesuaian, plus tombol
+          ↺ Target bila ada), supaya tidak ada angka yang terpotong. */}
       <div className="tscroll">
-        <table className="tabel-ringkas tabel-isian tabel-irr">
+        <table className="tabel-ringkas tabel-isian tabel-irr" style={{ width: 150 + irr.skema.length * lebarSkema, minWidth: "100%" }}>
           <colgroup>
             <col className="k-label" />
-            {irr.skema.map((_, i) => <col key={i} className="k-skema" />)}
+            {irr.skema.map((_, i) => <col key={i} className="k-skema" style={{ width: lebarSkema }} />)}
           </colgroup>
           <tbody>
           <tr className="kepala-skema">
