@@ -21,6 +21,11 @@ function standar(d: ReturnType<typeof susunAwal>) {
 
 export const GET = handler(async (req) => {
   const projectId = await projectAktif(req);
+  // ?kosong=1: draf kosong standar untuk dicoba di layar (tombol Draf
+  // Kosong). Tidak membaca maupun mengubah draf tersimpan.
+  if (new URL(req.url).searchParams.get("kosong")) {
+    return { baru: false, data: await denganTncPatokan(standar(susunAwal())) };
+  }
   // T&C semua project mengikuti patokan Naraya Serpong (sekali; sesudahnya manual).
   const draf = await samakanTncPatokan(projectId, await bacaAtauIsiSusun(projectId));
   return draf ? { baru: false, ...draf }
