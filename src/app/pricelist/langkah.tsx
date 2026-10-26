@@ -13,7 +13,7 @@ import { useEffect, useState } from "react";
 
 import { formatRupiah } from "@/lib/money";
 import {
-  FAKTOR, FAKTOR_INGGRIS, arusTertimbang, faktorTampil, hitungRumus, namaOtomatisAktif, namaStandar, rumusDikunci, hargaKasIrr, hargaSesuaiSkema, labelPpn, namaTahap, tarifPpn, unitKosong,
+  FAKTOR, FAKTOR_INGGRIS, arusKas, arusTertimbang, faktorTampil, hitungRumus, namaOtomatisAktif, namaStandar, rumusDikunci, hargaKasIrr, hargaSesuaiSkema, labelPpn, namaTahap, tarifPpn, unitKosong,
   kunciTnc, tingkatNaik, type BarisTnc, type KunciFaktor, type HasilSusun, type SusunPricelist, type UnitData,
 } from "@/lib/susun-pricelist";
 import type { UnitHarga } from "@/lib/simulasi";
@@ -69,9 +69,9 @@ const KATA = {
     namaOtomatis: "Nama cara bayar otomatis",
     namaOtomatisInfo: "Nama dibuat dari Kelompok, DP dan Cicilan: Cash Keras, Installment 12x, KPR Express, KPR DP 10%/6x. Kolom di Data Harga dan Harga ikut berganti.",
     namaDariRumus: "Nama otomatis dari Kelompok, DP dan Cicilan",
-    arusJudul: "Arus kas tertimbang per bulan (analisa)",
-    arusInfo: "Jumlah arus kas semua cara bayar dikali Alokasi-nya, per bulan, dan porsinya. Analisa saja, tidak memengaruhi harga.",
-    thBulan: "Bulan", thJumlah: "Jumlah", thPorsi: "%", thKumulatif: "Kumulatif",
+    arusJudul: "Arus kas per bulan (analisa)",
+    arusInfo: "Seperti lembar Data (IRR): bulan 0 = −Harga Tunai, lalu arus kas tiap cara bayar pada Harga Penyesuaian-nya. Jumlah = arus kas semua cara bayar dikali Alokasi-nya, dan porsinya. Analisa saja, tidak memengaruhi harga.",
+    thBulan: "Bulan", thJumlah: "Jumlah (tertimbang)", thPorsi: "%", thKumulatif: "Kumulatif",
     totAlok: "Total alokasi",
     waKoef: "Koefisien rata-rata tertimbang",
     alokInfo: "Alokasi otomatis berjumlah 100%: mengubah satu cara bayar menyesuaikan yang lain secara sebanding, dan cara bayar baru langsung mendapat bagian rata. Alokasi hanya untuk Koefisien rata-rata tertimbang, tidak memengaruhi harga.",
@@ -286,8 +286,8 @@ const KATA = {
     namaOtomatis: "Automatic scheme names",
     namaOtomatisInfo: "Names are built from Group, DP and Instalments: Cash Keras, Installment 12x, KPR Express, KPR DP 10%/6x. Columns in Price Data and Price List follow.",
     namaDariRumus: "Automatic name from Group, DP and Instalments",
-    arusJudul: "Weighted cash flow per month (analysis)",
-    arusInfo: "Cash flow of all schemes multiplied by their Allocation, per month, and its share. Analysis only; it does not affect prices.",
+    arusJudul: "Cash flow per month (analysis)",
+    arusInfo: "As in the Data (IRR) sheet: month 0 = −Cash Price, then each scheme's cash flow at its Adjusted Price. Sum = all schemes' cash flow multiplied by their Allocation, and its share. Analysis only; it does not affect prices.",
     thBulan: "Month", thJumlah: "Amount", thPorsi: "%", thKumulatif: "Cumulative",
     totAlok: "Total allocation",
     waKoef: "WA coefficient",
@@ -1090,22 +1090,37 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah, baru }: PropsLangkah 
 function ArusTertimbang({ data, hasil }: { data: SusunPricelist; hasil: HasilSusun }) {
   const kt = useKata(KATA);
   const [buka, setBuka] = useState(false);
+  const angka = (v: number) => (Number.isFinite(v) ? Math.round(v).toLocaleString("id-ID") : "—");
+  // Seperti baris 21–121 lembar Data (IRR): bulan 0 = −Cash Price, lalu
+  // arus kas tiap cara bayar pada Adjusted Price-nya; Sum dan % tertimbang
+  // Allocation di kanan.
+  const kas = hargaKasIrr(data.irr);
+  const tertimbang = buka ? arusTertimbang(data.irr, hasil.irr) : [];
+  const perSkema = buka ? data.irr.skema.map((s) => {
+    const k = hasil.irr.koef[s.nama];
+    return arusKas(s, data.irr).map((v) => v * k * kas);
+  }) : [];
   let kumulatif = 0;
   return (
     <details className="form-blok sp" style={{ marginTop: 12 }} onToggle={(e) => setBuka(e.currentTarget.open)}>
       <summary style={{ cursor: "pointer" }}><b>{kt.arusJudul}</b></summary>
       <p className="hint kiri">{kt.arusInfo}</p>
       {buka && (
-        <div className="tscroll" style={{ maxHeight: 360, overflowY: "auto", width: "fit-content", maxWidth: "100%" }}>
-          <table className="tabel-ringkas tabel-rapat kepala-lekat tabel-arus">
-            <colgroup><col style={{ width: 70 }} /><col style={{ width: 150 }} /><col style={{ width: 85 }} /><col style={{ width: 95 }} /></colgroup>
-            <tbody>
-            <tr><th>{kt.thBulan}</th><th>{kt.thJumlah}</th><th>{kt.thPorsi}</th><th>{kt.thKumulatif}</th></tr>
-            {arusTertimbang(data.irr, hasil.irr).map((x) => {
+        <div className="tscroll" style={{ maxHeight: 420, overflowY: "auto", width: "fit-content", maxWidth: "100%" }}>
+          <table className="tabel-ringkas tabel-rapat kepala-lekat tabel-arus"><tbody>
+            <tr><th>{kt.thBulan}</th>
+              {data.irr.skema.map((s) => <th key={s.nama}>{s.nama}</th>)}
+              <th className="arus-jumlah">{kt.thJumlah}</th><th>{kt.thPorsi}</th><th>{kt.thKumulatif}</th></tr>
+            <tr><td>0</td>
+              {data.irr.skema.map((s) => <td key={s.nama}>{angka(-kas)}</td>)}
+              <td className="arus-jumlah">0</td><td>{persen(0, 1, 1)}</td><td>{persen(0, 1, 1)}</td></tr>
+            {tertimbang.map((x) => {
               kumulatif += x.porsi;
               return (
-                <tr key={x.bulan}><td className="n">{x.bulan}</td><td className="n">{rp(x.jumlah)}</td>
-                  <td className="n">{persen(x.porsi, 2, 2)}</td><td className="n">{persen(kumulatif, 1, 1)}</td></tr>
+                <tr key={x.bulan}><td>{x.bulan}</td>
+                  {perSkema.map((a, i) => <td key={i}>{angka(a[x.bulan - 1] ?? 0)}</td>)}
+                  <td className="arus-jumlah">{angka(x.jumlah)}</td>
+                  <td>{persen(x.porsi, 1, 1)}</td><td>{persen(kumulatif, 1, 1)}</td></tr>
               );
             })}
           </tbody></table>
