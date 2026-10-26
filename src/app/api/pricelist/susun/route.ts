@@ -2,7 +2,7 @@ import { body, handler, projectAktif, requireRole } from "@/lib/api";
 import { WorkflowError } from "@/lib/workflow";
 import { ATURAN_STANDAR, susunAwal } from "@/lib/susun-pricelist";
 import {
-  bacaAtauIsiSusun, denganTncPatokan, periksaSusun, samakanTncPatokan, simpanSusun,
+  bacaAtauIsiSusun, denganTncPatokan, kosongkanSekali, periksaSusun, samakanTncPatokan, simpanSusun,
 } from "@/lib/susun-pricelist-simpan";
 
 /**
@@ -21,11 +21,7 @@ function standar(d: ReturnType<typeof susunAwal>) {
 
 export const GET = handler(async (req) => {
   const projectId = await projectAktif(req);
-  // ?kosong=1: draf kosong standar untuk dicoba di layar (tombol Draf
-  // Kosong). Tidak membaca maupun mengubah draf tersimpan.
-  if (new URL(req.url).searchParams.get("kosong")) {
-    return { baru: false, data: await denganTncPatokan(standar(susunAwal())) };
-  }
+  await kosongkanSekali(projectId);
   // T&C semua project mengikuti patokan Naraya Serpong (sekali; sesudahnya manual).
   const draf = await samakanTncPatokan(projectId, await bacaAtauIsiSusun(projectId));
   return draf ? { baru: false, ...draf }
