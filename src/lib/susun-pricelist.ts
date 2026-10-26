@@ -234,6 +234,12 @@ export type UnitData = {
    */
   faktorKurang?: number;
   faktorKurangRp?: number;
+  /**
+   * Kenaikan sesudah faktor (pecahan): Harga Setelah Faktor (Kenaikan) =
+   * Harga Setelah Faktor (Terendah) × (1 + ini), seperti kolom Kenaikan
+   * Excel. Harga per cara bayar dihitung dari harga sesudah kenaikan ini.
+   */
+  kenaikanFaktor?: number;
   /** Show Unit, rupiah; ikut naik sebesar kenaikan. */
   showUnit: number;
   /** Floor (luas lantai), m²; keterangan saja (berkas BIO DISTRICT). */
@@ -617,8 +623,11 @@ export type HasilUnit = {
   base: number;
   /** Jumlah faktor posisi. */
   faktor: number;
-  /** Factored Price. */
+  /** Factored Price: Harga Setelah Faktor (Kenaikan), dasar harga per cara bayar. */
   factored: number;
+  /** Harga Setelah Faktor (Terendah): sebelum `UnitData.kenaikanFaktor`. */
+  factoredR: number;
+  factoredExclR?: number;
   /** Base dan Factored Price Belum PPN yang dihitung sendiri (exclTerpisah). */
   baseExcl?: number;
   factoredExcl?: number;
@@ -647,12 +656,14 @@ export function hitungUnit(u: UnitData, ppn = PPN, exclPpn = false, bulat = 6,
                    + u.showUnit * (1 + u.kenaikan);
   // Penyesuaian harga unit (turun/naik persen, lalu potongan/tambahan rupiah).
   const sesuaikan = (x: number, rp: number) => x * (1 + (u.penyesuaian ?? 0)) + rp;
-  const factored = sesuaikan(kaliFaktor(base), u.penyesuaianRp ?? 0);
-  const hasil: HasilUnit = { hargaTanahPpn, hargaBangunanPpn, base, faktor, factored };
+  const naik = 1 + (u.kenaikanFaktor ?? 0);
+  const factoredR = sesuaikan(kaliFaktor(base), u.penyesuaianRp ?? 0);
+  const hasil: HasilUnit = { hargaTanahPpn, hargaBangunanPpn, base, faktor, factoredR, factored: factoredR * naik };
   if (opsi.exclTerpisah && !exclPpn) {
     // Seperti Excel BIO: ROUNDUP((Tanah × harga Excl + GFA × harga Excl) × (1 + kenaikan), juta).
     hasil.baseExcl = bulatkan(u.lt * u.hargaTanah + u.lb * u.hargaBangunan);
-    hasil.factoredExcl = sesuaikan(kaliFaktor(hasil.baseExcl, 1 / (1 + ppn)), (u.penyesuaianRp ?? 0) / (1 + ppn));
+    hasil.factoredExclR = sesuaikan(kaliFaktor(hasil.baseExcl, 1 / (1 + ppn)), (u.penyesuaianRp ?? 0) / (1 + ppn));
+    hasil.factoredExcl = hasil.factoredExclR * naik;
   }
   return hasil;
 }

@@ -53,6 +53,7 @@ const SKEMA = z.object({
     kode: teks, alamat: teks, view: teks, no: teks, ukuran: teks, phase: teks,
     tipe: teks, tipeBangunan: teks, view2: teks.optional(), bentuk: teks, subTipe: teks,
     lt: angka, hargaTanah: angka, lb: angka, hargaBangunan: angka, kenaikan: angka,
+    kenaikanFaktor: angka.optional(),
     faktor: z.record(angka), faktorTambah: angka, special: angka, showUnit: angka,
     floor: angka.optional(), biayaAjb: angka.optional(), specialPersen: angka.optional(),
     pembagiIncl: angka.positive().optional(),

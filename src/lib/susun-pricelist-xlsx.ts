@@ -112,6 +112,7 @@ function bacaLembarUnit(ws: ExcelJS.Worksheet, peringatan: string[]): UnitData[]
       else if (h === "sub-tipe") kol.subTipe = c;
       else if (h === "phase") kol.phase = c;
       else if (h === "catatan kenaikan" || h === "rumus kenaikan") kol.kenaikanCatatan = c;
+      else if (/^kenaikan setelah fa[ck]tor/.test(h)) kol.kenaikanFaktor = c;
       else if (h.startsWith("increase")) kol.kenaikan = c;
       else if (/^\(\+\) fa[ck]tor\s*\(rp\)/.test(h)) kol.faktorTambahRp = c;
       else if (/^\([-−]\) fa[ck]tor\s*\(rp\)/.test(h)) kol.faktorKurangRp = c;
@@ -178,6 +179,7 @@ function bacaLembarUnit(ws: ExcelJS.Worksheet, peringatan: string[]): UnitData[]
       }
       // Kolom Catatan Kenaikan (template) didahulukan dari rumus sel Increase.
       if (kol.kenaikanCatatan && t("kenaikanCatatan")) u.kenaikanCatatan = t("kenaikanCatatan");
+      if (kol.kenaikanFaktor) u.kenaikanFaktor = n("kenaikanFaktor") || undefined;
       if (kol.faktorTambahRp) u.faktorTambahRp = n("faktorTambahRp") || undefined;
       if (kol.faktorKurang) u.faktorKurang = Math.abs(n("faktorKurang")) || undefined;
       if (kol.faktorKurangRp) u.faktorKurangRp = Math.abs(n("faktorKurangRp")) || undefined;
@@ -256,7 +258,7 @@ function aturanDariLembar(ws: ExcelJS.Worksheet): Partial<SusunPricelist> {
 }
 
 /** Kolom angka pada lembar UNIT DATA; isian teks di sana dibaca 0. */
-const ANGKA_UNIT = ["lt", "hargaTanah", "lb", "hargaBangunan", "kenaikan",
+const ANGKA_UNIT = ["lt", "hargaTanah", "lb", "hargaBangunan", "kenaikan", "kenaikanFaktor",
   "faktorTambah", "faktorTambahRp", "faktorKurang", "faktorKurangRp", "specialPersen", "biayaAjb", "floor", "special", "showUnit", ...FAKTOR.map(([k]) => k)];
 
 /**
@@ -269,7 +271,7 @@ const ANGKA_UNIT = ["lt", "hargaTanah", "lb", "hargaBangunan", "kenaikan",
 export async function templatUnitData(): Promise<Buffer> {
   const wb = new ExcelJS.Workbook();
   const ws = wb.addWorksheet("UNIT DATA", { views: [{ state: "frozen", xSplit: 1, ySplit: 2 }] });
-  const persen = new Set(["kenaikan", "faktorTambah", ...FAKTOR.map(([k]) => k)]);
+  const persen = new Set(["kenaikan", "kenaikanFaktor", "faktorTambah", ...FAKTOR.map(([k]) => k)]);
   // [kunci, judul baris 1, judul baris 2, lebar]
   const kolom: [string, string, string, number][] = [
     ["kode", "Code", "", 14], ["alamat", "Address", "", 16], ["view", "View", "", 11],
@@ -282,7 +284,7 @@ export async function templatUnitData(): Promise<Buffer> {
     ["kenaikan", "Increase (%)", "", 11], ["kenaikanCatatan", "Catatan Kenaikan", "", 40],
     ...FAKTOR.filter(([k]) => !FAKTOR_OPSIONAL.has(k)).map(([k, l]) => [k, l, "", 11] as [string, string, string, number]),
     ["faktorTambah", "(+) Factor", "", 11], ["special", "Special", "", 14],
-    ["showUnit", "Show Unit", "", 14],
+    ["showUnit", "Show Unit", "", 14], ["kenaikanFaktor", "Kenaikan Setelah Faktor (%)", "", 14],
   ];
   const r1 = ws.getRow(1), r2 = ws.getRow(2);
   kolom.forEach(([k, j1, j2, lebar], i) => {

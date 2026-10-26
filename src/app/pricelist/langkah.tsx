@@ -13,7 +13,7 @@ import { useEffect, useState } from "react";
 
 import { formatRupiah } from "@/lib/money";
 import {
-  FAKTOR, FAKTOR_INGGRIS, arusKas, arusTertimbang, faktorTampil, hitungRumus, hitungUnit, namaOtomatisAktif, namaStandar, rumusDikunci, hargaKasIrr, hargaSesuaiSkema, labelPpn, namaTahap, tarifPpn, unitKosong,
+  FAKTOR, FAKTOR_INGGRIS, arusKas, arusTertimbang, faktorTampil, hitungRumus, namaOtomatisAktif, namaStandar, rumusDikunci, hargaKasIrr, hargaSesuaiSkema, labelPpn, namaTahap, tarifPpn, unitKosong,
   kunciTnc, tingkatNaik, type BarisTnc, type KunciFaktor, type HasilSusun, type SusunPricelist, type UnitData,
 } from "@/lib/susun-pricelist";
 import type { UnitHarga } from "@/lib/simulasi";
@@ -81,6 +81,10 @@ const KATA = {
       `Kenaikan ${p} diterapkan ke ${n} unit${terpilih ? " terpilih" : ""}. Simpan untuk menyimpannya.`,
     pesanFaktor: (p: string, n: number, terpilih: boolean) =>
       `(+) Faktor ${p} diterapkan ke ${n} unit${terpilih ? " terpilih" : ""}. Simpan untuk menyimpannya.`,
+    pesanKenaikanFaktor: (p: string, n: number, terpilih: boolean) =>
+      `Kenaikan Setelah Faktor ${p} diterapkan ke ${n} unit${terpilih ? " terpilih" : ""}. Simpan untuk menyimpannya.`,
+    thKenaikanFaktor: "Kenaikan Setelah Faktor (%)",
+    kenaikanFaktorInfo: "Harga Setelah Faktor (Kenaikan) = Harga Setelah Faktor (Terendah) × (1 + persen ini). Harga per cara bayar dihitung dari harga sesudah kenaikan ini.",
     tidakAdaUnit: "Tidak ada unit di lembar UNIT DATA berkas ini.",
     unitDimuat: (n: number, berkas: string, peringatan?: string) =>
       `${n} unit dimuat dari lembar UNIT DATA ${berkas}. Periksa tabelnya, lalu Simpan.` +
@@ -348,6 +352,10 @@ const KATA = {
     faktorSemua: "All", faktorTerpilih: (n: number) => `Selected (${n})`,
     faktorMinus: "(−) Factor", thFaktorMinusRp: "(−) Factor (Rp)",
     faktorMinusInfo: "Price reduction: percent is multiplied (2% = × 98%), rupiah is subtracted. Each unit's figure is replaced with this one.",
+    pesanKenaikanFaktor: (p: string, n: number, terpilih: boolean) =>
+      `Increase after factor ${p} applied to ${n}${terpilih ? " selected" : ""} units. Save to keep it.`,
+    thKenaikanFaktor: "Increase After Factor (%)",
+    kenaikanFaktorInfo: "Factored Price (Increased) = Factored Price (Lowest) × (1 + this percent). Prices per payment scheme use the increased price.",
     pesanFaktorMinus: (p: string, n: number, terpilih: boolean) =>
       `(−) Factor ${p} applied to ${n}${terpilih ? " selected" : ""} units. Save to keep it.`,
     imporHint1: "An Excel file with the sheet",
@@ -1193,16 +1201,13 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
   const kolomRoundup = bulatM2 >= 0 && !data.basisExclPpn;
   const ratusRibu = (n: number | undefined) => n == null ? undefined
     : Math.ceil(n / 10 ** bulatM2 - 1e-9) * 10 ** bulatM2;
-  // Seperti Excel: Harga Dasar dan Harga Setelah Faktor Terendah (sebelum
-  // Kenaikan), lalu Harga Setelah Faktor Kenaikan (sesudah Kenaikan).
+  // Seperti Excel: Harga Dasar (Terendah) = harga dasar × increase (kolom
+  // Kenaikan); Harga Setelah Faktor (Terendah) = Harga Dasar × faktor; Harga
+  // Setelah Faktor (Kenaikan) = Harga Setelah Faktor × Kenaikan Setelah Faktor.
   type JenisHarga = "baseR" | "factoredR" | "factored";
   // Urutan sama untuk semua project (termasuk BIO DISTRICT).
   const urutanHarga = [["baseR", "excl"], ["baseR", "incl"], ["factoredR", "excl"], ["factoredR", "incl"],
     ["factored", "excl"], ["factored", "incl"]] as [JenisHarga, "excl" | "incl"][];
-  // Harga tiap unit tanpa Kenaikan, dengan rumus dan aturan yang sama.
-  const rendah = data.unit.map((u) => hitungUnit({ ...u, kenaikan: 0 }, ppn, !!data.basisExclPpn,
-    data.bulatBase ?? 6, !!data.bulatBiasa, { bulatHargaM2: data.bulatHargaM2,
-      exclTerpisah: data.exclTerpisah, baseTanpaBulat: data.baseTanpaBulat }));
   // Base dan Factored Price dalam dua bentuk, sebelum dan sesudah PPN. Yang
   // dihitung adalah basis project-nya (Incl PPN, atau Excl PPN untuk Permai
   // Indah); bentuk satunya diturunkan dengan tarif PPN yang sama.
@@ -1211,9 +1216,10 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
   // Harga satu unit: Belum PPN yang dihitung sendiri (BIO DISTRICT) bila ada,
   // selain itu diturunkan dari harga Termasuk PPN.
   const hargaUnit = (i: number, jenis: JenisHarga) => {
-    const h = jenis === "factored" ? hasil.baris[i]?.hasilUnit : rendah[i];
-    const k = jenis === "baseR" ? "base" : "factored";
-    const x = h?.[k === "base" ? "baseExcl" : "factoredExcl"];
+    const h = hasil.baris[i]?.hasilUnit;
+    const [k, kx] = jenis === "baseR" ? ["base", "baseExcl"] as const
+      : jenis === "factoredR" ? ["factoredR", "factoredExclR"] as const : ["factored", "factoredExcl"] as const;
+    const x = h?.[kx];
     return x != null ? { excl: x, incl: h![k] } : ppnDua(h?.[k] ?? NaN);
   };
   const [cari, setCari] = useState("");
@@ -1274,16 +1280,17 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
   // Persen (dikalikan) atau nilai rupiah (ditambahkan), mis. Gimmick senilai tertentu.
   // Isian massal di judul tiap kolom faktor: angka di judul kolom itu
   // diterapkan ke Semua unit atau unit Terpilih (nilai unit diganti).
-  type KolomMassal = "faktorTambah" | "faktorTambahRp" | "faktorKurang" | "faktorKurangRp";
+  type KolomMassal = "faktorTambah" | "faktorTambahRp" | "faktorKurang" | "faktorKurangRp" | "kenaikanFaktor";
   const [massal, setMassal] = useState<Record<KolomMassal, number>>(
-    { faktorTambah: 0, faktorTambahRp: 0, faktorKurang: 0, faktorKurangRp: 0 });
+    { faktorTambah: 0, faktorTambahRp: 0, faktorKurang: 0, faktorKurangRp: 0, kenaikanFaktor: 0 });
   const [pesanFaktor, setPesanFaktor] = useState<string | null>(null);
   const terapkanMassal = (k: KolomMassal, hanyaTerpilih: boolean) => {
     const n = hanyaTerpilih ? pilih.size : data.unit.length;
     const x = k === "faktorTambah" ? massal[k] : Math.abs(massal[k]) || undefined;
     ubah((d) => ({ ...d, unit: d.unit.map((u, j) => !hanyaTerpilih || pilih.has(j) ? { ...u, [k]: x } : u) }));
     const label = k.endsWith("Rp") ? rp(Math.abs(massal[k])) : persen(Math.abs(massal[k]), 2, 1);
-    setPesanFaktor((k.startsWith("faktorTambah") ? kt.pesanFaktor : kt.pesanFaktorMinus)(label, n, hanyaTerpilih));
+    setPesanFaktor((k === "kenaikanFaktor" ? kt.pesanKenaikanFaktor
+      : k.startsWith("faktorTambah") ? kt.pesanFaktor : kt.pesanFaktorMinus)(label, n, hanyaTerpilih));
   };
   const kepalaMassal = (judul: string, k: KolomMassal, info: string) => (
     <th className="th-faktor">
@@ -1583,6 +1590,7 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
               {kolomPembagi && <th>{kt.pembagi}</th>}
               {kolomSesuai && <th>{kt.thSesuaiPersen}</th>}
               {kolomSesuaiRp && <th>{kt.thSesuaiRp}</th>}
+              {kepalaMassal(kt.thKenaikanFaktor, "kenaikanFaktor", kt.kenaikanFaktorInfo)}
               {hargaTampil.map(([h, j]) => (
                 <th key={h + j} className={`kolom-harga${j === "incl" ? " incl" : ""}`}>
                   {h === "baseR" ? kt.hargaDasar : kt.hargaFaktor}<br />{j === "incl" ? kt.incl(lp) : kt.excl(lp)}
@@ -1666,6 +1674,8 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
                   <td><Isian jenis="rp" kosongNol nilai={u.penyesuaianRp ?? 0} lebar={110} disabled={ro}
                              ubah={(n) => ubahUnit(i, (x) => ({ ...x, penyesuaianRp: n || undefined }))} /></td>
                 )}
+                <td><Isian jenis="persen" kosongNol desimal={2} nilai={u.kenaikanFaktor ?? 0} lebar={60} disabled={ro}
+                           ubah={(n) => ubahUnit(i, (x) => ({ ...x, kenaikanFaktor: n || undefined }))} /></td>
                 {hargaTampil.map(([h, j]) => {
                   const n = rpHarga(hargaUnit(i, h)[j]);
                   return <td key={h + j} className="n">{h === "factored" ? <b>{n}</b> : n}</td>;
@@ -1683,7 +1693,7 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
               <td className="n">{luas(tampil.reduce((a, { u }) => a + u.lb, 0))}</td><td />{lihatIncl && <td />}{lihatIncl && kolomRoundup && <td />}{bio && <td />}<td />{lihatCatatan && <td />}
               {fk.map(([k]) => <td key={k} />)}
               {kolomPlus && <td />}{kolomFaktorRp && <td />}{kolomMinus && <><td /><td /></>}{bio && <><td /><td /></>}
-              {kolomKhusus && <td />}<td />{kolomPembagi && <td />}{kolomSesuai && <td />}{kolomSesuaiRp && <td />}
+              {kolomKhusus && <td />}<td />{kolomPembagi && <td />}{kolomSesuai && <td />}{kolomSesuaiRp && <td />}<td />
               {hargaTampil.map(([h, j]) => (
                 <td key={h + j} className="n">{rpHarga(tampil.reduce((a, { i }) => a + (hargaUnit(i, h)[j] || 0), 0))}</td>
               ))}
