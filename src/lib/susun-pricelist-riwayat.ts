@@ -132,7 +132,7 @@ export function bedaSusun(lama: SusunPricelist | null, baru: SusunPricelist): st
     ["Increase", (u) => persen(u.kenaikan)], ["Catatan Kenaikan", (u) => teks(u.kenaikanCatatan)],
     ...FAKTOR.map(([k, l]) => [l, (u: UnitData) => persen(u.faktor[k] ?? 0)] as [string, (u: UnitData) => string]),
     ["(+) Factor", (u) => persen(u.faktorTambah)], ["(+) Factor (Rp)", (u) => angka(u.faktorTambahRp ?? 0, 0)],
-    ["(−) Faktor", (u) => persen(u.faktorKurang ?? 0)], ["(−) Faktor (Rp)", (u) => angka(u.faktorKurangRp ?? 0, 0)], ["Special", (u) => angka(u.special, 0)],
+    ["(−) Faktor", (u) => persen(u.faktorKurang ?? 0)], ["(−) Faktor (Rp)", (u) => angka(u.faktorKurangRp ?? 0, 0)], ["Kenaikan Setelah Faktor", (u) => persen(u.kenaikanFaktor ?? 0)], ["Special", (u) => angka(u.special, 0)],
     ["Show Unit", (u) => angka(u.showUnit, 0)],
     ["Floor", (u) => angka(u.floor ?? 0)], ["Biaya AJB + BPHTB", (u) => persen(u.biayaAjb ?? 0)],
     ["Special %", (u) => persen(u.specialPersen ?? 0)],

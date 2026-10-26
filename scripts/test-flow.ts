@@ -2087,6 +2087,20 @@ async function main() {
            `tepat: ${tepat}`);
   });
 
+  // Kolom Excel Mazenta: Harga Dasar (Terendah) = harga dasar × increase,
+  // Harga Setelah Faktor (Terendah) = × faktor, (Kenaikan) = × kenaikan.
+  await check("Data Unit: Terendah dan Kenaikan Setelah Faktor seperti Excel", async () => {
+    const { hitungUnit, unitKosong } = await import("../src/lib/susun-pricelist");
+    const u = { ...unitKosong(), lt: 100, hargaTanah: 3_220_000_000 / 100 / 1.11, lb: 0, hargaBangunan: 0,
+      kenaikan: 0.1619270655279503, faktorTambah: 0, faktor: { hoek: 0.018 } };
+    const h = hitungUnit(u, 0.11, false, 6, false, { baseTanpaBulat: true });
+    assert(Math.round(h.base) === 3_741_405_151, `dasar ${h.base}`);
+    assert(Math.round(h.factoredR) === 3_808_750_444 || Math.round(h.factoredR) === 3_808_750_443, `terendah ${h.factoredR}`);
+    assert(h.factored === h.factoredR, "tanpa kenaikan setelah faktor");
+    const k = hitungUnit({ ...u, kenaikanFaktor: 0.1 }, 0.11, false, 6, false, { baseTanpaBulat: true });
+    assert(Math.abs(k.factored - h.factoredR * 1.1) < 1e-3 && k.factoredR === h.factoredR, `kenaikan ${k.factored}`);
+  });
+
   // Data (IRR) standar (berkas data_irr_2): nama cara bayar dari Kelompok,
   // DP dan Installments; arus kas 100 bulan; koefisien sama dengan Excel.
   await check("Data (IRR) standar: nama otomatis dan koefisien data_irr_2", async () => {
