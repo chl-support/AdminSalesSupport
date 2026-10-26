@@ -13,7 +13,7 @@ import { useEffect, useState } from "react";
 
 import { formatRupiah } from "@/lib/money";
 import {
-  FAKTOR, FAKTOR_INGGRIS, arusTertimbang, faktorTampil, hitungRumus, namaStandar, rumusDikunci, hargaKasIrr, hargaSesuaiSkema, labelPpn, namaTahap, tarifPpn, unitKosong,
+  FAKTOR, FAKTOR_INGGRIS, arusTertimbang, faktorTampil, hitungRumus, namaOtomatisAktif, namaStandar, rumusDikunci, hargaKasIrr, hargaSesuaiSkema, labelPpn, namaTahap, tarifPpn, unitKosong,
   kunciTnc, tingkatNaik, type BarisTnc, type KunciFaktor, type HasilSusun, type SusunPricelist, type UnitData,
 } from "@/lib/susun-pricelist";
 import type { UnitHarga } from "@/lib/simulasi";
@@ -655,7 +655,7 @@ function denganCaraBayarBaru(d: SusunPricelist): SusunPricelist {
     irr: { ...d.irr, skema: denganAlokasiBaru([...d.irr.skema, {
       nama, kelompok: "Cash", alokasi: 0, dp: 1, kali: 1,
       // Dengan nama otomatis, namanya yang mengikuti parameter.
-      ...(!d.irr.namaOtomatis && { otomatis: true }),
+      ...(!namaOtomatisAktif(d.irr) && { otomatis: true }),
       bulan: [...(d.irr.skema[0]?.bulan ?? [12, 18, 19, 20])] as [number, number, number, number],
     }]) },
     dataPricelist: { ...d.dataPricelist, kolom: [...d.dataPricelist.kolom, { nama, skema: nama }] },
@@ -772,6 +772,12 @@ function gantiNamaSkema(d: SusunPricelist, i: number, nama: string): SusunPricel
     pricelist: { ...d.pricelist, kolom: d.pricelist.kolom.map((k) => ({
       ...k, dari: n(k.dari), nama: k.nama === lama && ubahNamaDp.has(lama) ? nama : k.nama,
     })) },
+    // Harga spesial per sel tercatat menurut nama kolom Harga: ikut berganti.
+    ...(d.spesial && ubahNamaDp.has(lama) && d.pricelist.kolom.some((k) => k.nama === lama) && {
+      spesial: { set: d.spesial.set.map((st) => ({ ...st, sel: Object.fromEntries(
+        Object.entries(st.sel).map(([kode, sel]) => [kode, Object.fromEntries(
+          Object.entries(sel).map(([kolom, v]) => [kolom === lama ? nama : kolom, v]))])) })) },
+    }),
   };
 }
 
@@ -781,7 +787,7 @@ function gantiNamaSkema(d: SusunPricelist, i: number, nama: string): SusunPricel
  * dipakai cara bayar atau kolom Data Pricelist lain.
  */
 export function terapkanNamaOtomatis(d: SusunPricelist): SusunPricelist {
-  if (!d.irr.namaOtomatis) return d;
+  if (!namaOtomatisAktif(d.irr)) return d;
   let hasil = d;
   hasil.irr.skema.forEach((_, i) => {
     const s = hasil.irr.skema[i], nama = namaStandar(s);
@@ -870,8 +876,8 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah, baru }: PropsLangkah 
                  ubah={(n) => ubah((d) => ({ ...d, irr: { ...d.irr, target: n, skema: tanpaSimpanan(d) } }))} />
         </div>
         <label className="row" style={{ margin: 0, gap: 6, alignSelf: "flex-end" }} title={kt.namaOtomatisInfo}>
-          <input id="irr-nama-otomatis" type="checkbox" checked={!!irr.namaOtomatis} disabled={ro}
-                 onChange={(e) => ubah((d) => ({ ...d, irr: { ...d.irr, namaOtomatis: e.target.checked || undefined,
+          <input id="irr-nama-otomatis" type="checkbox" checked={namaOtomatisAktif(irr)} disabled={ro}
+                 onChange={(e) => ubah((d) => ({ ...d, irr: { ...d.irr, namaOtomatis: e.target.checked,
                    skema: e.target.checked ? d.irr.skema.map(({ otomatis: _, ...x }) => x) : d.irr.skema } }))} />
           {kt.namaOtomatis}
         </label>
@@ -918,7 +924,7 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah, baru }: PropsLangkah 
             {irr.skema.map((s, i) => (
               <th key={i}>
                 <span className="kepala-cb">
-                  {irr.namaOtomatis ? <b id={`irr-nama-${i}`} title={kt.namaDariRumus}>{s.nama}</b> : (
+                  {namaOtomatisAktif(irr) ? <b id={`irr-nama-${i}`} title={kt.namaDariRumus}>{s.nama}</b> : (
                   <IsianNama id={`irr-nama-${i}`} nilai={s.nama} disabled={ro} lebar={120}
                              lain={irr.skema.filter((_, j) => j !== i).map((x) => x.nama)}
                              ubah={(v) => ganti(i, v)} />)}
