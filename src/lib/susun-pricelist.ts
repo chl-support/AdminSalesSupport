@@ -517,9 +517,26 @@ const RUMUS_MAZENTA = new Set(["mazenta-residence"]);
  * (ROUND) ke puluhan ribu; project lain Incl PPN, dibulatkan ke atas ke
  * jutaan. Aturan yang sudah dinyatakan draf dibiarkan.
  */
+/**
+ * Project yang sudah berjalan sebelum rumus standar dipatenkan (lihat
+ * PROJECT_BAWAAN di projects.ts). Aturan pembulatannya mengikuti Excel
+ * masing-masing dan tetap dapat diubah di langkah 2.
+ */
+const PROJECT_LAMA = new Set([
+  "banara-serpong", "marchand-hype-station", "mazenta-residence",
+  "naraya-serpong", "bio-district", "permai-indah",
+]);
+
+/**
+ * Rumus dipatenkan: project baru di luar enam project lama selalu memakai
+ * ATURAN_STANDAR — tidak dapat diubah di layar maupun lewat impor Excel.
+ */
+export const rumusDikunci = (slug: string | null | undefined) => !!slug && !PROJECT_LAMA.has(slug);
+
 export function basisProject<
   T extends Pick<SusunPricelist, "basisExclPpn" | "bulatBase" | "bulatBiasa" | "bulatHargaM2" | "exclTerpisah" | "baseTanpaBulat">,
 >(slug: string | null | undefined, data: T): T {
+  if (rumusDikunci(slug)) return { ...data, ...ATURAN_STANDAR, exclTerpisah: false };
   // BIO DISTRICT: harga per m² Termasuk PPN dibulatkan ke atas ke ratusan
   // ribu, dan harga Belum PPN dihitung sendiri — seperti berkas Excel-nya.
   if (slug && RUMUS_MAZENTA.has(slug)) {

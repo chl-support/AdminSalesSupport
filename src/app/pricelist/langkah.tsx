@@ -13,7 +13,7 @@ import { useEffect, useState } from "react";
 
 import { formatRupiah } from "@/lib/money";
 import {
-  FAKTOR, FAKTOR_INGGRIS, faktorTampil, hitungRumus, hargaKasIrr, hargaSesuaiSkema, labelPpn, namaTahap, tarifPpn, unitKosong,
+  FAKTOR, FAKTOR_INGGRIS, faktorTampil, hitungRumus, rumusDikunci, hargaKasIrr, hargaSesuaiSkema, labelPpn, namaTahap, tarifPpn, unitKosong,
   kunciTnc, tingkatNaik, type BarisTnc, type KunciFaktor, type HasilSusun, type SusunPricelist, type UnitData,
 } from "@/lib/susun-pricelist";
 import type { UnitHarga } from "@/lib/simulasi";
@@ -85,6 +85,7 @@ const KATA = {
       `× (1 + (+) Faktor) + Khusus + Unit Contoh × (1 + kenaikan). Harga per m² ditulis sebelum PPN ${lp}; faktor dan kenaikan dalam persen.`,
     tarifPpn: "Tarif PPN",
     aturan: "Aturan pembulatan proyek ini",
+    aturanDikunci: "🔒 Rumus standar perusahaan — dikunci untuk proyek baru (per m² ROUNDUP Rp 100.000, Harga Dasar ROUNDUP juta, dari harga Termasuk PPN). Hubungi Admin IT bila memang perlu dikecualikan.",
     aturanInfo: "Disamakan dengan Excel proyeknya. Berlaku untuk semua unit; harga langsung dihitung ulang. Disimpan bersama draf.",
     aturM2: "Harga per m² (Termasuk PPN)", m2Tidak: "Tidak dibulatkan", m2Ratus: "ROUNDUP ke Rp 100.000",
     m2TidakBerlaku: "Tidak berlaku bila Harga Dasar dihitung dari harga Belum termasuk PPN",
@@ -298,6 +299,7 @@ const KATA = {
       `× (1 + (+) Factor) + Special + Show Unit × (1 + increase). Prices per m² are entered before VAT ${lp}; factors and increases are in percent.`,
     tarifPpn: "VAT rate",
     aturan: "Rounding rules for this project",
+    aturanDikunci: "🔒 Company standard formula — locked for new projects (per m² ROUNDUP Rp 100,000, Base Price ROUNDUP million, from incl. VAT prices). Contact IT Admin if an exception is really needed.",
     aturanInfo: "Match the project's Excel. Applies to every unit; prices are recalculated at once. Saved with the draft.",
     aturM2: "Price per m² (incl. VAT)", m2Tidak: "Not rounded", m2Ratus: "ROUNDUP to Rp 100,000",
     m2TidakBerlaku: "Does not apply when the Base Price is calculated from excl. VAT prices",
@@ -1057,6 +1059,8 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
   // harga tetap dihitung dengan rumus sistem), dan Biaya AJB + BPHTB hanya
   // tampil di BIO. Proyek lain tetap seperti semula.
   const bio = slug === "bio-district";
+  // Proyek baru di luar enam proyek lama: rumus standar dipatenkan.
+  const kunci = rumusDikunci(slug);
   const teksUnit = bio ? TEKS_UNIT.filter(([k]) => k !== "phase" && k !== "view2") : TEKS_UNIT;
   const ro = !bolehUbah;
   const ppn = tarifPpn(data), lp = labelPpn(ppn);
@@ -1276,17 +1280,17 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
           Excel-nya. Nilai bawaan project (BIO, Mazenta, Permai) dipasang
           basisProject bila draf belum menyatakannya. */}
       <div className="form-blok" style={{ marginBottom: 12 }}>
-        <b>{kt.aturan}</b> <span className="hint" style={{ margin: 0 }}>{kt.aturanInfo}</span>
+        <b>{kt.aturan}</b> <span className="hint" style={{ margin: 0 }}>{kunci ? kt.aturanDikunci : kt.aturanInfo}</span>
         <div className="filters rapat" style={{ marginTop: 8 }}>
           <div><div className="lbl">{kt.aturM2}</div>
-            <select id="atur-m2" disabled={ro || !!data.basisExclPpn} title={data.basisExclPpn ? kt.m2TidakBerlaku : undefined}
+            <select id="atur-m2" disabled={ro || kunci || !!data.basisExclPpn} title={data.basisExclPpn ? kt.m2TidakBerlaku : undefined}
                     value={(data.bulatHargaM2 ?? -1) >= 0 ? "ratus" : "tidak"}
                     onChange={(e) => ubah((d) => ({ ...d, bulatHargaM2: e.target.value === "ratus" ? 5 : -1 }))}>
               <option value="tidak">{kt.m2Tidak}</option>
               <option value="ratus">{kt.m2Ratus}</option>
             </select></div>
           <div><div className="lbl">{kt.aturDasar}</div>
-            <select id="atur-dasar" disabled={ro}
+            <select id="atur-dasar" disabled={ro || kunci}
                     value={data.baseTanpaBulat ? "tidak" : data.bulatBiasa && (data.bulatBase ?? 6) === 4 ? "puluh" : "juta"}
                     onChange={(e) => ubah((d) => ({ ...d, ...(e.target.value === "tidak"
                       ? { baseTanpaBulat: true }
@@ -1298,13 +1302,13 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
               <option value="puluh">{kt.dasarPuluh}</option>
             </select></div>
           <div><div className="lbl">{kt.aturDari}</div>
-            <select id="atur-dari" disabled={ro} value={data.basisExclPpn ? "excl" : "incl"}
+            <select id="atur-dari" disabled={ro || kunci} value={data.basisExclPpn ? "excl" : "incl"}
                     onChange={(e) => ubah((d) => ({ ...d, basisExclPpn: e.target.value === "excl" }))}>
               <option value="incl">{kt.dariIncl}</option>
               <option value="excl">{kt.dariExcl}</option>
             </select></div>
           <div><div className="lbl">{kt.aturExcl}</div>
-            <select id="atur-excl" disabled={ro || !!data.basisExclPpn} value={data.exclTerpisah ? "sendiri" : "bagi"}
+            <select id="atur-excl" disabled={ro || kunci || !!data.basisExclPpn} value={data.exclTerpisah ? "sendiri" : "bagi"}
                     onChange={(e) => ubah((d) => ({ ...d, exclTerpisah: e.target.value === "sendiri" }))}>
               <option value="bagi">{kt.exclBagi}</option>
               <option value="sendiri">{kt.exclSendiri}</option>
