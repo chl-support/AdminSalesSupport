@@ -58,7 +58,9 @@ const KATA = {
     koef: "Koefisien",
     belumTepat: "Belum tepat sesuai target",
     hargaSesuai: "Harga Penyesuaian",
-    dariExcel: "Tersimpan dari Excel (hasil Goal Seek)",
+    dariExcel: "Diisi manual / dari Excel: koefisien = Harga Penyesuaian ÷ Harga Tunai, IRR mengikuti",
+    manual: "Manual", kembaliTarget: "↺ Target",
+    kembaliTargetInfo: "Hapus Harga Penyesuaian manual: dihitung lagi dari Target Bunga",
     dariTarget: "Dihitung tepat dari target",
     hapusCbInfo: "Hapus cara bayar ini beserta kolomnya di Data Harga dan Harga",
     irrBelum: (n: number, p: string) => `IRR ${n} cara bayar belum tepat ${p}`,
@@ -266,7 +268,9 @@ const KATA = {
     koef: "Coefficient",
     belumTepat: "Not exactly on target",
     hargaSesuai: "Adjusted Price",
-    dariExcel: "Stored from Excel (Goal Seek result)",
+    dariExcel: "Entered manually / from Excel: coefficient = Adjusted Price ÷ Cash Price, the IRR follows",
+    manual: "Manual", kembaliTarget: "↺ Target",
+    kembaliTargetInfo: "Remove the manual Adjusted Price: calculated again from the Target Rate",
     dariTarget: "Calculated exactly from the target",
     hapusCbInfo: "Delete this payment scheme and its columns in Price Data and Price List",
     irrBelum: (n: number, p: string) => `IRR of ${n} payment schemes not exactly ${p}`,
@@ -942,20 +946,40 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah, baru }: PropsLangkah 
           </tr>
           {/* Baris pilihan acuan dihapus atas permintaan pemakai: acuannya selalu
               Cash Keras (koefisien 1), dan baris IRR sudah menandainya. */}
+          {/* Koefisien juga dapat diketik langsung (mis. 1,100 = 110%):
+              Harga Penyesuaian = Harga Tunai × koefisien. */}
           <tr className="hasil"><td>{kt.koef}</td>{irr.skema.map((s, i) => (
-            <td key={i} className="n" title={hasil.irr.koef[s.nama]?.toFixed(5)}><b>{Number.isFinite(hasil.irr.koef[s.nama])
-              ? hasil.irr.koef[s.nama].toFixed(3) : "—"}</b></td>))}</tr>
+            <td key={i} className="n" title={hasil.irr.koef[s.nama]?.toFixed(5)}>
+              {bolehUbah && !s.acuan && Number.isFinite(hasil.irr.koef[s.nama]) ? (
+                <Isian id={`irr-koef-${i}`} nilai={hasil.irr.koef[s.nama]} desimal={3} lebar={70}
+                       ubah={(n) => ubahSkema(i, (x) => ({ ...x,
+                         hargaSesuai: n > 0 ? Math.round(n * hargaKasIrr(irr) * 1e4) / 1e4 : undefined, hargaKas: hargaKasIrr(irr) }))} />
+              ) : <b>{Number.isFinite(hasil.irr.koef[s.nama]) ? hasil.irr.koef[s.nama].toFixed(3) : "—"}</b>}
+            </td>))}</tr>
           <tr className="hasil"><td>IRR</td>{irr.skema.map((s, i) => (
             <td key={i} className={`n${belumSesuai.has(s.nama) ? " belum-sesuai" : ""}`}
                 title={belumSesuai.has(s.nama) ? kt.belumTepat : undefined}>
               {s.acuan ? "0,0%" : belumSesuai.has(s.nama) ? persen(hasil.irr.irr[s.nama], 5)
                 : persen(hasil.irr.irr[s.nama], 1, 1)}
             </td>))}</tr>
+          {/* Harga Penyesuaian dapat diketik manual (seperti baris Adjusted Price
+              Excel, mis. KPR DP 0% Mazenta 1.099.983.114 = 110%, IRR 7,2%):
+              koefisien = Harga Penyesuaian ÷ Harga Tunai. ↺ Target kembali
+              menghitungnya dari Target Bunga. */}
           <tr className="hasil"><td>{kt.hargaSesuai}</td>{irr.skema.map((s, i) => (
             <td key={i} className="n"
                 title={s.hargaSesuai && !s.acuan ? kt.dariExcel : kt.dariTarget}>
-              <b>{rp(hargaSesuaiSkema(irr, hasil.irr.koef[s.nama]))}</b>
-              {s.hargaSesuai && !s.acuan ? <small className="asal">Excel</small> : null}
+              {bolehUbah && !s.acuan ? (
+                <span className="row" style={{ margin: 0, gap: 4, flexWrap: "nowrap", justifyContent: "flex-end" }}>
+                  <Isian id={`irr-sesuai-${i}`} jenis="rp" nilai={hargaSesuaiSkema(irr, hasil.irr.koef[s.nama])} lebar={130}
+                         ubah={(n) => ubahSkema(i, (x) => ({ ...x, hargaSesuai: n > 0 ? n : undefined, hargaKas: hargaKasIrr(irr) }))} />
+                  {s.hargaSesuai ? (
+                    <button className="kecil" title={kt.kembaliTargetInfo}
+                            onClick={() => ubahSkema(i, (x) => ({ ...x, hargaSesuai: undefined }))}>{kt.kembaliTarget}</button>
+                  ) : null}
+                </span>
+              ) : <b>{rp(hargaSesuaiSkema(irr, hasil.irr.koef[s.nama]))}</b>}
+              {s.hargaSesuai && !s.acuan ? <small className="asal">{kt.manual}</small> : null}
             </td>))}</tr>
           {bolehUbah && (
             <tr><td />{irr.skema.map((s, i) => (
