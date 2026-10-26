@@ -13,7 +13,7 @@ import { useEffect, useState } from "react";
 
 import { formatRupiah } from "@/lib/money";
 import {
-  FAKTOR, FAKTOR_INGGRIS, arusKas, arusTertimbang, faktorTampil, hitungRumus, namaOtomatisAktif, namaStandar, rumusDikunci, hargaKasIrr, hargaSesuaiSkema, labelPpn, namaTahap, tarifPpn, unitKosong,
+  FAKTOR, FAKTOR_INGGRIS, arusKas, arusTertimbang, faktorTampil, hitungRumus, hitungUnit, namaOtomatisAktif, namaStandar, rumusDikunci, hargaKasIrr, hargaSesuaiSkema, labelPpn, namaTahap, tarifPpn, unitKosong,
   kunciTnc, tingkatNaik, type BarisTnc, type KunciFaktor, type HasilSusun, type SusunPricelist, type UnitData,
 } from "@/lib/susun-pricelist";
 import type { UnitHarga } from "@/lib/simulasi";
@@ -155,7 +155,7 @@ const KATA = {
     incl: (lp: string) => `(Termasuk PPN ${lp})`,
     gfaM2: "GFA (m²)", hargaBangunan: "GFA (dasar)",
     special: "Khusus (Rp)", showUnit: "Unit Contoh (Rp)",
-    hargaDasar: "Harga Dasar", hargaFaktor: "Harga Setelah Faktor",
+    hargaDasar: "Harga Dasar", hargaFaktor: "Harga Setelah Faktor", terendah: "(Terendah)", kenaikanTh: "(Kenaikan)",
     totalUnit: (n: number, dari?: number) => `Total ${n} unit${dari != null ? ` (dari ${dari})` : ""}`,
     tambahAkhir: "+ Tambah unit di akhir tabel",
     simpanInfo1: "Unit yang ditambah atau dihapus baru tersimpan setelah",
@@ -371,7 +371,7 @@ const KATA = {
     incl: (lp: string) => `(Incl PPN. ${lp})`,
     gfaM2: "GFA (m²)", hargaBangunan: "GFA (base)",
     special: "Special (Rp)", showUnit: "Show Unit (Rp)",
-    hargaDasar: "Base Price", hargaFaktor: "Factored Price",
+    hargaDasar: "Base Price", hargaFaktor: "Factored Price", terendah: "(Lowest)", kenaikanTh: "(Increased)",
     totalUnit: (n: number, dari?: number) => `Total ${n} units${dari != null ? ` (of ${dari})` : ""}`,
     tambahAkhir: "+ Add unit at the end of the table",
     simpanInfo1: "Units added or deleted are only stored after",
@@ -1176,10 +1176,18 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
   const kolomRoundup = bulatM2 >= 0 && !data.basisExclPpn;
   const ratusRibu = (n: number | undefined) => n == null ? undefined
     : Math.ceil(n / 10 ** bulatM2 - 1e-9) * 10 ** bulatM2;
+  // Seperti Excel: Harga Dasar dan Harga Setelah Faktor Terendah (sebelum
+  // Kenaikan), lalu Harga Setelah Faktor Kenaikan (sesudah Kenaikan).
+  type JenisHarga = "baseR" | "factoredR" | "factored";
   const urutanHarga = (bio
-    ? [["base", "excl"], ["factored", "excl"], ["base", "incl"], ["factored", "incl"]]
-    : [["base", "excl"], ["base", "incl"], ["factored", "excl"], ["factored", "incl"]]) as
-    ["base" | "factored", "excl" | "incl"][];
+    ? [["baseR", "excl"], ["factoredR", "excl"], ["factored", "excl"],
+       ["baseR", "incl"], ["factoredR", "incl"], ["factored", "incl"]]
+    : [["baseR", "excl"], ["baseR", "incl"], ["factoredR", "excl"], ["factoredR", "incl"],
+       ["factored", "excl"], ["factored", "incl"]]) as [JenisHarga, "excl" | "incl"][];
+  // Harga tiap unit tanpa Kenaikan, dengan rumus dan aturan yang sama.
+  const rendah = data.unit.map((u) => hitungUnit({ ...u, kenaikan: 0 }, ppn, !!data.basisExclPpn,
+    data.bulatBase ?? 6, !!data.bulatBiasa, { bulatHargaM2: data.bulatHargaM2,
+      exclTerpisah: data.exclTerpisah, baseTanpaBulat: data.baseTanpaBulat }));
   // Base dan Factored Price dalam dua bentuk, sebelum dan sesudah PPN. Yang
   // dihitung adalah basis project-nya (Incl PPN, atau Excl PPN untuk Permai
   // Indah); bentuk satunya diturunkan dengan tarif PPN yang sama.
@@ -1187,7 +1195,9 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
     ? { excl: n, incl: Math.round(n * (1 + ppn)) } : { excl: Math.round(n / (1 + ppn)), incl: n };
   // Harga satu unit: Belum PPN yang dihitung sendiri (BIO DISTRICT) bila ada,
   // selain itu diturunkan dari harga Termasuk PPN.
-  const hargaUnit = (h: HasilSusun["baris"][number]["hasilUnit"] | undefined, k: "base" | "factored") => {
+  const hargaUnit = (i: number, jenis: JenisHarga) => {
+    const h = jenis === "factored" ? hasil.baris[i]?.hasilUnit : rendah[i];
+    const k = jenis === "baseR" ? "base" : "factored";
     const x = h?.[k === "base" ? "baseExcl" : "factoredExcl"];
     return x != null ? { excl: x, incl: h![k] } : ppnDua(h?.[k] ?? NaN);
   };
@@ -1538,7 +1548,8 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
               {kolomSesuaiRp && <th>{kt.thSesuaiRp}</th>}
               {urutanHarga.map(([h, j]) => (
                 <th key={h + j} className={j === "incl" ? "incl" : undefined}>
-                  {h === "base" ? kt.hargaDasar : kt.hargaFaktor}<br />{j === "incl" ? kt.incl(lp) : kt.excl(lp)}</th>
+                  {h === "baseR" ? kt.hargaDasar : kt.hargaFaktor}<br />{j === "incl" ? kt.incl(lp) : kt.excl(lp)}
+                  <br />{h === "factored" ? kt.kenaikanTh : kt.terendah}</th>
               ))}
             </tr>
           </thead><tbody>
@@ -1619,7 +1630,7 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
                              ubah={(n) => ubahUnit(i, (x) => ({ ...x, penyesuaianRp: n || undefined }))} /></td>
                 )}
                 {urutanHarga.map(([h, j]) => {
-                  const n = rpHarga(hargaUnit(b?.hasilUnit, h)[j]);
+                  const n = rpHarga(hargaUnit(i, h)[j]);
                   return <td key={h + j} className="n">{h === "factored" ? <b>{n}</b> : n}</td>;
                 })}
               </tr>
@@ -1637,7 +1648,7 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
               {kolomPlus && <td />}{kolomFaktorRp && <td />}{kolomMinus && <><td /><td /></>}{bio && <><td /><td /></>}
               {kolomKhusus && <td />}<td />{kolomPembagi && <td />}{kolomSesuai && <td />}{kolomSesuaiRp && <td />}
               {urutanHarga.map(([h, j]) => (
-                <td key={h + j} className="n">{rpHarga(tampil.reduce((a, { b }) => a + (hargaUnit(b?.hasilUnit, h)[j] || 0), 0))}</td>
+                <td key={h + j} className="n">{rpHarga(tampil.reduce((a, { i }) => a + (hargaUnit(i, h)[j] || 0), 0))}</td>
               ))}
             </tr>
           </tfoot></table>
