@@ -14,6 +14,7 @@
  * tetap harus mempercayai apa yang dikirimkan layar.
  */
 
+import { hanyaPricelist, layarBoleh } from "@/lib/project-terbatas";
 import { useCallback, useEffect, useState } from "react";
 
 import { Logo, LogoProject } from "../logo";
@@ -47,6 +48,8 @@ export default function PilihProjectPage() {
   }, []);
 
   const pilih = async (slug: string) => {
+    // Project yang baru untuk Pricelist saja langsung dibawa ke Pricelist.
+    const kePricelist = hanyaPricelist(slug);
     setBusy(true); setGalat(null);
     try {
       const res = await fetch("/api/projects", {
@@ -55,7 +58,10 @@ export default function PilihProjectPage() {
       if (res.status === 401) { location.href = "/login"; return; }
       const b = await res.json().catch(() => ({}));
       if (!res.ok) { setGalat(b.detail ?? `HTTP ${res.status}`); return; }
-      lanjut();
+      if (kePricelist) {
+        const n = new URLSearchParams(window.location.search).get("next") ?? "";
+        location.href = layarBoleh(n) && n.startsWith("/") && !n.startsWith("//") ? n : "/pricelist";
+      } else lanjut();
     } catch (e: any) {
       setGalat(String(e?.message ?? e));
       setBusy(false);

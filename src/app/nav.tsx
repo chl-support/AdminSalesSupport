@@ -15,6 +15,7 @@
  */
 
 import Link from "next/link";
+import { hanyaPricelist, layarBoleh } from "@/lib/project-terbatas";
 import { usePathname } from "next/navigation";
 import { createContext, useContext, useEffect, useState } from "react";
 
@@ -372,7 +373,7 @@ export function TautanLayar(
   );
 }
 
-export function Nav({ peran }: { peran?: string }) {
+export function Nav({ peran, project }: { peran?: string; project?: string | null }) {
   const path = usePathname();
   const { bahasa } = useBahasa();
   const bantu = BANTU[bahasa];
@@ -381,6 +382,10 @@ export function Nav({ peran }: { peran?: string }) {
   // Cocok persis, atau induk dari lintasan sekarang. `startsWith` telanjang
   // akan membuat "/klaim" terpilih bersamaan dengan "/klaim/komisi".
   const aktif = (href: string) => path === href || path.startsWith(href + "/");
+  // Project yang hanya untuk Pricelist (mis. Scotts Vale): menu lain disembunyikan.
+  const terbatas = hanyaPricelist(project);
+  const bolehProject = (b: Butir): boolean => !terbatas
+    || (b.href ? layarBoleh(b.href) : (b.anak ?? []).some(bolehProject));
 
   /** Apakah rumpun ini memuat layar yang sedang dibuka, sampai ke dasarnya. */
   const memuatAktif = (b: Butir): boolean =>
@@ -395,7 +400,7 @@ export function Nav({ peran }: { peran?: string }) {
    * membuang Referensi Pengajuan alih-alih mengeluh.
    */
   const gambar = (m: Butir, dalam: boolean): React.ReactNode => {
-    const anak = (m.anak ?? []).filter((a) => boleh(a, peran));
+    const anak = (m.anak ?? []).filter((a) => boleh(a, peran) && bolehProject(a));
     // Rumpun tanpa lintasan sendiri yang seluruh anaknya tersembunyi oleh
     // peran tidak menyisakan apa pun yang dapat ditekan — judulnya saja
     // hanya menggantung sebagai kata yang tidak menuju ke mana-mana.
@@ -485,7 +490,7 @@ export function Nav({ peran }: { peran?: string }) {
 
   return (
     <nav className="nav">
-      {MENU.filter((m) => boleh(m, peran)).map((m) => gambar(m, false))}
+      {MENU.filter((m) => boleh(m, peran) && bolehProject(m)).map((m) => gambar(m, false))}
     </nav>
   );
 }

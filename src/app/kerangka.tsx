@@ -12,8 +12,10 @@
  * sengaja tidak memakai kerangka ini.
  */
 
+import { hanyaPricelist, layarBoleh } from "@/lib/project-terbatas";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect } from "react";
 
 import { useBahasa } from "./bahasa";
 import { DaftarEmail } from "./daftar-email";
@@ -30,6 +32,9 @@ export function Kerangka(
 ) {
   const path = usePathname();
   const induk = indukDari(path);
+  // Project yang baru untuk Pricelist saja: layar lain diarahkan ke Pricelist.
+  const dialihkan = hanyaPricelist(sesi.project_slug) && !layarBoleh(path);
+  useEffect(() => { if (dialihkan) location.replace("/pricelist"); }, [dialihkan]);
   const { bahasa } = useBahasa();
   /**
    * Judul dan isi halaman hanya ditampilkan selama butir menunya terlihat.
@@ -128,7 +133,7 @@ export function Kerangka(
 
       <div className="badan">
         <aside className="sisi">
-          <Nav peran={sesi.role} />
+          <Nav peran={sesi.role} project={sesi.project_slug} />
         </aside>
         <main className="isi" hidden={!tampil}>{children}</main>
       </div>
