@@ -3319,3 +3319,6 @@ table.tabel-arus { width: auto; }
 table.tabel-arus th, table.tabel-arus td { padding: 3px 10px !important; white-space: nowrap; text-align: right !important; }
 table.tabel-arus th { font-size: 11px; }
 table.tabel-arus .arus-jumlah { border-left: 2px solid var(--line, #ccc) !important; font-weight: 600; }
+
+/* Data Unit: keenam kolom harga (Terendah / Kenaikan) sama lebar. */
+.tabel-unit th.kolom-harga { width: 140px; min-width: 140px; max-width: 140px; white-space: normal !important; }
