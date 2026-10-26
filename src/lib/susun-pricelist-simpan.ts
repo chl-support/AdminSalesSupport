@@ -38,6 +38,7 @@ const SKEMA = z.object({
     porsiTahap: z.tuple([angka, angka, angka, angka]),
     namaTahap: z.tuple([teks, teks, teks, teks]).optional(),
     periode: z.number().int().min(1).max(240),
+    namaOtomatis: z.boolean().optional(),
     skema: z.array(z.object({
       nama: teks.min(1), kelompok: teks, alokasi: angka, dp: angka.min(0).max(1),
       tambahan: z.boolean().optional(), otomatis: z.boolean().optional(),

@@ -61,6 +61,16 @@ export function periksaSusun(s: SusunPricelist, h: HasilSusun): Temuan[] {
     cek(0, `Allocation berjumlah ${persen(alokasi)}, belum 100%.`,
            `Allocation adds up to ${persen(alokasi)}, not 100%.`, "irr-alokasi-0");
   }
+  // Pengecualian manual (Koefisien / Harga Penyesuaian diketik, mis. dari
+  // pricelist lama) tetap boleh, tetapi diingatkan: standarnya semua cara
+  // bayar tepat pada Target IRR.
+  s.irr.skema.forEach((x, i) => {
+    const r = h.irr.irr[x.nama];
+    if (x.acuan || !x.hargaSesuai || !Number.isFinite(r) || Math.abs(r - s.irr.target) < 0.0005) return;
+    cek(0, `${x.nama} memakai koefisien manual: IRR ${persen(r)}, bukan Target IRR ${persen(s.irr.target)}. Abaikan bila memang pengecualian (mis. pricelist lama); tekan ↺ Target untuk kembali ke standar.`,
+           `${x.nama} uses a manual coefficient: IRR ${persen(r)}, not the ${persen(s.irr.target)} target. Ignore if it is an intended exception; press ↺ Target to return to the standard.`,
+           `irr-koef-${i}`);
+  });
 
   // 3. Data Harga — termasuk susunan kolom Harga, yang diatur di sini.
   const dp = s.dataPricelist.kolom, pl = s.pricelist.kolom;

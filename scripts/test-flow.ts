@@ -2087,6 +2087,32 @@ async function main() {
            `tepat: ${tepat}`);
   });
 
+  // Data (IRR) standar (berkas data_irr_2): nama cara bayar dari Kelompok,
+  // DP dan Installments; arus kas 100 bulan; koefisien sama dengan Excel.
+  await check("Data (IRR) standar: nama otomatis dan koefisien data_irr_2", async () => {
+    const { susunAwal, hitungIrr, namaStandar, arusTertimbang, PERIODE_STANDAR } =
+      await import("../src/lib/susun-pricelist");
+    const s = susunAwal();
+    assert(s.irr.periode === PERIODE_STANDAR, `periode ${s.irr.periode}`);
+    const b: [number, number, number, number] = [12, 18, 19, 20];
+    const sk = (kelompok: string, dp: number, kali: number, bulan = b) =>
+      ({ nama: "", kelompok, alokasi: 0.125, dp, kali, bulan });
+    const daftar = [sk("Cash", 1, 1), sk("Cash", 1, 12), sk("Cash", 1, 24), sk("Cash", 1, 36),
+      sk("KPR", 0.1, 1, [2, 2, 2, 2]), sk("KPR", 0.1, 6), sk("KPR", 0.1, 12), sk("KPR", 0.2, 6)];
+    const nama = daftar.map(namaStandar);
+    assert(nama.join("|") === "Cash Keras|Installment 12x|Installment 24x|Installment 36x|KPR Express|KPR DP 10%/6x|KPR DP 10%/12x|KPR DP 20%/6x",
+           nama.join("|"));
+    const irr = { ...s.irr, skema: daftar.map((x, i) => ({ ...x, nama: nama[i], ...(i === 0 && { acuan: true }) })) };
+    const h = hitungIrr(irr);
+    const excel = [1, 1.0494177, 1.0964342, 1.1447911, 1.0142955, 1.1150208, 1.1207504, 1.1044275];
+    nama.forEach((n, i) => assert(Math.abs(h.koef[n] - excel[i]) < 2e-6, `${n}: ${h.koef[n]}`));
+    // Cicilan lebih panjang dari periode tetap terhitung penuh.
+    const pendek = { ...irr, periode: 36 };
+    assert(Math.abs(hitungIrr(pendek).koef["Installment 36x"] - h.koef["Installment 36x"]) < 1e-12, "36x pada periode 36");
+    const arus = arusTertimbang(irr, h);
+    assert(Math.abs(arus.reduce((a, x) => a + x.porsi, 0) - 1) < 1e-9, "porsi 100%");
+  });
+
   console.log("\n" + "=".repeat(62));
   console.log(`  LULUS ${pass.length}   GAGAL ${fail.length}`);
   if (fail.length) {

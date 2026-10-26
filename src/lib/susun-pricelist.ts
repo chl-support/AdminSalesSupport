@@ -113,10 +113,36 @@ export type DataIrr = {
    * Excel (Foundation, Tutup Atap, BAST, AJB + SPHTB); lihat `namaTahap`.
    */
   namaTahap?: [string, string, string, string];
-  /** Panjang arus kas dalam bulan (lembar Excel: bulan 0 sampai 36). */
+  /**
+   * Panjang arus kas dalam bulan. Standar 100 bulan (lembar Data (IRR)
+   * standar: baris 21–121); berkas lama 36. Arus kas tidak pernah dipotong
+   * sebelum cicilan dan tahap terakhir cara bayarnya — lihat `arusKas`.
+   */
   periode: number;
+  /**
+   * Nama cara bayar dibuat otomatis dari Kelompok, DP dan Installments,
+   * seperti baris 2 lembar Data (IRR) standar — lihat `namaStandar`.
+   */
+  namaOtomatis?: boolean;
   skema: SkemaIrr[];
 };
+
+/** Panjang arus kas standar, dalam bulan. */
+export const PERIODE_STANDAR = 100;
+
+/**
+ * Nama cara bayar menurut rumus baris 2 lembar Data (IRR) standar: Cash 1x
+ * "Cash Keras", Cash Nx "Installment Nx", KPR "KPR DP x%/Nx"; KPR 1x yang
+ * semua tahapnya cair bulan 2 "KPR Express".
+ */
+export function namaStandar(s: Pick<SkemaIrr, "kelompok" | "dp" | "kali" | "bulan">): string {
+  const kali = Math.max(1, Math.round(s.kali));
+  if (/^kpr$/i.test(s.kelompok.trim())) {
+    if (kali === 1 && s.bulan.every((b) => b <= 2)) return "KPR Express";
+    return `KPR DP ${Math.round(s.dp * 100)}%/${kali}x`;
+  }
+  return kali === 1 ? "Cash Keras" : `Installment ${kali}x`;
+}
 
 /** Faktor posisi unit pada lembar Unit Data, masing-masing pecahan. */
 export const FAKTOR = [
@@ -425,7 +451,10 @@ export function roundExcel(x: number, digit: number): number {
 export function arusKas(s: SkemaIrr, irr: DataIrr): number[] {
   const kali = Math.max(1, Math.round(s.kali));
   const arus: number[] = [];
-  for (let t = 1; t <= irr.periode; t++) {
+  // Bulan terakhir yang menerima pembayaran selalu ikut, walau melebihi
+  // periode (berkas lama 36 bulan dengan cicilan lebih panjang).
+  const akhir = Math.max(irr.periode, kali + 1, ...s.bulan);
+  for (let t = 1; t <= akhir; t++) {
     let v = t <= kali ? s.dp / kali : 0;
     s.bulan.forEach((b, i) => {
       if (t === Math.max(b, kali + 1)) v += (1 - s.dp) * irr.porsiTahap[i];
@@ -479,6 +508,27 @@ export type HasilIrr = {
   /** WA Coefficient: rata-rata koefisien tertimbang alokasi. */
   koefRata: number;
 };
+
+/**
+ * Arus kas tertimbang per bulan (kolom K–L lembar Data (IRR) standar):
+ * jumlah arus kas semua cara bayar dikali Allocation-nya, dan porsinya
+ * terhadap seluruh arus. Analisa saja, tidak memengaruhi harga.
+ */
+export function arusTertimbang(irr: DataIrr, h: HasilIrr): { bulan: number; jumlah: number; porsi: number }[] {
+  const kas = hargaKasIrr(irr);
+  const jumlah: number[] = [];
+  for (const s of irr.skema) {
+    const k = h.koef[s.nama];
+    if (!Number.isFinite(k)) continue;
+    arusKas(s, irr).forEach((v, i) => { jumlah[i] = (jumlah[i] ?? 0) + v * k * kas * s.alokasi; });
+  }
+  const total = jumlah.reduce((a, v) => a + (v ?? 0), 0);
+  let akhir = jumlah.length;
+  while (akhir > 0 && !jumlah[akhir - 1]) akhir--;
+  return Array.from({ length: akhir }, (_, i) => ({
+    bulan: i + 1, jumlah: jumlah[i] ?? 0, porsi: total ? (jumlah[i] ?? 0) / total : 0,
+  }));
+}
 
 export function hitungIrr(irr: DataIrr): HasilIrr {
   const koef: Record<string, number> = {}, hasilIrr: Record<string, number> = {};
@@ -842,7 +892,7 @@ export function susunAwal(): SusunPricelist {
     "Angsuran (DP) 1", `Angsuran 2 - ${n}`);
   return {
     irr: {
-      target: 0.09, porsiTahap: [...PORSI_AWAL], namaTahap: [...TAHAP_AWAL], periode: 36,
+      target: 0.09, porsiTahap: [...PORSI_AWAL], namaTahap: [...TAHAP_AWAL], periode: PERIODE_STANDAR,
       skema: [
         sk("Cash Keras", "Cash", 0.07, 1, 1, bangun, true),
         sk("Cicilan 12x", "Cash", 0.04, 1, 12, bangun),

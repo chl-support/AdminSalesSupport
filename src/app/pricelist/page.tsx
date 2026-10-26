@@ -28,7 +28,7 @@ import { PENGUNGGAH } from "../simulasi/unggah-pricelist";
 import { basisProject, hitungSemua, unitBelumBerharga, type SusunPricelist } from "@/lib/susun-pricelist";
 import { periksaSusun, type Temuan } from "@/lib/susun-pricelist-periksa";
 import {
-  LangkahDataPl, LangkahIrr, LangkahPricelist, LangkahTnc, LangkahUnit, isiOtomatisCaraBayar, rapikanCaraBayar, sinkronTnc,
+  LangkahDataPl, LangkahIrr, LangkahPricelist, LangkahTnc, LangkahUnit, isiOtomatisCaraBayar, rapikanCaraBayar, sinkronTnc, terapkanNamaOtomatis,
 } from "./langkah";
 import { LangkahHargaSpesial } from "./langkah-spesial";
 
@@ -198,7 +198,9 @@ export default function PricelistPage() {
     if (res.status === 401) { location.href = "/login"; return; }
     if (!res.ok) { setGalat(b.detail ?? b.title ?? `HTTP ${res.status}`); return; }
     // Aturan basis harga project (Permai Indah: Excl PPN) untuk draf baru.
-    setDraf(b); setData(rapikanCaraBayar(basisProject(slugRef.current, b.data)));
+    // Nama cara bayar otomatis (draf baru): langsung mengikuti parameternya.
+    const awal = rapikanCaraBayar(basisProject(slugRef.current, b.data));
+    setDraf(b); setData(sinkronTnc(awal, terapkanNamaOtomatis(awal)));
   }, []);
 
   useEffect(() => { if (sesi?.project_slug) void muat(); }, [sesi, muat]);
@@ -332,7 +334,7 @@ export default function PricelistPage() {
     setInfo(null); setBerlaku(null); setTersimpanSbg(null);
     // T&C mengikuti kolom Pricelist: kolom baru mendapat blok, ganti nama ikut.
     // Parameter cara bayar baru diisi otomatis dari namanya.
-    setData((d) => (d ? isiOtomatisCaraBayar(sinkronTnc(d, f(d))) : d));
+    setData((d) => (d ? isiOtomatisCaraBayar(sinkronTnc(d, terapkanNamaOtomatis(f(d)))) : d));
   };
 
   /** Harga yang diberlakukan: kosong = harga dasar langkah 4a. */
