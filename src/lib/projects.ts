@@ -16,7 +16,7 @@
  * melainkan tinggal dimatikan lewat kolom `active`.
  */
 
-import { query } from "./db";
+import { query, tx } from "./db";
 
 export type ProjectBawaan = {
   slug: string; name: string; company_name: string; urutan: number;
@@ -41,9 +41,53 @@ export const PROJECT_BAWAAN: ProjectBawaan[] = [
  * Project yang dibuang dari pemilih project. Barisnya tidak dihapus (data
  * yang sempat diisi tetap ada), hanya dimatikan lewat kolom `active`.
  */
-export const PROJECT_DIBUANG: string[] = [
+export const PROJECT_DIBUANG: string[] = [];
+
+/**
+ * Project yang dihapus permanen atas permintaan, beserta data Pricelist-nya
+ * (draf, riwayat, gambar catatan, pricelist tersimpan, jadwal simulasi);
+ * sesi yang sedang memilihnya dilepas. Bila project itu ternyata punya data
+ * lain (unit, klaim, marketing, memo, …) penghapusan dibatalkan dan project
+ * hanya dimatikan, supaya tidak ada data transaksi yang ikut hilang.
+ */
+export const PROJECT_DIHAPUS: string[] = [
   "scotts-vale", // Scotts Vale (The Sanctuary Collection), 26 Okt 2026
 ];
+
+/** Tabel yang boleh ikut dikosongkan saat project dihapus permanen. */
+const DATA_PRICELIST = new Set([
+  "pricelist_susun", "pricelist_susun_riwayat", "pricelist_susun_gambar", "pricelists", "simulasi_jadwal",
+]);
+
+async function hapusPermanen(slug: string): Promise<void> {
+  try {
+    await tx(async (c) => {
+      const p = (await c.query<{ id: string }>("SELECT id FROM projects WHERE slug=$1", [slug])).rows[0];
+      if (!p) return;
+      // Semua kolom yang merujuk projects(id), dibaca dari katalog basis data.
+      const rujukan = (await c.query<{ tabel: string; kolom: string }>(
+        `SELECT cl.relname AS tabel, a.attname AS kolom
+           FROM pg_constraint k
+           JOIN pg_class cl ON cl.oid = k.conrelid
+           JOIN pg_attribute a ON a.attrelid = k.conrelid AND a.attnum = ANY(k.conkey)
+          WHERE k.contype = 'f' AND k.confrelid = 'projects'::regclass`)).rows;
+      for (const { tabel, kolom } of rujukan) {
+        const t = `"${tabel.replace(/"/g, '""')}"`, k = `"${kolom.replace(/"/g, '""')}"`;
+        if (tabel === "sessions") {
+          await c.query(`UPDATE ${t} SET ${k} = NULL WHERE ${k} = $1`, [p.id]);
+        } else if (DATA_PRICELIST.has(tabel)) {
+          await c.query(`DELETE FROM ${t} WHERE ${k} = $1`, [p.id]);
+        } else if ((await c.query(`SELECT 1 FROM ${t} WHERE ${k} = $1 LIMIT 1`, [p.id])).rowCount) {
+          throw new Error(`${slug} masih punya data di ${tabel}`);
+        }
+      }
+      await c.query("DELETE FROM projects WHERE id = $1", [p.id]);
+    });
+  } catch (e) {
+    console.error(`Hapus permanen project ${slug} dibatalkan, project dimatikan saja:`, e);
+    await query("UPDATE projects SET active = false WHERE slug = $1", [slug]);
+  }
+}
 
 /** Terapkan daftar di atas. Idempoten, aman dipanggil berulang kali. */
 export async function ensureProjects(): Promise<void> {
@@ -60,6 +104,7 @@ export async function ensureProjects(): Promise<void> {
   if (PROJECT_DIBUANG.length) {
     await query("UPDATE projects SET active = false WHERE slug = ANY($1) AND active", [PROJECT_DIBUANG]);
   }
+  for (const slug of PROJECT_DIHAPUS) await hapusPermanen(slug);
 }
 
 /**
