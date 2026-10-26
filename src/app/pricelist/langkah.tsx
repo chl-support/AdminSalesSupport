@@ -155,6 +155,7 @@ const KATA = {
     incl: (lp: string) => `(Termasuk PPN ${lp})`,
     gfaM2: "GFA (m²)", hargaBangunan: "GFA (dasar)",
     special: "Khusus (Rp)", showUnit: "Unit Contoh (Rp)",
+    noUrut: "No. Urut",
     modePpnSemua: "Kolom: Termasuk & Belum PPN", modePpnIncl: (p: string) => `Kolom: Termasuk ${p} saja`,
     modePpnExcl: (p: string) => `Kolom: Belum termasuk ${p} saja`,
     modePpnInfo: "Pilih kolom harga yang tampil. Hanya tampilan; hitungan tidak berubah. Isian harga per m² Belum PPN selalu tampil.",
@@ -374,6 +375,7 @@ const KATA = {
     incl: (lp: string) => `(Incl PPN. ${lp})`,
     gfaM2: "GFA (m²)", hargaBangunan: "GFA (base)",
     special: "Special (Rp)", showUnit: "Show Unit (Rp)",
+    noUrut: "Row",
     modePpnSemua: "Columns: incl. & excl. VAT", modePpnIncl: (p: string) => `Columns: incl. ${p} only`,
     modePpnExcl: (p: string) => `Columns: excl. ${p} only`,
     modePpnInfo: "Choose which price columns are shown. Display only; calculations are unchanged. Per-m² prices excl. VAT are always shown as they are the inputs.",
@@ -1554,7 +1556,7 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
                          onChange={(e) => setPilih(e.target.checked ? new Set(tampil.map(({ i }) => i)) : new Set())} />
                 </th>
               )}
-              <th className="no-unit">#</th>
+              <th className="no-unit">{kt.noUrut}</th>
               {teksUnit.map(([k]) => <th key={k}>{bio && k === "ukuran" ? "Dimensi" : kt.teksUnit[k]}</th>)}
               {bio && <th>{kt.floor}</th>}
               <th>{kt.tanahM2}</th>

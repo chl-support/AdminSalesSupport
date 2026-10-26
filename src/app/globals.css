@@ -3231,7 +3231,7 @@ ul.daftar-ubah li { margin: 1px 0; }
 .tabel-rapat tr.kepala-tengah th { text-align: center !important; }
 .pl-lembar .pl-tanggal { font-weight: 700; justify-self: end; align-self: end; text-align: right; }
 /* Tabel Unit Data: kolom nomor dan Code sedikit lebih lebar. */
-.tabel-unit .no-unit { min-width: 56px; width: 56px; text-align: center !important; padding-left: 8px; padding-right: 8px; }
+.tabel-unit .no-unit { min-width: 64px; width: 64px; text-align: center !important; padding-left: 8px; padding-right: 8px; }
 /* Tabel Unit Data: kolom mengikuti isian terpanjangnya (lihat lebarIsi di
    langkah.tsx); kotak yang lebih pendek mengisi penuh kolomnya supaya tetap
    sejajar, dan judul kolom yang panjang dibungkus ke baris berikutnya. */
