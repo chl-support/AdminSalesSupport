@@ -3313,3 +3313,7 @@ ul.daftar-ubah li { margin: 1px 0; }
 td.ada-catatan { position: relative; }
 td.ada-catatan::after { content: ""; position: absolute; top: 3px; right: 3px; border: 4px solid transparent;
   border-top-color: #c58a00; border-right-color: #c58a00; }
+
+/* Arus kas tertimbang (langkah 1): tabel sempit, kolom angka rata kanan. */
+table.tabel-arus { width: 400px; min-width: 0; table-layout: fixed; }
+table.tabel-arus th, table.tabel-arus td { padding: 4px 12px !important; white-space: nowrap; text-align: right !important; }
