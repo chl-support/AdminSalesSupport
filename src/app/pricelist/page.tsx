@@ -198,7 +198,8 @@ export default function PricelistPage() {
     if (res.status === 401) { location.href = "/login"; return; }
     if (!res.ok) { setGalat(b.detail ?? b.title ?? `HTTP ${res.status}`); return; }
     // Aturan basis harga project (Permai Indah: Excl PPN) untuk draf baru.
-    // Nama cara bayar otomatis (draf baru): langsung mengikuti parameternya.
+    // Nama cara bayar otomatis (standar semua project): langsung mengikuti
+    // parameternya, juga untuk draf lama yang belum pernah mematikannya.
     const awal = rapikanCaraBayar(basisProject(slugRef.current, b.data));
     setDraf(b); setData(sinkronTnc(awal, terapkanNamaOtomatis(awal)));
   }, []);
@@ -285,8 +286,9 @@ export default function PricelistPage() {
     if (!b) return;
     // Tanda T&C sudah disamakan dengan patokan ikut terbawa, supaya T&C
     // dari berkas tidak ditimpa patokan lagi saat halaman dibuka ulang.
-    setData(rapikanCaraBayar(basisProject(sesi?.project_slug,
-      { ...b.susun, tncPatokan: b.susun.tncPatokan ?? data?.tncPatokan }))); setPeringatan(b.peringatan ?? []); setNamaPl("");
+    const impor = rapikanCaraBayar(basisProject(sesi?.project_slug,
+      { ...b.susun, tncPatokan: b.susun.tncPatokan ?? data?.tncPatokan }));
+    setData(sinkronTnc(impor, terapkanNamaOtomatis(impor))); setPeringatan(b.peringatan ?? []); setNamaPl("");
     setInfo(k.dibuka(nama)); setLangkah(0);
   };
 

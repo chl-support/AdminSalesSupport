@@ -9,7 +9,7 @@
 
 import { query } from "./db";
 import {
-  FAKTOR, labelPpn, namaTahap, tarifPpn,
+  FAKTOR, labelPpn, namaOtomatisAktif, namaTahap, tarifPpn,
   type SkemaIrr, type SusunPricelist, type UnitData,
 } from "./susun-pricelist";
 
@@ -90,7 +90,7 @@ export function bedaSusun(lama: SusunPricelist | null, baru: SusunPricelist): st
   const [ia, ib] = [lama.irr, baru.irr];
   nilai("Data (IRR) · Target interest rate", persen(ia.target), persen(ib.target));
   nilai("Data (IRR) · Cash Price", angka(ia.hargaKas ?? NaN, 0), angka(ib.hargaKas ?? NaN, 0));
-  nilai("Data (IRR) · Nama cara bayar otomatis", ia.namaOtomatis ? "Ya" : "Tidak", ib.namaOtomatis ? "Ya" : "Tidak");
+  nilai("Data (IRR) · Nama cara bayar otomatis", namaOtomatisAktif(ia) ? "Ya" : "Tidak", namaOtomatisAktif(ib) ? "Ya" : "Tidak");
   const ta = namaTahap(ia), tb = namaTahap(ib);
   tb.forEach((n, i) => {
     nilai(`Data (IRR) · Porsi ${n}`, persen(ia.porsiTahap[i]), persen(ib.porsiTahap[i]));

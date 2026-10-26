@@ -122,10 +122,15 @@ export type DataIrr = {
   /**
    * Nama cara bayar dibuat otomatis dari Kelompok, DP dan Installments,
    * seperti baris 2 lembar Data (IRR) standar — lihat `namaStandar`.
+   * Standar untuk semua project: kosong berarti aktif; false bila
+   * dimatikan di layar.
    */
   namaOtomatis?: boolean;
   skema: SkemaIrr[];
 };
+
+/** Nama cara bayar otomatis aktif (bawaan semua project), lihat `DataIrr.namaOtomatis`. */
+export const namaOtomatisAktif = (irr: Pick<DataIrr, "namaOtomatis">) => irr.namaOtomatis !== false;
 
 /** Panjang arus kas standar, dalam bulan. */
 export const PERIODE_STANDAR = 100;
