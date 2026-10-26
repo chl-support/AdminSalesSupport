@@ -1575,7 +1575,7 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
               {kolomSesuai && <th>{kt.thSesuaiPersen}</th>}
               {kolomSesuaiRp && <th>{kt.thSesuaiRp}</th>}
               {hargaTampil.map(([h, j]) => (
-                <th key={h + j} className={j === "incl" ? "incl" : undefined}>
+                <th key={h + j} className={`kolom-harga${j === "incl" ? " incl" : ""}`}>
                   {h === "baseR" ? kt.hargaDasar : kt.hargaFaktor}<br />{j === "incl" ? kt.incl(lp) : kt.excl(lp)}
                   <br />{h === "factored" ? kt.kenaikanTh : kt.terendah}</th>
               ))}
