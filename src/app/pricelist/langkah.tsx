@@ -13,7 +13,7 @@ import { useEffect, useState } from "react";
 
 import { formatRupiah } from "@/lib/money";
 import {
-  FAKTOR, FAKTOR_INGGRIS, faktorTampil, hitungRumus, rumusDikunci, hargaKasIrr, hargaSesuaiSkema, labelPpn, namaTahap, tarifPpn, unitKosong,
+  FAKTOR, FAKTOR_INGGRIS, arusTertimbang, faktorTampil, hitungRumus, namaStandar, rumusDikunci, hargaKasIrr, hargaSesuaiSkema, labelPpn, namaTahap, tarifPpn, unitKosong,
   kunciTnc, tingkatNaik, type BarisTnc, type KunciFaktor, type HasilSusun, type SusunPricelist, type UnitData,
 } from "@/lib/susun-pricelist";
 import type { UnitHarga } from "@/lib/simulasi";
@@ -66,6 +66,12 @@ const KATA = {
     irrBelum: (n: number, p: string) => `IRR ${n} cara bayar belum tepat ${p}`,
     irrBelumInfo: "Ditandai kuning di baris IRR — biasanya karena Harga Penyesuaian diambil apa adanya dari berkas Excel (hasil Goal Seek). Harga unitnya tetap mengikuti angka itu.",
     samakan: (p: string) => `Samakan ke ${p} (Goal Seek)`,
+    namaOtomatis: "Nama cara bayar otomatis",
+    namaOtomatisInfo: "Nama dibuat dari Kelompok, DP dan Cicilan: Cash Keras, Installment 12x, KPR Express, KPR DP 10%/6x. Kolom di Data Harga dan Harga ikut berganti.",
+    namaDariRumus: "Nama otomatis dari Kelompok, DP dan Cicilan",
+    arusJudul: "Arus kas tertimbang per bulan (analisa)",
+    arusInfo: "Jumlah arus kas semua cara bayar dikali Alokasi-nya, per bulan, dan porsinya. Analisa saja, tidak memengaruhi harga.",
+    thBulan: "Bulan", thJumlah: "Jumlah", thPorsi: "%", thKumulatif: "Kumulatif",
     totAlok: "Total alokasi",
     waKoef: "Koefisien rata-rata tertimbang",
     alokInfo: "Alokasi otomatis berjumlah 100%: mengubah satu cara bayar menyesuaikan yang lain secara sebanding, dan cara bayar baru langsung mendapat bagian rata. Alokasi hanya untuk Koefisien rata-rata tertimbang, tidak memengaruhi harga.",
@@ -277,6 +283,12 @@ const KATA = {
     irrBelum: (n: number, p: string) => `IRR of ${n} payment schemes not exactly ${p}`,
     irrBelumInfo: "Marked yellow in the IRR row — usually because the Adjusted Price was taken as-is from the Excel file (Goal Seek result). Unit prices still follow that figure.",
     samakan: (p: string) => `Match to ${p} (Goal Seek)`,
+    namaOtomatis: "Automatic scheme names",
+    namaOtomatisInfo: "Names are built from Group, DP and Instalments: Cash Keras, Installment 12x, KPR Express, KPR DP 10%/6x. Columns in Price Data and Price List follow.",
+    namaDariRumus: "Automatic name from Group, DP and Instalments",
+    arusJudul: "Weighted cash flow per month (analysis)",
+    arusInfo: "Cash flow of all schemes multiplied by their Allocation, per month, and its share. Analysis only; it does not affect prices.",
+    thBulan: "Month", thJumlah: "Amount", thPorsi: "%", thKumulatif: "Cumulative",
     totAlok: "Total allocation",
     waKoef: "WA coefficient",
     alokInfo: "Allocation always totals 100%: changing one payment scheme adjusts the others proportionally, and a new payment scheme immediately gets an equal share. Allocation only feeds the WA Coefficient and does not affect prices.",
@@ -641,7 +653,9 @@ function denganCaraBayarBaru(d: SusunPricelist): SusunPricelist {
   return {
     ...d,
     irr: { ...d.irr, skema: denganAlokasiBaru([...d.irr.skema, {
-      nama, kelompok: "Cash", alokasi: 0, dp: 1, kali: 1, otomatis: true,
+      nama, kelompok: "Cash", alokasi: 0, dp: 1, kali: 1,
+      // Dengan nama otomatis, namanya yang mengikuti parameter.
+      ...(!d.irr.namaOtomatis && { otomatis: true }),
       bulan: [...(d.irr.skema[0]?.bulan ?? [12, 18, 19, 20])] as [number, number, number, number],
     }]) },
     dataPricelist: { ...d.dataPricelist, kolom: [...d.dataPricelist.kolom, { nama, skema: nama }] },
@@ -736,6 +750,49 @@ export function isiOtomatisCaraBayar(d: SusunPricelist): SusunPricelist {
   return ubah ? { ...d, irr: { ...d.irr, skema } } : d;
 }
 
+/**
+ * Ganti nama cara bayar ke-i. Kolom Data Pricelist yang merujuknya ikut
+ * berganti; bila namanya sama dengan nama cara bayarnya (kolom yang dibuat
+ * bersama cara bayar itu), namanya juga berganti, begitu pula rujukan kolom
+ * Pricelist dan kolom turunan kepadanya.
+ */
+function gantiNamaSkema(d: SusunPricelist, i: number, nama: string): SusunPricelist {
+  const lama = d.irr.skema[i].nama;
+  const ubahNamaDp = new Set(d.dataPricelist.kolom
+    .filter((k) => k.skema === lama && k.nama === lama).map((k) => k.nama));
+  const n = (x: string) => (ubahNamaDp.has(x) ? nama : x);
+  return {
+    ...d,
+    irr: { ...d.irr, skema: d.irr.skema.map((s, j) => j === i ? { ...s, nama } : s) },
+    dataPricelist: { ...d.dataPricelist, kolom: d.dataPricelist.kolom.map((k) => ({
+      ...k, nama: n(k.nama),
+      ...(k.skema === lama && { skema: nama }),
+      ...(k.dari && { dari: n(k.dari) }),
+    })) },
+    pricelist: { ...d.pricelist, kolom: d.pricelist.kolom.map((k) => ({
+      ...k, dari: n(k.dari), nama: k.nama === lama && ubahNamaDp.has(lama) ? nama : k.nama,
+    })) },
+  };
+}
+
+/**
+ * Nama cara bayar otomatis (Data (IRR) standar): tiap cara bayar diberi
+ * `namaStandar`-nya sesudah setiap perubahan, kecuali bila nama itu sudah
+ * dipakai cara bayar atau kolom Data Pricelist lain.
+ */
+export function terapkanNamaOtomatis(d: SusunPricelist): SusunPricelist {
+  if (!d.irr.namaOtomatis) return d;
+  let hasil = d;
+  hasil.irr.skema.forEach((_, i) => {
+    const s = hasil.irr.skema[i], nama = namaStandar(s);
+    if (s.nama === nama) return;
+    const dipakai = hasil.irr.skema.some((x, j) => j !== i && x.nama === nama)
+      || hasil.dataPricelist.kolom.some((k) => k.nama === nama && !(k.skema === s.nama && k.nama === s.nama));
+    if (!dipakai) hasil = gantiNamaSkema(hasil, i, nama);
+  });
+  return hasil;
+}
+
 export function LangkahIrr({ data, hasil, ubah, bolehUbah, baru }: PropsLangkah & {
   /**
    * Jumlah cara bayar yang baru ditambah di ujung kanan, disimpan halamannya
@@ -766,28 +823,7 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah, baru }: PropsLangkah 
   const ubahSkema = (i: number, f: (s: SusunPricelist["irr"]["skema"][0]) => typeof s) =>
     ubah((d) => ({ ...d, irr: { ...d.irr, skema: d.irr.skema.map((s, j) =>
       j === i ? { ...f(s), otomatis: undefined } : s) } }));
-  const ganti = (i: number, nama: string) => ubah((d) => {
-    const lama = d.irr.skema[i].nama;
-    // Kolom Data Pricelist yang merujuk cara bayar ini ikut berganti; bila
-    // namanya sama dengan nama cara bayarnya (kolom yang dibuat bersama
-    // cara bayar itu), namanya juga berganti, begitu pula rujukan kolom
-    // Pricelist dan kolom turunan kepadanya.
-    const ubahNamaDp = new Set(d.dataPricelist.kolom
-      .filter((k) => k.skema === lama && k.nama === lama).map((k) => k.nama));
-    const n = (x: string) => (ubahNamaDp.has(x) ? nama : x);
-    return {
-      ...d,
-      irr: { ...d.irr, skema: d.irr.skema.map((s, j) => j === i ? { ...s, nama } : s) },
-      dataPricelist: { ...d.dataPricelist, kolom: d.dataPricelist.kolom.map((k) => ({
-        ...k, nama: n(k.nama),
-        ...(k.skema === lama && { skema: nama }),
-        ...(k.dari && { dari: n(k.dari) }),
-      })) },
-      pricelist: { ...d.pricelist, kolom: d.pricelist.kolom.map((k) => ({
-        ...k, dari: n(k.dari), nama: k.nama === lama && ubahNamaDp.has(lama) ? nama : k.nama,
-      })) },
-    };
-  });
+  const ganti = (i: number, nama: string) => ubah((d) => gantiNamaSkema(d, i, nama));
 
   /**
    * Cara bayar baru: kolom di Data (IRR), dan kolomnya langsung ikut di Data
@@ -833,6 +869,12 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah, baru }: PropsLangkah 
           <Isian id="irr-target" jenis="persen" nilai={irr.target} disabled={ro}
                  ubah={(n) => ubah((d) => ({ ...d, irr: { ...d.irr, target: n, skema: tanpaSimpanan(d) } }))} />
         </div>
+        <label className="row" style={{ margin: 0, gap: 6, alignSelf: "flex-end" }} title={kt.namaOtomatisInfo}>
+          <input id="irr-nama-otomatis" type="checkbox" checked={!!irr.namaOtomatis} disabled={ro}
+                 onChange={(e) => ubah((d) => ({ ...d, irr: { ...d.irr, namaOtomatis: e.target.checked || undefined,
+                   skema: e.target.checked ? d.irr.skema.map(({ otomatis: _, ...x }) => x) : d.irr.skema } }))} />
+          {kt.namaOtomatis}
+        </label>
       </div>
       <div className="filters rapat param-irr">
         {TAHAP.map((t, i) => (
@@ -876,9 +918,10 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah, baru }: PropsLangkah 
             {irr.skema.map((s, i) => (
               <th key={i}>
                 <span className="kepala-cb">
+                  {irr.namaOtomatis ? <b id={`irr-nama-${i}`} title={kt.namaDariRumus}>{s.nama}</b> : (
                   <IsianNama id={`irr-nama-${i}`} nilai={s.nama} disabled={ro} lebar={120}
                              lain={irr.skema.filter((_, j) => j !== i).map((x) => x.nama)}
-                             ubah={(v) => ganti(i, v)} />
+                             ubah={(v) => ganti(i, v)} />)}
                   {/* Hapus langsung dari judul kolom; konfirmasi di baris bawah tabel. */}
                   {bolehUbah && irr.skema.length > 1 && !s.acuan && (
                     <button className="kecil hapus-cb" aria-label={kt.hapusNama(s.nama)}
@@ -1032,7 +1075,35 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah, baru }: PropsLangkah 
           <button onClick={batalTambah}>{kt.batalTambah}</button>
         )}
       </div>
+      <ArusTertimbang data={data} hasil={hasil} />
     </>
+  );
+}
+
+/** Kolom K–M lembar Data (IRR) standar: arus kas tertimbang Allocation per bulan. */
+function ArusTertimbang({ data, hasil }: { data: SusunPricelist; hasil: HasilSusun }) {
+  const kt = useKata(KATA);
+  const [buka, setBuka] = useState(false);
+  let kumulatif = 0;
+  return (
+    <details className="form-blok sp" style={{ marginTop: 12 }} onToggle={(e) => setBuka(e.currentTarget.open)}>
+      <summary style={{ cursor: "pointer" }}><b>{kt.arusJudul}</b></summary>
+      <p className="hint kiri">{kt.arusInfo}</p>
+      {buka && (
+        <div className="tscroll" style={{ maxHeight: 360, overflowY: "auto" }}>
+          <table className="tabel-ringkas tabel-rapat kepala-lekat"><tbody>
+            <tr><th>{kt.thBulan}</th><th>{kt.thJumlah}</th><th>{kt.thPorsi}</th><th>{kt.thKumulatif}</th></tr>
+            {arusTertimbang(data.irr, hasil.irr).map((x) => {
+              kumulatif += x.porsi;
+              return (
+                <tr key={x.bulan}><td className="n">{x.bulan}</td><td className="n">{rp(x.jumlah)}</td>
+                  <td className="n">{persen(x.porsi, 2, 2)}</td><td className="n">{persen(kumulatif, 1, 1)}</td></tr>
+              );
+            })}
+          </tbody></table>
+        </div>
+      )}
+    </details>
   );
 }
 
