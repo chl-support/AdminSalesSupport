@@ -1096,8 +1096,10 @@ function ArusTertimbang({ data, hasil }: { data: SusunPricelist; hasil: HasilSus
       <summary style={{ cursor: "pointer" }}><b>{kt.arusJudul}</b></summary>
       <p className="hint kiri">{kt.arusInfo}</p>
       {buka && (
-        <div className="tscroll" style={{ maxHeight: 360, overflowY: "auto" }}>
-          <table className="tabel-ringkas tabel-rapat kepala-lekat"><tbody>
+        <div className="tscroll" style={{ maxHeight: 360, overflowY: "auto", width: "fit-content", maxWidth: "100%" }}>
+          <table className="tabel-ringkas tabel-rapat kepala-lekat tabel-arus">
+            <colgroup><col style={{ width: 70 }} /><col style={{ width: 150 }} /><col style={{ width: 85 }} /><col style={{ width: 95 }} /></colgroup>
+            <tbody>
             <tr><th>{kt.thBulan}</th><th>{kt.thJumlah}</th><th>{kt.thPorsi}</th><th>{kt.thKumulatif}</th></tr>
             {arusTertimbang(data.irr, hasil.irr).map((x) => {
               kumulatif += x.porsi;
