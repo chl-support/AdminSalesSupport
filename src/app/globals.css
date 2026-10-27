@@ -3281,21 +3281,21 @@ ul.daftar-ubah li { margin: 1px 0; }
   background: #DDE0E4; color: #262A2E;
 }
 /* Langkah Pricelist: kode warna yang lebih jelas — kuning muda = diisi
-   manual, biru muda = dihitung otomatis oleh sistem. */
+   manual, abu lebih tua = dihitung otomatis oleh sistem. */
 .bagian-langkah input:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=search]):not([type=submit]):not([type=button]):not(:disabled):not([readonly]),
 .bagian-langkah select:not(:disabled):not(#unit-mode-ppn), .bagian-langkah textarea:not(:disabled) {
-  background: #FFF8DC; border-color: #E2C766;
+  background: #F4F5F6; border-color: #C6CBD1;
 }
 .bagian-langkah table td.n:not(:has(input, select, textarea, button)),
 .bagian-langkah table td.hitung {
-  background: #E3EDF8; color: #1D2733;
+  background: #DDE0E4; color: #262A2E;
 }
 .legenda-isian { display: inline-flex; gap: 10px; align-items: center; font-size: 11px; color: var(--sub);
                  margin-left: auto; }
 .legenda-isian i { display: inline-block; width: 16px; height: 11px; border-radius: 2px;
                    vertical-align: -1px; margin-right: 4px; border: 1px solid #c9ced4; }
-.legenda-isian .manual { background: #FFF8DC; border-color: #E2C766; }
-.legenda-isian .sistem { background: #E3EDF8; border-color: #A9C1DC; }
+.legenda-isian .manual { background: #F4F5F6; border-color: #C6CBD1; }
+.legenda-isian .sistem { background: #DDE0E4; border-color: #B9BEC4; }
 .langkah-pl .no-langkah { text-transform: none; }
 
 /* Daftar cek di bilah langkah Pricelist: ✓ lengkap, ✕ kesalahan, ⚠ perlu dicek. */
