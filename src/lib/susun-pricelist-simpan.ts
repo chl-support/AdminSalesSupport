@@ -29,6 +29,7 @@ const SKEMA = z.object({
   bulatHargaM2: z.number().int().min(-1).max(9).optional(),
   exclTerpisah: z.boolean().optional(),
   baseTanpaBulat: z.boolean().optional(),
+  hargaM2Termasuk: z.boolean().optional(),
   catatanUnit: z.string().max(5000).optional(),
   catatanGambar: z.array(z.object({ id: z.string().regex(/^\d{1,18}$/), nama: teks }))
     .max(10).optional(),
@@ -61,6 +62,7 @@ const SKEMA = z.object({
     faktorTambahRp: angka.optional(), kenaikanCatatan: teks.max(300).optional(),
     faktorKurang: angka.min(0).max(1).optional(), faktorKurangRp: angka.min(0).optional(),
     catatan: teks.optional(),
+    atribut: z.record(z.union([teks, angka])).optional(),
   })).max(5000),
   dataPricelist: z.object({
     tambahan: angka,

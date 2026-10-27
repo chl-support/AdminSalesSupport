@@ -22,6 +22,8 @@ import { KUNCI, type Isi } from "./lembar-harga";
 import { PilihBerkas } from "../pilih-berkas";
 import { CocokkanExcel } from "./cocokkan-excel";
 import { ringkasXlsx } from "./ringkas-xlsx";
+import { TabelUnitTsc } from "./unit-sanctuary";
+import { unitKosongTsc, unitTsc } from "@/lib/unit-sanctuary";
 import { TabelHarga } from "../simulasi/unggah-pricelist";
 
 /**
@@ -160,11 +162,13 @@ const KATA = {
     gfaM2: "GFA (m²)", hargaBangunan: "GFA (dasar)",
     special: "Khusus (Rp)", showUnit: "Unit Contoh (Rp)",
     noUrut: "No.",
+    rumusTsc: "Kolom dan rumus mengikuti berkas Unit Data The Sanctuary Collection: Harga Dasar = Luas Tanah × Harga Tanah + Luas Bangunan × Harga Bangunan (harga per m² sudah Termasuk PPN, tanpa pembulatan); Harga Setelah Penyesuaian = Harga Dasar × (1 + jumlah faktor %) × (1 + Harga Khusus %) + Pendingin Ruangan (AC) + Harga Khusus (Rp); Harga Setelah Kenaikan = Harga Setelah Penyesuaian × (1 + Persentase Kenaikan Harga).",
     modePpnSemua: "Kolom: Termasuk & Belum PPN", modePpnIncl: (p: string) => `Kolom: Termasuk ${p} saja`,
     modePpnExcl: (p: string) => `Kolom: Belum termasuk ${p} saja`,
     modePpnInfo: "Pilih kolom harga yang tampil. Hanya tampilan; hitungan tidak berubah. Isian harga per m² Belum PPN selalu tampil.",
     hargaDasar: "Harga Dasar", hargaFaktor: "Harga Setelah Faktor", terendah: "(Terendah)",
-    hargaPenyesuaian: "Harga Setelah Penyesuaian", hargaKenaikan: "Harga Setelah Kenaikan", kenaikanTh: "(Kenaikan)",
+    hargaPenyesuaian: "Harga Setelah Penyesuaian", hargaKenaikan: "Harga Setelah Kenaikan",
+    faktorPenyesuaian: "Faktor Penyesuaian Harga", kenaikanTh: "(Kenaikan)",
     totalUnit: (n: number, dari?: number) => `Total ${n} unit${dari != null ? ` (dari ${dari})` : ""}`,
     tambahAkhir: "+ Tambah unit di akhir tabel",
     simpanInfo1: "Unit yang ditambah atau dihapus baru tersimpan setelah",
@@ -385,11 +389,13 @@ const KATA = {
     gfaM2: "GFA (m²)", hargaBangunan: "GFA (base)",
     special: "Special (Rp)", showUnit: "Show Unit (Rp)",
     noUrut: "No.",
+    rumusTsc: "Columns and formulas follow The Sanctuary Collection Unit Data file: Base Price = Land Area × Land Price + Building Area × Building Price (per-m² prices already incl. VAT, no rounding); Adjusted Price = Base Price × (1 + sum of factor %) × (1 + Special Price %) + Air Conditioning (AC) + Special Price (Rp); Increased Price = Adjusted Price × (1 + Price Increase %).",
     modePpnSemua: "Columns: incl. & excl. VAT", modePpnIncl: (p: string) => `Columns: incl. ${p} only`,
     modePpnExcl: (p: string) => `Columns: excl. ${p} only`,
     modePpnInfo: "Choose which price columns are shown. Display only; calculations are unchanged. Per-m² prices excl. VAT are always shown as they are the inputs.",
     hargaDasar: "Base Price", hargaFaktor: "Factored Price", terendah: "(Lowest)",
-    hargaPenyesuaian: "Adjusted Price", hargaKenaikan: "Increased Price", kenaikanTh: "(Increased)",
+    hargaPenyesuaian: "Adjusted Price", hargaKenaikan: "Increased Price",
+    faktorPenyesuaian: "Price Adjustment Factor", kenaikanTh: "(Increased)",
     totalUnit: (n: number, dari?: number) => `Total ${n} units${dari != null ? ` (of ${dari})` : ""}`,
     tambahAkhir: "+ Add unit at the end of the table",
     simpanInfo1: "Units added or deleted are only stored after",
@@ -586,7 +592,7 @@ function IsianNama({ nilai, ubah, lain, lebar = 110, disabled, id }: {
                 onKeyDown={(e) => { if (e.key === "Enter") simpan(); if (e.key === "Escape") setTeks(null); }} />;
 }
 
-function IsianTeks({ nilai, ubah, lebar = 110, disabled, id }: {
+export function IsianTeks({ nilai, ubah, lebar = 110, disabled, id }: {
   nilai: string; ubah: (s: string) => void; lebar?: number; disabled?: boolean; id?: string;
 }) {
   return <input id={id} value={nilai} disabled={disabled}
@@ -1180,6 +1186,8 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
   // harga tetap dihitung dengan rumus sistem), dan Biaya AJB + BPHTB hanya
   // tampil di BIO. Proyek lain tetap seperti semula.
   const bio = slug === "bio-district";
+  // The Sanctuary Collection: kolom dan rumus mengikuti berkas Unit Data-nya.
+  const tsc = unitTsc(slug);
   // Proyek baru di luar enam proyek lama: rumus standar dipatenkan.
   const kunci = rumusDikunci(slug);
   const teksUnit = bio ? TEKS_UNIT.filter(([k]) => k !== "phase" && k !== "view2") : TEKS_UNIT;
@@ -1206,10 +1214,11 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
   // Seperti Excel: Harga Dasar (Terendah) = harga dasar × increase (kolom
   // Kenaikan); Harga Setelah Faktor (Terendah) = Harga Dasar × faktor; Harga
   // Setelah Faktor (Kenaikan) = Harga Setelah Faktor × Kenaikan Setelah Faktor.
-  type JenisHarga = "baseR" | "factoredR" | "factored";
+  // Faktor Penyesuaian Harga = Harga Setelah Penyesuaian − Harga Dasar.
+  type JenisHarga = "baseR" | "selisih" | "factoredR" | "factored";
   // Urutan sama untuk semua project (termasuk BIO DISTRICT).
-  const urutanHarga = [["baseR", "excl"], ["baseR", "incl"], ["factoredR", "excl"], ["factoredR", "incl"],
-    ["factored", "excl"], ["factored", "incl"]] as [JenisHarga, "excl" | "incl"][];
+  const urutanHarga = [["baseR", "excl"], ["baseR", "incl"], ["selisih", "excl"], ["selisih", "incl"],
+    ["factoredR", "excl"], ["factoredR", "incl"], ["factored", "excl"], ["factored", "incl"]] as [JenisHarga, "excl" | "incl"][];
   // Base dan Factored Price dalam dua bentuk, sebelum dan sesudah PPN. Yang
   // dihitung adalah basis project-nya (Incl PPN, atau Excl PPN untuk Permai
   // Indah); bentuk satunya diturunkan dengan tarif PPN yang sama.
@@ -1217,7 +1226,11 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
     ? { excl: n, incl: Math.round(n * (1 + ppn)) } : { excl: Math.round(n / (1 + ppn)), incl: n };
   // Harga satu unit: Belum PPN yang dihitung sendiri (BIO DISTRICT) bila ada,
   // selain itu diturunkan dari harga Termasuk PPN.
-  const hargaUnit = (i: number, jenis: JenisHarga) => {
+  const hargaUnit = (i: number, jenis: JenisHarga): { excl: number; incl: number } => {
+    if (jenis === "selisih") {
+      const a = hargaUnit(i, "factoredR"), b = hargaUnit(i, "baseR");
+      return { excl: a.excl - b.excl, incl: a.incl - b.incl };
+    }
     const h = hasil.baris[i]?.hasilUnit;
     const [k, kx] = jenis === "baseR" ? ["base", "baseExcl"] as const
       : jenis === "factoredR" ? ["factoredR", "factoredExclR"] as const : ["factored", "factoredExcl"] as const;
@@ -1347,8 +1360,8 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
   const tambah = (dari?: number) => {
     const asal = dari != null ? data.unit[dari] : data.unit[data.unit.length - 1];
     const baru: UnitData = dari != null
-      ? { ...asal, kode: "", no: "", faktor: { ...asal.faktor } }
-      : { ...unitKosong(), ...(asal && {
+      ? { ...asal, kode: "", no: "", faktor: { ...asal.faktor }, ...(asal.atribut && { atribut: { ...asal.atribut } }) }
+      : { ...(tsc ? unitKosongTsc() : unitKosong()), ...(asal && {
           alamat: asal.alamat, hargaTanah: asal.hargaTanah, hargaBangunan: asal.hargaBangunan,
           lb: asal.lb, tipe: asal.tipe, tipeBangunan: asal.tipeBangunan, phase: asal.phase,
           kenaikan: asal.kenaikan, faktorTambah: asal.faktorTambah }) };
@@ -1406,9 +1419,9 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
 
   return (
     <>
-      <p className="hint kiri">
+      {!tsc && <p className="hint kiri">
         {kt.unitHint(data.baseTanpaBulat ? "" : data.bulatBiasa ? "ROUND" : "ROUNDUP", !!data.basisExclPpn, data.bulatBase ?? 6, lp)}
-      </p>
+      </p>}
       <div className="filters rapat param-irr" style={{ marginBottom: 12 }}>
         <div>
           <div className="lbl">{kt.tarifPpn}</div>
@@ -1423,6 +1436,7 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
           program — supaya project baru tinggal memilih yang sama dengan
           Excel-nya. Nilai bawaan project (BIO, Mazenta, Permai) dipasang
           basisProject bila draf belum menyatakannya. */}
+      {tsc ? <p className="hint kiri">{kt.rumusTsc}</p> : (
       <div className="form-blok" style={{ marginBottom: 12 }}>
         <b>{kt.aturan}</b> <span className="hint" style={{ margin: 0 }}>{kunci ? kt.aturanDikunci : kt.aturanInfo}</span>
         <div className="filters rapat" style={{ marginTop: 8 }}>
@@ -1459,6 +1473,7 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
             </select></div>
         </div>
       </div>
+      )}
       <div className="row">
         <input id="unit-cari" type="search" placeholder={kt.cariUnit}
                value={cari} onChange={(e) => setCari(e.target.value)} style={{ width: 240 }} />
@@ -1488,7 +1503,7 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
         <button onClick={() => { location.href = "/api/pricelist/susun/template-unit"; }}>
           {kt.unduhTemplat}</button>
       </div>
-      {bolehUbah && data.unit.length > 0 && (
+      {bolehUbah && !tsc && data.unit.length > 0 && (
         <div className="row increase-massal">
           <b>{kt.kenaikan}</b>
           <Isian id="unit-increase-massal" jenis="persen" nilai={kenaikan} lebar={70}
@@ -1509,7 +1524,7 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
           </span>
         </div>
       )}
-      {bolehUbah && data.unit.length > 0 && (
+      {bolehUbah && !tsc && data.unit.length > 0 && (
         <div className="row increase-massal">
           <b>{kt.sesuai}</b>
           <select id="unit-sesuai-mode" value={modeSesuai}
@@ -1552,6 +1567,15 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
         <div className="banner info">
           {kt.kosongUnit1} <b>{kt.imporUnit}</b>{kt.kosongUnit2} <b>{kt.imporSemua}</b> {kt.kosongUnit3}
         </div>
+      ) : tsc ? (
+        <TabelUnitTsc data={data} hasil={hasil} tampil={tampil} ro={ro} bolehUbah={bolehUbah}
+                      pilih={pilih} tandai={tandai}
+                      pilihSemua={(on) => setPilih(on ? new Set(tampil.map(({ i }) => i)) : new Set())}
+                      ubahUnit={ubahUnit} tambah={(i) => tambah(i)} hapus={(i) => hapus(new Set([i]))}
+                      modePpn={modePpn} lp={lp}
+                      kepalaKenaikan={kepalaMassal("Persentase Kenaikan Harga", "kenaikanFaktor", kt.kenaikanFaktorInfo)}
+                      label={{ no: kt.noUrut, salin: kt.salin, hapus: kt.hapus, yaHapus: kt.yaHapus, batal: kt.batal,
+                               total: (n) => kt.totalUnit(n, q ? data.unit.length : undefined) }} />
       ) : (
         <div className="tscroll" style={{ maxHeight: 620, overflowY: "auto" }}>
           <table className="tabel-ringkas tabel-isian kepala-lekat tabel-unit"><thead>
@@ -1595,9 +1619,10 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
               {kepalaMassal(kt.thKenaikanFaktor, "kenaikanFaktor", kt.kenaikanFaktorInfo)}
               {hargaTampil.map(([h, j]) => (
                 <th key={h + j} className={`kolom-harga${j === "incl" ? " incl" : ""}`}>
-                  {h === "baseR" ? kt.hargaDasar : h === "factoredR" ? kt.hargaPenyesuaian : kt.hargaKenaikan}
+                  {h === "baseR" ? kt.hargaDasar : h === "selisih" ? kt.faktorPenyesuaian
+                    : h === "factoredR" ? kt.hargaPenyesuaian : kt.hargaKenaikan}
                   <br />{j === "incl" ? kt.incl(lp) : kt.excl(lp)}
-                  {h !== "factored" && <><br />{kt.terendah}</>}</th>
+                  {(h === "baseR" || h === "factoredR") && <><br />{kt.terendah}</>}</th>
               ))}
             </tr>
           </thead><tbody>

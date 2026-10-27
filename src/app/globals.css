@@ -3322,3 +3322,6 @@ table.tabel-arus .arus-jumlah { border-left: 2px solid var(--line, #ccc) !import
 
 /* Data Unit: keenam kolom harga (Terendah / Kenaikan) sama lebar. */
 .tabel-unit th.kolom-harga { width: 140px; min-width: 140px; max-width: 140px; white-space: normal !important; }
+
+/* Data Unit The Sanctuary Collection: Kategory satu baris. */
+.tabel-tsc .kategori-tsc { white-space: nowrap; }
