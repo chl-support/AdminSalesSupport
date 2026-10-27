@@ -17,6 +17,7 @@ import {
   type KolomTsc,
 } from "@/lib/unit-sanctuary";
 import { Isian, IsianTeks } from "./langkah";
+import { ringkasXlsx } from "./ringkas-xlsx";
 
 const rp = (n: number) => (Number.isFinite(n) ? formatRupiah(Math.round(n)) : "—");
 const polos = (n: number) => (Number.isFinite(n) ? Math.round(n).toLocaleString("id-ID") : "—");
@@ -29,7 +30,7 @@ type Kolom = { kunci: string; judul: ReactNode; sel: (u: UnitData, i: number) =>
 
 export function TabelUnitTsc({
   data, hasil, tampil, ro, bolehUbah, pilih, tandai, pilihSemua, ubahUnit, tambah, hapus,
-  modePpn, lp, kepalaKenaikan, label,
+  modePpn, lp, kepalaKenaikan, label, isiHargaLama,
 }: {
   data: SusunPricelist; hasil: HasilSusun; tampil: { u: UnitData; i: number }[];
   ro: boolean; bolehUbah: boolean; pilih: Set<number>;
@@ -40,8 +41,26 @@ export function TabelUnitTsc({
   /** Judul kolom Persentase Kenaikan Harga, dengan isian massalnya. */
   kepalaKenaikan: ReactNode;
   label: { no: string; salin: string; hapus: string; yaHapus: string; batal: string; total: (n: number) => string };
+  /** Isi Harga Lama (eProperty) dari kode unit → harga; hasilnya jumlah unit yang terisi. */
+  isiHargaLama: (harga: Record<string, number>) => number;
 }) {
   const [yakin, setYakin] = useState<number | null>(null);
+  // Unggah Harga Lama (eProperty) dari Excel, dicocokkan per Kode unit.
+  const [pesanLama, setPesanLama] = useState<{ ok: boolean; teks: string } | null>(null);
+  const unggahLama = async (f: File | undefined) => {
+    if (!f) return;
+    setPesanLama(null);
+    const fd = new FormData(); fd.append("file", await ringkasXlsx(f));
+    const res = await fetch("/api/pricelist/susun/impor?bagian=hargaLama", { method: "POST", body: fd });
+    const b = await res.json().catch(() => ({}));
+    if (!res.ok) { setPesanLama({ ok: false, teks: b.detail ?? b.title ?? `HTTP ${res.status}` }); return; }
+    const harga: Record<string, number> = b.harga ?? {};
+    const terisi = isiHargaLama(harga);
+    const tanpa = Object.keys(harga).length - terisi;
+    setPesanLama({ ok: terisi > 0, teks: `Harga Lama terisi untuk ${terisi} unit dari ${f.name}`
+      + (tanpa > 0 ? `; ${tanpa} kode di berkas tidak ada di Data Unit` : "") + ". "
+      + (b.peringatan ?? []).join(" ") + " Simpan untuk menyimpannya." });
+  };
   const ppn = 1 + (data.ppn ?? 0.11);
   const h = (i: number) => hasil.baris[i]?.hasilUnit;
   const incl = modePpn !== "excl", excl = modePpn !== "incl";
@@ -104,6 +123,18 @@ export function TabelUnitTsc({
                        (i) => (h(i)?.factored ?? NaN) / ppn, true)] : []),
     ...(incl ? [hitung("kenaikan", <>Harga Setelah Kenaikan<br />(Termasuk PPN {lp})</>, (i) => h(i)?.factored ?? NaN, true)] : []),
     { ...isi(KOLOM_TSC_HARGA_LAMA),
+      th: (
+        <th key="hargaLama">
+          {KOLOM_TSC_HARGA_LAMA.excel}
+          {bolehUbah && (
+            <label className="kecil tombol-unggah" title="Isi Harga Lama semua unit dari berkas Excel (kolom Kode / Code / Unit dan Harga Lama / Cash Price), dicocokkan per kode unit">
+              ⬆ Unggah
+              <input type="file" accept=".xlsx" hidden
+                     onChange={(e) => { void unggahLama(e.target.files?.[0]); e.target.value = ""; }} />
+            </label>
+          )}
+        </th>
+      ),
       total: (b) => rp(b.reduce((a, { u }) => a + (Number(u.atribut?.hargaLama) || 0), 0)) },
     // Harga Naik = rupiah kenaikan dari Persentase Kenaikan Harga:
     // Harga Setelah Kenaikan − Harga Setelah Penyesuaian (Termasuk PPN).
@@ -112,6 +143,8 @@ export function TabelUnitTsc({
   ];
 
   return (
+    <>
+    {pesanLama && <div className={`banner ${pesanLama.ok ? "ok" : "stop"}`}>{pesanLama.teks}</div>}
     <div className="tscroll" style={{ maxHeight: 620, overflowY: "auto" }}>
       <table className="tabel-ringkas tabel-isian kepala-lekat tabel-unit tabel-tsc"><thead>
         <tr>
@@ -159,5 +192,6 @@ export function TabelUnitTsc({
         </tr>
       </tfoot></table>
     </div>
+    </>
   );
 }

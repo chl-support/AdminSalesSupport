@@ -1,6 +1,6 @@
 import { handler, projectAktif, requireRole } from "@/lib/api";
 import { WorkflowError } from "@/lib/workflow";
-import { imporSusun, imporUnitData } from "@/lib/susun-pricelist-xlsx";
+import { bacaHargaLama, imporSusun, imporUnitData } from "@/lib/susun-pricelist-xlsx";
 
 const BATAS = 5 * 1024 * 1024;
 
@@ -13,7 +13,8 @@ export const maxDuration = 60;
  * Pricelist, T&C) menjadi isian kelima langkah. Tidak menyimpan apa pun:
  * layar menampilkan hasilnya, lalu orang menyimpannya sebagai draf.
  *
- * `?bagian=unit` hanya membaca lembar UNIT DATA yang terbuka (langkah 2).
+ * `?bagian=unit` hanya membaca lembar UNIT DATA yang terbuka (langkah 2);
+ * `?bagian=hargaLama` hanya Harga Lama (eProperty) per kode unit.
  */
 export const POST = handler(async (req) => {
   await requireRole(req, "admin_sales", "admin_system");
@@ -28,8 +29,10 @@ export const POST = handler(async (req) => {
   }
   try {
     const isi = await (berkas as File).arrayBuffer();
-    return new URL(req.url).searchParams.get("bagian") === "unit"
-      ? await imporUnitData(isi) : await imporSusun(isi);
+    const bagian = new URL(req.url).searchParams.get("bagian");
+    // ?bagian=hargaLama: hanya Harga Lama (eProperty) per kode unit.
+    return bagian === "unit" ? await imporUnitData(isi)
+      : bagian === "hargaLama" ? await bacaHargaLama(isi) : await imporSusun(isi);
   } catch (e: any) {
     throw new WorkflowError(String(e?.message ?? e), "validation", 422);
   }
