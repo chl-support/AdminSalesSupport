@@ -21,8 +21,6 @@ import { Isian, IsianTeks } from "./langkah";
 const rp = (n: number) => (Number.isFinite(n) ? formatRupiah(Math.round(n)) : "—");
 const polos = (n: number) => (Number.isFinite(n) ? Math.round(n).toLocaleString("id-ID") : "—");
 const luas = (n: number) => `${n.toLocaleString("id-ID", { maximumFractionDigits: 2 })} m²`;
-/** ROUNDUP ke Rp 100.000 (kolom Roundup, keterangan saja). */
-const roundup = (n: number) => Math.ceil(n / 1e5 - 1e-9) * 1e5;
 
 /** Satu kolom tabel: judul, isi sel, dan isi baris total. */
 type Kolom = { kunci: string; judul: ReactNode; sel: (u: UnitData, i: number) => ReactNode;
@@ -72,12 +70,13 @@ export function TabelUnitTsc({
         ? { ...k, total: (b: { u: UnitData }[]) => luas(b.reduce((a, { u }) => a + (d.kunci === "lt" ? u.lt : u.lb), 0)) }
         : k;
     }),
-    ...(incl ? [{ kunci: "tanahRoundup", judul: <>Harga Tanah (Dasar) (Roundup)<br />(Termasuk PPN {lp})</>,
-                  sel: (u: UnitData) => <span className="n">{polos(roundup(u.hargaTanah))}</span> }] : []),
+    // Harga per m² Belum PPN = harga Termasuk PPN ÷ (1 + PPN); keterangan saja.
+    ...(excl ? [{ kunci: "tanahExcl", judul: <>Harga Tanah (Dasar)<br />(Belum Termasuk PPN {lp})</>,
+                  sel: (u: UnitData) => <span className="n">{polos(u.hargaTanah / ppn)}</span> }] : []),
     { ...isi(KOLOM_TSC_TANAH), judul: <>Harga Tanah (Dasar)<br />(Termasuk PPN {lp})</> },
     isi(KOLOM_TSC_TANAH_TAMBAHAN),
-    ...(incl ? [{ kunci: "gfaRoundup", judul: <>Harga Bangunan (Dasar) (Roundup)<br />(Termasuk PPN {lp})</>,
-                  sel: (u: UnitData) => <span className="n">{polos(roundup(u.hargaBangunan))}</span> }] : []),
+    ...(excl ? [{ kunci: "gfaExcl", judul: <>Harga Bangunan (Dasar)<br />(Belum Termasuk PPN {lp})</>,
+                  sel: (u: UnitData) => <span className="n">{polos(u.hargaBangunan / ppn)}</span> }] : []),
     { ...isi(KOLOM_TSC_BANGUNAN), judul: <>Harga Bangunan (Dasar)<br />(Termasuk PPN {lp})</> },
     ...KOLOM_TSC_FAKTOR.map(isi),
     ...KOLOM_TSC_AKHIR.map(isi),
