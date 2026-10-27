@@ -35,6 +35,8 @@ export const PROJECT_BAWAAN: ProjectBawaan[] = [
     company_name: "PT. Serpong Bangun Lestari", urutan: 5 },
   { slug: "permai-indah", name: "Permai Indah",
     company_name: "PT. Bumi Mahardika Makmur", urutan: 6 },
+  { slug: "the-sanctuary-collection", name: "The Sanctuary Collection",
+    company_name: "PT. Bhakti Bangun Harmoni", urutan: 7 },
 ];
 
 /**
