@@ -392,6 +392,12 @@ export type SusunPricelist = {
    */
   hargaM2Termasuk?: boolean;
   /**
+   * Pembulatan harga per cara bayar di Data Pricelist: ROUNDUP ke 10^n
+   * rupiah. Kosong = 6 (juta). The Sanctuary Collection: 4 (Rp 10.000),
+   * seperti ROUNDUP(…, -4) di lembar Data Harga-nya.
+   */
+  bulatDataPl?: number;
+  /**
    * Tanda bahwa T&C draf ini sudah disamakan dengan patokan (T&C Naraya
    * Serpong) — sekali saja; sesudahnya T&C disunting manual dan tidak
    * ditimpa lagi. Lihat samakanTncPatokan.
@@ -608,7 +614,7 @@ export const RUMUS_TSC: ReadonlySet<string> = new Set([
 ]);
 const ATURAN_TSC = {
   bulatHargaM2: -1, bulatBase: 6, bulatBiasa: false, baseTanpaBulat: true, basisExclPpn: false,
-  exclTerpisah: false, hargaM2Termasuk: true,
+  exclTerpisah: false, hargaM2Termasuk: true, bulatDataPl: 4,
 } as const;
 
 /**
@@ -718,21 +724,22 @@ export function hitungUnit(u: UnitData, ppn = PPN, exclPpn = false, bulat = 6,
 export function hitungDataPl(
   susun: SusunPricelist, factored: number, koef: Record<string, number>,
 ): Record<string, number> {
+  const bulat = susun.bulatDataPl ?? 6;
   const harga: Record<string, number> = {};
   for (const k of susun.dataPricelist.kolom) {
     if (k.skema) {
       const c = koef[k.skema];
       harga[k.nama] = Number.isFinite(c)
-        ? roundUp(factored * c * (k.kali ?? 1), 6) + susun.dataPricelist.tambahan : NaN;
+        ? roundUp(factored * c * (k.kali ?? 1), bulat) + susun.dataPricelist.tambahan : NaN;
     } else if (k.dari) {
       const asal = harga[k.dari];
-      harga[k.nama] = asal == null ? NaN : roundUp(asal * (k.kali ?? 1), 6);
+      harga[k.nama] = asal == null ? NaN : roundUp(asal * (k.kali ?? 1), bulat);
     }
     // Kenaikan khusus cara bayar ini.
     const h = harga[k.nama];
     if (Number.isFinite(h)) {
       harga[k.nama] = tingkatNaik(k).reduce(
-        (x, t) => (t.persen ? roundUp(x * (1 + t.persen), 6) : x) + (t.rp || 0), h);
+        (x, t) => (t.persen ? roundUp(x * (1 + t.persen), bulat) : x) + (t.rp || 0), h);
     }
   }
   return harga;
@@ -963,6 +970,17 @@ const SKEMA_AWAL_LAMA: [string, number, number][] = [
  * bayar standar: Data (IRR), kolom Data Pricelist, kolom Pricelist dan blok
  * S&K cara bayarnya diganti; Data Unit dan isian lain tetap.
  */
+/**
+ * The Sanctuary Collection saat drafnya dibuka: cara bayar standar (lihat
+ * samakanIrrStandar), dan Data Harga tanpa tambahan per unit seperti lembar
+ * Data Harga-nya (tambahan bawaan Rp 5 juta menjadi 0; nilai lain dibiarkan).
+ */
+export function samakanTsc(d: SusunPricelist): SusunPricelist {
+  const s = samakanIrrStandar(d);
+  return s.dataPricelist.tambahan === 5_000_000
+    ? { ...s, dataPricelist: { ...s.dataPricelist, tambahan: 0 } } : s;
+}
+
 export function samakanIrrStandar(d: SusunPricelist): SusunPricelist {
   const s = d.irr.skema;
   const lama = s.length === SKEMA_AWAL_LAMA.length && s.every((x, i) =>
