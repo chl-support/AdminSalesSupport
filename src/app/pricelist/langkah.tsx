@@ -896,10 +896,12 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah, baru }: PropsLangkah 
 
   // Lebar kolom cara bayar: cukup untuk Harga Penyesuaian terpanjang
   // (± 8 px per karakter, 12,5 px) dan nama cara bayarnya; paling sedikit 142 px.
-  const lebarSkema = Math.max(142, ...irr.skema.map((s) => {
+  // Tiap kolom selebar isinya sendiri (angka Harga Penyesuaian, tombol
+  // ↺ Target bila ada, dan namanya), paling sedikit 112 px.
+  const lebarSkema = irr.skema.map((s) => {
     const harga = Math.round(hargaSesuaiSkema(irr, hasil.irr.koef[s.nama])).toLocaleString("id-ID").length * 8 + 46;
-    return Math.max(harga + (bolehUbah && s.hargaSesuai ? 74 : 0), s.nama.length * 8 + 40);
-  }));
+    return Math.ceil(Math.max(112, harga + (bolehUbah && s.hargaSesuai ? 70 : 0), s.nama.length * 7.5 + (bolehUbah ? 36 : 16)));
+  });
 
   return (
     <>
@@ -945,15 +947,15 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah, baru }: PropsLangkah 
             {kt.tambahCb}</button>
         </div>
       )}
-      {/* Grid tetap: setiap cara bayar selebar sama, kotak isian memenuhi
+      {/* Grid tetap: setiap cara bayar selebar isinya, kotak isian memenuhi
           kolomnya, tanda % sejajar, dan baris dikelompokkan. Lebarnya
           menyesuaikan angka terpanjang (Harga Penyesuaian, plus tombol
           ↺ Target bila ada), supaya tidak ada angka yang terpotong. */}
       <div className="tscroll">
-        <table className="tabel-ringkas tabel-isian tabel-irr" style={{ width: 150 + irr.skema.length * lebarSkema, minWidth: "100%" }}>
+        <table className="tabel-ringkas tabel-isian tabel-irr" style={{ width: 150 + lebarSkema.reduce((a, b) => a + b, 0) }}>
           <colgroup>
             <col className="k-label" />
-            {irr.skema.map((_, i) => <col key={i} className="k-skema" style={{ width: lebarSkema }} />)}
+            {irr.skema.map((_, i) => <col key={i} className="k-skema" style={{ width: lebarSkema[i] }} />)}
           </colgroup>
           <tbody>
           <tr className="kepala-skema">
