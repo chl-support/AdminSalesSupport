@@ -56,6 +56,7 @@ const KATA = {
     grupBulan: "Bulan pencairan sisa (1 − DP) per tahap",
     grupHasil: "Hasil",
     hargaTunai: "Harga Tunai", selesai: "Selesai", edit: "Ubah",
+    ubahKoefInfo: "Koefisien dan Harga Penyesuaian dihitung otomatis dari Target Bunga. Ubah hanya untuk pengecualian (mis. pricelist lama); ↺ Target mengembalikannya.",
     kasInfo: "dipakai semua cara bayar · Harga Penyesuaian = Harga Tunai × Koefisien",
     koef: "Koefisien",
     belumTepat: "Belum tepat sesuai target",
@@ -286,6 +287,7 @@ const KATA = {
     grupBulan: "Disbursement month of the remainder (1 − DP) per stage",
     grupHasil: "Results",
     hargaTunai: "Cash Price", selesai: "Done", edit: "Edit",
+    ubahKoefInfo: "Coefficients and Adjusted Prices are calculated automatically from the target rate. Change them only for exceptions (e.g. an old price list); ↺ Target restores them.",
     kasInfo: "used by every payment scheme · Adjusted Price = Cash Price × Coefficient",
     koef: "Coefficient",
     belumTepat: "Not exactly on target",
@@ -839,6 +841,9 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah, baru }: PropsLangkah 
   const TAHAP = namaTahap(irr);
   // Cash Price diubah lewat tombol Edit, supaya tidak tergeser tanpa sengaja.
   const [editKas, setEditKas] = useState(false);
+  // Koefisien dan Harga Penyesuaian dihitung otomatis dari Target Bunga;
+  // kotak isiannya (pengecualian manual) baru muncul setelah Ubah ditekan.
+  const [editKoef, setEditKoef] = useState(false);
   const ro = !bolehUbah;
   // Mengubah arus kas cara bayar (DP, cicilan, bulan, Cash Price) membuat
   // Adjusted Price tersimpan tidak berlaku lagi — seperti di Excel yang
@@ -1038,13 +1043,19 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah, baru }: PropsLangkah 
               Cash Keras (koefisien 1), dan baris IRR sudah menandainya. */}
           {/* Koefisien juga dapat diketik langsung (mis. 1,100 = 110%):
               Harga Penyesuaian = Harga Tunai × koefisien. */}
-          <tr className="hasil"><td>{kt.koef}</td>{irr.skema.map((s, i) => (
-            <td key={i} className="n" title={hasil.irr.koef[s.nama]?.toFixed(5)}>
-              {bolehUbah && !s.acuan && Number.isFinite(hasil.irr.koef[s.nama]) ? (
+          <tr className="hasil"><td>
+            {kt.koef}
+            {bolehUbah && (
+              <button className="kecil" style={{ display: "block", marginTop: 4 }} title={kt.ubahKoefInfo}
+                      onClick={() => setEditKoef((x) => !x)}>{editKoef ? kt.selesai : kt.edit}</button>
+            )}
+          </td>{irr.skema.map((s, i) => (
+            <td key={i} className="n" id={editKoef ? undefined : `irr-koef-${i}`} title={hasil.irr.koef[s.nama]?.toFixed(5)}>
+              {editKoef && bolehUbah && !s.acuan && Number.isFinite(hasil.irr.koef[s.nama]) ? (
                 <Isian id={`irr-koef-${i}`} nilai={hasil.irr.koef[s.nama]} desimal={3} lebar={70}
                        ubah={(n) => ubahSkema(i, (x) => ({ ...x,
                          hargaSesuai: n > 0 ? Math.round(n * hargaKasIrr(irr) * 1e4) / 1e4 : undefined, hargaKas: hargaKasIrr(irr) }))} />
-              ) : <b>{Number.isFinite(hasil.irr.koef[s.nama]) ? hasil.irr.koef[s.nama].toFixed(3) : "—"}</b>}
+              ) : <b>{Number.isFinite(hasil.irr.koef[s.nama]) ? hasil.irr.koef[s.nama].toLocaleString("id-ID", { minimumFractionDigits: 3, maximumFractionDigits: 3 }) : "—"}</b>}
             </td>))}</tr>
           <tr className="hasil"><td>IRR</td>{irr.skema.map((s, i) => (
             <td key={i} className={`n${belumSesuai.has(s.nama) ? " belum-sesuai" : ""}`}
@@ -1059,10 +1070,12 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah, baru }: PropsLangkah 
           <tr className="hasil"><td>{kt.hargaSesuai}</td>{irr.skema.map((s, i) => (
             <td key={i} className="n"
                 title={s.hargaSesuai && !s.acuan ? kt.dariExcel : kt.dariTarget}>
-              {bolehUbah && !s.acuan ? (
+              {bolehUbah && !s.acuan && (editKoef || s.hargaSesuai) ? (
                 <span className="row" style={{ margin: 0, gap: 4, flexWrap: "nowrap", justifyContent: "flex-end" }}>
-                  <Isian id={`irr-sesuai-${i}`} jenis="rp" nilai={hargaSesuaiSkema(irr, hasil.irr.koef[s.nama])} lebar={130}
-                         ubah={(n) => ubahSkema(i, (x) => ({ ...x, hargaSesuai: n > 0 ? n : undefined, hargaKas: hargaKasIrr(irr) }))} />
+                  {editKoef ? (
+                    <Isian id={`irr-sesuai-${i}`} jenis="rp" nilai={hargaSesuaiSkema(irr, hasil.irr.koef[s.nama])} lebar={130}
+                           ubah={(n) => ubahSkema(i, (x) => ({ ...x, hargaSesuai: n > 0 ? n : undefined, hargaKas: hargaKasIrr(irr) }))} />
+                  ) : <b>{rp(hargaSesuaiSkema(irr, hasil.irr.koef[s.nama]))}</b>}
                   {s.hargaSesuai ? (
                     <button className="kecil" title={kt.kembaliTargetInfo}
                             onClick={() => ubahSkema(i, (x) => ({ ...x, hargaSesuai: undefined }))}>{kt.kembaliTarget}</button>
@@ -1104,7 +1117,7 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah, baru }: PropsLangkah 
       <div className="row" style={{ marginTop: 10 }}>
         <span className="hint" style={{ margin: 0 }}>
           {kt.totAlok} <b>{persen(hasil.irr.totalAlokasi)}</b> · {kt.waKoef}{" "}
-          <b>{hasil.irr.koefRata.toFixed(3)}</b> · {kt.alokInfo}
+          <b>{hasil.irr.koefRata.toLocaleString("id-ID", { minimumFractionDigits: 3, maximumFractionDigits: 3 })}</b> · {kt.alokInfo}
         </span>
         {bolehUbah && Math.abs(hasil.irr.totalAlokasi - 1) > 1e-9 && (
           <button onClick={() => ubah((d) => ({ ...d, irr: { ...d.irr, skema: genapkanAlokasi(d.irr.skema) } }))}>
