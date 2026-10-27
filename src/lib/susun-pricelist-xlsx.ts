@@ -449,6 +449,43 @@ function bacaLembarTsc(ws: ExcelJS.Worksheet, peringatan: string[]): UnitData[] 
   return unit;
 }
 
+/**
+ * Harga Lama (eProperty) per kode unit dari berkas Excel apa pun: lembar
+ * terbuka yang dalam 10 baris pertamanya punya kolom kode (Kode / Code /
+ * Unit) dan kolom harga (Harga Lama, lalu Cash Price, lalu Harga / Price).
+ */
+export async function bacaHargaLama(isi: ArrayBuffer): Promise<{ harga: Record<string, number>; peringatan: string[] }> {
+  const wb = new ExcelJS.Workbook();
+  try {
+    await wb.xlsx.load(await kosongkanLembarTersembunyi(isi) as any);
+  } catch {
+    throw new Error("Berkas tidak dapat dibaca sebagai Excel .xlsx.");
+  }
+  const urutan = [/^harga lama/, /^cash price/, /^harga$|^price$|^harga jual/];
+  for (const ws of wb.worksheets.filter((w) => w.state === "visible")) {
+    for (let r = 1; r <= Math.min(ws.rowCount, 10); r++) {
+      const judul = (c: number) => teks(ws.getCell(r, c)).toLowerCase();
+      let kKode = 0, kHarga = 0, mutu = urutan.length;
+      for (let c = 1; c <= ws.columnCount; c++) {
+        const j = judul(c);
+        if (!kKode && /^(kode|code|unit)( unit)?$/.test(j)) kKode = c;
+        const m = urutan.findIndex((re) => re.test(j));
+        if (m >= 0 && m < mutu) { mutu = m; kHarga = c; }
+      }
+      if (!kKode || !kHarga) continue;
+      const harga: Record<string, number> = {};
+      for (let b = r + 1; b <= ws.rowCount; b++) {
+        const kode = teks(ws.getCell(b, kKode)), v = nilai(ws.getCell(b, kHarga));
+        if (kode && typeof v === "number" && v > 0) harga[kode] = v;
+      }
+      if (Object.keys(harga).length) {
+        return { harga, peringatan: [`Dibaca dari lembar ${ws.name}, kolom ${teks(ws.getCell(r, kHarga))}.`] };
+      }
+    }
+  }
+  throw new Error("Tidak ditemukan kolom kode unit (Kode / Code / Unit) dan kolom harga (Harga Lama / Cash Price) di lembar yang terbuka.");
+}
+
 /** Template kosong berkas Unit Data The Sanctuary Collection (judul seperti berkasnya). */
 export async function templatUnitTsc(): Promise<Buffer> {
   const wb = new ExcelJS.Workbook();

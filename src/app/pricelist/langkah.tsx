@@ -1606,6 +1606,16 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
                       ubahUnit={ubahUnit} tambah={(i) => tambah(i)} hapus={(i) => hapus(new Set([i]))}
                       modePpn={modePpn} lp={lp}
                       kepalaKenaikan={kepalaMassal("Persentase Kenaikan Harga", "kenaikanFaktor", kt.kenaikanFaktorInfo)}
+                      isiHargaLama={(harga) => {
+                        const kunci = (k: string) => k.trim().toUpperCase();
+                        const peta = new Map(Object.entries(harga).map(([k, v]) => [kunci(k), v]));
+                        const terisi = data.unit.filter((u) => peta.has(kunci(u.kode))).length;
+                        ubah((d) => ({ ...d, unit: d.unit.map((u) => {
+                          const v = peta.get(kunci(u.kode));
+                          return v == null ? u : { ...u, atribut: { ...u.atribut, hargaLama: v } };
+                        }) }));
+                        return terisi;
+                      }}
                       label={{ no: kt.noUrut, salin: kt.salin, hapus: kt.hapus, yaHapus: kt.yaHapus, batal: kt.batal,
                                total: (n) => kt.totalUnit(n, q || saringPilih ? data.unit.length : undefined) }} />
       ) : (
