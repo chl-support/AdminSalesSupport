@@ -8,7 +8,7 @@
  * Tidak mengubah draf apa pun.
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { formatRupiah } from "@/lib/money";
 import type { HasilSusun, SusunPricelist } from "@/lib/susun-pricelist";
@@ -46,8 +46,15 @@ const KATA = {
   },
 };
 
-/** Nama kolom tanpa beda huruf besar, spasi dan tanda baca. */
-const kunci = (s: string) => s.toLowerCase().replace(/[^a-z0-9%]/g, "");
+/**
+ * Nama kolom tanpa beda huruf besar, spasi dan tanda baca; sebutan lain
+ * untuk cara bayar yang sama disamakan (berkas TSC: Hard Cash = Cash Keras).
+ */
+const SEBUTAN: Record<string, string> = { hardcash: "cashkeras", cash: "cashkeras" };
+export const kunci = (s: string) => {
+  const k = s.toLowerCase().replace(/[^a-z0-9%]/g, "");
+  return SEBUTAN[k] ?? k;
+};
 
 type Beda = { kode: string; kolom: string; sistem: number; excel: number };
 
@@ -57,6 +64,17 @@ type Beda = { kode: string; kolom: string; sistem: number; excel: number };
  * dicocokkan ulang tanpa mengunggah lagi.
  */
 let terakhir: { nama: string; excel: HargaExcel } | null = null;
+const pendengar = new Set<(x: HargaExcel | null) => void>();
+
+/**
+ * Angka Excel yang sedang dicocokkan, untuk menandai sel yang berbeda di
+ * tabel Data Harga; null bila belum ada berkas yang dicocokkan.
+ */
+export function useHargaExcel(): HargaExcel | null {
+  const [x, setX] = useState<HargaExcel | null>(terakhir?.excel ?? null);
+  useEffect(() => { pendengar.add(setX); return () => { pendengar.delete(setX); }; }, []);
+  return x;
+}
 
 export function CocokkanExcel({ data, hasil }: { data: SusunPricelist; hasil: HasilSusun }) {
   const k = useKata(KATA);
@@ -67,6 +85,7 @@ export function CocokkanExcel({ data, hasil }: { data: SusunPricelist; hasil: Ha
   const setExcel = (x: HargaExcel | null, nama = "") => {
     terakhir = x ? { nama, excel: x } : null;
     setExcelState(x);
+    pendengar.forEach((f) => f(x));
   };
 
   const baca = async () => {

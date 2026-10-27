@@ -9,7 +9,7 @@
  * saling merujuk antarlembar.
  */
 
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 
 import { formatRupiah } from "@/lib/money";
 import {
@@ -20,7 +20,7 @@ import type { UnitHarga } from "@/lib/simulasi";
 import { useBahasa, useKata } from "../bahasa";
 import { KUNCI, type Isi } from "./lembar-harga";
 import { PilihBerkas } from "../pilih-berkas";
-import { CocokkanExcel } from "./cocokkan-excel";
+import { CocokkanExcel, kunci as kunciKolom, useHargaExcel } from "./cocokkan-excel";
 import { ringkasXlsx } from "./ringkas-xlsx";
 import { TabelUnitTsc } from "./unit-sanctuary";
 import { unitKosongTsc, unitTsc } from "@/lib/unit-sanctuary";
@@ -2031,6 +2031,20 @@ export function LangkahDataPl({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
     });
   };
 
+  // Hasil Cocokkan dengan Excel: sel yang berbeda dari Excel diberi blok biru
+  // muda (angka Excel di keterangannya).
+  const excel = useHargaExcel();
+  const padanExcel = new Map(excel ? data.dataPricelist.kolom.flatMap((k) => {
+    const e = excel.kolom.find((x) => kunciKolom(x) === kunciKolom(k.nama));
+    return e ? [[k.nama, e] as [string, string]] : [];
+  }) : []);
+  const selExcel = (isi: string, sistem: number, ex: number | undefined) => {
+    const beda = ex != null && Math.round(sistem) !== Math.round(ex);
+    return (
+      <td className={`n${beda ? " beda-excel" : ""}`} title={beda ? `Excel: ${rp(ex)}` : undefined}>{isi}</td>
+    );
+  };
+
   return (
     <>
       <p className="hint kiri">{kt.dpHint((data.bulatDataPl ?? 6) === 6 ? "juta" : `Rp ${(10 ** (data.bulatDataPl ?? 6)).toLocaleString("id-ID")}`)}</p>
@@ -2210,8 +2224,13 @@ export function LangkahDataPl({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
               <td>{b.unit.tipe}</td><td>{b.unit.subTipe}</td>
               <td className="n">{b.unit.lt.toLocaleString("id-ID")}</td>
               <td className="n">{b.unit.lb.toLocaleString("id-ID")}</td>
-              <td className="n">{rp(b.hasilUnit.factored)}</td>
-              {kolom.map((k) => <td key={k.nama} className="n">{rp(b.dataPl[k.nama])}</td>)}
+              {selExcel(rp(b.hasilUnit.factored), b.hasilUnit.factored, excel?.factored[b.unit.kode])}
+              {kolom.map((k) => (
+                <Fragment key={k.nama}>
+                  {selExcel(rp(b.dataPl[k.nama]), b.dataPl[k.nama], padanExcel.get(k.nama) != null
+                    ? excel?.harga[b.unit.kode]?.[padanExcel.get(k.nama)!] : undefined)}
+                </Fragment>
+              ))}
             </tr>
           ))}
         </tbody></table>
