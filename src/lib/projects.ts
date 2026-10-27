@@ -35,15 +35,33 @@ export const PROJECT_BAWAAN: ProjectBawaan[] = [
     company_name: "PT. Serpong Bangun Lestari", urutan: 5 },
   { slug: "permai-indah", name: "Permai Indah",
     company_name: "PT. Bumi Mahardika Makmur", urutan: 6 },
-  { slug: "the-sanctuary-collection", name: "The Sanctuary Collection",
+  // The Sanctuary Collection: satu kartu di pemilih project, empat cluster
+  // (lihat project-grup.ts), masing-masing dengan datanya sendiri.
+  { slug: "tsc-tanglin-parc", name: "Tanglin Parc",
     company_name: "PT. Bhakti Bangun Harmoni", urutan: 7 },
+  { slug: "tsc-newton-springs", name: "Newton Springs",
+    company_name: "PT. Bhakti Bangun Harmoni", urutan: 8 },
+  { slug: "tsc-orchard-riviera", name: "Orchard Riviera",
+    company_name: "PT. Bhakti Bangun Harmoni", urutan: 9 },
+  { slug: "tsc-scotts-vale", name: "Scotts Vale",
+    company_name: "PT. Bhakti Bangun Harmoni", urutan: 10 },
 ];
+
+/**
+ * Slug yang diganti: barisnya (dan seluruh datanya) pindah ke slug baru.
+ * Project The Sanctuary Collection yang sempat dipakai berisi data Scotts
+ * Vale, jadi menjadi cluster Scotts Vale.
+ */
+const GANTI_SLUG: [string, string][] = [["the-sanctuary-collection", "tsc-scotts-vale"]];
 
 /**
  * Project yang dibuang dari pemilih project. Barisnya tidak dihapus (data
  * yang sempat diisi tetap ada), hanya dimatikan lewat kolom `active`.
  */
-export const PROJECT_DIBUANG: string[] = [];
+export const PROJECT_DIBUANG: string[] = [
+  // Bila slug-nya tidak dapat diganti (cluster Scotts Vale sudah ada lebih dulu).
+  "the-sanctuary-collection",
+];
 
 /**
  * Project yang dihapus permanen atas permintaan, beserta SEMUA datanya:
@@ -103,6 +121,11 @@ async function hapusPermanen(slug: string): Promise<void> {
 
 /** Terapkan daftar di atas. Idempoten, aman dipanggil berulang kali. */
 export async function ensureProjects(): Promise<void> {
+  for (const [lama, baru] of GANTI_SLUG) {
+    await query(
+      `UPDATE projects SET slug = $2 WHERE slug = $1
+         AND NOT EXISTS (SELECT 1 FROM projects WHERE slug = $2)`, [lama, baru]);
+  }
   for (const p of PROJECT_BAWAAN) {
     await query(
       `INSERT INTO projects (slug, name, company_name, urutan)

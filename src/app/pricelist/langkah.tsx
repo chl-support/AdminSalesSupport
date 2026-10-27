@@ -23,7 +23,7 @@ import { PilihBerkas } from "../pilih-berkas";
 import { CocokkanExcel } from "./cocokkan-excel";
 import { ringkasXlsx } from "./ringkas-xlsx";
 import { TabelUnitTsc } from "./unit-sanctuary";
-import { clusterTsc, daftarClusterTsc, unitKosongTsc, unitTsc } from "@/lib/unit-sanctuary";
+import { unitKosongTsc, unitTsc } from "@/lib/unit-sanctuary";
 import { TabelHarga } from "../simulasi/unggah-pricelist";
 
 /**
@@ -163,8 +163,6 @@ const KATA = {
     special: "Khusus (Rp)", showUnit: "Unit Contoh (Rp)",
     noUrut: "No.",
     hanyaTerpilih: (n: number) => `Tampilkan yang dicentang saja (${n})`,
-    clusterSemua: (n: number) => `Semua cluster (${n})`,
-    clusterInfo: "Tampilkan unit satu cluster saja (kolom Kavling). Unit baru yang ditambah masuk cluster yang dipilih.",
     hanyaTerpilihInfo: "Sembunyikan unit yang tidak dicentang. Hilangkan centang ini untuk menampilkan semua unit lagi.",
     rumusTsc: "Kolom dan rumus mengikuti berkas Unit Data The Sanctuary Collection: Harga Dasar = Luas Tanah × Harga Tanah + Luas Bangunan × Harga Bangunan (harga per m² sudah Termasuk PPN, tanpa pembulatan); Harga Setelah Penyesuaian = Harga Dasar × (1 + jumlah faktor %) × (1 + Harga Khusus %) + Pendingin Ruangan (AC) + Harga Khusus (Rp); Harga Setelah Kenaikan = Harga Setelah Penyesuaian × (1 + Persentase Kenaikan Harga).",
     modePpnSemua: "Kolom: Termasuk & Belum PPN", modePpnIncl: (p: string) => `Kolom: Termasuk ${p} saja`,
@@ -394,8 +392,6 @@ const KATA = {
     special: "Special (Rp)", showUnit: "Show Unit (Rp)",
     noUrut: "No.",
     hanyaTerpilih: (n: number) => `Show ticked units only (${n})`,
-    clusterSemua: (n: number) => `All clusters (${n})`,
-    clusterInfo: "Show the units of one cluster only (Kavling column). New units are added to the selected cluster.",
     hanyaTerpilihInfo: "Hide units that are not ticked. Untick this to show all units again.",
     rumusTsc: "Columns and formulas follow The Sanctuary Collection Unit Data file: Base Price = Land Area × Land Price + Building Area × Building Price (per-m² prices already incl. VAT, no rounding); Adjusted Price = Base Price × (1 + sum of factor %) × (1 + Special Price %) + Air Conditioning (AC) + Special Price (Rp); Increased Price = Adjusted Price × (1 + Price Increase %).",
     modePpnSemua: "Columns: incl. & excl. VAT", modePpnIncl: (p: string) => `Columns: incl. ${p} only`,
@@ -1253,13 +1249,9 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
   // Hanya unit yang dicentang yang tampil; mati sendiri bila centangnya habis.
   const [hanyaPilih, setHanyaPilih] = useState(false);
   const saringPilih = hanyaPilih && pilih.size > 0;
-  // The Sanctuary Collection: tampilkan satu cluster (kolom Kavling) saja.
-  const [cluster, setCluster] = useState("");
-  const saringCluster = tsc && !!cluster;
   const tampil = data.unit.map((u, i) => ({ u, i, b: hasil.baris[i] }))
     .filter(({ u, i }) => (!q || [u.kode, u.alamat, u.view, u.subTipe].join(" ").toLowerCase().includes(q))
-      && (!saringPilih || pilih.has(i))
-      && (!saringCluster || clusterTsc(u).toLowerCase() === cluster.toLowerCase()));
+      && (!saringPilih || pilih.has(i)));
   const total = hasil.baris.reduce((a, b) => a + b.hasilUnit.factored, 0);
 
   // Menambah dan mengurangi unit. Unit baru disisipkan tepat di bawah baris
@@ -1381,8 +1373,8 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
           alamat: asal.alamat, hargaTanah: asal.hargaTanah, hargaBangunan: asal.hargaBangunan,
           lb: asal.lb, tipe: asal.tipe, tipeBangunan: asal.tipeBangunan, phase: asal.phase,
           kenaikan: asal.kenaikan, faktorTambah: asal.faktorTambah }),
-          // Unit baru masuk cluster yang sedang dipilih.
-          ...(saringCluster && { atribut: { kavling: cluster } }) };
+          // Kavling (cluster) ikut unit di atasnya.
+          ...(asal?.atribut?.kavling != null && { atribut: { kavling: asal.atribut.kavling } }) };
     const posisi = dari != null ? dari + 1 : data.unit.length;
     setCari(""); setPilih(new Set()); setYakin(null);
     ubah((d) => ({ ...d, unit: [...d.unit.slice(0, posisi), baru, ...d.unit.slice(posisi)] }));
@@ -1498,16 +1490,6 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
         <span className="hint" style={{ margin: 0 }}>
           {kt.ringkasUnit(data.unit.length)} <b>{rp(total)}</b>
         </span>
-        {tsc && (
-          <select id="unit-cluster" value={cluster} style={{ width: "auto" }} title={kt.clusterInfo}
-                  onChange={(e) => { setCluster(e.target.value); setPilih(new Set()); }}>
-            <option value="">{kt.clusterSemua(data.unit.length)}</option>
-            {daftarClusterTsc(data.unit).map((c) => (
-              <option key={c} value={c}>
-                {c} ({data.unit.filter((u) => clusterTsc(u).toLowerCase() === c.toLowerCase()).length})</option>
-            ))}
-          </select>
-        )}
         {pilih.size > 0 && (
           <label className="row" style={{ margin: 0, gap: 6 }} title={kt.hanyaTerpilihInfo}>
             <input id="unit-hanya-terpilih" type="checkbox" checked={hanyaPilih}
@@ -1610,7 +1592,7 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
                       modePpn={modePpn} lp={lp}
                       kepalaKenaikan={kepalaMassal("Persentase Kenaikan Harga", "kenaikanFaktor", kt.kenaikanFaktorInfo)}
                       label={{ no: kt.noUrut, salin: kt.salin, hapus: kt.hapus, yaHapus: kt.yaHapus, batal: kt.batal,
-                               total: (n) => kt.totalUnit(n, q || saringPilih || saringCluster ? data.unit.length : undefined) }} />
+                               total: (n) => kt.totalUnit(n, q || saringPilih ? data.unit.length : undefined) }} />
       ) : (
         <div className="tscroll" style={{ maxHeight: 620, overflowY: "auto" }}>
           <table className="tabel-ringkas tabel-isian kepala-lekat tabel-unit"><thead>
@@ -1749,7 +1731,7 @@ export function LangkahUnit({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah
             {/* Jumlah unit yang tampil (ikut pencarian), total Land, GFA, Base dan Factored Price. */}
             <tr className="total-unit">
               <td className="aksi-unit">
-                {kt.totalUnit(tampil.length, q || saringPilih || saringCluster ? data.unit.length : undefined)}</td>
+                {kt.totalUnit(tampil.length, q || saringPilih ? data.unit.length : undefined)}</td>
               <td colSpan={(bolehUbah ? 0 : -1) + 1 + teksUnit.length} />
               {bio && <td />}
               <td className="n">{luas(tampil.reduce((a, { u }) => a + u.lt, 0), 1)}</td><td />{lihatIncl && <td />}{lihatIncl && kolomRoundup && <td />}
