@@ -18,10 +18,11 @@ import ExcelJS from "exceljs";
 import JSZip from "jszip";
 
 import {
-  FAKTOR, FAKTOR_INGGRIS, FAKTOR_OPSIONAL, HARGA_KAS_AWAL, labelPpn, tarifPpn, hargaKasIrr, hargaSesuaiSkema, hitungSemua, namaTahap, susunAwal, unitKosong,
+  FAKTOR, FAKTOR_INGGRIS, FAKTOR_OPSIONAL, HARGA_KAS_AWAL, faktorTampil, labelPpn, tarifPpn, hargaKasIrr, hargaSesuaiSkema, hitungSemua, namaTahap, susunAwal, unitKosong,
   type KolomDataPl, type KolomPricelist, type SkemaIrr, type SusunPricelist,
   type Tnc, type UnitData,
 } from "./susun-pricelist";
+import { KOLOM_TSC, isiTsc, unitKosongTsc } from "./unit-sanctuary";
 
 // ── Membaca sel ────────────────────────────────────────────────────────────
 
@@ -402,7 +403,64 @@ export async function imporUnitData(isi: ArrayBuffer): Promise<{ unit: UnitData[
                     "Buka (unhide) lembarnya di Excel, lalu unggah ulang.");
   }
   const peringatan: string[] = [];
+  const tsc = terbuka.find(lembarTsc);
+  if (tsc) return { unit: bacaLembarTsc(tsc, peringatan), peringatan };
   return { unit: bacaLembarUnit(ws, peringatan), peringatan };
+}
+
+// ── Unit Data The Sanctuary Collection ─────────────────────────────────────
+
+const judulTsc = (s: string) => s.replace(/\s+/g, " ").trim().toLowerCase();
+
+/** Lembar Unit Data berkas The Sanctuary Collection (baris 1: Kode, Kavling, …). */
+function lembarTsc(ws: ExcelJS.Worksheet): boolean {
+  const j = new Set<string>();
+  ws.getRow(1).eachCell((c) => j.add(judulTsc(teks(c))));
+  return j.has("kode") && j.has("kavling") && j.has("harga dasar (batas bawah)");
+}
+
+/**
+ * Baris unit berkas Unit Data The Sanctuary Collection. Kolom dicari menurut
+ * judulnya (kemunculan ke-n untuk judul yang dipakai dua kali); kolom hasil
+ * hitungan (Kategory, Harga Dasar, …) tidak dibaca, karena dihitung ulang.
+ */
+function bacaLembarTsc(ws: ExcelJS.Worksheet, peringatan: string[]): UnitData[] {
+  const posisi = new Map<string, number[]>();
+  ws.getRow(1).eachCell((c, no) => {
+    const j = judulTsc(teks(c));
+    posisi.set(j, [...(posisi.get(j) ?? []), no]);
+  });
+  const kol = KOLOM_TSC.map((d) => ({ d, c: posisi.get(judulTsc(d.excel))?.[(d.ke ?? 1) - 1] }));
+  const hilang = kol.filter((x) => !x.c).map((x) => x.d.judul ?? x.d.excel);
+  if (hilang.length) peringatan.push(`Kolom tidak ditemukan: ${hilang.join(", ")}.`);
+  const unit: UnitData[] = [];
+  for (let r = 2; r <= ws.rowCount; r++) {
+    const kode = teks(ws.getCell(r, kol[0].c ?? 1));
+    if (!kode) continue;
+    let u = unitKosongTsc();
+    for (const { d, c } of kol) {
+      if (!c) continue;
+      const sel = ws.getCell(r, c);
+      u = isiTsc(u, d.kunci, d.jenis === "teks" ? teks(sel) : angka(sel));
+    }
+    unit.push(u);
+  }
+  return unit;
+}
+
+/** Template kosong berkas Unit Data The Sanctuary Collection (judul seperti berkasnya). */
+export async function templatUnitTsc(): Promise<Buffer> {
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet("Unit Data", { views: [{ state: "frozen", xSplit: 1, ySplit: 1 }] });
+  KOLOM_TSC.forEach((d, i) => {
+    const c = ws.getColumn(i + 1);
+    ws.getRow(1).getCell(i + 1).value = d.excel;
+    c.width = Math.max(10, Math.round(d.lebar / 7));
+    if (d.jenis === "persen") c.numFmt = "0.00%";
+    else if (d.jenis === "rp") c.numFmt = "#,##0";
+  });
+  tebal(ws.getRow(1));
+  return Buffer.from(await wb.xlsx.writeBuffer());
 }
 
 // ── Cocokkan dengan Excel ────────────────────────────────────────────────
@@ -805,14 +863,14 @@ export async function eksporSusun(susun: SusunPricelist,
   tebal(w2.addRow(["Code", "Address", "View", "No", "Ukuran", "Type", "View", "Sub-Tipe Kavling/Irr/Irr Hoek", "Sub-Tipe",
     "Phase", "Land", `Land Price (base) (Excl PPN. ${lp})`, `Land Price (base) (Incl PPN. ${lp})`,
     "GFA", `GFA (base) (Excl PPN. ${lp})`, `GFA (base) (Incl PPN. ${lp})`, "Increase (%)",
-    ...FAKTOR.map(([, l]) => l), "(+) Factor", "Special", "Show Unit",
+    ...faktorTampil(susun.unit).map(([, l]) => l), "(+) Factor", "Special", "Show Unit",
     "Base Price", "Factored Price"]));
   for (const b of h.baris) {
     const u = b.unit;
     w2.addRow([u.kode, u.alamat, u.view, u.no, u.ukuran, u.tipeBangunan, u.view2 ?? "", u.bentuk, u.subTipe,
       u.phase, u.lt, u.hargaTanah, b.hasilUnit.hargaTanahPpn,
       u.lb, u.hargaBangunan, b.hasilUnit.hargaBangunanPpn, u.kenaikan,
-      ...FAKTOR.map(([k]) => u.faktor[k] ?? 0), u.faktorTambah, u.special, u.showUnit,
+      ...faktorTampil(susun.unit).map(([k]) => u.faktor[k] ?? 0), u.faktorTambah, u.special, u.showUnit,
       b.hasilUnit.base, b.hasilUnit.factored]);
   }
   w2.columns.forEach((c) => { c.width = 13; });

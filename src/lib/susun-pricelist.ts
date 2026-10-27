@@ -164,6 +164,18 @@ export const FAKTOR = [
   ["tusukSate", "Tusuk Sate"],
   ["roundAround", "Round Around"],
   ["luckyNumber", "Lucky Number"],
+  // Faktor berkas Unit Data The Sanctuary Collection (lihat unit-sanctuary.ts).
+  ["fasadSamping", "Fasad Samping"],
+  ["fasadBelakang", "Fasad Belakang"],
+  ["tepiSungai", "Tepi Sungai"],
+  ["garduListrik", "Gardu Listrik"],
+  ["penangkalPetir", "Penangkal Petir"],
+  ["wargaSekitar", "Warga Sekitar"],
+  ["pertigaan", "Posisi Menghadap Pertigaan Jalan"],
+  ["unitUjung", "Unit Ujung"],
+  ["fasilitas", "Fasilitas"],
+  ["areaTerbuka", "Menghadap Area Terbuka"],
+  ["tanahTakBeraturan", "Bentuk Tanah Tidak Beraturan"],
 ] as const;
 export type KunciFaktor = (typeof FAKTOR)[number][0];
 
@@ -180,7 +192,9 @@ export const FAKTOR_INGGRIS: Partial<Record<KunciFaktor, string>> = {
  * Faktor yang hanya dipakai sebagian proyek (mis. BIO DISTRICT). Kolomnya di
  * langkah 2 tampil bila ada unit yang mengisinya, dan tidak ada di template.
  */
-export const FAKTOR_OPSIONAL: ReadonlySet<KunciFaktor> = new Set(["tusukSate", "roundAround", "luckyNumber"]);
+export const FAKTOR_OPSIONAL: ReadonlySet<KunciFaktor> = new Set(["tusukSate", "roundAround", "luckyNumber",
+  "fasadSamping", "fasadBelakang", "tepiSungai", "garduListrik", "penangkalPetir", "wargaSekitar",
+  "pertigaan", "unitUjung", "fasilitas", "areaTerbuka", "tanahTakBeraturan"]);
 
 /** Faktor yang kolomnya ditampilkan untuk daftar unit ini. */
 export const faktorTampil = (unit: UnitData[]) =>
@@ -244,6 +258,12 @@ export type UnitData = {
   showUnit: number;
   /** Floor (luas lantai), m²; keterangan saja (berkas BIO DISTRICT). */
   floor?: number;
+  /**
+   * Kolom keterangan yang hanya ada di berkas Unit Data project tertentu
+   * (The Sanctuary Collection: Kavling, Unit Tengah / Ujung, tanda posisi,
+   * Status, Harga Lama, …); tidak memengaruhi harga.
+   */
+  atribut?: Record<string, string | number>;
   /** Biaya AJB + BPHTB, pecahan; pengali (1 + x) seperti (+) Factor. */
   biayaAjb?: number;
   /** Special %, pecahan; pengali (1 + x) seperti (+) Factor. */
@@ -365,6 +385,12 @@ export type SusunPricelist = {
    * kenaikan) apa adanya. Mazenta Residence: ya (Excel-nya tanpa ROUNDUP).
    */
   baseTanpaBulat?: boolean;
+  /**
+   * Harga tanah dan bangunan per m² yang diketik sudah Termasuk PPN, jadi
+   * tidak dikali (1 + PPN): Harga Dasar = Luas × harga apa adanya. The
+   * Sanctuary Collection: ya (berkas Unit Data-nya).
+   */
+  hargaM2Termasuk?: boolean;
   /**
    * Tanda bahwa T&C draf ini sudah disamakan dengan patokan (T&C Naraya
    * Serpong) — sekali saja; sesudahnya T&C disunting manual dan tidak
@@ -571,6 +597,17 @@ const RUMUS_BIO = new Set(["bio-district"]);
  * dibulatkan ke atas ke ratusan ribu, Base Price tidak dibulatkan.
  */
 const RUMUS_MAZENTA = new Set(["mazenta-residence"]);
+/**
+ * Project yang mengikuti berkas Unit Data The Sanctuary Collection: Harga
+ * Dasar = Luas Tanah × Harga Tanah + Luas Bangunan × Harga Bangunan (harga
+ * per m² sudah Termasuk PPN), tanpa pembulatan. Rumusnya tetap, tidak dapat
+ * diubah di layar.
+ */
+export const RUMUS_TSC: ReadonlySet<string> = new Set(["the-sanctuary-collection"]);
+const ATURAN_TSC = {
+  bulatHargaM2: -1, bulatBase: 6, bulatBiasa: false, baseTanpaBulat: true, basisExclPpn: false,
+  exclTerpisah: false, hargaM2Termasuk: true,
+} as const;
 
 /**
  * Pasang aturan basis harga project pada draf yang belum menyatakannya:
@@ -592,11 +629,13 @@ const PROJECT_LAMA = new Set([
  * Rumus dipatenkan: project baru di luar enam project lama selalu memakai
  * ATURAN_STANDAR — tidak dapat diubah di layar maupun lewat impor Excel.
  */
-export const rumusDikunci = (slug: string | null | undefined) => !!slug && !PROJECT_LAMA.has(slug);
+export const rumusDikunci = (slug: string | null | undefined) =>
+  !!slug && !PROJECT_LAMA.has(slug) && !RUMUS_TSC.has(slug);
 
 export function basisProject<
   T extends Pick<SusunPricelist, "basisExclPpn" | "bulatBase" | "bulatBiasa" | "bulatHargaM2" | "exclTerpisah" | "baseTanpaBulat">,
 >(slug: string | null | undefined, data: T): T {
+  if (slug && RUMUS_TSC.has(slug)) return { ...data, ...ATURAN_TSC };
   if (rumusDikunci(slug)) return { ...data, ...ATURAN_STANDAR, exclTerpisah: false };
   // BIO DISTRICT: harga per m² Termasuk PPN dibulatkan ke atas ke ratusan
   // ribu, dan harga Belum PPN dihitung sendiri — seperti berkas Excel-nya.
@@ -633,12 +672,15 @@ export type HasilUnit = {
   factoredExcl?: number;
 };
 
-export type OpsiHitungUnit = { bulatHargaM2?: number; exclTerpisah?: boolean; baseTanpaBulat?: boolean };
+export type OpsiHitungUnit = {
+  bulatHargaM2?: number; exclTerpisah?: boolean; baseTanpaBulat?: boolean; hargaM2Termasuk?: boolean;
+};
 
 export function hitungUnit(u: UnitData, ppn = PPN, exclPpn = false, bulat = 6,
                            bulatBiasa = false, opsi: OpsiHitungUnit = {}): HasilUnit {
-  const hargaTanahPpn = u.hargaTanah * (1 + ppn);
-  const hargaBangunanPpn = u.hargaBangunan * (1 + ppn);
+  const kaliPpn = opsi.hargaM2Termasuk ? 1 : 1 + ppn;
+  const hargaTanahPpn = u.hargaTanah * kaliPpn;
+  const hargaBangunanPpn = u.hargaBangunan * kaliPpn;
   const m2 = (x: number) => opsi.bulatHargaM2 != null && opsi.bulatHargaM2 >= 0 ? roundUp(x, opsi.bulatHargaM2) : x;
   // Pricelist Permai Indah mengalikan luas dengan harga Excl PPN.
   const [tanah, bangunan] = exclPpn ? [u.hargaTanah, u.hargaBangunan]
@@ -767,7 +809,7 @@ export function hitungSemua(susun: SusunPricelist, spesial?: string | null): Has
     const hasilUnit = hitungUnit(unit, tarifPpn(susun), !!susun.basisExclPpn,
                                  susun.bulatBase ?? 6, !!susun.bulatBiasa,
                                  { bulatHargaM2: susun.bulatHargaM2, exclTerpisah: susun.exclTerpisah,
-                                   baseTanpaBulat: susun.baseTanpaBulat });
+                                   baseTanpaBulat: susun.baseTanpaBulat, hargaM2Termasuk: susun.hargaM2Termasuk });
     const dataPl = hitungDataPl(susun, hasilUnit.factored, irr.koef);
     const dasar = hitungPricelist(susun, dataPl);
     // Harga spesial menggantikan harganya; DPP dan nilai free PPN DTP

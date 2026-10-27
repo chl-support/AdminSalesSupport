@@ -2101,6 +2101,20 @@ async function main() {
     assert(Math.abs(k.factored - h.factoredR * 1.1) < 1e-3 && k.factoredR === h.factoredR, `kenaikan ${k.factored}`);
   });
 
+  // Unit Data The Sanctuary Collection: harga per m² sudah Termasuk PPN,
+  // tanpa pembulatan; faktor dijumlah, AC dan Harga Khusus (Rp) ditambahkan.
+  await check("Data Unit The Sanctuary Collection seperti berkas Excel-nya", async () => {
+    const { basisProject, hitungSemua, susunAwal } = await import("../src/lib/susun-pricelist");
+    const { kategoriTsc, unitKosongTsc } = await import("../src/lib/unit-sanctuary");
+    const u = { ...unitKosongTsc(), kode: "SV-SL1-001", subTipe: "Corner", lt: 116.6, hargaTanah: 11_400_000,
+      lb: 115.44, hargaBangunan: 11_500_000, faktor: { garduListrik: -0.02, unitUjung: 0.03 },
+      atribut: { nTepiSungai: 1, nFasadBelakang: 1, nTamanBelakang: 1 } };
+    const h = hitungSemua(basisProject("the-sanctuary-collection", { ...susunAwal(), unit: [u] })).baris[0].hasilUnit;
+    assert(Math.round(h.base) === 2_656_800_000, `dasar ${h.base}`);
+    assert(Math.round(h.factoredR) === 2_683_368_000, `penyesuaian ${h.factoredR}`);
+    assert(kategoriTsc(u) === "Riverside Corner Rear Façade & Garden", kategoriTsc(u));
+  });
+
   // Data (IRR) standar (berkas data_irr_2): nama cara bayar dari Kelompok,
   // DP dan Installments; arus kas 100 bulan; koefisien sama dengan Excel.
   await check("Data (IRR) standar: nama otomatis dan koefisien data_irr_2", async () => {
