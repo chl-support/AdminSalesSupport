@@ -393,8 +393,8 @@ export type SusunPricelist = {
   hargaM2Termasuk?: boolean;
   /**
    * Pembulatan harga per cara bayar di Data Pricelist: ROUNDUP ke 10^n
-   * rupiah. Kosong = 6 (juta). The Sanctuary Collection: 4 (Rp 10.000),
-   * seperti ROUNDUP(…, -4) di lembar Data Harga-nya.
+   * rupiah, dipilih di langkah 3. Kosong = 6 (juta); The Sanctuary
+   * Collection bawaannya 4 (Rp 10.000), seperti ROUNDUP(…, -4) Excel-nya.
    */
   bulatDataPl?: number;
   /**
@@ -619,7 +619,7 @@ export const RUMUS_TSC: ReadonlySet<string> = new Set([
 ]);
 const ATURAN_TSC = {
   bulatHargaM2: -1, bulatBase: 6, bulatBiasa: false, baseTanpaBulat: true, basisExclPpn: false,
-  exclTerpisah: false, hargaM2Termasuk: true, bulatDataPl: 4,
+  exclTerpisah: false, hargaM2Termasuk: true,
 } as const;
 
 /**
@@ -646,9 +646,10 @@ export const rumusDikunci = (slug: string | null | undefined) =>
   !!slug && !PROJECT_LAMA.has(slug) && !RUMUS_TSC.has(slug);
 
 export function basisProject<
-  T extends Pick<SusunPricelist, "basisExclPpn" | "bulatBase" | "bulatBiasa" | "bulatHargaM2" | "exclTerpisah" | "baseTanpaBulat">,
+  T extends Pick<SusunPricelist, "basisExclPpn" | "bulatBase" | "bulatBiasa" | "bulatHargaM2" | "exclTerpisah" | "baseTanpaBulat" | "bulatDataPl">,
 >(slug: string | null | undefined, data: T): T {
-  if (slug && RUMUS_TSC.has(slug)) return { ...data, ...ATURAN_TSC };
+  // Pembulatan Data Harga TSC bawaan Rp 10.000 (ROUNDUP …, -4); dapat dipilih lain di langkah 3.
+  if (slug && RUMUS_TSC.has(slug)) return { ...data, ...ATURAN_TSC, bulatDataPl: data.bulatDataPl ?? 4 };
   if (rumusDikunci(slug)) return { ...data, ...ATURAN_STANDAR, exclTerpisah: false };
   // BIO DISTRICT: harga per m² Termasuk PPN dibulatkan ke atas ke ratusan
   // ribu, dan harga Belum PPN dihitung sendiri — seperti berkas Excel-nya.

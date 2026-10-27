@@ -189,6 +189,8 @@ const KATA = {
     // 3. Data Harga
     dpHint: (b: string) => `Harga per cara bayar = ROUNDUP(Harga Setelah Kenaikan × koefisien Data (IRR) × pengali, ${b}) + tambahan (pengali bawaan 100%, mis. 124% untuk KPR Extra Ultra Express); lalu kenaikan bertingkat khusus cara bayar itu bila diisi — tiap tingkat dari hasil tingkat sebelumnya: ROUNDUP(harga × (1 + %), ${b}) + Nilai (Rp). Kolom turunan dihitung dari kolom lain di sebelah kirinya: ROUNDUP(kolom itu × pengali, ${b}), tanpa tambahan.`,
     tambahanPerUnit: "Tambahan per unit (Rp)",
+    pembulatanDp: "Pembulatan harga",
+    pembulatanDpInfo: "Pembulatan ke atas harga tiap cara bayar (juga pengali dan kenaikan bertingkat). Berlaku untuk semua kolom Data Harga project ini.",
     thKolom: "Kolom", thDari: "Dihitung dari", thKoef: "Koefisien / pengali",
     thNaikInfo: "Kenaikan khusus cara bayar ini. Tiap tingkat dihitung dari hasil tingkat sebelumnya: ROUNDUP(harga × (1 + %), juta) + Nilai (Rp)",
     thNaik: "Kenaikan bertingkat", thNaikSub: "% · Nilai (Rp)",
@@ -416,6 +418,8 @@ const KATA = {
     tambahTingkat: "+ Tier", tambahKenaikan: "+ Increase",
     dpHint: (b: string) => `Price per payment scheme = ROUNDUP(Increased Price × Data (IRR) coefficient × multiplier, ${b}) + addition (multiplier defaults to 100%, e.g. 124% for KPR Extra Ultra Express); then that scheme's own tiered increase if filled in — each tier from the previous tier's result: ROUNDUP(price × (1 + %), ${b}) + Amount (Rp). Derived columns are calculated from another column to their left: ROUNDUP(that column × multiplier, ${b}), with no addition.`,
     tambahanPerUnit: "Addition per unit (Rp)",
+    pembulatanDp: "Price rounding",
+    pembulatanDpInfo: "Round-up of each payment scheme price (also multipliers and tiered increases). Applies to every Price Data column of this project.",
     thKolom: "Column", thDari: "Calculated from", thKoef: "Coefficient / multiplier",
     thNaikInfo: "Increase specific to this payment scheme. Each tier is calculated from the previous tier's result: ROUNDUP(price × (1 + %), million) + Amount (Rp)",
     thNaik: "Tiered increase", thNaikSub: "% · Amount (Rp)",
@@ -2075,6 +2079,15 @@ export function LangkahDataPl({ data, hasil, ubah, bolehUbah, slug }: PropsLangk
           <div className="lbl">{kt.tambahanPerUnit}</div>
           <Isian id="dp-tambahan" jenis="rp" nilai={data.dataPricelist.tambahan} lebar={140} disabled={ro}
                  ubah={(n) => ubah((d) => ({ ...d, dataPricelist: { ...d.dataPricelist, tambahan: n } }))} />
+        </div>
+        <div>
+          <div className="lbl">{kt.pembulatanDp}</div>
+          <select id="dp-pembulatan" disabled={ro} value={data.bulatDataPl ?? 6} title={kt.pembulatanDpInfo}
+                  onChange={(e) => ubah((d) => ({ ...d, bulatDataPl: Number(e.target.value) }))}>
+            <option value={4}>ROUNDUP ke Rp 10.000</option>
+            <option value={5}>ROUNDUP ke Rp 100.000</option>
+            <option value={6}>ROUNDUP ke juta</option>
+          </select>
         </div>
       </div>
       {/* Judul, tanggal dan catatan Harga (langkah 4a) juga diatur di sini:

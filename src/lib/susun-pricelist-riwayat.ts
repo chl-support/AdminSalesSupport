@@ -91,6 +91,8 @@ export function bedaSusun(lama: SusunPricelist | null, baru: SusunPricelist): st
   nilai("Data (IRR) · Target interest rate", persen(ia.target), persen(ib.target));
   nilai("Data (IRR) · Cash Price", angka(ia.hargaKas ?? NaN, 0), angka(ib.hargaKas ?? NaN, 0));
   nilai("Data (IRR) · Nama cara bayar otomatis", namaOtomatisAktif(ia) ? "Ya" : "Tidak", namaOtomatisAktif(ib) ? "Ya" : "Tidak");
+  const bulat = (x: SusunPricelist) => ({ 4: "Rp 10.000", 5: "Rp 100.000", 6: "juta" } as Record<number, string>)[x.bulatDataPl ?? 6] ?? String(x.bulatDataPl);
+  nilai("Data Harga · Pembulatan harga", bulat(lama), bulat(baru));
   const ta = namaTahap(ia), tb = namaTahap(ib);
   tb.forEach((n, i) => {
     nilai(`Data (IRR) · Porsi ${n}`, persen(ia.porsiTahap[i]), persen(ib.porsiTahap[i]));
