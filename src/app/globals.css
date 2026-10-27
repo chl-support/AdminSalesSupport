@@ -3345,3 +3345,7 @@ table.tabel-arus .arus-jumlah { border-left: 2px solid var(--line, #ccc) !import
 .centang-kecil { display: inline-flex; align-items: center; gap: 5px; align-self: flex-end;
                  font-size: 12px; color: var(--sub); margin: 0 0 8px; white-space: nowrap; }
 .centang-kecil input[type=checkbox] { width: 13px; height: 13px; margin: 0; flex: none; }
+
+/* Data Harga: sel yang berbeda dari Excel yang dicocokkan (Cocokkan dengan Excel). */
+.bagian-langkah table td.beda-excel, .bagian-langkah table td.n.beda-excel { background: #D6E9FB; color: #0B3A66;
+  font-weight: 600; box-shadow: inset 0 0 0 1px #8DBDEB; }

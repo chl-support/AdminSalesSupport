@@ -491,16 +491,20 @@ export async function bacaHargaExcel(isi: ArrayBuffer): Promise<HargaExcel> {
   const terbuka = wb.worksheets.filter((w) => w.state === "visible");
   const hasil: HargaExcel = { kolom: [], harga: {}, factored: {}, peringatan: [] };
 
-  const wsDp = terbuka.find((w) => /^data pricelist$/i.test(w.name.trim()));
+  // Lembar harga per cara bayar: "Data Pricelist", atau "Data Harga" (The Sanctuary Collection).
+  const wsDp = terbuka.find((w) => /^data pricelist$/i.test(w.name.trim()))
+    ?? terbuka.find((w) => /^data harga$/i.test(w.name.trim()));
   const j = wsDp && cari(wsDp, KODE);
   if (!wsDp || !j) {
-    hasil.peringatan.push("Lembar Data Pricelist (dengan kolom Code) tidak ditemukan.");
+    hasil.peringatan.push("Lembar Data Pricelist / Data Harga (dengan kolom Code) tidak ditemukan.");
   } else {
     const hdr = (c: number) => teks(wsDp.getCell(j.r, c));
     let kKode = 0, kAwal = 0;
     for (let c = 1; c <= wsDp.columnCount; c++) {
       if (!kKode && KODE.test(hdr(c))) kKode = c;
       if (/^(build|gfa|bangunan)$/i.test(hdr(c))) kAwal = c;
+      // Kolom harga dasar unit sebelum kolom cara bayar (berkas TSC) bukan cara bayar.
+      if (/^harga setelah (faktor|kenaikan)/i.test(hdr(c))) kAwal = c;
     }
     // Kolom harga: berjudul, sesudah kolom Build, dan isinya angka rupiah.
     const kolom: { c: number; nama: string }[] = [];
@@ -536,7 +540,8 @@ export async function bacaHargaExcel(isi: ArrayBuffer): Promise<HargaExcel> {
     for (let c = 1; c <= ws.columnCount; c++) {
       const h = teks(ws.getCell(jj.r, c)).toLowerCase(), h2 = teks(ws.getCell(jj.r + 1, c)).toLowerCase();
       if (!kKode && KODE.test(h)) kKode = c;
-      const fac = (x: string) => x.startsWith("factored price") || x.startsWith("harga setelah faktor");
+      const fac = (x: string) => x.startsWith("factored price") || x.startsWith("harga setelah faktor")
+        || x.startsWith("harga setelah kenaikan");
       if ((fac(h) || fac(h2)) && !kFac) kFac = c;
       const incl = /termasuk|incl/.test(h + h2) && !/belum|excl/.test(h + h2);
       if ((fac(h) || fac(h2)) && incl && !kFacIncl) kFacIncl = c;
