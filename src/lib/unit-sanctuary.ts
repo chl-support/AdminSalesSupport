@@ -19,6 +19,18 @@ import { RUMUS_TSC, unitKosong, type KunciFaktor, type UnitData } from "./susun-
 
 export const unitTsc = (slug: string | null | undefined) => !!slug && RUMUS_TSC.has(slug);
 
+/** Cluster The Sanctuary Collection; tercatat di kolom Kavling tiap unit. */
+export const CLUSTER_TSC = ["Tanglin Parc", "Newton Springs", "Orchard Riviera", "Scotts Vale"];
+
+/** Cluster satu unit (kolom Kavling). */
+export const clusterTsc = (u: UnitData) => String(u.atribut?.kavling ?? "").trim();
+
+/** Daftar cluster untuk pilihan: keempat cluster, lalu Kavling lain yang ada di data. */
+export const daftarClusterTsc = (unit: UnitData[]) => [
+  ...CLUSTER_TSC,
+  ...[...new Set(unit.map(clusterTsc))].filter((c) => c && !CLUSTER_TSC.some((x) => x.toLowerCase() === c.toLowerCase())),
+];
+
 export type JenisKolomTsc = "teks" | "angka" | "persen" | "rp";
 
 /**
