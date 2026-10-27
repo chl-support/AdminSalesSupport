@@ -1942,7 +1942,7 @@ function KenaikanBertingkat({ tingkat, ubah, disabled }: {
 
 // ── 3. Data Pricelist ──────────────────────────────────────────────────────
 
-export function LangkahDataPl({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
+export function LangkahDataPl({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah & { slug?: string | null }) {
   const kt = useKata(KATA);
   const ro = !bolehUbah;
   // Salin pengaturan harga dari project lain, supaya pricelist project baru
@@ -2043,7 +2043,7 @@ export function LangkahDataPl({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
 
   // Hasil Cocokkan dengan Excel: sel yang berbeda dari Excel diberi blok biru
   // muda (angka Excel di keterangannya).
-  const excel = useHargaExcel();
+  const excel = useHargaExcel(slug ?? "");
   const padanExcel = new Map(excel ? data.dataPricelist.kolom.flatMap((k) => {
     const e = excel.kolom.find((x) => kunciKolom(x) === kunciKolom(k.nama));
     return e ? [[k.nama, e] as [string, string]] : [];
@@ -2069,7 +2069,7 @@ export function LangkahDataPl({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
         </div>
       )}
       {pesanAtur && <div className={`banner ${pesanAtur.ok ? "ok" : "stop"}`}>{pesanAtur.teks}</div>}
-      <CocokkanExcel data={data} hasil={hasil} />
+      <CocokkanExcel data={data} hasil={hasil} slug={slug ?? ""} />
       <div className="filters rapat" style={{ maxWidth: 300 }}>
         <div>
           <div className="lbl">{kt.tambahanPerUnit}</div>

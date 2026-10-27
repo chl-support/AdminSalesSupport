@@ -506,7 +506,7 @@ export default function PricelistPage() {
           {[
             <LangkahIrr key={0} {...props} baru={[baruCb, setBaruCb]} />,
             <LangkahUnit key={1} {...props} slug={sesi.project_slug} />,
-            <LangkahDataPl key={2} {...props} />,
+            <LangkahDataPl key={2} {...props} slug={sesi.project_slug} />,
             <LangkahPricelist key={3} {...props} aksi={panelBerlaku} slug={sesi.project_slug} />,
             // 4b. Harga Spesial: harga permintaan di atas harga 4a.
             <LangkahHargaSpesial key={4} {...props} />,
