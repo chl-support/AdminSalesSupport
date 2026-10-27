@@ -3340,3 +3340,8 @@ table.tabel-arus .arus-jumlah { border-left: 2px solid var(--line, #ccc) !import
 /* Pemilih project: judul pilihan cluster di bawah kartu induk. */
 .pilih-cluster { display: flex; align-items: center; gap: 14px; margin: 0 0 14px; }
 .pilih-cluster h2 { margin: 0; font-size: 16px; }
+
+/* Centang kecil sebaris dengan tulisannya (mis. Nama cara bayar otomatis). */
+.centang-kecil { display: inline-flex; align-items: center; gap: 5px; align-self: flex-end;
+                 font-size: 12px; color: var(--sub); margin: 0 0 8px; white-space: nowrap; }
+.centang-kecil input[type=checkbox] { width: 13px; height: 13px; margin: 0; flex: none; }
