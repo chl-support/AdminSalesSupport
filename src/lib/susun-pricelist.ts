@@ -603,7 +603,9 @@ const RUMUS_MAZENTA = new Set(["mazenta-residence"]);
  * per m² sudah Termasuk PPN), tanpa pembulatan. Rumusnya tetap, tidak dapat
  * diubah di layar.
  */
-export const RUMUS_TSC: ReadonlySet<string> = new Set(["the-sanctuary-collection"]);
+export const RUMUS_TSC: ReadonlySet<string> = new Set([
+  "tsc-tanglin-parc", "tsc-newton-springs", "tsc-orchard-riviera", "tsc-scotts-vale",
+]);
 const ATURAN_TSC = {
   bulatHargaM2: -1, bulatBase: 6, bulatBiasa: false, baseTanpaBulat: true, basisExclPpn: false,
   exclTerpisah: false, hargaM2Termasuk: true,

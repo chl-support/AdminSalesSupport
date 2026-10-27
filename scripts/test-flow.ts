@@ -2109,7 +2109,7 @@ async function main() {
     const u = { ...unitKosongTsc(), kode: "SV-SL1-001", subTipe: "Corner", lt: 116.6, hargaTanah: 11_400_000,
       lb: 115.44, hargaBangunan: 11_500_000, faktor: { garduListrik: -0.02, unitUjung: 0.03 },
       atribut: { nTepiSungai: 1, nFasadBelakang: 1, nTamanBelakang: 1 } };
-    const h = hitungSemua(basisProject("the-sanctuary-collection", { ...susunAwal(), unit: [u] })).baris[0].hasilUnit;
+    const h = hitungSemua(basisProject("tsc-scotts-vale", { ...susunAwal(), unit: [u] })).baris[0].hasilUnit;
     assert(Math.round(h.base) === 2_656_800_000, `dasar ${h.base}`);
     assert(Math.round(h.factoredR) === 2_683_368_000, `penyesuaian ${h.factoredR}`);
     assert(kategoriTsc(u) === "Riverside Corner Rear Façade & Garden", kategoriTsc(u));

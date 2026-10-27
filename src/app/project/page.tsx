@@ -14,6 +14,7 @@
  * tetap harus mempercayai apa yang dikirimkan layar.
  */
 
+import { grupDari, type GrupProject } from "@/lib/project-grup";
 import { hanyaPricelist, layarBoleh } from "@/lib/project-terbatas";
 import { useCallback, useEffect, useState } from "react";
 
@@ -23,10 +24,29 @@ type Project = {
   id: string; slug: string; name: string; company_name: string;
 };
 
+/**
+ * Daftar kartu: project biasa apa adanya, dan cluster sebuah grup diganti
+ * satu kartu induk di tempat cluster pertamanya.
+ */
+type Kartu = Project | { grup: GrupProject; company_name: string };
+function tampilan(daftar: Project[]): Kartu[] {
+  const sudah = new Set<string>();
+  return daftar.flatMap((p): Kartu[] => {
+    const g = grupDari(p.slug);
+    if (!g) return [p];
+    if (sudah.has(g.slug)) return [];
+    sudah.add(g.slug);
+    return [{ grup: g, company_name: p.company_name }];
+  });
+}
+
 export default function PilihProjectPage() {
   const [daftar, setDaftar] = useState<Project[]>([]);
   const [busy, setBusy] = useState(true);
   const [galat, setGalat] = useState<string | null>(null);
+  // Kartu induk yang sedang dibuka (mis. The Sanctuary Collection): yang
+  // tampil pilihan cluster-nya.
+  const [grup, setGrup] = useState<GrupProject | null>(null);
 
   // Lintasan tujuan dibaca dari alamatnya sendiri, bukan lewat useSearchParams:
   // halaman ini statis, dan hook itu menuntut batas Suspense hanya demi satu
@@ -85,8 +105,33 @@ export default function PilihProjectPage() {
 
       {galat && <div className="banner stop">{galat}</div>}
 
+      {grup && (
+        <div className="pilih-cluster">
+          <button className="kecil" disabled={busy} onClick={() => setGrup(null)}>← Kembali ke daftar proyek</button>
+          <h2>{grup.nama} — pilih cluster</h2>
+        </div>
+      )}
+
       <div className="pilihan">
-        {daftar.map((p) => (
+        {grup ? daftar.filter((p) => grup.anggota.includes(p.slug)).map((p) => (
+          /* Pilihan cluster: lambang induk, nama cluster di bawahnya. */
+          <button key={p.slug} disabled={busy} className="opsi kartu-project"
+                  onClick={() => void pilih(p.slug)}>
+            <span className="lambang">
+              <LogoProject slug={grup.slug} tinggi={54} alt={grup.nama} gantiTeks={grup.nama} />
+            </span>
+            <span className="nama"><b>{p.name}</b></span>
+          </button>
+        )) : tampilan(daftar).map((x) => "grup" in x ? (
+          /* Kartu induk: diklik, pilihan cluster-nya muncul. */
+          <button key={x.grup.slug} disabled={busy} className="opsi kartu-project"
+                  onClick={() => setGrup(x.grup)}>
+            <span className="lambang">
+              <LogoProject slug={x.grup.slug} tinggi={54} alt={x.grup.nama} gantiTeks={x.grup.nama} />
+            </span>
+            <span className="nama">{x.company_name}</span>
+          </button>
+        ) : ((p: Project) => (
           /* Semua kartu sama besar, dan urutannya tetap: urutan yang tersimpan
              pada tabel projects, bukan urutan yang dipengaruhi project mana
              yang terakhir dikerjakan. Letak tiap project di layar ini tidak
@@ -112,7 +157,7 @@ export default function PilihProjectPage() {
                 yang berlainan. */}
             <span className="nama">{p.company_name}</span>
           </button>
-        ))}
+        ))(x))}
         {!daftar.length && !busy && (
           <div className="banner warn">
             <b>Belum ada project</b>
