@@ -495,7 +495,7 @@ export default function PricelistPage() {
           {langkah !== FOLDER && (
             <div className="row" style={{ margin: "0 0 8px", justifyContent: "space-between" }}>
               {bolehUbah ? <BilahGaya /> : <span />}
-              {/* Warna: kuning muda = diisi manual, biru muda = dihitung sistem. */}
+              {/* Warna: abu muda = diisi manual, abu lebih tua = dihitung sistem. */}
               <span className="legenda-isian">
                 <span><i className="manual" />{k.legManual}</span>
                 <span><i className="sistem" />{k.legSistem}</span>
