@@ -165,7 +165,7 @@ export const FAKTOR = [
   ["roundAround", "Round Around"],
   ["luckyNumber", "Lucky Number"],
   // Faktor berkas Unit Data The Sanctuary Collection (lihat unit-sanctuary.ts).
-  ["fasadSamping", "Fasad Samping"],
+  ["hargaBangunanPersen", "Harga Bangunan (%)"],
   ["fasadBelakang", "Fasad Belakang"],
   ["tepiSungai", "Tepi Sungai"],
   ["garduListrik", "Gardu Listrik"],
@@ -193,7 +193,7 @@ export const FAKTOR_INGGRIS: Partial<Record<KunciFaktor, string>> = {
  * langkah 2 tampil bila ada unit yang mengisinya, dan tidak ada di template.
  */
 export const FAKTOR_OPSIONAL: ReadonlySet<KunciFaktor> = new Set(["tusukSate", "roundAround", "luckyNumber",
-  "fasadSamping", "fasadBelakang", "tepiSungai", "garduListrik", "penangkalPetir", "wargaSekitar",
+  "hargaBangunanPersen", "fasadBelakang", "tepiSungai", "garduListrik", "penangkalPetir", "wargaSekitar",
   "pertigaan", "unitUjung", "fasilitas", "areaTerbuka", "tanahTakBeraturan"]);
 
 /** Faktor yang kolomnya ditampilkan untuk daftar unit ini. */

@@ -77,9 +77,9 @@ export const KOLOM_TSC_BANGUNAN = k("hargaBangunan", "Harga Bangunan", "rp", 100
 
 /** Faktor % (AE–AQ), urut seperti berkas. */
 export const FAKTOR_TSC: [KunciFaktor, string, string, number?][] = [
-  // Berkasnya menjuduli kolom AE "Harga Bangunan" (judul kedua); isinya
-  // persen faktor Fasad Samping, pasangan kolom K.
-  ["fasadSamping", "Harga Bangunan", "Fasad Samping", 2],
+  // Kolom AE: judul "Harga Bangunan" kedua (yang pertama, AD, harga per m²);
+  // isinya persen faktor yang ikut dijumlah seperti faktor lain.
+  ["hargaBangunanPersen", "Harga Bangunan", "Harga Bangunan", 2],
   ["fasadBelakang", "Fasad Belakang", "Fasad Belakang", 2],
   ["backGarden", "Taman Belakang", "Taman Belakang", 2],
   ["tepiSungai", "Tepi Sungai", "Tepi Sungai", 2],
