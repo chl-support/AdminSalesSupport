@@ -105,10 +105,10 @@ export function TabelUnitTsc({
     ...(incl ? [hitung("kenaikan", <>Harga Setelah Kenaikan<br />(Termasuk PPN {lp})</>, (i) => h(i)?.factored ?? NaN, true)] : []),
     { ...isi(KOLOM_TSC_HARGA_LAMA),
       total: (b) => rp(b.reduce((a, { u }) => a + (Number(u.atribut?.hargaLama) || 0), 0)) },
-    hitung("naik", "Harga Naik", (i) => {
-      const lama = Number(data.unit[i]?.atribut?.hargaLama) || 0;
-      return lama ? (h(i)?.factored ?? NaN) - lama : 0;
-    }),
+    // Harga Naik = rupiah kenaikan dari Persentase Kenaikan Harga:
+    // Harga Setelah Kenaikan − Harga Setelah Penyesuaian (Termasuk PPN).
+    hitung("naik", <>Harga Naik<br />(Termasuk PPN {lp})</>,
+           (i) => (h(i)?.factored ?? NaN) - (h(i)?.factoredR ?? NaN)),
   ];
 
   return (
