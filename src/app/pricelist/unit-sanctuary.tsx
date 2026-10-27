@@ -20,7 +20,8 @@ import { Isian, IsianTeks } from "./langkah";
 
 const rp = (n: number) => (Number.isFinite(n) ? formatRupiah(Math.round(n)) : "—");
 const polos = (n: number) => (Number.isFinite(n) ? Math.round(n).toLocaleString("id-ID") : "—");
-const luas = (n: number) => `${n.toLocaleString("id-ID", { maximumFractionDigits: 2 })} m²`;
+/** Luas, satu angka di belakang koma (tampilan; nilainya tetap utuh). */
+const luas = (n: number) => `${n.toLocaleString("id-ID", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} m²`;
 
 /** Satu kolom tabel: judul, isi sel, dan isi baris total. */
 type Kolom = { kunci: string; judul: ReactNode; sel: (u: UnitData, i: number) => ReactNode;
@@ -54,7 +55,7 @@ export function TabelUnitTsc({
                      disabled={ro} ubah={ganti} />
         // Persen tampil dua angka di belakang koma, mis. -2,00%.
         : <Isian jenis={d.jenis === "angka" ? "angka" : d.jenis} kosongNol nilai={Number(v) || 0}
-                 desimal={d.jenis === "persen" ? 2 : undefined}
+                 desimal={d.jenis === "persen" ? 2 : /^(lt|lb)$|^atribut\.(lt|lb)/.test(d.kunci) ? 1 : undefined}
                  lebar={d.lebar} disabled={ro} ubah={ganti} />;
     },
   });
