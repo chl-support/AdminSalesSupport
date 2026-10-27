@@ -25,7 +25,7 @@ import { RiwayatSusun } from "./riwayat-susun";
 import { BilahGaya } from "./gaya-teks";
 import { useSesi } from "../session";
 import { PENGUNGGAH } from "../simulasi/unggah-pricelist";
-import { basisProject, hitungSemua, unitBelumBerharga, type SusunPricelist } from "@/lib/susun-pricelist";
+import { RUMUS_TSC, basisProject, hitungSemua, samakanIrrStandar, unitBelumBerharga, type SusunPricelist } from "@/lib/susun-pricelist";
 import { periksaSusun, type Temuan } from "@/lib/susun-pricelist-periksa";
 import {
   LangkahDataPl, LangkahIrr, LangkahPricelist, LangkahTnc, LangkahUnit, isiOtomatisCaraBayar, rapikanCaraBayar, sinkronTnc, terapkanNamaOtomatis,
@@ -200,7 +200,10 @@ export default function PricelistPage() {
     // Aturan basis harga project (Permai Indah: Excl PPN) untuk draf baru.
     // Nama cara bayar otomatis (standar semua project): langsung mengikuti
     // parameternya, juga untuk draf lama yang belum pernah mematikannya.
-    const awal = rapikanCaraBayar(basisProject(slugRef.current, b.data));
+    // The Sanctuary Collection: Data (IRR) yang masih isian awal lama diganti
+    // cara bayar standar (Data_Irr_TSC.xlsx); tersimpan setelah Simpan.
+    const isi = RUMUS_TSC.has(slugRef.current ?? "") ? samakanIrrStandar(b.data) : b.data;
+    const awal = rapikanCaraBayar(basisProject(slugRef.current, isi));
     setDraf(b); setData(sinkronTnc(awal, terapkanNamaOtomatis(awal)));
   }, []);
 
