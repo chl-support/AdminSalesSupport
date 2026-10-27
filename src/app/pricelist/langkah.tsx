@@ -917,7 +917,7 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah, baru }: PropsLangkah 
           <Isian id="irr-target" jenis="persen" nilai={irr.target} disabled={ro}
                  ubah={(n) => ubah((d) => ({ ...d, irr: { ...d.irr, target: n, skema: tanpaSimpanan(d) } }))} />
         </div>
-        <label className="row" style={{ margin: 0, gap: 6, alignSelf: "flex-end" }} title={kt.namaOtomatisInfo}>
+        <label className="centang-kecil" title={kt.namaOtomatisInfo}>
           <input id="irr-nama-otomatis" type="checkbox" checked={namaOtomatisAktif(irr)} disabled={ro}
                  onChange={(e) => ubah((d) => ({ ...d, irr: { ...d.irr, namaOtomatis: e.target.checked,
                    skema: e.target.checked ? d.irr.skema.map(({ otomatis: _, ...x }) => x) : d.irr.skema } }))} />
