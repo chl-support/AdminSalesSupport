@@ -114,13 +114,14 @@ export default function PilihProjectPage() {
 
       <div className="pilihan">
         {grup ? daftar.filter((p) => grup.anggota.includes(p.slug)).map((p) => (
-          /* Pilihan cluster: lambang induk, nama cluster di bawahnya. */
+          /* Pilihan cluster: lambang cluster itu sendiri (namanya sudah ada di
+             dalam lambang), nama PT di bawahnya seperti kartu lain. */
           <button key={p.slug} disabled={busy} className="opsi kartu-project"
                   onClick={() => void pilih(p.slug)}>
             <span className="lambang">
-              <LogoProject slug={grup.slug} tinggi={54} alt={grup.nama} gantiTeks={grup.nama} />
+              <LogoProject slug={p.slug} tinggi={54} alt={p.name} gantiTeks={p.name} />
             </span>
-            <span className="nama"><b>{p.name}</b></span>
+            <span className="nama">{p.company_name}</span>
           </button>
         )) : tampilan(daftar).map((x) => "grup" in x ? (
           /* Kartu induk: diklik, pilihan cluster-nya muncul. */
