@@ -63,6 +63,39 @@ function wrongSignature(): string {
   return signaturePng(999, 3.5);
 }
 
+
+/**
+ * Susunan cara bayar berkas PL Naraya (isian awal sebelum cara bayar
+ * standar): pengujian rumus di bawah dicocokkan dengan Excel itu.
+ */
+async function susunNaraya() {
+  const { susunAwal } = await import("../src/lib/susun-pricelist");
+  const s = susunAwal();
+  const b: [number, number, number, number] = [12, 18, 19, 20];
+  const sk = (nama: string, kelompok: string, alokasi: number, dp: number, kali: number,
+              bulan = b, acuan?: boolean) => ({ nama, kelompok, alokasi, dp, kali, bulan: [...bulan] as typeof b,
+                                                ...(acuan && { acuan }) });
+  s.irr.skema = [
+    sk("Cash Keras", "Cash", 0.07, 1, 1, b, true), sk("Cicilan 12x", "Cash", 0.04, 1, 12),
+    sk("Cicilan 18x", "Cash", 0.05, 1, 18), sk("Cicilan 24x", "Cash", 0.08, 1, 24),
+    sk("Cicilan 30x", "Cash", 0.25, 1, 30), sk("KPR Express", "KPR", 0.33, 0.1, 1, [2, 2, 2, 2]),
+    sk("KPR DP 0% Express", "KPR", 0.08, 0, 1), sk("DP 10%/4x", "KPR", 0.05, 0.1, 4),
+    sk("DP 20%/6x", "KPR", 0.05, 0.2, 6),
+  ];
+  const dp = ["Cash Keras", "Cicilan 12x", "Cicilan 18x", "Cicilan 24x", "Cicilan 30x", "KPR Express"];
+  s.dataPricelist.kolom = [...dp.map((n) => ({ nama: n, skema: n })),
+    { nama: "BANK KPR - DP 10% (-UTJ)", dari: "KPR Express", kali: 1.12 },
+    ...["KPR DP 0% Express", "DP 10%/4x", "DP 20%/6x"].map((n) => ({ nama: n, skema: n }))];
+  s.pricelist.kolom = [
+    { nama: "Cash Keras", dari: "Cash Keras", kali: 1 },
+    ...[12, 18, 24, 30].map((n) => ({ nama: `Cicilan ${n}X`, dari: `Cicilan ${n}x`, kali: 1 })),
+    { nama: "KPR Express", dari: "KPR Express", kali: 1.115 },
+    { nama: "BANK KPR - DP 10% (KPR REGULAR)", dari: "BANK KPR - DP 10% (-UTJ)", kali: 1.115 },
+    ...["KPR DP 0% Express", "DP 10%/4x", "DP 20%/6x"].map((n) => ({ nama: n, dari: n, kali: 1 })),
+  ];
+  return s;
+}
+
 async function main() {
   console.log("\n=== Menyiapkan basis data ===");
   const info = await seed();
@@ -1913,9 +1946,9 @@ async function main() {
   // mewakili setiap jenis faktor: Hoek (IRR K), Badan tanpa faktor, dan unit
   // depan + hoek garden + show unit.
   await check("susun pricelist lima langkah sama dengan Excel", async () => {
-    const { hitungSemua, susunAwal, unitKosong, roundUp } =
+    const { hitungSemua, unitKosong, roundUp } =
       await import("../src/lib/susun-pricelist");
-    const s = susunAwal();
+    const s = await susunNaraya();
     // Rumus lembar Data (IRR) Excel memakai porsi tahap 40/40/10/10.
     s.irr.porsiTahap = [0.4, 0.4, 0.1, 0.1];
     const dasar = { ...unitKosong(), alamat: "NARAYA", hargaTanah: 7_000_000,
@@ -1954,10 +1987,10 @@ async function main() {
   });
 
   await check("susun pricelist: ekspor Excel terbaca kembali sebagai pricelist", async () => {
-    const { susunAwal, unitKosong } = await import("../src/lib/susun-pricelist");
+    const { unitKosong } = await import("../src/lib/susun-pricelist");
     const { eksporSusun, imporSusun } = await import("../src/lib/susun-pricelist-xlsx");
     const { bacaPricelist } = await import("../src/lib/pricelist");
-    const s = susunAwal();
+    const s = await susunNaraya();
     s.pricelist.tanggal = "21 Juli 2026";
     s.unit = [{ ...unitKosong(), kode: "X-01", alamat: "A", lt: 70, hargaTanah: 7_000_000,
                 lb: 88, hargaBangunan: 6_500_000, tipe: "7" }];
@@ -2067,8 +2100,8 @@ async function main() {
   // koefisien persis seperti Excel (Adjusted / Cash); mengubah arus kasnya
   // kembali ke perhitungan tepat pada target.
   await check("Data (IRR): koefisien dari Adjusted Price sama dengan Excel", async () => {
-    const { susunAwal, hitungIrr, koefisienTepat } = await import("../src/lib/susun-pricelist");
-    const s = susunAwal();
+    const { hitungIrr, koefisienTepat } = await import("../src/lib/susun-pricelist");
+    const s = await susunNaraya();
     const c12 = s.irr.skema.find((x) => x.nama === "Cicilan 12x")!;
     c12.hargaSesuai = 2098835043.1433501;
     const h = hitungIrr(s.irr);
@@ -2099,6 +2132,21 @@ async function main() {
     assert(h.factored === h.factoredR, "tanpa kenaikan setelah faktor");
     const k = hitungUnit({ ...u, kenaikanFaktor: 0.1 }, 0.11, false, 6, false, { baseTanpaBulat: true });
     assert(Math.abs(k.factored - h.factoredR * 1.1) < 1e-3 && k.factoredR === h.factoredR, `kenaikan ${k.factored}`);
+  });
+
+  // Isian awal memakai cara bayar standar (Data_Irr_TSC / data_irr_2), dan
+  // draf yang masih berisi isian awal lama disamakan ke sana.
+  await check("Data (IRR) isian awal = cara bayar standar; draf lama disamakan", async () => {
+    const { hitungIrr, samakanIrrStandar, susunAwal } = await import("../src/lib/susun-pricelist");
+    const a = susunAwal();
+    const koef = Object.values(hitungIrr(a.irr).koef).map((x) => x.toFixed(4)).join(" ");
+    assert(koef === "1.0000 1.0494 1.0964 1.1448 1.0143 1.1150 1.1208 1.1044", koef);
+    const lama = await susunNaraya();
+    const baru = samakanIrrStandar(lama);
+    assert(baru.irr.skema.map((x) => x.nama).join("|") === a.irr.skema.map((x) => x.nama).join("|"), "disamakan");
+    assert(baru.pricelist.kolom.length === 8 && baru.tnc.caraBayar.length === 8, "kolom & S&K");
+    lama.irr.skema[1].dp = 0.5;
+    assert(samakanIrrStandar(lama) === lama, "yang sudah diubah dibiarkan");
   });
 
   // Unit Data The Sanctuary Collection: harga per m² sudah Termasuk PPN,

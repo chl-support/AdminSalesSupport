@@ -935,12 +935,51 @@ export function hitungRumus(teks: string): number | null {
   }
 }
 
+/**
+ * Cara bayar standar Data (IRR) (berkas data_irr_2 / Data_Irr_TSC): satu
+ * kolom Data Pricelist dan satu kolom Pricelist per cara bayar.
+ */
+export const SKEMA_STANDAR: [string, string, number, number, number, [number, number, number, number]][] = [
+  // nama, kelompok, alokasi, DP, cicilan, bulan tahap
+  ["Cash Keras", "Cash", 0.07, 1, 1, [12, 18, 19, 20]],
+  ["Installment 12x", "Cash", 0.04, 1, 12, [12, 18, 19, 20]],
+  ["Installment 24x", "Cash", 0.08, 1, 24, [12, 18, 19, 20]],
+  ["Installment 36x", "Cash", 0.25, 1, 36, [12, 18, 19, 20]],
+  ["KPR Express", "KPR", 0.33, 0.1, 1, [2, 2, 2, 2]],
+  ["KPR DP 10%/6x", "KPR", 0.14, 0.1, 6, [12, 18, 19, 20]],
+  ["KPR DP 10%/12x", "KPR", 0.05, 0.1, 12, [12, 18, 19, 20]],
+  ["KPR DP 20%/6x", "KPR", 0.04, 0.2, 6, [12, 18, 19, 20]],
+];
+
+/** Kelompok, DP dan cicilan isian awal lama (sebelum SKEMA_STANDAR). */
+const SKEMA_AWAL_LAMA: [string, number, number][] = [
+  ["Cash", 1, 1], ["Cash", 1, 12], ["Cash", 1, 18], ["Cash", 1, 24], ["Cash", 1, 30],
+  ["KPR", 0.1, 1], ["KPR", 0, 1], ["KPR", 0.1, 4], ["KPR", 0.2, 6],
+];
+
+/**
+ * Draf yang Data (IRR)-nya masih isian awal lama (dikenali dari Kelompok, DP
+ * dan cicilan — namanya mungkin sudah diganti nama otomatis) mendapat cara
+ * bayar standar: Data (IRR), kolom Data Pricelist, kolom Pricelist dan blok
+ * S&K cara bayarnya diganti; Data Unit dan isian lain tetap.
+ */
+export function samakanIrrStandar(d: SusunPricelist): SusunPricelist {
+  const s = d.irr.skema;
+  const lama = s.length === SKEMA_AWAL_LAMA.length && s.every((x, i) =>
+    x.kelompok === SKEMA_AWAL_LAMA[i][0] && x.dp === SKEMA_AWAL_LAMA[i][1] && x.kali === SKEMA_AWAL_LAMA[i][2]
+    && !x.hargaSesuai);
+  if (!lama) return d;
+  const a = susunAwal();
+  return {
+    ...d,
+    irr: { ...d.irr, skema: a.irr.skema },
+    dataPricelist: { ...d.dataPricelist, kolom: a.dataPricelist.kolom },
+    pricelist: { ...d.pricelist, kolom: a.pricelist.kolom },
+    tnc: { ...d.tnc, caraBayar: a.tnc.caraBayar },
+  };
+}
+
 export function susunAwal(): SusunPricelist {
-  const sk = (nama: string, kelompok: string, alokasi: number, dp: number,
-              kali: number, bulan: [number, number, number, number],
-              acuan?: boolean): SkemaIrr =>
-    ({ nama, kelompok, alokasi, dp, kali, bulan, ...(acuan && { acuan }) });
-  const bangun: [number, number, number, number] = [12, 18, 19, 20];
   const bf = (dp: string, waktuDp: string, lunas: string, waktuLunas: string,
               labelDp = "DP", labelLunas = "PELUNASAN"): BarisTnc[] => [
     { label: "Booking Fee", nilai: "10 Juta", waktu: "" },
@@ -950,75 +989,43 @@ export function susunAwal(): SusunPricelist {
   const cicil = (n: number) => bf("10% - BF", "Hari ke 14 setelah BF",
     `90% / ${n - 1} bulan`, "1 bulan setelah DP 1, dan seterusnya setiap bulan",
     "Angsuran (DP) 1", `Angsuran 2 - ${n}`);
+  const kprDp = (dp: number, n: number) => bf(`(${dp}% - BF) / ${n} bulan`,
+    "Hari ke 14 setelah BF, dan seterusnya setiap bulan", `${100 - dp}%`, `1 bulan setelah DP ${n}`,
+    `DP 1 - ${n}`, "PELUNASAN / AKAD");
   return {
     irr: {
       target: 0.09, porsiTahap: [...PORSI_AWAL], namaTahap: [...TAHAP_AWAL], periode: PERIODE_STANDAR,
-      skema: [
-        sk("Cash Keras", "Cash", 0.07, 1, 1, bangun, true),
-        sk("Cicilan 12x", "Cash", 0.04, 1, 12, bangun),
-        sk("Cicilan 18x", "Cash", 0.05, 1, 18, bangun),
-        sk("Cicilan 24x", "Cash", 0.08, 1, 24, bangun),
-        sk("Cicilan 30x", "Cash", 0.25, 1, 30, bangun),
-        sk("KPR Express", "KPR", 0.33, 0.1, 1, [2, 2, 2, 2]),
-        sk("KPR DP 0% Express", "KPR", 0.08, 0, 1, bangun),
-        sk("DP 10%/4x", "KPR", 0.05, 0.1, 4, bangun),
-        sk("DP 20%/6x", "KPR", 0.05, 0.2, 6, bangun),
-      ],
+      skema: SKEMA_STANDAR.map(([nama, kelompok, alokasi, dp, kali, bulan], i) =>
+        ({ nama, kelompok, alokasi, dp, kali, bulan: [...bulan] as typeof bulan, ...(i === 0 && { acuan: true }) })),
     },
     unit: [],
     dataPricelist: {
       tambahan: 5_000_000,
-      kolom: [
-        { nama: "Cash Keras", skema: "Cash Keras" },
-        { nama: "Cicilan 12x", skema: "Cicilan 12x" },
-        { nama: "Cicilan 18x", skema: "Cicilan 18x" },
-        { nama: "Cicilan 24x", skema: "Cicilan 24x" },
-        { nama: "Cicilan 30x", skema: "Cicilan 30x" },
-        { nama: "KPR Express", skema: "KPR Express" },
-        { nama: "BANK KPR - DP 10% (-UTJ)", dari: "KPR Express", kali: 1.12 },
-        { nama: "KPR DP 0% Express", skema: "KPR DP 0% Express" },
-        { nama: "DP 10%/4x", skema: "DP 10%/4x" },
-        { nama: "DP 20%/6x", skema: "DP 20%/6x" },
-      ],
+      kolom: SKEMA_STANDAR.map(([nama]) => ({ nama, skema: nama })),
     },
     pricelist: {
       judul: "PRICELIST",
       tanggal: "",
       catatan: "Incld. Subsidi DP 10% + Biaya-biaya 7,5% (BPHTB, AJB, Notaris & Akad KPR Bank)",
       batasDtp: 2_220_000_000,
-      kolom: [
-        { nama: "Cash Keras", dari: "Cash Keras", kali: 1 },
-        { nama: "Cicilan 12X", dari: "Cicilan 12x", kali: 1 },
-        { nama: "Cicilan 18X", dari: "Cicilan 18x", kali: 1 },
-        { nama: "Cicilan 24X", dari: "Cicilan 24x", kali: 1 },
-        { nama: "Cicilan 30X", dari: "Cicilan 30x", kali: 1 },
-        { nama: "KPR Express", dari: "KPR Express", kali: 1.115 },
-        { nama: "BANK KPR - DP 10% (KPR REGULAR)", dari: "BANK KPR - DP 10% (-UTJ)", kali: 1.115 },
-        { nama: "KPR DP 0% Express", dari: "KPR DP 0% Express", kali: 1 },
-        { nama: "DP 10%/4x", dari: "DP 10%/4x", kali: 1 },
-        { nama: "DP 20%/6x", dari: "DP 20%/6x", kali: 1 },
-      ],
+      kolom: SKEMA_STANDAR.map(([nama]) => ({ nama, dari: nama, kali: 1 })),
     },
     tnc: {
       judul: "TERM OF PAYMENT",
       caraBayar: [
         { judul: "CASH KERAS", baris: bf("30% - BF", "Hari ke 7 setelah BF", "70%", "Hari ke 7 setelah DP") },
-        { judul: "CICILAN 12X", baris: cicil(12) },
-        { judul: "CICILAN 18X", baris: cicil(18) },
-        { judul: "CICILAN 24X", baris: cicil(24) },
-        { judul: "CICILAN 30X", baris: cicil(30) },
+        { judul: "INSTALLMENT 12X", baris: cicil(12) },
+        { judul: "INSTALLMENT 24X", baris: cicil(24) },
+        { judul: "INSTALLMENT 36X", baris: cicil(36) },
         { judul: "KPR EXPRESS", baris: bf("10% - BF", "Hari ke 14 setelah BF", "90%", "1 bulan setelah DP") },
-        { judul: "BANK KPR - DP 10% (KPR REGULAR)", baris: bf("10% - BF", "Hari ke 14 setelah BF", "90%", "1 bulan setelah DP") },
-        { judul: "KPR DP 10% - 4X", baris: bf("(10% - BF) / 4 bulan", "Hari ke 14 setelah BF, dan seterusnya setiap bulan", "90%", "1 bulan setelah DP 4", "DP 1 - 4", "PELUNASAN / AKAD") },
-        { judul: "KPR DP 20% - 6X", baris: bf("(20% - BF) / 6 bulan", "Hari ke 14 setelah BF, dan seterusnya setiap bulan", "80%", "1 bulan setelah DP 6", "DP 1 - 6", "PELUNASAN / AKAD"),
+        { judul: "KPR DP 10%/6X", baris: kprDp(10, 6) },
+        { judul: "KPR DP 10%/12X", baris: kprDp(10, 12) },
+        { judul: "KPR DP 20%/6X", baris: kprDp(20, 6),
           catatan: "*besaran DP ditentukan oleh plafon kredit yang diberikan oleh Bank" },
-        { judul: "KPR DP 0% Express", baris: [
-          { label: "Booking Fee", nilai: "10 Juta", waktu: "" },
-          { label: "PELUNASAN / AKAD", nilai: "100% - BF", waktu: "1 bulan setelah BF" }] },
       ],
       catatan: [
         "Harga diatas sudah termasuk: PPN, Ijin Mendirikan Bangunan (IMB), biaya instalasi listrik, biaya instalasi air bersih.",
-        "Harga diatas belum termasuk:\n- Cara Bayar Cash Keras, Cicilan 12x, Cicilan 18x, Cicilan 24x & Cicilan 30x: AJB & Balik nama Sertifikat, notaris / PPAT, HGB, BPHTB, PBB, PPN BM tanah & bangunan akibat pengembangan luas bangunan sehingga masuk dalam kriteria bangunan mewah sesuai peraturan pemerintah, Iuran Pengelolaan Lingkungan; dan biaya aktivasi telepon, listrik, dan air.\n- Cara Bayar KPR EXPRESS & BANK KPR - DP 10% (KPR REGULAR): PPN, PBB, PPN BM tanah & bangunan akibat pengembangan luas bangunan sehingga masuk dalam kriteria bangunan mewah sesuai peraturan pemerintah, Iuran Pengelolaan Lingkungan, Biaya aktivasi listrik dan air.",
+        "Harga diatas belum termasuk:\n- Cara Bayar Cash Keras, Installment 12x, Installment 24x & Installment 36x: AJB & Balik nama Sertifikat, notaris / PPAT, HGB, BPHTB, PBB, PPN BM tanah & bangunan akibat pengembangan luas bangunan sehingga masuk dalam kriteria bangunan mewah sesuai peraturan pemerintah, Iuran Pengelolaan Lingkungan; dan biaya aktivasi telepon, listrik, dan air.\n- Cara Bayar KPR: PPN, PBB, PPN BM tanah & bangunan akibat pengembangan luas bangunan sehingga masuk dalam kriteria bangunan mewah sesuai peraturan pemerintah, Iuran Pengelolaan Lingkungan, Biaya aktivasi listrik dan air.",
         "Nama blok, nomor yang tercantum pada saat tanda jadi sudah pasti dan tidak dapat diganti.",
         "Keterlambatan pembayaran akan dikenakan perhitungan denda sesuai ketentuan yang berlaku 1‰ (1 per mill) per hari.",
         "Cara pembayaran KPR harus melalui proses ke Bank yang bekerjasama dengan Pengembang.",
