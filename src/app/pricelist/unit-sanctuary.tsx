@@ -147,7 +147,8 @@ export function TabelUnitTsc({
               </td>
             )}
             <td className="n no-unit">{i + 1}</td>
-            {kolom.map((k) => <td key={k.kunci} className={k.kelas ? "n" : undefined}>{k.sel(u, i)}</td>)}
+            {kolom.map((k) => <td key={k.kunci} className={k.kelas ? "n" : k.kunci === "kategori" ? "hitung" : undefined}>
+              {k.sel(u, i)}</td>)}
           </tr>
         ))}
       </tbody><tfoot>

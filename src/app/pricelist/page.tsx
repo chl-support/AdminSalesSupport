@@ -81,7 +81,7 @@ const KATA = {
     yakinTnc: (n: string, daftar: string, c: number) => `Syarat dan Ketentuan dari "${n}":\n\n${daftar}\n\n${c} catatan.\n\n` +
       "S&K di layar diganti dengan isi di atas; langkah 1–4 tidak berubah. Lanjutkan?",
     tncKembali: (n: string, c: number) => `Syarat dan Ketentuan dari "${n}" dikembalikan (${c} cara bayar). Periksa di langkah 5, lalu Simpan.`,
-    legManual: "Diisi / diubah manual", legSistem: "Dihitung otomatis oleh sistem",
+    legManual: "Manual", legSistem: "Otomatis",
   },
   en: {
     judul: "Price List",
@@ -131,7 +131,7 @@ const KATA = {
     yakinTnc: (n: string, daftar: string, c: number) => `Terms & Conditions from "${n}":\n\n${daftar}\n\n${c} notes.\n\n` +
       "The T&C on screen will be replaced with the content above; steps 1–4 are unchanged. Continue?",
     tncKembali: (n: string, c: number) => `Terms & Conditions from "${n}" restored (${c} payment schemes). Review them in step 5, then Save.`,
-    legManual: "Entered / changed manually", legSistem: "Calculated automatically by the system",
+    legManual: "Manual", legSistem: "Automatic",
   },
 };
 
@@ -495,7 +495,7 @@ export default function PricelistPage() {
           {langkah !== FOLDER && (
             <div className="row" style={{ margin: "0 0 8px", justifyContent: "space-between" }}>
               {bolehUbah ? <BilahGaya /> : <span />}
-              {/* Warna: abu muda = diisi manual, abu tua = dihitung sistem. */}
+              {/* Warna: kuning muda = diisi manual, biru muda = dihitung sistem. */}
               <span className="legenda-isian">
                 <span><i className="manual" />{k.legManual}</span>
                 <span><i className="sistem" />{k.legSistem}</span>
