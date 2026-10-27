@@ -645,9 +645,28 @@ const PROJECT_LAMA = new Set([
 export const rumusDikunci = (slug: string | null | undefined) =>
   !!slug && !PROJECT_LAMA.has(slug) && !RUMUS_TSC.has(slug);
 
+/**
+ * Koefisien dipatenkan: di project baru dan The Sanctuary Collection,
+ * koefisien cara bayar standar (SKEMA_STANDAR, dikenali dari Kelompok, DP
+ * dan cicilan) selalu dihitung dari Target IRR (Goal Seek) — tidak dapat
+ * diketik manual. Cara bayar tambahan boleh diberi koefisien manual.
+ */
+export const koefDikunci = (slug: string | null | undefined) =>
+  rumusDikunci(slug) || (!!slug && RUMUS_TSC.has(slug));
+
+/** Cara bayar standar (SKEMA_STANDAR) menurut Kelompok, DP dan cicilan. */
+export const skemaStandar = (s: Pick<SkemaIrr, "kelompok" | "dp" | "kali">) =>
+  SKEMA_STANDAR.some(([, kelompok, , dp, kali]) => s.kelompok === kelompok && s.dp === dp && s.kali === kali);
+
 export function basisProject<
   T extends Pick<SusunPricelist, "basisExclPpn" | "bulatBase" | "bulatBiasa" | "bulatHargaM2" | "exclTerpisah" | "baseTanpaBulat" | "bulatDataPl">,
 >(slug: string | null | undefined, data: T): T {
+  // Koefisien manual pada cara bayar standar dibuang (kembali ke Goal Seek).
+  const irr = (data as { irr?: DataIrr }).irr;
+  if (koefDikunci(slug) && irr?.skema.some((s) => s.hargaSesuai && skemaStandar(s))) {
+    data = { ...data, irr: { ...irr, skema: irr.skema.map((s) =>
+      s.hargaSesuai && skemaStandar(s) ? { ...s, hargaSesuai: undefined } : s) } };
+  }
   // Pembulatan Data Harga TSC bawaan Rp 10.000 (ROUNDUP …, -4); dapat dipilih lain di langkah 3.
   if (slug && RUMUS_TSC.has(slug)) return { ...data, ...ATURAN_TSC, bulatDataPl: data.bulatDataPl ?? 4 };
   if (rumusDikunci(slug)) return { ...data, ...ATURAN_STANDAR, exclTerpisah: false };

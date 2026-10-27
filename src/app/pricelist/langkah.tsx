@@ -13,7 +13,7 @@ import { Fragment, useEffect, useState } from "react";
 
 import { formatRupiah } from "@/lib/money";
 import {
-  FAKTOR, FAKTOR_INGGRIS, arusKas, arusTertimbang, faktorTampil, hitungRumus, namaOtomatisAktif, namaStandar, rumusDikunci, hargaKasIrr, hargaSesuaiSkema, labelPpn, namaTahap, tarifPpn, unitKosong,
+  FAKTOR, FAKTOR_INGGRIS, arusKas, arusTertimbang, faktorTampil, hitungRumus, koefDikunci, skemaStandar, namaOtomatisAktif, namaStandar, rumusDikunci, hargaKasIrr, hargaSesuaiSkema, labelPpn, namaTahap, tarifPpn, unitKosong,
   kunciTnc, tingkatNaik, type BarisTnc, type KunciFaktor, type HasilSusun, type SusunPricelist, type UnitData,
 } from "@/lib/susun-pricelist";
 import type { UnitHarga } from "@/lib/simulasi";
@@ -56,6 +56,7 @@ const KATA = {
     grupBulan: "Bulan pencairan sisa (1 − DP) per tahap",
     grupHasil: "Hasil",
     hargaTunai: "Harga Tunai", selesai: "Selesai", edit: "Ubah",
+    koefKunciInfo: "Cara bayar standar: koefisien selalu dihitung dari Target IRR (Goal Seek), tidak dapat diubah manual. Koefisien manual hanya untuk cara bayar tambahan.",
     ubahKoefInfo: "Koefisien dan Harga Penyesuaian dihitung otomatis dari Target Bunga. Ubah hanya untuk pengecualian (mis. pricelist lama); ↺ Target mengembalikannya.",
     kasInfo: "dipakai semua cara bayar · Harga Penyesuaian = Harga Tunai × Koefisien",
     koef: "Koefisien",
@@ -289,6 +290,7 @@ const KATA = {
     grupBulan: "Disbursement month of the remainder (1 − DP) per stage",
     grupHasil: "Results",
     hargaTunai: "Cash Price", selesai: "Done", edit: "Edit",
+    koefKunciInfo: "Standard payment scheme: the coefficient is always calculated from the target IRR (Goal Seek) and cannot be changed manually. Manual coefficients are for additional schemes only.",
     ubahKoefInfo: "Coefficients and Adjusted Prices are calculated automatically from the target rate. Change them only for exceptions (e.g. an old price list); ↺ Target restores them.",
     kasInfo: "used by every payment scheme · Adjusted Price = Cash Price × Coefficient",
     koef: "Coefficient",
@@ -833,7 +835,9 @@ export function terapkanNamaOtomatis(d: SusunPricelist): SusunPricelist {
   return hasil;
 }
 
-export function LangkahIrr({ data, hasil, ubah, bolehUbah, baru }: PropsLangkah & {
+export function LangkahIrr({ data, hasil, ubah, bolehUbah, baru, slug }: PropsLangkah & {
+  /** Project; koefisien cara bayar standar dikunci di project baru / TSC. */
+  slug?: string | null;
   /**
    * Jumlah cara bayar yang baru ditambah di ujung kanan, disimpan halamannya
    * supaya tetap ada walau berpindah langkah (untuk "Batalkan tambah").
@@ -848,6 +852,8 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah, baru }: PropsLangkah 
   // Koefisien dan Harga Penyesuaian dihitung otomatis dari Target Bunga;
   // kotak isiannya (pengecualian manual) baru muncul setelah Ubah ditekan.
   const [editKoef, setEditKoef] = useState(false);
+  // Cara bayar standar di project baru / TSC: koefisien selalu Goal Seek.
+  const kunciKoef = (s: SusunPricelist["irr"]["skema"][0]) => koefDikunci(slug) && skemaStandar(s);
   const ro = !bolehUbah;
   // Mengubah arus kas cara bayar (DP, cicilan, bulan, Cash Price) membuat
   // Adjusted Price tersimpan tidak berlaku lagi — seperti di Excel yang
@@ -1055,11 +1061,13 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah, baru }: PropsLangkah 
             )}
           </td>{irr.skema.map((s, i) => (
             <td key={i} className="n" id={editKoef ? undefined : `irr-koef-${i}`} title={hasil.irr.koef[s.nama]?.toFixed(5)}>
-              {editKoef && bolehUbah && !s.acuan && Number.isFinite(hasil.irr.koef[s.nama]) ? (
+              {editKoef && bolehUbah && !s.acuan && !kunciKoef(s) && Number.isFinite(hasil.irr.koef[s.nama]) ? (
                 <Isian id={`irr-koef-${i}`} nilai={hasil.irr.koef[s.nama]} desimal={3} lebar={70}
                        ubah={(n) => ubahSkema(i, (x) => ({ ...x,
                          hargaSesuai: n > 0 ? Math.round(n * hargaKasIrr(irr) * 1e4) / 1e4 : undefined, hargaKas: hargaKasIrr(irr) }))} />
               ) : <b>{Number.isFinite(hasil.irr.koef[s.nama]) ? hasil.irr.koef[s.nama].toLocaleString("id-ID", { minimumFractionDigits: 3, maximumFractionDigits: 3 }) : "—"}</b>}
+              {editKoef && bolehUbah && kunciKoef(s) && !s.acuan && (
+                <small className="asal" title={kt.koefKunciInfo}>🔒 Goal Seek</small>)}
             </td>))}</tr>
           <tr className="hasil"><td>IRR</td>{irr.skema.map((s, i) => (
             <td key={i} className={`n${belumSesuai.has(s.nama) ? " belum-sesuai" : ""}`}
@@ -1074,7 +1082,7 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah, baru }: PropsLangkah 
           <tr className="hasil"><td>{kt.hargaSesuai}</td>{irr.skema.map((s, i) => (
             <td key={i} className="n"
                 title={s.hargaSesuai && !s.acuan ? kt.dariExcel : kt.dariTarget}>
-              {bolehUbah && !s.acuan && (editKoef || s.hargaSesuai) ? (
+              {bolehUbah && !s.acuan && !kunciKoef(s) && (editKoef || s.hargaSesuai) ? (
                 <span className="row" style={{ margin: 0, gap: 4, flexWrap: "nowrap", justifyContent: "flex-end" }}>
                   {editKoef ? (
                     <Isian id={`irr-sesuai-${i}`} jenis="rp" nilai={hargaSesuaiSkema(irr, hasil.irr.koef[s.nama])} lebar={130}

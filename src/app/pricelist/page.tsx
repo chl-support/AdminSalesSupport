@@ -504,7 +504,7 @@ export default function PricelistPage() {
           )}
 
           {[
-            <LangkahIrr key={0} {...props} baru={[baruCb, setBaruCb]} />,
+            <LangkahIrr key={0} {...props} baru={[baruCb, setBaruCb]} slug={sesi.project_slug} />,
             <LangkahUnit key={1} {...props} slug={sesi.project_slug} />,
             <LangkahDataPl key={2} {...props} slug={sesi.project_slug} />,
             <LangkahPricelist key={3} {...props} aksi={panelBerlaku} slug={sesi.project_slug} />,

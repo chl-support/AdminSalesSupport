@@ -2149,6 +2149,20 @@ async function main() {
     assert(samakanIrrStandar(lama) === lama, "yang sudah diubah dibiarkan");
   });
 
+  // Koefisien dipatenkan: cara bayar standar di project baru / TSC selalu
+  // Goal Seek; koefisien manual hanya untuk cara bayar tambahan.
+  await check("Koefisien cara bayar standar dikunci di project baru / TSC", async () => {
+    const { basisProject, susunAwal } = await import("../src/lib/susun-pricelist");
+    const s = susunAwal();
+    s.irr.skema[1].hargaSesuai = 2_200_000_000;
+    s.irr.skema.push({ nama: "Installment 60x", kelompok: "Cash", alokasi: 0, dp: 1, kali: 60,
+                       bulan: [12, 18, 19, 20], hargaSesuai: 2_500_000_000 });
+    const tsc = basisProject("tsc-scotts-vale", s);
+    assert(tsc.irr.skema[1].hargaSesuai === undefined, "standar kembali Goal Seek");
+    assert(tsc.irr.skema[8].hargaSesuai === 2_500_000_000, "tambahan boleh manual");
+    assert(basisProject("mazenta-residence", s).irr.skema[1].hargaSesuai === 2_200_000_000, "project lama dibiarkan");
+  });
+
   // Unit Data The Sanctuary Collection: harga per m² sudah Termasuk PPN,
   // tanpa pembulatan; faktor dijumlah, AC dan Harga Khusus (Rp) ditambahkan.
   await check("Data Unit The Sanctuary Collection seperti berkas Excel-nya", async () => {
