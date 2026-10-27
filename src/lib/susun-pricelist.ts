@@ -398,6 +398,11 @@ export type SusunPricelist = {
    */
   bulatDataPl?: number;
   /**
+   * Penyesuaian sekali jalan yang sudah diterapkan pada draf ini (lihat
+   * samakanTsc), supaya tidak diterapkan lagi bila orang mengubahnya.
+   */
+  migrasi?: string[];
+  /**
    * Tanda bahwa T&C draf ini sudah disamakan dengan patokan (T&C Naraya
    * Serpong) — sekali saja; sesudahnya T&C disunting manual dan tidak
    * ditimpa lagi. Lihat samakanTncPatokan.
@@ -976,9 +981,46 @@ const SKEMA_AWAL_LAMA: [string, number, number][] = [
  * Data Harga-nya (tambahan bawaan Rp 5 juta menjadi 0; nilai lain dibiarkan).
  */
 export function samakanTsc(d: SusunPricelist): SusunPricelist {
-  const s = samakanIrrStandar(d);
-  return s.dataPricelist.tambahan === 5_000_000
-    ? { ...s, dataPricelist: { ...s.dataPricelist, tambahan: 0 } } : s;
+  let s = samakanIrrStandar(d);
+  const sudah = new Set(s.migrasi ?? []);
+  const tandai = (x: SusunPricelist, m: string) => ({ ...x, migrasi: [...(x.migrasi ?? []), m] });
+  if (!sudah.has("tsc-tambahan-0")) {
+    s = tandai(s.dataPricelist.tambahan === 5_000_000
+      ? { ...s, dataPricelist: { ...s.dataPricelist, tambahan: 0 } } : s, "tsc-tambahan-0");
+  }
+  // Installment 60x (ada di lembar Data Harga TSC): cara bayar Data (IRR)
+  // Cash, DP 100%, 60x — koefisiennya dihitung tepat pada Target IRR seperti
+  // cara bayar lain (atas keputusan pemakai, bukan 125% yang diketik di
+  // Excel). Disisipkan sesudah Installment 36x; Allocation dibagi otomatis.
+  if (!sudah.has("tsc-installment-60x")) {
+    const nama = "Installment 60x";
+    const ada = s.irr.skema.some((x) => x.kelompok === "Cash" && x.kali === 60)
+      || s.dataPricelist.kolom.some((k) => k.nama.toLowerCase() === nama.toLowerCase());
+    if (!ada) {
+      const sisip = <T,>(a: T[], ke: (x: T) => boolean, x: T) => {
+        const i = a.findIndex(ke);
+        return i < 0 ? [...a, x] : [...a.slice(0, i + 1), x, ...a.slice(i + 1)];
+      };
+      const n = (x: string) => x.toLowerCase() === "installment 36x";
+      s = {
+        ...s,
+        irr: { ...s.irr, skema: sisip(s.irr.skema, (x) => n(x.nama),
+          { nama, kelompok: "Cash", alokasi: 0, dp: 1, kali: 60, bulan: [12, 18, 19, 20] }) },
+        dataPricelist: { ...s.dataPricelist,
+          kolom: sisip(s.dataPricelist.kolom, (k) => n(k.nama), { nama, skema: nama }) },
+        pricelist: { ...s.pricelist,
+          kolom: sisip(s.pricelist.kolom, (k) => n(k.nama), { nama, dari: nama, kali: 1 }) },
+        tnc: { ...s.tnc, caraBayar: sisip(s.tnc.caraBayar, (c) => n(c.judul), {
+          judul: "INSTALLMENT 60X", baris: [
+            { label: "Booking Fee", nilai: "10 Juta", waktu: "" },
+            { label: "Angsuran (DP) 1", nilai: "10% - BF", waktu: "Hari ke 14 setelah BF" },
+            { label: "Angsuran 2 - 60", nilai: "90% / 59 bulan", waktu: "1 bulan setelah DP 1, dan seterusnya setiap bulan" },
+          ] }) },
+      };
+    }
+    s = tandai(s, "tsc-installment-60x");
+  }
+  return s;
 }
 
 export function samakanIrrStandar(d: SusunPricelist): SusunPricelist {
