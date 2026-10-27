@@ -17,6 +17,7 @@ import {
   type KolomTsc,
 } from "@/lib/unit-sanctuary";
 import { Isian, IsianTeks } from "./langkah";
+import { PilihBerkas } from "../pilih-berkas";
 import { ringkasXlsx } from "./ringkas-xlsx";
 
 const rp = (n: number) => (Number.isFinite(n) ? formatRupiah(Math.round(n)) : "—");
@@ -47,6 +48,19 @@ export function TabelUnitTsc({
   const [yakin, setYakin] = useState<number | null>(null);
   // Unggah Harga Lama (eProperty) dari Excel, dicocokkan per Kode unit.
   const [pesanLama, setPesanLama] = useState<{ ok: boolean; teks: string } | null>(null);
+  const [bukaLama, setBukaLama] = useState(false);
+  const [berkasLama, setBerkasLama] = useState<File | null>(null);
+  /** Template Harga Lama berisi kode unit di layar (dan harga lama yang sudah ada). */
+  const unduhTemplatLama = async () => {
+    const res = await fetch("/api/pricelist/susun/template-harga-lama", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ baris: data.unit.map((u) => ({ kode: u.kode, harga: Number(u.atribut?.hargaLama) || undefined })) }),
+    });
+    if (!res.ok) { setPesanLama({ ok: false, teks: `Template gagal dibuat (HTTP ${res.status}).` }); return; }
+    const url = URL.createObjectURL(await res.blob());
+    const a = document.createElement("a"); a.href = url; a.download = "Template Harga Lama.xlsx"; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
   const unggahLama = async (f: File | undefined) => {
     if (!f) return;
     setPesanLama(null);
@@ -127,11 +141,8 @@ export function TabelUnitTsc({
         <th key="hargaLama">
           {KOLOM_TSC_HARGA_LAMA.excel}
           {bolehUbah && (
-            <label className="kecil tombol-unggah" title="Isi Harga Lama semua unit dari berkas Excel (kolom Kode / Code / Unit dan Harga Lama / Cash Price), dicocokkan per kode unit">
-              ⬆ Unggah
-              <input type="file" accept=".xlsx" hidden
-                     onChange={(e) => { void unggahLama(e.target.files?.[0]); e.target.value = ""; }} />
-            </label>
+            <button className="kecil tombol-unggah" onClick={() => { setBukaLama((x) => !x); setPesanLama(null); }}
+                    title="Isi Harga Lama semua unit dari berkas Excel">⬆ Unggah</button>
           )}
         </th>
       ),
@@ -144,6 +155,23 @@ export function TabelUnitTsc({
 
   return (
     <>
+    {bukaLama && (
+      <div className="form-blok">
+        <p className="hint kiri" style={{ marginTop: 0 }}>
+          <b>Unggah Harga Lama (eProperty).</b> Berkas Excel dengan kolom <b>Kode</b> dan <b>Harga Lama</b>
+          {" "}(boleh juga Code / Unit dan Cash Price, mis. ekspor eProperty). Dicocokkan per kode unit; kolom lain tidak berubah.
+          {" "}<button className="tautan" onClick={() => void unduhTemplatLama()}>Unduh template</button>
+          {" "}— kode unit di layar sudah terisi, tinggal isi harganya.
+        </p>
+        <div className="row" style={{ marginBottom: 0 }}>
+          <PilihBerkas accept=".xlsx" onChange={(e) => setBerkasLama(e.target.files?.[0] ?? null)} />
+          <button className="pri" disabled={!berkasLama}
+                  onClick={() => { void unggahLama(berkasLama ?? undefined); setBukaLama(false); setBerkasLama(null); }}>
+            Muat Harga Lama</button>
+          <button onClick={() => { setBukaLama(false); setBerkasLama(null); }}>Batal</button>
+        </div>
+      </div>
+    )}
     {pesanLama && <div className={`banner ${pesanLama.ok ? "ok" : "stop"}`}>{pesanLama.teks}</div>}
     <div className="tscroll" style={{ maxHeight: 620, overflowY: "auto" }}>
       <table className="tabel-ringkas tabel-isian kepala-lekat tabel-unit tabel-tsc"><thead>

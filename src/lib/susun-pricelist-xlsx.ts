@@ -486,6 +486,20 @@ export async function bacaHargaLama(isi: ArrayBuffer): Promise<{ harga: Record<s
   throw new Error("Tidak ditemukan kolom kode unit (Kode / Code / Unit) dan kolom harga (Harga Lama / Cash Price) di lembar yang terbuka.");
 }
 
+/**
+ * Template unggah Harga Lama (eProperty): kolom Kode dan Harga Lama, kode
+ * unit sudah terisi (dan harga lamanya bila sudah ada), tinggal diisi harga.
+ */
+export async function templatHargaLama(baris: { kode: string; harga?: number }[]): Promise<Buffer> {
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet("Harga Lama", { views: [{ state: "frozen", ySplit: 1 }] });
+  ws.columns = [{ header: "Kode", width: 18 }, { header: "Harga Lama", width: 20 }];
+  ws.getColumn(2).numFmt = "#,##0";
+  for (const b of baris) ws.addRow([b.kode, b.harga ?? null]);
+  tebal(ws.getRow(1));
+  return Buffer.from(await wb.xlsx.writeBuffer());
+}
+
 /** Template kosong berkas Unit Data The Sanctuary Collection (judul seperti berkasnya). */
 export async function templatUnitTsc(): Promise<Buffer> {
   const wb = new ExcelJS.Workbook();
