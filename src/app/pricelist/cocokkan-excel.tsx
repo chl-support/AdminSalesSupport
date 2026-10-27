@@ -59,33 +59,61 @@ export const kunci = (s: string) => {
 type Beda = { kode: string; kolom: string; sistem: number; excel: number };
 
 /**
- * Angka Excel yang terakhir diunggah, bertahan saat berpindah langkah:
- * perbaiki isian di langkah lain, kembali ke sini, dan hasilnya langsung
- * dicocokkan ulang tanpa mengunggah lagi.
+ * Angka Excel yang terakhir dicocokkan, per project: bertahan saat
+ * berpindah langkah dan saat halaman dibuka lagi (disimpan di peramban ini),
+ * jadi sel yang berbeda langsung tertandai tanpa mengunggah ulang. Hasilnya
+ * selalu dibandingkan dengan hitungan draf yang sedang tampil.
  */
-let terakhir: { nama: string; excel: HargaExcel } | null = null;
-const pendengar = new Set<(x: HargaExcel | null) => void>();
+type Terakhir = { nama: string; excel: HargaExcel };
+const KUNCI_SIMPAN = (slug: string) => `chl.cocokkanExcel.${slug}`;
+const cache = new Map<string, Terakhir | null>();
+function bacaTerakhir(slug: string): Terakhir | null {
+  if (!cache.has(slug)) {
+    let x: Terakhir | null = null;
+    try { x = JSON.parse(localStorage.getItem(KUNCI_SIMPAN(slug)) ?? "null"); } catch { /* tidak apa-apa */ }
+    cache.set(slug, x);
+  }
+  return cache.get(slug) ?? null;
+}
+function simpanTerakhir(slug: string, x: Terakhir | null) {
+  cache.set(slug, x);
+  try {
+    if (x) localStorage.setItem(KUNCI_SIMPAN(slug), JSON.stringify(x));
+    else localStorage.removeItem(KUNCI_SIMPAN(slug));
+  } catch { /* tidak apa-apa */ }
+}
+const pendengar = new Set<(slug: string, x: HargaExcel | null) => void>();
 
 /**
- * Angka Excel yang sedang dicocokkan, untuk menandai sel yang berbeda di
- * tabel Data Harga; null bila belum ada berkas yang dicocokkan.
+ * Angka Excel yang sedang dicocokkan untuk project ini, untuk menandai sel
+ * yang berbeda di tabel Data Harga; null bila belum ada berkas yang dicocokkan.
  */
-export function useHargaExcel(): HargaExcel | null {
-  const [x, setX] = useState<HargaExcel | null>(terakhir?.excel ?? null);
-  useEffect(() => { pendengar.add(setX); return () => { pendengar.delete(setX); }; }, []);
+export function useHargaExcel(slug: string): HargaExcel | null {
+  const [x, setX] = useState<HargaExcel | null>(null);
+  useEffect(() => {
+    setX(bacaTerakhir(slug)?.excel ?? null);
+    const f = (s: string, v: HargaExcel | null) => { if (s === slug) setX(v); };
+    pendengar.add(f);
+    return () => { pendengar.delete(f); };
+  }, [slug]);
   return x;
 }
 
-export function CocokkanExcel({ data, hasil }: { data: SusunPricelist; hasil: HasilSusun }) {
+export function CocokkanExcel({ data, hasil, slug }: { data: SusunPricelist; hasil: HasilSusun; slug: string }) {
   const k = useKata(KATA);
   const [berkas, setBerkas] = useState<File | null>(null);
   const [sibuk, setSibuk] = useState(false);
   const [galat, setGalat] = useState<string | null>(null);
-  const [excel, setExcelState] = useState<HargaExcel | null>(terakhir?.excel ?? null);
+  const [excel, setExcelState] = useState<HargaExcel | null>(null);
+  const [namaBerkas, setNamaBerkas] = useState("");
+  useEffect(() => {
+    const t = bacaTerakhir(slug);
+    setExcelState(t?.excel ?? null); setNamaBerkas(t?.nama ?? "");
+  }, [slug]);
   const setExcel = (x: HargaExcel | null, nama = "") => {
-    terakhir = x ? { nama, excel: x } : null;
-    setExcelState(x);
-    pendengar.forEach((f) => f(x));
+    simpanTerakhir(slug, x ? { nama, excel: x } : null);
+    setExcelState(x); setNamaBerkas(x ? nama : "");
+    pendengar.forEach((f) => f(slug, x));
   };
 
   const baca = async () => {
@@ -182,7 +210,7 @@ export function CocokkanExcel({ data, hasil }: { data: SusunPricelist; hasil: Ha
         {excel && <button onClick={() => setExcel(null)}>{k.tutup}</button>}
       </div>
       {galat && <div className="banner stop">{galat}</div>}
-      {excel && terakhir?.nama && <p className="hint kiri" style={{ marginBottom: 0 }}>📄 {terakhir.nama}</p>}
+      {excel && namaBerkas && <p className="hint kiri" style={{ marginBottom: 0 }}>📄 {namaBerkas}</p>}
       {isi}
     </details>
   );
