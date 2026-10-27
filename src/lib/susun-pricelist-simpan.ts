@@ -31,6 +31,7 @@ const SKEMA = z.object({
   baseTanpaBulat: z.boolean().optional(),
   hargaM2Termasuk: z.boolean().optional(),
   bulatDataPl: z.number().int().min(0).max(9).optional(),
+  migrasi: z.array(z.string().max(60)).max(50).optional(),
   catatanUnit: z.string().max(5000).optional(),
   catatanGambar: z.array(z.object({ id: z.string().regex(/^\d{1,18}$/), nama: teks }))
     .max(10).optional(),
