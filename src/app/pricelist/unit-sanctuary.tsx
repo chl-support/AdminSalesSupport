@@ -52,7 +52,9 @@ export function TabelUnitTsc({
       return d.jenis === "teks"
         ? <IsianTeks id={d.kunci === "kode" ? `unit-kode-${i}` : undefined} nilai={String(v)} lebar={d.lebar}
                      disabled={ro} ubah={ganti} />
+        // Persen tampil dua angka di belakang koma, mis. -2,00%.
         : <Isian jenis={d.jenis === "angka" ? "angka" : d.jenis} kosongNol nilai={Number(v) || 0}
+                 desimal={d.jenis === "persen" ? 2 : undefined}
                  lebar={d.lebar} disabled={ro} ubah={ganti} />;
     },
   });
