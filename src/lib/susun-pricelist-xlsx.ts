@@ -436,7 +436,8 @@ function bacaLembarTsc(ws: ExcelJS.Worksheet, peringatan: string[]): UnitData[] 
   const unit: UnitData[] = [];
   for (let r = 2; r <= ws.rowCount; r++) {
     const kode = teks(ws.getCell(r, kol[0].c ?? 1));
-    if (!kode) continue;
+    // Baris kosong dan baris judul kedua (berkas terbaru: judul Inggris di baris 3).
+    if (!kode || /^(kode|code)( unit)?$/i.test(kode)) continue;
     let u = unitKosongTsc();
     for (const { d, c } of kol) {
       if (!c) continue;

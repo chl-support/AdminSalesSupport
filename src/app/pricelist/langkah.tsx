@@ -187,7 +187,7 @@ const KATA = {
     tambahTingkatInfo: "Tambah tingkat kenaikan (dihitung dari hasil tingkat sebelumnya)",
     tambahTingkat: "+ Tingkat", tambahKenaikan: "+ Kenaikan",
     // 3. Data Harga
-    dpHint: "Harga per cara bayar = ROUNDUP(Harga Setelah Faktor × koefisien Data (IRR) × pengali, juta) + tambahan (pengali bawaan 100%, mis. 124% untuk KPR Extra Ultra Express); lalu kenaikan bertingkat khusus cara bayar itu bila diisi — tiap tingkat dari hasil tingkat sebelumnya: ROUNDUP(harga × (1 + %), juta) + Nilai (Rp). Kolom turunan dihitung dari kolom lain di sebelah kirinya: ROUNDUP(kolom itu × pengali, juta), tanpa tambahan.",
+    dpHint: (b: string) => `Harga per cara bayar = ROUNDUP(Harga Setelah Kenaikan × koefisien Data (IRR) × pengali, ${b}) + tambahan (pengali bawaan 100%, mis. 124% untuk KPR Extra Ultra Express); lalu kenaikan bertingkat khusus cara bayar itu bila diisi — tiap tingkat dari hasil tingkat sebelumnya: ROUNDUP(harga × (1 + %), ${b}) + Nilai (Rp). Kolom turunan dihitung dari kolom lain di sebelah kirinya: ROUNDUP(kolom itu × pengali, ${b}), tanpa tambahan.`,
     tambahanPerUnit: "Tambahan per unit (Rp)",
     thKolom: "Kolom", thDari: "Dihitung dari", thKoef: "Koefisien / pengali",
     thNaikInfo: "Kenaikan khusus cara bayar ini. Tiap tingkat dihitung dari hasil tingkat sebelumnya: ROUNDUP(harga × (1 + %), juta) + Nilai (Rp)",
@@ -414,7 +414,7 @@ const KATA = {
     hapusTingkat: (n: number) => `Remove tier ${n}`,
     tambahTingkatInfo: "Add an increase tier (calculated from the previous tier's result)",
     tambahTingkat: "+ Tier", tambahKenaikan: "+ Increase",
-    dpHint: "Price per payment scheme = ROUNDUP(Factored Price × Data (IRR) coefficient × multiplier, million) + addition (multiplier defaults to 100%, e.g. 124% for KPR Extra Ultra Express); then that scheme's own tiered increase if filled in — each tier from the previous tier's result: ROUNDUP(price × (1 + %), million) + Amount (Rp). Derived columns are calculated from another column to their left: ROUNDUP(that column × multiplier, million), with no addition.",
+    dpHint: (b: string) => `Price per payment scheme = ROUNDUP(Increased Price × Data (IRR) coefficient × multiplier, ${b}) + addition (multiplier defaults to 100%, e.g. 124% for KPR Extra Ultra Express); then that scheme's own tiered increase if filled in — each tier from the previous tier's result: ROUNDUP(price × (1 + %), ${b}) + Amount (Rp). Derived columns are calculated from another column to their left: ROUNDUP(that column × multiplier, ${b}), with no addition.`,
     tambahanPerUnit: "Addition per unit (Rp)",
     thKolom: "Column", thDari: "Calculated from", thKoef: "Coefficient / multiplier",
     thNaikInfo: "Increase specific to this payment scheme. Each tier is calculated from the previous tier's result: ROUNDUP(price × (1 + %), million) + Amount (Rp)",
@@ -2033,7 +2033,7 @@ export function LangkahDataPl({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
 
   return (
     <>
-      <p className="hint kiri">{kt.dpHint}</p>
+      <p className="hint kiri">{kt.dpHint((data.bulatDataPl ?? 6) === 6 ? "juta" : `Rp ${(10 ** (data.bulatDataPl ?? 6)).toLocaleString("id-ID")}`)}</p>
       {!ro && lainAtur.length > 0 && (
         <div className="row" style={{ marginTop: 4, alignItems: "center" }} title={kt.salinAturInfo}>
           <span className="lbl" style={{ margin: 0 }}>{kt.salinAturDari}</span>
@@ -2199,7 +2199,7 @@ export function LangkahDataPl({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
         <table className="tabel-ringkas kepala-lekat tabel-harga-rata" style={{ whiteSpace: "nowrap" }}><thead>
           <tr>
             <th>{kt.kol.no}</th><th>{kt.kol.kode}</th><th>{kt.kol.phase}</th><th>{kt.kol.alamat}</th><th>{kt.kol.view}</th><th>{kt.kol.ukuran}</th>
-            <th>{kt.kol.tipe}</th><th>{kt.kol.subTipe}</th><th>{kt.kol.land}</th><th>{kt.kol.build}</th><th className="kol-harga">{kt.hargaFaktor}</th>
+            <th>{kt.kol.tipe}</th><th>{kt.kol.subTipe}</th><th>{kt.kol.land}</th><th>{kt.kol.build}</th><th className="kol-harga">{kt.hargaKenaikan}<br />{kt.incl(labelPpn(tarifPpn(data)))}</th>
             {kolom.map((k) => <th key={k.nama} className="kol-harga">{k.nama}</th>)}
           </tr>
         </thead><tbody>
