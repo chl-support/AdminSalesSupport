@@ -2183,18 +2183,34 @@ async function main() {
     assert(basisProject("proyek-baru", { ...s, bulatHargaM2: 5 }).bulatHargaM2 === -1, "rumus dipatenkan");
   });
 
-  await check("Permai Indah: Data (IRR) disamakan dengan Scotts Vale sekali", async () => {
-    const { samakanPermai, samakanTsc, susunAwal } = await import("../src/lib/susun-pricelist");
+  // Permai Indah: Data (IRR) berkas Data_Irr_PERMAI_INDAH.xlsx dengan rumus
+  // Scotts Vale (100 bulan, Goal Seek Target IRR, nama otomatis).
+  await check("Permai Indah: Data (IRR) berkas Permai dengan rumus Scotts Vale", async () => {
+    const { hitungIrr, samakanPermai, samakanTsc, susunAwal, PERIODE_STANDAR } =
+      await import("../src/lib/susun-pricelist");
     const lama = await susunNaraya();
-    lama.irr.hargaKas = 200_000_000;
-    const p = samakanPermai(lama), sv = samakanTsc(susunAwal());
-    const nama = (x: typeof p) => x.irr.skema.map((s) => s.nama).join("|");
-    assert(nama(p) === nama(sv), nama(p));
-    assert(p.dataPricelist.kolom.map((k) => k.nama).join() === sv.dataPricelist.kolom.map((k) => k.nama).join(), "kolom Data Harga");
-    assert(p.tnc.caraBayar.map((c) => c.judul).join() === sv.tnc.caraBayar.map((c) => c.judul).join(), "blok S&K");
-    assert(p.irr.hargaKas === 2_000_000_000 && p.unit === lama.unit, "harga tunai, unit tetap");
-    const ubah = { ...p, irr: { ...p.irr, skema: p.irr.skema.slice(0, 3) } };
-    assert(samakanPermai(ubah) === ubah, "hanya sekali");
+    lama.irr.periode = 36;
+    lama.irr.skema[6].hargaSesuai = 1_099_983_114;
+    const p = samakanPermai(lama);
+    assert(p.dataPricelist === lama.dataPricelist && p.tnc === lama.tnc, "kolom & S&K tetap");
+    assert(p.irr.periode === PERIODE_STANDAR && p.irr.hargaKas === 1_000_000_000, "periode, harga tunai");
+    assert(p.irr.skema.every((x) => !x.hargaSesuai), "KPR DP 0% Goal Seek");
+    const h = hitungIrr(p.irr);
+    // Koefisien Data (IRR) Excel Permai (Goal Seek di Excel, selisih iterasinya kecil).
+    const excel = [1, 1.0494175216, 1.0727578086, 1.0964334422, 1.1204445790, 1.0142954028, null, 1.1141177617, 1.1044263012];
+    p.irr.skema.forEach((x, i) => {
+      const e = excel[i];
+      if (e != null) assert(Math.abs(h.koef[x.nama] - e) < 2e-6, `${x.nama} ${h.koef[x.nama]} ≠ ${e}`);
+      else assert(Math.abs(h.irr[x.nama] - 0.09) < 1e-9, `${x.nama} IRR ${h.irr[x.nama]}`);
+    });
+    assert(samakanPermai(p) === p, "hanya sekali");
+    // Draf yang sempat disamakan dengan cara bayar Scotts Vale: dibangun ulang.
+    const sv = { ...samakanTsc(susunAwal()), migrasi: ["permai-irr-scotts-vale"] };
+    const q = samakanPermai(sv);
+    const nama = q.irr.skema.map((x) => x.nama).join("|");
+    assert(nama === "Cash Keras|Bertahap 12x|Bertahap 18x|Bertahap 24x|Bertahap 30x|KPR Express|KPR DP 0%/1x|KPR DP 10%/4x|KPR DP 20%/6x", nama);
+    assert(q.dataPricelist.kolom.length === 9 && q.pricelist.kolom.length === 9 && q.tnc.caraBayar.length === 9, "kolom & S&K");
+    assert(q.tnc.caraBayar[7].judul === "KPR DP 10%/4X", q.tnc.caraBayar[7].judul);
   });
 
   // Unit Data The Sanctuary Collection: harga per m² sudah Termasuk PPN,
