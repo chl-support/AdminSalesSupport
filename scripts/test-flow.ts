@@ -2155,11 +2155,13 @@ async function main() {
     const { basisProject, susunAwal } = await import("../src/lib/susun-pricelist");
     const s = susunAwal();
     s.irr.skema[1].hargaSesuai = 2_200_000_000;
+    s.irr.skema[4].hargaSesuai = 2_030_000_000; // KPR Express boleh manual
     s.irr.skema.push({ nama: "Installment 60x", kelompok: "Cash", alokasi: 0, dp: 1, kali: 60,
                        bulan: [12, 18, 19, 20], hargaSesuai: 2_500_000_000 });
     const tsc = basisProject("tsc-scotts-vale", s);
     assert(tsc.irr.skema[1].hargaSesuai === undefined, "standar kembali Goal Seek");
     assert(tsc.irr.skema[8].hargaSesuai === 2_500_000_000, "tambahan boleh manual");
+    assert(tsc.irr.skema[4].hargaSesuai === 2_030_000_000, "KPR Express boleh manual");
     assert(basisProject("mazenta-residence", s).irr.skema[1].hargaSesuai === 2_200_000_000, "project lama dibiarkan");
   });
 
