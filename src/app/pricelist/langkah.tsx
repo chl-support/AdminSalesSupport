@@ -1072,8 +1072,7 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah, baru, slug }: PropsLa
           <tr className="hasil"><td>IRR</td>{irr.skema.map((s, i) => (
             <td key={i} className={`n${belumSesuai.has(s.nama) ? " belum-sesuai" : ""}`}
                 title={belumSesuai.has(s.nama) ? kt.belumTepat : undefined}>
-              {s.acuan ? "0,0%" : belumSesuai.has(s.nama) ? persen(hasil.irr.irr[s.nama], 5)
-                : persen(hasil.irr.irr[s.nama], 1, 1)}
+              {s.acuan ? "0,0%" : persen(hasil.irr.irr[s.nama], 1, 1)}
             </td>))}</tr>
           {/* Harga Penyesuaian dapat diketik manual (seperti baris Adjusted Price
               Excel, mis. KPR DP 0% Mazenta 1.099.983.114 = 110%, IRR 7,2%):
