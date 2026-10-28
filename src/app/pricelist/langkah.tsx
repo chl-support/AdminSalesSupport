@@ -71,7 +71,7 @@ const KATA = {
     irrBelumInfo: "Ditandai kuning di baris IRR — biasanya karena Harga Penyesuaian diambil apa adanya dari berkas Excel (hasil Goal Seek). Harga unitnya tetap mengikuti angka itu.",
     samakan: (p: string) => `Samakan ke ${p} (Goal Seek)`,
     namaOtomatis: "Nama cara bayar otomatis",
-    namaOtomatisInfo: "Nama dibuat dari Kelompok, DP dan Cicilan: Cash Keras, Installment 12x, KPR Express, KPR DP 10%/6x. Kolom di Data Harga dan Harga ikut berganti.",
+    namaOtomatisInfo: "Nama dibuat dari Kelompok, DP dan Cicilan: Cash Keras, Bertahap 12x, KPR Express, KPR DP 10%/6x. Kolom di Data Harga dan Harga ikut berganti.",
     namaDariRumus: "Nama otomatis dari Kelompok, DP dan Cicilan",
     arusJudul: "Arus kas per bulan (analisa)",
     arusInfo: "Seperti lembar Data (IRR): bulan 0 = −Harga Tunai, lalu arus kas tiap cara bayar pada Harga Penyesuaian-nya. Jumlah = arus kas semua cara bayar dikali Alokasi-nya, dan porsinya. Analisa saja, tidak memengaruhi harga.",
@@ -305,7 +305,7 @@ const KATA = {
     irrBelumInfo: "Marked yellow in the IRR row — usually because the Adjusted Price was taken as-is from the Excel file (Goal Seek result). Unit prices still follow that figure.",
     samakan: (p: string) => `Match to ${p} (Goal Seek)`,
     namaOtomatis: "Automatic scheme names",
-    namaOtomatisInfo: "Names are built from Group, DP and Instalments: Cash Keras, Installment 12x, KPR Express, KPR DP 10%/6x. Columns in Price Data and Price List follow.",
+    namaOtomatisInfo: "Names are built from Group, DP and Instalments: Cash Keras, Bertahap 12x, KPR Express, KPR DP 10%/6x. Columns in Price Data and Price List follow.",
     namaDariRumus: "Automatic name from Group, DP and Instalments",
     arusJudul: "Cash flow per month (analysis)",
     arusInfo: "As in the Data (IRR) sheet: month 0 = −Cash Price, then each scheme's cash flow at its Adjusted Price. Sum = all schemes' cash flow multiplied by their Allocation, and its share. Analysis only; it does not affect prices.",
@@ -792,6 +792,15 @@ export function isiOtomatisCaraBayar(d: SusunPricelist): SusunPricelist {
  * bersama cara bayar itu), namanya juga berganti, begitu pula rujukan kolom
  * Pricelist dan kolom turunan kepadanya.
  */
+/** Sebutan `lama` (utuh, bukan bagian kata lain) di catatan S&K diganti `baru`. */
+function gantiDiTnc(t: SusunPricelist["tnc"], lama: string, baru: string): SusunPricelist["tnc"] {
+  if (!lama) return t;
+  const pola = new RegExp(`(?<![\\w])${lama.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\w])`, "g");
+  const g = (x: string) => x.replace(pola, baru);
+  return { ...t, catatan: t.catatan.map(g),
+    caraBayar: t.caraBayar.map((c) => (c.catatan ? { ...c, catatan: g(c.catatan) } : c)) };
+}
+
 function gantiNamaSkema(d: SusunPricelist, i: number, nama: string): SusunPricelist {
   const lama = d.irr.skema[i].nama;
   const ubahNamaDp = new Set(d.dataPricelist.kolom
@@ -808,6 +817,8 @@ function gantiNamaSkema(d: SusunPricelist, i: number, nama: string): SusunPricel
     pricelist: { ...d.pricelist, kolom: d.pricelist.kolom.map((k) => ({
       ...k, dari: n(k.dari), nama: k.nama === lama && ubahNamaDp.has(lama) ? nama : k.nama,
     })) },
+    // Nama cara bayar yang disebut di catatan Syarat dan Ketentuan ikut berganti.
+    tnc: gantiDiTnc(d.tnc, lama, nama),
     // Harga spesial per sel tercatat menurut nama kolom Harga: ikut berganti.
     ...(d.spesial && ubahNamaDp.has(lama) && d.pricelist.kolom.some((k) => k.nama === lama) && {
       spesial: { set: d.spesial.set.map((st) => ({ ...st, sel: Object.fromEntries(
