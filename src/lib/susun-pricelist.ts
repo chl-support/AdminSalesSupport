@@ -137,7 +137,7 @@ export const PERIODE_STANDAR = 100;
 
 /**
  * Nama cara bayar menurut rumus baris 2 lembar Data (IRR) standar: Cash 1x
- * "Cash Keras", Cash Nx "Installment Nx", KPR "KPR DP x%/Nx"; KPR 1x yang
+ * "Cash Keras", Cash Nx "Bertahap Nx", KPR "KPR DP x%/Nx"; KPR 1x yang
  * semua tahapnya cair bulan 2 "KPR Express".
  */
 export function namaStandar(s: Pick<SkemaIrr, "kelompok" | "dp" | "kali" | "bulan">): string {
@@ -146,7 +146,7 @@ export function namaStandar(s: Pick<SkemaIrr, "kelompok" | "dp" | "kali" | "bula
     if (kali === 1 && s.bulan.every((b) => b <= 2)) return "KPR Express";
     return `KPR DP ${Math.round(s.dp * 100)}%/${kali}x`;
   }
-  return kali === 1 ? "Cash Keras" : `Installment ${kali}x`;
+  return kali === 1 ? "Cash Keras" : `Bertahap ${kali}x`;
 }
 
 /** Faktor posisi unit pada lembar Unit Data, masing-masing pecahan. */
@@ -979,9 +979,9 @@ export function hitungRumus(teks: string): number | null {
 export const SKEMA_STANDAR: [string, string, number, number, number, [number, number, number, number]][] = [
   // nama, kelompok, alokasi, DP, cicilan, bulan tahap
   ["Cash Keras", "Cash", 0.07, 1, 1, [12, 18, 19, 20]],
-  ["Installment 12x", "Cash", 0.04, 1, 12, [12, 18, 19, 20]],
-  ["Installment 24x", "Cash", 0.08, 1, 24, [12, 18, 19, 20]],
-  ["Installment 36x", "Cash", 0.25, 1, 36, [12, 18, 19, 20]],
+  ["Bertahap 12x", "Cash", 0.04, 1, 12, [12, 18, 19, 20]],
+  ["Bertahap 24x", "Cash", 0.08, 1, 24, [12, 18, 19, 20]],
+  ["Bertahap 36x", "Cash", 0.25, 1, 36, [12, 18, 19, 20]],
   ["KPR Express", "KPR", 0.33, 0.1, 1, [2, 2, 2, 2]],
   ["KPR DP 10%/6x", "KPR", 0.14, 0.1, 6, [12, 18, 19, 20]],
   ["KPR DP 10%/12x", "KPR", 0.05, 0.1, 12, [12, 18, 19, 20]],
@@ -1018,7 +1018,7 @@ export function samakanTsc(d: SusunPricelist): SusunPricelist {
   // cara bayar lain (atas keputusan pemakai, bukan 125% yang diketik di
   // Excel). Disisipkan sesudah Installment 36x; Allocation dibagi otomatis.
   if (!sudah.has("tsc-installment-60x")) {
-    const nama = "Installment 60x";
+    const nama = "Bertahap 60x";
     const ada = s.irr.skema.some((x) => x.kelompok === "Cash" && x.kali === 60)
       || s.dataPricelist.kolom.some((k) => k.nama.toLowerCase() === nama.toLowerCase());
     if (!ada) {
@@ -1026,7 +1026,7 @@ export function samakanTsc(d: SusunPricelist): SusunPricelist {
         const i = a.findIndex(ke);
         return i < 0 ? [...a, x] : [...a.slice(0, i + 1), x, ...a.slice(i + 1)];
       };
-      const n = (x: string) => x.toLowerCase() === "installment 36x";
+      const n = (x: string) => /^(installment|bertahap) 36x$/i.test(x);
       s = {
         ...s,
         irr: { ...s.irr, skema: sisip(s.irr.skema, (x) => n(x.nama),
@@ -1036,7 +1036,7 @@ export function samakanTsc(d: SusunPricelist): SusunPricelist {
         pricelist: { ...s.pricelist,
           kolom: sisip(s.pricelist.kolom, (k) => n(k.nama), { nama, dari: nama, kali: 1 }) },
         tnc: { ...s.tnc, caraBayar: sisip(s.tnc.caraBayar, (c) => n(c.judul), {
-          judul: "INSTALLMENT 60X", baris: [
+          judul: "BERTAHAP 60X", baris: [
             { label: "Booking Fee", nilai: "10 Juta", waktu: "" },
             { label: "Angsuran (DP) 1", nilai: "10% - BF", waktu: "Hari ke 14 setelah BF" },
             { label: "Angsuran 2 - 60", nilai: "90% / 59 bulan", waktu: "1 bulan setelah DP 1, dan seterusnya setiap bulan" },
@@ -1099,9 +1099,9 @@ export function susunAwal(): SusunPricelist {
       judul: "TERM OF PAYMENT",
       caraBayar: [
         { judul: "CASH KERAS", baris: bf("30% - BF", "Hari ke 7 setelah BF", "70%", "Hari ke 7 setelah DP") },
-        { judul: "INSTALLMENT 12X", baris: cicil(12) },
-        { judul: "INSTALLMENT 24X", baris: cicil(24) },
-        { judul: "INSTALLMENT 36X", baris: cicil(36) },
+        { judul: "BERTAHAP 12X", baris: cicil(12) },
+        { judul: "BERTAHAP 24X", baris: cicil(24) },
+        { judul: "BERTAHAP 36X", baris: cicil(36) },
         { judul: "KPR EXPRESS", baris: bf("10% - BF", "Hari ke 14 setelah BF", "90%", "1 bulan setelah DP") },
         { judul: "KPR DP 10%/6X", baris: kprDp(10, 6) },
         { judul: "KPR DP 10%/12X", baris: kprDp(10, 12) },
@@ -1110,7 +1110,7 @@ export function susunAwal(): SusunPricelist {
       ],
       catatan: [
         "Harga diatas sudah termasuk: PPN, Ijin Mendirikan Bangunan (IMB), biaya instalasi listrik, biaya instalasi air bersih.",
-        "Harga diatas belum termasuk:\n- Cara Bayar Cash Keras, Installment 12x, Installment 24x & Installment 36x: AJB & Balik nama Sertifikat, notaris / PPAT, HGB, BPHTB, PBB, PPN BM tanah & bangunan akibat pengembangan luas bangunan sehingga masuk dalam kriteria bangunan mewah sesuai peraturan pemerintah, Iuran Pengelolaan Lingkungan; dan biaya aktivasi telepon, listrik, dan air.\n- Cara Bayar KPR: PPN, PBB, PPN BM tanah & bangunan akibat pengembangan luas bangunan sehingga masuk dalam kriteria bangunan mewah sesuai peraturan pemerintah, Iuran Pengelolaan Lingkungan, Biaya aktivasi listrik dan air.",
+        "Harga diatas belum termasuk:\n- Cara Bayar Cash Keras, Bertahap 12x, Bertahap 24x & Bertahap 36x: AJB & Balik nama Sertifikat, notaris / PPAT, HGB, BPHTB, PBB, PPN BM tanah & bangunan akibat pengembangan luas bangunan sehingga masuk dalam kriteria bangunan mewah sesuai peraturan pemerintah, Iuran Pengelolaan Lingkungan; dan biaya aktivasi telepon, listrik, dan air.\n- Cara Bayar KPR: PPN, PBB, PPN BM tanah & bangunan akibat pengembangan luas bangunan sehingga masuk dalam kriteria bangunan mewah sesuai peraturan pemerintah, Iuran Pengelolaan Lingkungan, Biaya aktivasi listrik dan air.",
         "Nama blok, nomor yang tercantum pada saat tanda jadi sudah pasti dan tidak dapat diganti.",
         "Keterlambatan pembayaran akan dikenakan perhitungan denda sesuai ketentuan yang berlaku 1‰ (1 per mill) per hari.",
         "Cara pembayaran KPR harus melalui proses ke Bank yang bekerjasama dengan Pengembang.",

@@ -2156,7 +2156,7 @@ async function main() {
     const s = susunAwal();
     s.irr.skema[1].hargaSesuai = 2_200_000_000;
     s.irr.skema[4].hargaSesuai = 2_030_000_000; // KPR Express boleh manual
-    s.irr.skema.push({ nama: "Installment 60x", kelompok: "Cash", alokasi: 0, dp: 1, kali: 60,
+    s.irr.skema.push({ nama: "Bertahap 60x", kelompok: "Cash", alokasi: 0, dp: 1, kali: 60,
                        bulan: [12, 18, 19, 20], hargaSesuai: 2_500_000_000 });
     const tsc = basisProject("tsc-scotts-vale", s);
     assert(tsc.irr.skema[1].hargaSesuai === undefined, "standar kembali Goal Seek");
@@ -2192,7 +2192,7 @@ async function main() {
     const daftar = [sk("Cash", 1, 1), sk("Cash", 1, 12), sk("Cash", 1, 24), sk("Cash", 1, 36),
       sk("KPR", 0.1, 1, [2, 2, 2, 2]), sk("KPR", 0.1, 6), sk("KPR", 0.1, 12), sk("KPR", 0.2, 6)];
     const nama = daftar.map(namaStandar);
-    assert(nama.join("|") === "Cash Keras|Installment 12x|Installment 24x|Installment 36x|KPR Express|KPR DP 10%/6x|KPR DP 10%/12x|KPR DP 20%/6x",
+    assert(nama.join("|") === "Cash Keras|Bertahap 12x|Bertahap 24x|Bertahap 36x|KPR Express|KPR DP 10%/6x|KPR DP 10%/12x|KPR DP 20%/6x",
            nama.join("|"));
     const irr = { ...s.irr, skema: daftar.map((x, i) => ({ ...x, nama: nama[i], ...(i === 0 && { acuan: true }) })) };
     const h = hitungIrr(irr);
@@ -2200,7 +2200,7 @@ async function main() {
     nama.forEach((n, i) => assert(Math.abs(h.koef[n] - excel[i]) < 2e-6, `${n}: ${h.koef[n]}`));
     // Cicilan lebih panjang dari periode tetap terhitung penuh.
     const pendek = { ...irr, periode: 36 };
-    assert(Math.abs(hitungIrr(pendek).koef["Installment 36x"] - h.koef["Installment 36x"]) < 1e-12, "36x pada periode 36");
+    assert(Math.abs(hitungIrr(pendek).koef["Bertahap 36x"] - h.koef["Bertahap 36x"]) < 1e-12, "36x pada periode 36");
     const arus = arusTertimbang(irr, h);
     assert(Math.abs(arus.reduce((a, x) => a + x.porsi, 0) - 1) < 1e-9, "porsi 100%");
   });
