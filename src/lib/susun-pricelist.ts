@@ -1023,27 +1023,79 @@ export function samakanTsc(d: SusunPricelist): SusunPricelist {
 }
 
 /**
- * Permai Indah (sekali, atas permintaan pemakai): Data (IRR) disamakan
- * dengan Scotts Vale — cara bayar standar dan Bertahap 60x, beserta kolom
- * Data Harga, Harga dan blok S&K cara bayarnya, dan Harga Tunai Rp 2 miliar
- * (koefisien tidak bergantung padanya). Target IRR, porsi tahap, Data Unit
- * dan isian lain tetap.
+ * Cara bayar lembar Data (IRR) berkas Data_Irr_PERMAI_INDAH.xlsx: Kelompok,
+ * Allocation, DP, Installments dan bulan tahap.
+ */
+const SKEMA_PERMAI: [string, number, number, number, [number, number, number, number]][] = [
+  ["Cash", 0.07, 1, 1, [12, 18, 19, 20]],
+  ["Cash", 0.04, 1, 12, [12, 18, 19, 20]],
+  ["Cash", 0.05, 1, 18, [12, 18, 19, 20]],
+  ["Cash", 0.08, 1, 24, [12, 18, 19, 20]],
+  ["Cash", 0.25, 1, 30, [12, 18, 19, 20]],
+  ["KPR", 0.33, 0.1, 1, [2, 2, 2, 2]],
+  ["KPR", 0.08, 0, 1, [12, 18, 19, 20]],
+  ["KPR", 0.05, 0.1, 4, [12, 18, 19, 20]],
+  ["KPR", 0.05, 0.2, 6, [12, 18, 19, 20]],
+];
+
+/**
+ * Permai Indah (sekali, atas permintaan pemakai): Data (IRR) mengikuti
+ * berkas Data_Irr_PERMAI_INDAH.xlsx dengan rumus Scotts Vale — arus kas 100
+ * bulan, koefisien Goal Seek pada Target IRR (juga KPR DP 0% yang di Excel
+ * diketik 1,0999831), nama cara bayar otomatis, Harga Tunai Rp 1 miliar
+ * seperti berkasnya. Draf yang cara bayarnya sudah sama hanya diperbarui
+ * parameternya, kolom Data Harga, Harga dan S&K-nya tetap; draf yang sempat
+ * disamakan dengan cara bayar Scotts Vale (migrasi permai-irr-scotts-vale)
+ * mendapat kolom dan blok S&K baru untuk tiap cara bayar.
  */
 export function samakanPermai(d: SusunPricelist): SusunPricelist {
-  const m = "permai-irr-scotts-vale";
+  const m = "permai-irr-excel";
   if ((d.migrasi ?? []).includes(m)) return d;
-  const a = susunAwal();
+  const baru: SkemaIrr[] = SKEMA_PERMAI.map(([kelompok, alokasi, dp, kali, bulan], i) => {
+    const s = { nama: "", kelompok, alokasi, dp, kali, bulan: [...bulan] as typeof bulan };
+    return { ...s, nama: namaStandar(s), ...(i === 0 && { acuan: true }) };
+  });
+  const sama = d.irr.skema.length === baru.length && d.irr.skema.every((x, i) =>
+    x.kelompok === baru[i].kelompok && x.dp === baru[i].dp && x.kali === baru[i].kali);
+  const irr = { ...d.irr, target: 0.09, porsiTahap: [...PORSI_AWAL] as typeof PORSI_AWAL, periode: PERIODE_STANDAR,
+                hargaKas: 1_000_000_000, namaOtomatis: true };
+  const migrasi = [...(d.migrasi ?? []), m];
+  // Cara bayar sama: nama lama tetap (kolom yang merujuknya ikut nama otomatis di layar).
+  if (sama && !(d.migrasi ?? []).includes("permai-irr-scotts-vale")) {
+    return { ...d, migrasi, irr: { ...irr, skema: d.irr.skema.map((x, i) => {
+      const { hargaSesuai: _, ...tanpaManual } = x;
+      return { ...tanpaManual, alokasi: baru[i].alokasi, bulan: baru[i].bulan };
+    }) } };
+  }
   return {
-    ...tambahBertahap60x({
-      ...d,
-      irr: { ...d.irr, skema: a.irr.skema, hargaKas: HARGA_KAS_AWAL, namaOtomatis: true },
-      dataPricelist: { ...d.dataPricelist, kolom: a.dataPricelist.kolom },
-      pricelist: { ...d.pricelist, kolom: a.pricelist.kolom },
-      tnc: { ...d.tnc, caraBayar: a.tnc.caraBayar },
-    }),
-    migrasi: [...(d.migrasi ?? []), m],
+    ...d, migrasi, irr: { ...irr, skema: baru },
+    dataPricelist: { ...d.dataPricelist, kolom: baru.map((x) => ({ nama: x.nama, skema: x.nama })) },
+    pricelist: { ...d.pricelist, kolom: baru.map((x) => ({ nama: x.nama, dari: x.nama, kali: 1 })) },
+    tnc: { ...d.tnc, caraBayar: baru.map((x) => ({ judul: x.nama.toUpperCase(), baris: barisTncSkema(x) })) },
   };
 }
+
+/** Baris blok S&K bawaan satu cara bayar, seperti isian awal (susunAwal). */
+function barisTncSkema(s: Pick<SkemaIrr, "dp" | "kali" | "bulan">): BarisTnc[] {
+  if (s.dp >= 1) return s.kali > 1 ? tncCicil(s.kali) : tncBf("30% - BF", "Hari ke 7 setelah BF", "70%", "Hari ke 7 setelah DP");
+  if (s.kali > 1) return tncKprDp(Math.round(s.dp * 100), s.kali);
+  if (s.dp > 0) return tncBf(`${Math.round(s.dp * 100)}% - BF`, "Hari ke 14 setelah BF", `${100 - Math.round(s.dp * 100)}%`, "1 bulan setelah DP");
+  return [{ label: "Booking Fee", nilai: "10 Juta", waktu: "" },
+          { label: "PELUNASAN / AKAD", nilai: "100% - BF", waktu: "1 bulan setelah BF" }];
+}
+
+const tncBf = (dp: string, waktuDp: string, lunas: string, waktuLunas: string,
+               labelDp = "DP", labelLunas = "PELUNASAN"): BarisTnc[] => [
+  { label: "Booking Fee", nilai: "10 Juta", waktu: "" },
+  { label: labelDp, nilai: dp, waktu: waktuDp },
+  { label: labelLunas, nilai: lunas, waktu: waktuLunas },
+];
+const tncCicil = (n: number) => tncBf("10% - BF", "Hari ke 14 setelah BF",
+  `90% / ${n - 1} bulan`, "1 bulan setelah DP 1, dan seterusnya setiap bulan",
+  "Angsuran (DP) 1", `Angsuran 2 - ${n}`);
+const tncKprDp = (dp: number, n: number) => tncBf(`(${dp}% - BF) / ${n} bulan`,
+  "Hari ke 14 setelah BF, dan seterusnya setiap bulan", `${100 - dp}%`, `1 bulan setelah DP ${n}`,
+  `DP 1 - ${n}`, "PELUNASAN / AKAD");
 
 /**
  * Bertahap 60x (ada di lembar Data Harga TSC): cara bayar Data (IRR) Cash,
@@ -1097,18 +1149,7 @@ export function samakanIrrStandar(d: SusunPricelist): SusunPricelist {
 }
 
 export function susunAwal(): SusunPricelist {
-  const bf = (dp: string, waktuDp: string, lunas: string, waktuLunas: string,
-              labelDp = "DP", labelLunas = "PELUNASAN"): BarisTnc[] => [
-    { label: "Booking Fee", nilai: "10 Juta", waktu: "" },
-    { label: labelDp, nilai: dp, waktu: waktuDp },
-    { label: labelLunas, nilai: lunas, waktu: waktuLunas },
-  ];
-  const cicil = (n: number) => bf("10% - BF", "Hari ke 14 setelah BF",
-    `90% / ${n - 1} bulan`, "1 bulan setelah DP 1, dan seterusnya setiap bulan",
-    "Angsuran (DP) 1", `Angsuran 2 - ${n}`);
-  const kprDp = (dp: number, n: number) => bf(`(${dp}% - BF) / ${n} bulan`,
-    "Hari ke 14 setelah BF, dan seterusnya setiap bulan", `${100 - dp}%`, `1 bulan setelah DP ${n}`,
-    `DP 1 - ${n}`, "PELUNASAN / AKAD");
+  const bf = tncBf, cicil = tncCicil, kprDp = tncKprDp;
   return {
     irr: {
       target: 0.09, porsiTahap: [...PORSI_AWAL], namaTahap: [...TAHAP_AWAL], periode: PERIODE_STANDAR,
