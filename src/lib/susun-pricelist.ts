@@ -609,15 +609,13 @@ const RUMUS_BIO = new Set(["bio-district"]);
  */
 const RUMUS_MAZENTA = new Set(["mazenta-residence"]);
 /**
- * Project yang mengikuti berkas Unit Data The Sanctuary Collection: Harga
- * Dasar = Luas Tanah × Harga Tanah + Luas Bangunan × Harga Bangunan (harga
- * per m² sudah Termasuk PPN), tanpa pembulatan. Rumusnya tetap, tidak dapat
- * diubah di layar.
+ * Aturan rumus patokan PRICE LIST SCOTTS VALE (berkas Unit Data The
+ * Sanctuary Collection), untuk TSC dan semua project baru — lihat
+ * polaScottsVale: Harga Dasar = Luas Tanah × Harga Tanah + Luas Bangunan ×
+ * Harga Bangunan (harga per m² sudah Termasuk PPN), tanpa pembulatan.
+ * Rumusnya tetap, tidak dapat diubah di layar.
  */
-export const RUMUS_TSC: ReadonlySet<string> = new Set([
-  "tsc-tanglin-parc", "tsc-newton-springs", "tsc-orchard-riviera", "tsc-scotts-vale",
-]);
-const ATURAN_TSC = {
+export const ATURAN_PATOKAN = {
   bulatHargaM2: -1, bulatBase: 6, bulatBiasa: false, baseTanpaBulat: true, basisExclPpn: false,
   exclTerpisah: false, hargaM2Termasuk: true,
 } as const;
@@ -639,11 +637,20 @@ const PROJECT_LAMA = new Set([
 ]);
 
 /**
- * Rumus dipatenkan: project baru di luar enam project lama selalu memakai
- * ATURAN_STANDAR — tidak dapat diubah di layar maupun lewat impor Excel.
+ * Patokan PRICE LIST SCOTTS VALE: The Sanctuary Collection dan semua project
+ * baru di luar enam project lama memakai rumus dan tampilan Scotts Vale —
+ * Data (IRR) standar (koefisien Goal Seek), Data Unit seperti berkas Unit
+ * Data TSC (harga per m² Termasuk PPN, tanpa pembulatan), Data Harga
+ * ROUNDUP Rp 10.000 tanpa tambahan, dan cara bayar Bertahap 60x.
  */
-export const rumusDikunci = (slug: string | null | undefined) =>
-  !!slug && !PROJECT_LAMA.has(slug) && !RUMUS_TSC.has(slug);
+export const polaScottsVale = (slug: string | null | undefined) =>
+  !!slug && !PROJECT_LAMA.has(slug);
+
+/**
+ * Rumus dipatenkan: project dengan patokan Scotts Vale selalu memakai
+ * ATURAN_PATOKAN — tidak dapat diubah di layar maupun lewat impor Excel.
+ */
+export const rumusDikunci = polaScottsVale;
 
 /**
  * Koefisien dipatenkan: di project baru dan The Sanctuary Collection,
@@ -652,8 +659,7 @@ export const rumusDikunci = (slug: string | null | undefined) =>
  * diketik manual. Cara bayar tambahan dan KPR Express boleh diberi
  * koefisien manual.
  */
-export const koefDikunci = (slug: string | null | undefined) =>
-  rumusDikunci(slug) || (!!slug && RUMUS_TSC.has(slug));
+export const koefDikunci = polaScottsVale;
 
 /** Cara bayar standar (SKEMA_STANDAR) menurut Kelompok, DP dan cicilan. */
 export const skemaStandar = (s: Pick<SkemaIrr, "kelompok" | "dp" | "kali">) =>
@@ -673,8 +679,7 @@ export function basisProject<
       s.hargaSesuai && koefStandarDikunci(s) ? { ...s, hargaSesuai: undefined } : s) } };
   }
   // Pembulatan Data Harga TSC bawaan Rp 10.000 (ROUNDUP …, -4); dapat dipilih lain di langkah 3.
-  if (slug && RUMUS_TSC.has(slug)) return { ...data, ...ATURAN_TSC, bulatDataPl: data.bulatDataPl ?? 4 };
-  if (rumusDikunci(slug)) return { ...data, ...ATURAN_STANDAR, exclTerpisah: false };
+  if (polaScottsVale(slug)) return { ...data, ...ATURAN_PATOKAN, bulatDataPl: data.bulatDataPl ?? 4 };
   // BIO DISTRICT: harga per m² Termasuk PPN dibulatkan ke atas ke ratusan
   // ribu, dan harga Belum PPN dihitung sendiri — seperti berkas Excel-nya.
   if (slug && RUMUS_MAZENTA.has(slug)) {
@@ -916,16 +921,6 @@ function periksa(susun: SusunPricelist, irr: HasilIrr, baris: BarisHasil[]): str
  * ketentuan seperti berkas PL Naraya, tanpa unit. Angka-angkanya patokan
  * bagian penjualan saat ini; semuanya dapat diubah di layarnya.
  */
-/**
- * Aturan pembulatan standar untuk project baru (disepakati Oktober 2026,
- * mengikuti BIO DISTRICT): harga per m² Termasuk PPN ROUNDUP ke Rp 100.000,
- * Harga Dasar ROUNDUP ke juta, dihitung dari harga Termasuk PPN. Draf
- * project lama tidak diubah; aturannya tetap dapat diganti di langkah 2.
- */
-export const ATURAN_STANDAR = {
-  bulatHargaM2: 5, bulatBase: 6, bulatBiasa: false, baseTanpaBulat: false, basisExclPpn: false,
-} as const satisfies Partial<SusunPricelist>;
-
 /**
  * Hitung rumus sederhana yang ditulis orang, mis. catatan Kenaikan
  * "=1,025*1,025*1,01*1,002*1,01*1,02*1,03*1,03-1": angka (koma atau titik

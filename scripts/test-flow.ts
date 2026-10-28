@@ -2165,6 +2165,24 @@ async function main() {
     assert(basisProject("mazenta-residence", s).irr.skema[1].hargaSesuai === 2_200_000_000, "project lama dibiarkan");
   });
 
+  // Patokan PRICE LIST SCOTTS VALE: project baru di luar enam project lama
+  // memakai rumus, Data (IRR) dan Data Harga yang sama dengan Scotts Vale.
+  await check("Project baru mengikuti patokan Scotts Vale", async () => {
+    const { basisProject, hitungSemua, polaScottsVale, samakanTsc, susunAwal } =
+      await import("../src/lib/susun-pricelist");
+    const { unitKosongTsc, unitTsc } = await import("../src/lib/unit-sanctuary");
+    assert(polaScottsVale("proyek-baru") && unitTsc("proyek-baru"), "project baru berpola Scotts Vale");
+    assert(!polaScottsVale("mazenta-residence") && !unitTsc("naraya-serpong"), "project lama tidak");
+    const u = { ...unitKosongTsc(), kode: "PB-001", lt: 116.6, hargaTanah: 11_400_000,
+      lb: 115.44, hargaBangunan: 11_500_000, faktor: { garduListrik: -0.02 } };
+    const s = samakanTsc({ ...susunAwal(), unit: [u] });
+    const sv = hitungSemua(basisProject("tsc-scotts-vale", s)), pb = hitungSemua(basisProject("proyek-baru", s));
+    assert(JSON.stringify(pb.baris) === JSON.stringify(sv.baris), "hitungan sama dengan Scotts Vale");
+    assert(Math.round(pb.baris[0].hasilUnit.base) === 2_656_800_000, `dasar ${pb.baris[0].hasilUnit.base}`);
+    assert(s.irr.skema.some((x) => x.nama === "Bertahap 60x") && s.dataPricelist.tambahan === 0, "60x dan tambahan 0");
+    assert(basisProject("proyek-baru", { ...s, bulatHargaM2: 5 }).bulatHargaM2 === -1, "rumus dipatenkan");
+  });
+
   // Unit Data The Sanctuary Collection: harga per m² sudah Termasuk PPN,
   // tanpa pembulatan; faktor dijumlah, AC dan Harga Khusus (Rp) ditambahkan.
   await check("Data Unit The Sanctuary Collection seperti berkas Excel-nya", async () => {
