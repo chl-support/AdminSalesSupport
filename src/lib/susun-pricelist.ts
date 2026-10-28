@@ -922,6 +922,16 @@ function periksa(susun: SusunPricelist, irr: HasilIrr, baris: BarisHasil[]): str
  * bagian penjualan saat ini; semuanya dapat diubah di layarnya.
  */
 /**
+ * Aturan pembulatan draf baru enam project lama (disepakati Oktober 2026,
+ * mengikuti BIO DISTRICT): harga per m² Termasuk PPN ROUNDUP ke Rp 100.000,
+ * Harga Dasar ROUNDUP ke juta, dihitung dari harga Termasuk PPN. Project lain
+ * memakai ATURAN_PATOKAN.
+ */
+export const ATURAN_STANDAR = {
+  bulatHargaM2: 5, bulatBase: 6, bulatBiasa: false, baseTanpaBulat: false, basisExclPpn: false,
+} as const satisfies Partial<SusunPricelist>;
+
+/**
  * Hitung rumus sederhana yang ditulis orang, mis. catatan Kenaikan
  * "=1,025*1,025*1,01*1,002*1,01*1,02*1,03*1,03-1": angka (koma atau titik
  * desimal), + − × ÷ ^, kurung, dan persen. null bila bukan rumus (tanpa
@@ -1008,37 +1018,64 @@ export function samakanTsc(d: SusunPricelist): SusunPricelist {
     s = tandai(s.dataPricelist.tambahan === 5_000_000
       ? { ...s, dataPricelist: { ...s.dataPricelist, tambahan: 0 } } : s, "tsc-tambahan-0");
   }
-  // Installment 60x (ada di lembar Data Harga TSC): cara bayar Data (IRR)
-  // Cash, DP 100%, 60x — koefisiennya dihitung tepat pada Target IRR seperti
-  // cara bayar lain (atas keputusan pemakai, bukan 125% yang diketik di
-  // Excel). Disisipkan sesudah Installment 36x; Allocation dibagi otomatis.
-  if (!sudah.has("tsc-installment-60x")) {
-    const nama = "Bertahap 60x";
-    const ada = s.irr.skema.some((x) => x.kelompok === "Cash" && x.kali === 60)
-      || s.dataPricelist.kolom.some((k) => k.nama.toLowerCase() === nama.toLowerCase());
-    if (!ada) {
-      const sisip = <T,>(a: T[], ke: (x: T) => boolean, x: T) => {
-        const i = a.findIndex(ke);
-        return i < 0 ? [...a, x] : [...a.slice(0, i + 1), x, ...a.slice(i + 1)];
-      };
-      const n = (x: string) => /^(installment|bertahap) 36x$/i.test(x);
-      s = {
-        ...s,
-        irr: { ...s.irr, skema: sisip(s.irr.skema, (x) => n(x.nama),
-          { nama, kelompok: "Cash", alokasi: 0, dp: 1, kali: 60, bulan: [12, 18, 19, 20] }) },
-        dataPricelist: { ...s.dataPricelist,
-          kolom: sisip(s.dataPricelist.kolom, (k) => n(k.nama), { nama, skema: nama }) },
-        pricelist: { ...s.pricelist,
-          kolom: sisip(s.pricelist.kolom, (k) => n(k.nama), { nama, dari: nama, kali: 1 }) },
-        tnc: { ...s.tnc, caraBayar: sisip(s.tnc.caraBayar, (c) => n(c.judul), {
-          judul: "BERTAHAP 60X", baris: [
-            { label: "Booking Fee", nilai: "10 Juta", waktu: "" },
-            { label: "Angsuran (DP) 1", nilai: "10% - BF", waktu: "Hari ke 14 setelah BF" },
-            { label: "Angsuran 2 - 60", nilai: "90% / 59 bulan", waktu: "1 bulan setelah DP 1, dan seterusnya setiap bulan" },
-          ] }) },
-      };
-    }
-    s = tandai(s, "tsc-installment-60x");
+  if (!sudah.has("tsc-installment-60x")) s = tandai(tambahBertahap60x(s), "tsc-installment-60x");
+  return s;
+}
+
+/**
+ * Permai Indah (sekali, atas permintaan pemakai): Data (IRR) disamakan
+ * dengan Scotts Vale — cara bayar standar dan Bertahap 60x, beserta kolom
+ * Data Harga, Harga dan blok S&K cara bayarnya, dan Harga Tunai Rp 2 miliar
+ * (koefisien tidak bergantung padanya). Target IRR, porsi tahap, Data Unit
+ * dan isian lain tetap.
+ */
+export function samakanPermai(d: SusunPricelist): SusunPricelist {
+  const m = "permai-irr-scotts-vale";
+  if ((d.migrasi ?? []).includes(m)) return d;
+  const a = susunAwal();
+  return {
+    ...tambahBertahap60x({
+      ...d,
+      irr: { ...d.irr, skema: a.irr.skema, hargaKas: HARGA_KAS_AWAL, namaOtomatis: true },
+      dataPricelist: { ...d.dataPricelist, kolom: a.dataPricelist.kolom },
+      pricelist: { ...d.pricelist, kolom: a.pricelist.kolom },
+      tnc: { ...d.tnc, caraBayar: a.tnc.caraBayar },
+    }),
+    migrasi: [...(d.migrasi ?? []), m],
+  };
+}
+
+/**
+ * Bertahap 60x (ada di lembar Data Harga TSC): cara bayar Data (IRR) Cash,
+ * DP 100%, 60x — koefisiennya dihitung tepat pada Target IRR seperti cara
+ * bayar lain (atas keputusan pemakai, bukan 125% yang diketik di Excel).
+ * Disisipkan sesudah Bertahap 36x; Allocation dibagi otomatis.
+ */
+function tambahBertahap60x(s: SusunPricelist): SusunPricelist {
+  const nama = "Bertahap 60x";
+  const ada = s.irr.skema.some((x) => x.kelompok === "Cash" && x.kali === 60)
+    || s.dataPricelist.kolom.some((k) => k.nama.toLowerCase() === nama.toLowerCase());
+  if (!ada) {
+    const sisip = <T,>(a: T[], ke: (x: T) => boolean, x: T) => {
+      const i = a.findIndex(ke);
+      return i < 0 ? [...a, x] : [...a.slice(0, i + 1), x, ...a.slice(i + 1)];
+    };
+    const n = (x: string) => /^(installment|bertahap) 36x$/i.test(x);
+    s = {
+      ...s,
+      irr: { ...s.irr, skema: sisip(s.irr.skema, (x) => n(x.nama),
+        { nama, kelompok: "Cash", alokasi: 0, dp: 1, kali: 60, bulan: [12, 18, 19, 20] }) },
+      dataPricelist: { ...s.dataPricelist,
+        kolom: sisip(s.dataPricelist.kolom, (k) => n(k.nama), { nama, skema: nama }) },
+      pricelist: { ...s.pricelist,
+        kolom: sisip(s.pricelist.kolom, (k) => n(k.nama), { nama, dari: nama, kali: 1 }) },
+      tnc: { ...s.tnc, caraBayar: sisip(s.tnc.caraBayar, (c) => n(c.judul), {
+        judul: "BERTAHAP 60X", baris: [
+          { label: "Booking Fee", nilai: "10 Juta", waktu: "" },
+          { label: "Angsuran (DP) 1", nilai: "10% - BF", waktu: "Hari ke 14 setelah BF" },
+          { label: "Angsuran 2 - 60", nilai: "90% / 59 bulan", waktu: "1 bulan setelah DP 1, dan seterusnya setiap bulan" },
+        ] }) },
+    };
   }
   return s;
 }
