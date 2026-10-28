@@ -1,10 +1,11 @@
 /**
  * Lembar Unit Data The Sanctuary Collection: kolomnya berbeda dari enam
- * project lain, jadi langkah 2 project ini memakai susunan kolom berkas
+ * project lain, jadi langkah 2 project ini — dan semua project baru, yang
+ * memakai patokan Scotts Vale — memakai susunan kolom berkas
  * Excel-nya (Unit_Data_TSC.xlsx), urut kolom A sampai BE.
  *
  * Rumusnya (kolom AY–BC Excel) dihitung oleh hitungUnit seperti project
- * lain, dengan aturan RUMUS_TSC (harga per m² sudah Termasuk PPN, tanpa
+ * lain, dengan ATURAN_PATOKAN (harga per m² sudah Termasuk PPN, tanpa
  * pembulatan):
  *   Harga Dasar (Batas Bawah)        = Luas Tanah × Harga Tanah + Luas Bangunan × Harga Bangunan
  *   Harga Setelah Penyesuaian (B. B.) = Harga Dasar × (1 + jumlah faktor %) × (1 + Harga Khusus %)
@@ -15,9 +16,10 @@
  * Status, Harga Lama, …) disimpan di `UnitData.atribut`.
  */
 
-import { RUMUS_TSC, unitKosong, type KunciFaktor, type UnitData } from "./susun-pricelist";
+import { polaScottsVale, unitKosong, type KunciFaktor, type UnitData } from "./susun-pricelist";
 
-export const unitTsc = (slug: string | null | undefined) => !!slug && RUMUS_TSC.has(slug);
+/** Data Unit memakai susunan ini: patokan Scotts Vale (TSC dan project baru). */
+export const unitTsc = polaScottsVale;
 
 
 export type JenisKolomTsc = "teks" | "angka" | "persen" | "rp";

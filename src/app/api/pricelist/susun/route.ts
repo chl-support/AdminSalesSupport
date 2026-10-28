@@ -1,6 +1,6 @@
 import { body, handler, projectAktif, requireRole } from "@/lib/api";
 import { WorkflowError } from "@/lib/workflow";
-import { ATURAN_STANDAR, susunAwal } from "@/lib/susun-pricelist";
+import { ATURAN_PATOKAN, samakanTsc, susunAwal } from "@/lib/susun-pricelist";
 import {
   bacaAtauIsiSusun, denganTncPatokan, kosongkanSekali, periksaSusun, samakanTncPatokan, simpanSusun,
 } from "@/lib/susun-pricelist-simpan";
@@ -14,9 +14,9 @@ import {
  * pertama dibuka; project lain mendapat isian kosong (`baru: true`). Semua
  * peran boleh membaca, sama dengan pricelist-nya.
  */
-/** Draf baru: aturan pembulatan standar, nama cara bayar otomatis. */
+/** Draf baru: patokan PRICE LIST SCOTTS VALE, nama cara bayar otomatis. */
 function standar(d: ReturnType<typeof susunAwal>) {
-  return { ...d, ...ATURAN_STANDAR, irr: { ...d.irr, namaOtomatis: true } };
+  return samakanTsc({ ...d, ...ATURAN_PATOKAN, bulatDataPl: 4, irr: { ...d.irr, namaOtomatis: true } });
 }
 
 export const GET = handler(async (req) => {
@@ -25,7 +25,7 @@ export const GET = handler(async (req) => {
   // T&C semua project mengikuti patokan Naraya Serpong (sekali; sesudahnya manual).
   const draf = await samakanTncPatokan(projectId, await bacaAtauIsiSusun(projectId));
   return draf ? { baru: false, ...draf }
-    // Project baru memakai aturan pembulatan dan Data (IRR) standar.
+    // Project baru memakai patokan Scotts Vale (rumus, Data (IRR), Data Harga).
     : { baru: true, data: await denganTncPatokan(standar(susunAwal())),
         diubah_oleh: null, diubah_pada: null };
 });
