@@ -36,7 +36,8 @@ export const KATA = {
     pilihIsi: "Pilih isi yang dicetak", disembunyikan: (n: number) => ` (${n} disembunyikan)`,
     pilihInfo: "Yang tidak dicentang hanya disembunyikan dari cetakan; isi Harga tidak berubah.",
     kolKet: "Kolom keterangan",
-    kolKetInfo: "Sembunyikan kolom yang tidak perlu supaya tulisan tercetak lebih besar.",
+    kolKetInfo: "Sembunyikan kolom yang tidak perlu supaya tulisan tercetak lebih besar. Tombol ◀ ▶ memindah kolom ke kiri / kanan.",
+    keKiri: "Pindah ke kiri", keKanan: "Pindah ke kanan", urutanReset: "Kembalikan urutan asal",
     caraBayar: "Cara bayar", centangSemua: "Centang semua", kosongkan: "Kosongkan",
     cluster: "Alamat (klaster)", tanpaAlamat: "(tanpa alamat)",
     nUnit: (n: number) => `${n} unit`,
@@ -82,7 +83,8 @@ export const KATA = {
     pilihIsi: "Choose what to print", disembunyikan: (n: number) => ` (${n} hidden)`,
     pilihInfo: "Unchecked items are only hidden from the printout; the price list itself is unchanged.",
     kolKet: "Detail columns",
-    kolKetInfo: "Hide columns you do not need so the text prints larger.",
+    kolKetInfo: "Hide columns you do not need so the text prints larger. The ◀ ▶ buttons move a column left / right.",
+    keKiri: "Move left", keKanan: "Move right", urutanReset: "Restore original order",
     caraBayar: "Payment schemes", centangSemua: "Check all", kosongkan: "Clear",
     cluster: "Address (cluster)", tanpaAlamat: "(no address)",
     nUnit: (n: number) => `${n} units`,
@@ -154,6 +156,11 @@ export type Pilihan = {
    * kelompok ilustrasi ("ilus:<nama>"). Yang kosong memakai nama asalnya.
    */
   judul?: Record<string, string>;
+  /**
+   * Urutan kolom keterangan dari kiri (kunci INFO, "unitNo" dan "area");
+   * kosong berarti URUTAN_AWAL. Kolom No selalu paling kiri.
+   */
+  urutan?: string[];
   /** Huruf judul kolom: seperti diketik, Kapital Awal (bawaan), atau besar semua. */
   huruf?: "asal" | "kapital" | "besar";
 };
@@ -190,6 +197,20 @@ export const INFO: [keyof UnitHarga, string, string][] = [
   ["view", "View", ""], ["tipe", "Tipe", "c"], ["subTipe", "Sub-Tipe", ""],
 ];
 export const AREA: [keyof UnitHarga, string][] = [["lt", "Land"], ["lb", "Build"]];
+
+/** Urutan kolom keterangan bawaan, seperti lembar PL Excel. */
+export const URUTAN_AWAL = ["alamat", "unitNo", ...INFO.slice(1).map(([k]) => String(k)), "area"];
+
+/** Urutan tersimpan, dilengkapi kolom yang belum tercatat di tempat bawaannya. */
+export function urutanKet(p: Pick<Pilihan, "urutan">): string[] {
+  const hasil = (p.urutan ?? []).filter((k, i, a) => URUTAN_AWAL.includes(k) && a.indexOf(k) === i);
+  URUTAN_AWAL.forEach((k, i) => {
+    if (hasil.includes(k)) return;
+    const sebelum = URUTAN_AWAL.slice(0, i).reverse().find((x) => hasil.includes(x));
+    hasil.splice(sebelum ? hasil.indexOf(sebelum) + 1 : 0, 0, k);
+  });
+  return hasil;
+}
 
 /** Ukuran isi halaman A4 dalam px CSS (96 dpi) dikurangi margin 8 mm. */
 const MM = 96 / 25.4;
@@ -271,6 +292,9 @@ export function susunLembar(isi: Isi, p: Pilihan) {
     unit: isi.unit.filter((u) => !p.alamat.includes(u.alamat || "(tanpa address)")),
     info: INFO.filter(([k]) => !(p.info ?? []).includes(k)),
     area: AREA.filter(([k]) => !(p.info ?? []).includes(k)),
+    // Kolom keterangan yang tampil, urut dari kiri.
+    ket: urutanKet(p).filter((k) => k === "unitNo"
+      || (k === "area" ? AREA.some(([a]) => !(p.info ?? []).includes(a)) : !(p.info ?? []).includes(k as keyof UnitHarga))),
     semuaAlamat: [...new Set(isi.unit.map((u) => u.alamat || "(tanpa address)"))],
     jumlahSembunyi: p.kolom.length + p.alamat.length + (p.info ?? []).length,
   };
@@ -311,6 +335,13 @@ export function AlatLembar({ isi, lembar, judul, children }: {
   /** "25, 20, 15" → [25, 20, 15]; yang bukan angka diabaikan. */
   const bacaTenor = (teks: string) => teks.split(/[^\d.,]+/)
     .map((x) => Number(x.replace(",", "."))).filter((n) => n > 0 && n <= 40);
+  // Urutan kolom keterangan (◀ ▶): ditukar dengan tetangganya.
+  const urutan = urutanKet(pilihan);
+  const geser = (i: number, arah: -1 | 1) => {
+    const n = [...urutan];
+    [n[i], n[i + arah]] = [n[i + arah], n[i]];
+    setPilihan({ ...pilihan, urutan: n.join() === URUTAN_AWAL.join() ? undefined : n });
+  };
   const satuHalaman = tata.pas !== "asli";
   /**
    * Centang salah satu kolom harga. `pajak` ikut ditulis supaya pilihan ini
@@ -376,12 +407,27 @@ export function AlatLembar({ isi, lembar, judul, children }: {
           <p className="hint">{kt.pilihInfo}</p>
           <b>{kt.kolKet}</b>
           <span className="hint" style={{ textAlign: "left", margin: 0 }}>{kt.kolKetInfo}</span>
-          {[...INFO.map(([k, , c]) => [k, kt.kol[k], c] as [keyof UnitHarga, string, string]),
-            ...AREA.map(([k]) => [k, `${kt.kol[k]} (m²)`, ""] as [keyof UnitHarga, string, string])].map(([k, l]) => (
-            <label key={k}><input type="checkbox" checked={!(pilihan.info ?? []).includes(k)}
-              onChange={(e) => setPilihan({ ...pilihan, info: e.target.checked
-                ? (pilihan.info ?? []).filter((x) => x !== k) : [...(pilihan.info ?? []), k] })} /> {l}</label>
+          {urutan.map((u, i) => (
+            <div key={u} className="ket-urut">
+              <button className="kecil" disabled={i === 0} title={kt.keKiri} aria-label={`${kt.keKiri}: ${u}`}
+                      onClick={() => geser(i, -1)}>◀</button>
+              <button className="kecil" disabled={i === urutan.length - 1} title={kt.keKanan}
+                      aria-label={`${kt.keKanan}: ${u}`} onClick={() => geser(i, 1)}>▶</button>
+              {u === "unitNo" ? <span>{jud("unitNo", kt.unitNo)}</span>
+                : (u === "area" ? AREA.map(([k]) => [k, `${kt.kol[k]} (m²)`] as const)
+                  : [[u as keyof UnitHarga, kt.kol[u]] as const]).map(([k, l]) => (
+                  <label key={k}><input type="checkbox" checked={!(pilihan.info ?? []).includes(k)}
+                    onChange={(e) => setPilihan({ ...pilihan, info: e.target.checked
+                      ? (pilihan.info ?? []).filter((x) => x !== k) : [...(pilihan.info ?? []), k] })} /> {l}</label>
+                ))}
+            </div>
           ))}
+          {pilihan.urutan && (
+            <div className="row" style={{ margin: "0 0 4px" }}>
+              <button className="kecil" onClick={() => setPilihan({ ...pilihan, urutan: undefined })}>
+                {kt.urutanReset}</button>
+            </div>
+          )}
           <b>{kt.caraBayar}</b>
           <div className="row" style={{ margin: "0 0 4px" }}>
             <button className="kecil" onClick={() => setPilihan({ ...pilihan, kolom: [] })}>{kt.centangSemua}</button>
@@ -490,7 +536,8 @@ export function AlatLembar({ isi, lembar, judul, children }: {
 export function LembarHarga({ isi, lembar }: { isi: Isi; lembar: Lembar }) {
   const kt = useKata(KATA);
   const { pilihan, tata, setTata, muatkan, setMuatkan, setUkur } = lembar;
-  const { kolom, unit, info, area, kolPajak, kpr, ilustrasi, warna, jud } = susunLembar(isi, pilihan);
+  const { kolom, unit, info, area, ket, kolPajak, kpr, ilustrasi, warna, jud } = susunLembar(isi, pilihan);
+  const infoDari = (k: string) => info.find(([x]) => x === k);
   const satuHalaman = tata.pas !== "asli";
   const [skala, setSkala] = useState({ zoom: 1, lebar: 0 });
   const tabel = useRef<HTMLTableElement>(null);
@@ -561,12 +608,10 @@ export function LembarHarga({ isi, lembar }: { isi: Isi; lembar: Lembar }) {
             <thead>
               <tr>
                 <th rowSpan={2}>{jud("no", kt.no)}</th>
-                {info.filter(([k]) => k === "alamat").map(([k]) =>
-                  <th key={k} rowSpan={2}>{jud(String(k), kt.kol[k])}</th>)}
-                <th rowSpan={2}>{jud("unitNo", kt.unitNo)}</th>
-                {info.filter(([k]) => k !== "alamat").map(([k]) =>
-                  <th key={k} rowSpan={2}>{jud(String(k), kt.kol[k])}</th>)}
-                {area.length > 0 && <th colSpan={area.length}>{jud("area", kt.area)}</th>}
+                {/* Kolom keterangan menurut urutan pilihan (◀ ▶). */}
+                {ket.map((k) => k === "unitNo" ? <th key={k} rowSpan={2}>{jud("unitNo", kt.unitNo)}</th>
+                  : k === "area" ? <th key={k} colSpan={area.length}>{jud("area", kt.area)}</th>
+                  : <th key={k} rowSpan={2}>{jud(k, kt.kol[k])}</th>)}
                 {/* Judul cara bayar: kolom sama lebar, judul panjang dilipat.
                     Dengan satu kolom angka saja judulnya dua baris tinggi
                     (tidak perlu baris judul kedua). */}
@@ -602,12 +647,10 @@ export function LembarHarga({ isi, lembar }: { isi: Isi; lembar: Lembar }) {
               {unit.map((u, i) => (
                 <tr key={`${u.kode}-${i}`}>
                   <td className="c">{i + 1}</td>
-                  {info.filter(([k]) => k === "alamat").map(([k]) => <td key={k}>{String(u[k] ?? "")}</td>)}
-                  <td>{u.kode}</td>
-                  {info.filter(([k]) => k !== "alamat").map(([k, , c]) =>
-                    <td key={k} className={c || undefined}>{String(u[k] ?? "")}</td>)}
-                  {area.map(([k]) => <td key={k} className="n">
-                    {k === "lt" ? satuDesimal(u.lt) : angka(u[k] as number | null, 2)}</td>)}
+                  {ket.map((k) => k === "unitNo" ? <td key={k}>{u.kode}</td>
+                    : k === "area" ? area.map(([a]) => <td key={a} className="n">
+                        {a === "lt" ? satuDesimal(u.lt) : angka(u[a] as number | null, 2)}</td>)
+                    : <td key={k} className={infoDari(k)?.[2] || undefined}>{String(u[k as keyof UnitHarga] ?? "")}</td>)}
                   {kolom.map((k) => kolPajak.map((j) =>
                     <td key={`${k}-${j}`}
                         className={j === "harga" ? "n h harga" : "n harga"}>

@@ -3176,6 +3176,9 @@ ul.daftar-ubah li { margin: 1px 0; }
 .cetak-pilih-isi > b { margin-top: 8px; font-size: 12px; }
 .cetak-pilih-isi label { display: flex; gap: 6px; align-items: flex-start; font-size: 12.5px; }
 .cetak-pilih-isi .hint { margin: 0 0 6px; text-align: left; }
+.cetak-pilih-isi .ket-urut { display: flex; gap: 4px; align-items: center; font-size: 12.5px; }
+.cetak-pilih-isi .ket-urut button { padding: 0 5px; min-width: 0; line-height: 1.5; font-size: 10px; }
+.cetak-pilih-isi .ket-urut > span, .cetak-pilih-isi .ket-urut label { margin-left: 4px; }
 
 /* ── Cetak Pricelist A4 (src/app/pricelist/cetak-pl) ── */
 .pl-lembar { font-family: "Century Gothic", "Avenir Next", "Segoe UI", Arial, sans-serif; color: #000; }
