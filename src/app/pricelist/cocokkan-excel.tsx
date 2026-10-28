@@ -49,11 +49,11 @@ const KATA = {
 /**
  * Nama kolom tanpa beda huruf besar, spasi dan tanda baca; sebutan lain
  * untuk cara bayar yang sama disamakan (berkas TSC: Hard Cash = Cash Keras;
- * Installment Nx = Bertahap Nx).
+ * Installment Nx = Cicilan Nx = Bertahap Nx).
  */
 const SEBUTAN: Record<string, string> = { hardcash: "cashkeras", cash: "cashkeras" };
 export const kunci = (s: string) => {
-  const k = s.toLowerCase().replace(/[^a-z0-9%]/g, "").replace(/^installment(?=\d)/, "bertahap");
+  const k = s.toLowerCase().replace(/[^a-z0-9%]/g, "").replace(/^(installment|cicilan)(?=\d)/, "bertahap");
   return SEBUTAN[k] ?? k;
 };
 
