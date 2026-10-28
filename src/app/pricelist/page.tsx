@@ -25,7 +25,7 @@ import { RiwayatSusun } from "./riwayat-susun";
 import { BilahGaya } from "./gaya-teks";
 import { useSesi } from "../session";
 import { PENGUNGGAH } from "../simulasi/unggah-pricelist";
-import { basisProject, polaScottsVale, hitungSemua, samakanTsc, unitBelumBerharga, type SusunPricelist } from "@/lib/susun-pricelist";
+import { basisProject, polaScottsVale, hitungSemua, samakanPermai, samakanTsc, unitBelumBerharga, type SusunPricelist } from "@/lib/susun-pricelist";
 import { periksaSusun, type Temuan } from "@/lib/susun-pricelist-periksa";
 import {
   LangkahDataPl, LangkahIrr, LangkahPricelist, LangkahTnc, LangkahUnit, isiOtomatisCaraBayar, rapikanCaraBayar, sinkronTnc, terapkanNamaOtomatis,
@@ -202,7 +202,9 @@ export default function PricelistPage() {
     // parameternya, juga untuk draf lama yang belum pernah mematikannya.
     // The Sanctuary Collection: Data (IRR) yang masih isian awal lama diganti
     // cara bayar standar (Data_Irr_TSC.xlsx); tersimpan setelah Simpan.
-    const isi = polaScottsVale(slugRef.current) ? samakanTsc(b.data) : b.data;
+    // Permai Indah: Data (IRR) disamakan dengan Scotts Vale (sekali).
+    const isi = polaScottsVale(slugRef.current) ? samakanTsc(b.data)
+      : slugRef.current === "permai-indah" ? samakanPermai(b.data) : b.data;
     const awal = rapikanCaraBayar(basisProject(slugRef.current, isi));
     setDraf(b); setData(sinkronTnc(awal, terapkanNamaOtomatis(awal)));
   }, []);

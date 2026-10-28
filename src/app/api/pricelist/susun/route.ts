@@ -1,6 +1,7 @@
 import { body, handler, projectAktif, requireRole } from "@/lib/api";
 import { WorkflowError } from "@/lib/workflow";
-import { ATURAN_PATOKAN, samakanTsc, susunAwal } from "@/lib/susun-pricelist";
+import { one } from "@/lib/db";
+import { ATURAN_PATOKAN, ATURAN_STANDAR, polaScottsVale, samakanTsc, susunAwal } from "@/lib/susun-pricelist";
 import {
   bacaAtauIsiSusun, denganTncPatokan, kosongkanSekali, periksaSusun, samakanTncPatokan, simpanSusun,
 } from "@/lib/susun-pricelist-simpan";
@@ -14,9 +15,14 @@ import {
  * pertama dibuka; project lain mendapat isian kosong (`baru: true`). Semua
  * peran boleh membaca, sama dengan pricelist-nya.
  */
-/** Draf baru: patokan PRICE LIST SCOTTS VALE, nama cara bayar otomatis. */
-function standar(d: ReturnType<typeof susunAwal>) {
-  return samakanTsc({ ...d, ...ATURAN_PATOKAN, bulatDataPl: 4, irr: { ...d.irr, namaOtomatis: true } });
+/**
+ * Draf baru, nama cara bayar otomatis: project di luar enam project lama
+ * memakai patokan PRICE LIST SCOTTS VALE; project lama aturan standarnya.
+ */
+function standar(d: ReturnType<typeof susunAwal>, slug: string | undefined) {
+  const irr = { ...d.irr, namaOtomatis: true };
+  return polaScottsVale(slug) ? samakanTsc({ ...d, ...ATURAN_PATOKAN, bulatDataPl: 4, irr })
+    : { ...d, ...ATURAN_STANDAR, irr };
 }
 
 export const GET = handler(async (req) => {
@@ -26,7 +32,8 @@ export const GET = handler(async (req) => {
   const draf = await samakanTncPatokan(projectId, await bacaAtauIsiSusun(projectId));
   return draf ? { baru: false, ...draf }
     // Project baru memakai patokan Scotts Vale (rumus, Data (IRR), Data Harga).
-    : { baru: true, data: await denganTncPatokan(standar(susunAwal())),
+    : { baru: true, data: await denganTncPatokan(standar(susunAwal(),
+        (await one<{ slug: string }>("SELECT slug FROM projects WHERE id=$1", [projectId]))?.slug)),
         diubah_oleh: null, diubah_pada: null };
 });
 

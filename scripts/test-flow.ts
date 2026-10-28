@@ -2183,6 +2183,20 @@ async function main() {
     assert(basisProject("proyek-baru", { ...s, bulatHargaM2: 5 }).bulatHargaM2 === -1, "rumus dipatenkan");
   });
 
+  await check("Permai Indah: Data (IRR) disamakan dengan Scotts Vale sekali", async () => {
+    const { samakanPermai, samakanTsc, susunAwal } = await import("../src/lib/susun-pricelist");
+    const lama = await susunNaraya();
+    lama.irr.hargaKas = 200_000_000;
+    const p = samakanPermai(lama), sv = samakanTsc(susunAwal());
+    const nama = (x: typeof p) => x.irr.skema.map((s) => s.nama).join("|");
+    assert(nama(p) === nama(sv), nama(p));
+    assert(p.dataPricelist.kolom.map((k) => k.nama).join() === sv.dataPricelist.kolom.map((k) => k.nama).join(), "kolom Data Harga");
+    assert(p.tnc.caraBayar.map((c) => c.judul).join() === sv.tnc.caraBayar.map((c) => c.judul).join(), "blok S&K");
+    assert(p.irr.hargaKas === 2_000_000_000 && p.unit === lama.unit, "harga tunai, unit tetap");
+    const ubah = { ...p, irr: { ...p.irr, skema: p.irr.skema.slice(0, 3) } };
+    assert(samakanPermai(ubah) === ubah, "hanya sekali");
+  });
+
   // Unit Data The Sanctuary Collection: harga per m² sudah Termasuk PPN,
   // tanpa pembulatan; faktor dijumlah, AC dan Harga Khusus (Rp) ditambahkan.
   await check("Data Unit The Sanctuary Collection seperti berkas Excel-nya", async () => {
