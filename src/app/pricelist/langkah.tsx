@@ -13,7 +13,7 @@ import { Fragment, useEffect, useState } from "react";
 
 import { formatRupiah } from "@/lib/money";
 import {
-  FAKTOR, FAKTOR_INGGRIS, arusKas, arusTertimbang, faktorTampil, hitungRumus, koefDikunci, skemaStandar, namaOtomatisAktif, namaStandar, rumusDikunci, hargaKasIrr, hargaSesuaiSkema, labelPpn, namaTahap, tarifPpn, unitKosong,
+  FAKTOR, FAKTOR_INGGRIS, arusKas, arusTertimbang, faktorTampil, hitungRumus, koefDikunci, koefStandarDikunci, namaOtomatisAktif, namaStandar, rumusDikunci, hargaKasIrr, hargaSesuaiSkema, labelPpn, namaTahap, tarifPpn, unitKosong,
   kunciTnc, tingkatNaik, type BarisTnc, type KunciFaktor, type HasilSusun, type SusunPricelist, type UnitData,
 } from "@/lib/susun-pricelist";
 import type { UnitHarga } from "@/lib/simulasi";
@@ -56,7 +56,7 @@ const KATA = {
     grupBulan: "Bulan pencairan sisa (1 − DP) per tahap",
     grupHasil: "Hasil",
     hargaTunai: "Harga Tunai", selesai: "Selesai", edit: "Ubah",
-    koefKunciInfo: "Cara bayar standar: koefisien selalu dihitung dari Target IRR (Goal Seek), tidak dapat diubah manual. Koefisien manual hanya untuk cara bayar tambahan.",
+    koefKunciInfo: "Cara bayar standar: koefisien selalu dihitung dari Target IRR (Goal Seek), tidak dapat diubah manual. Koefisien manual hanya untuk KPR Express dan cara bayar tambahan.",
     ubahKoefInfo: "Koefisien dan Harga Penyesuaian dihitung otomatis dari Target Bunga. Ubah hanya untuk pengecualian (mis. pricelist lama); ↺ Target mengembalikannya.",
     kasInfo: "dipakai semua cara bayar · Harga Penyesuaian = Harga Tunai × Koefisien",
     koef: "Koefisien",
@@ -290,7 +290,7 @@ const KATA = {
     grupBulan: "Disbursement month of the remainder (1 − DP) per stage",
     grupHasil: "Results",
     hargaTunai: "Cash Price", selesai: "Done", edit: "Edit",
-    koefKunciInfo: "Standard payment scheme: the coefficient is always calculated from the target IRR (Goal Seek) and cannot be changed manually. Manual coefficients are for additional schemes only.",
+    koefKunciInfo: "Standard payment scheme: the coefficient is always calculated from the target IRR (Goal Seek) and cannot be changed manually. Manual coefficients are for KPR Express and additional schemes only.",
     ubahKoefInfo: "Coefficients and Adjusted Prices are calculated automatically from the target rate. Change them only for exceptions (e.g. an old price list); ↺ Target restores them.",
     kasInfo: "used by every payment scheme · Adjusted Price = Cash Price × Coefficient",
     koef: "Coefficient",
@@ -853,7 +853,7 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah, baru, slug }: PropsLa
   // kotak isiannya (pengecualian manual) baru muncul setelah Ubah ditekan.
   const [editKoef, setEditKoef] = useState(false);
   // Cara bayar standar di project baru / TSC: koefisien selalu Goal Seek.
-  const kunciKoef = (s: SusunPricelist["irr"]["skema"][0]) => koefDikunci(slug) && skemaStandar(s);
+  const kunciKoef = (s: SusunPricelist["irr"]["skema"][0]) => koefDikunci(slug) && koefStandarDikunci(s);
   const ro = !bolehUbah;
   // Mengubah arus kas cara bayar (DP, cicilan, bulan, Cash Price) membuat
   // Adjusted Price tersimpan tidak berlaku lagi — seperti di Excel yang
