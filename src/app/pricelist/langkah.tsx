@@ -916,10 +916,12 @@ export function terapkanNamaOtomatis(d: SusunPricelist): SusunPricelist {
 function terapkanPerTipe(d: SusunPricelist): SusunPricelist {
   if (!d.irr.alokasiTipe) return d;
   const u = unitDariTipe(d.irr, d.unit);
-  return { ...d, irr: { ...d.irr, skema: alokasiDariUnit(d.irr.skema.map((s) => {
+  // Alokasi dari unit utuhnya (sama dengan Hasil: Alokasi); baris Unit 2 desimal.
+  const alokasi = alokasiDariUnit(d.irr.skema.map((s) => ({ alokasi: s.alokasi, unitAcuan: u[s.nama] ?? 0 })));
+  return { ...d, irr: { ...d.irr, skema: d.irr.skema.map((s, i) => {
     const n = Math.round((u[s.nama] ?? 0) * 100) / 100;
-    return { ...s, unitAcuan: n > 0 ? n : undefined };
-  })) } };
+    return { ...s, alokasi: alokasi[i].alokasi, unitAcuan: n > 0 ? n : undefined };
+  }) } };
 }
 
 /**
@@ -995,7 +997,7 @@ function AlokasiPerTipe({ data, ubah, ro }: {
                 <td key={i} className="n">{(u[s.nama] ?? 0).toLocaleString("id-ID", { maximumFractionDigits: 2 })}</td>))}
                 <td className="n"><b>{totalU.toLocaleString("id-ID", { maximumFractionDigits: 2 })}</b></td></tr>
               <tr className="hasil"><td>{kt.hasilAlokasi}</td>{irr.skema.map((s, i) => (
-                <td key={i} className="n">{totalU > 0 ? persen((u[s.nama] ?? 0) / totalU, 1, 1) : "—"}</td>))}
+                <td key={i} className="n">{totalU > 0 ? persen(s.alokasi, 1, 1) : "—"}</td>))}
                 <td className="n"><b>{totalU > 0 ? "100,0%" : "—"}</b></td></tr>
             </tbody>
           </table>
