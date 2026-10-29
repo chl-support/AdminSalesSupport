@@ -912,9 +912,20 @@ export function terapkanNamaOtomatis(d: SusunPricelist): SusunPricelist {
   return hasil;
 }
 
-/** Unit acuan dan Alokasi dari Alokasi per tipe unit (bila dipakai). */
-function terapkanPerTipe(d: SusunPricelist): SusunPricelist {
-  if (!d.irr.alokasiTipe) return d;
+/**
+ * Unit acuan dan Alokasi dari Alokasi per tipe unit (bila dipakai), dihitung
+ * ulang setiap kali draf berubah — juga saat Data Unit berubah (unit baru,
+ * tipe diganti). Kelompok yang baru muncul diberi porsi Alokasi saat ini.
+ */
+export function terapkanPerTipe(d: SusunPricelist): SusunPricelist {
+  const at = d.irr.alokasiTipe;
+  if (!at) return d;
+  const baru = kelompokTipe(d.unit, at.dasar).filter(([k]) => !at.porsi[k]);
+  if (baru.length) {
+    const awal = Object.fromEntries(d.irr.skema.map((s) => [s.nama, s.alokasi]));
+    d = { ...d, irr: { ...d.irr, alokasiTipe: { ...at, porsi: { ...at.porsi,
+      ...Object.fromEntries(baru.map(([k]) => [k, { ...awal }])) } } } };
+  }
   const u = unitDariTipe(d.irr, d.unit);
   // Alokasi dari unit utuhnya (sama dengan Hasil: Alokasi); baris Unit 2 desimal.
   const alokasi = alokasiDariUnit(d.irr.skema.map((s) => ({ alokasi: s.alokasi, unitAcuan: u[s.nama] ?? 0 })));
