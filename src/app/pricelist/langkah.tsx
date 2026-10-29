@@ -950,10 +950,10 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah, baru, slug }: PropsLa
   // Lebar kolom cara bayar: cukup untuk Harga Penyesuaian terpanjang
   // (± 8 px per karakter, 12,5 px) dan nama cara bayarnya; paling sedikit 142 px.
   // Semua kolom sama lebar: selebar isi kolom terlebar (angka Harga
-  // Penyesuaian, tombol ↺ Target bila ada, dan namanya), paling sedikit 112 px.
+  // Penyesuaian dan namanya; ↺ Target ada di bawah angkanya), paling sedikit 112 px.
   const lebarSatu = Math.max(...irr.skema.map((s) => {
     const harga = Math.round(hargaSesuaiSkema(irr, hasil.irr.koef[s.nama])).toLocaleString("id-ID").length * 8 + 46;
-    return Math.ceil(Math.max(112, harga + (bolehUbah && s.hargaSesuai ? 70 : 0), s.nama.length * 7.5 + (bolehUbah ? 36 : 16)));
+    return Math.ceil(Math.max(112, harga, s.nama.length * 7.5 + (bolehUbah ? 36 : 16)));
   }));
   const lebarSkema = irr.skema.map(() => lebarSatu);
 
@@ -1001,10 +1001,10 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah, baru, slug }: PropsLa
             {kt.tambahCb}</button>
         </div>
       )}
-      {/* Grid tetap: setiap cara bayar selebar isinya, kotak isian memenuhi
+      {/* Grid tetap: semua cara bayar sama lebar, kotak isian memenuhi
           kolomnya, tanda % sejajar, dan baris dikelompokkan. Lebarnya
-          menyesuaikan angka terpanjang (Harga Penyesuaian, plus tombol
-          ↺ Target bila ada), supaya tidak ada angka yang terpotong. */}
+          menyesuaikan angka terpanjang (Harga Penyesuaian) dan nama cara
+          bayar, supaya tidak ada yang terpotong. */}
       <div className="tscroll">
         <table className="tabel-ringkas tabel-isian tabel-irr" style={{ width: 150 + lebarSkema.reduce((a, b) => a + b, 0) }}>
           <colgroup>
@@ -1134,7 +1134,8 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah, baru, slug }: PropsLa
             <td key={i} className="n"
                 title={s.hargaSesuai && !s.acuan ? kt.dariExcel : kt.dariTarget}>
               {bolehUbah && !s.acuan && !kunciKoef(s) && (editKoef || s.hargaSesuai) ? (
-                <span className="row" style={{ margin: 0, gap: 4, flexWrap: "nowrap", justifyContent: "flex-end" }}>
+                // ↺ Target di bawah angkanya, supaya kolom tidak perlu dilebarkan.
+                <span className="row" style={{ margin: 0, gap: 2, flexDirection: "column", alignItems: "flex-end" }}>
                   {editKoef ? (
                     <Isian id={`irr-sesuai-${i}`} jenis="rp" nilai={hargaSesuaiSkema(irr, hasil.irr.koef[s.nama])} lebar={130}
                            ubah={(n) => ubahSkema(i, (x) => ({ ...x, hargaSesuai: n > 0 ? n : undefined, hargaKas: hargaKasIrr(irr) }))} />
