@@ -44,6 +44,7 @@ const SKEMA = z.object({
     namaOtomatis: z.boolean().optional(),
     skema: z.array(z.object({
       nama: teks.min(1), kelompok: teks, alokasi: angka, dp: angka.min(0).max(1),
+      unitAcuan: angka.min(0).optional(),
       tambahan: z.boolean().optional(), otomatis: z.boolean().optional(),
       kali: z.number().int().min(1).max(240),
       bulan: z.tuple([angka, angka, angka, angka]),
