@@ -131,8 +131,50 @@ export type DataIrr = {
    * dimatikan di layar.
    */
   namaOtomatis?: boolean;
+  /** Alokasi per tipe unit (lihat unitDariTipe); kosong = tidak dipakai. */
+  alokasiTipe?: AlokasiTipe;
   skema: SkemaIrr[];
 };
+
+/**
+ * Alokasi per tipe unit: porsi cara bayar untuk tiap kelompok unit Data Unit
+ * (menurut Tipe atau Sub-Tipe), mis. Corner 50% KPR Express, Standard 30%.
+ * `porsi[kelompok][nama cara bayar]` dalam pecahan; tiap baris dibagi
+ * jumlahnya sendiri, jadi tidak harus tepat 100%.
+ */
+export type AlokasiTipe = {
+  dasar: "tipeBangunan" | "subTipe";
+  porsi: Record<string, Record<string, number>>;
+};
+
+/** Kelompok unit menurut dasar Alokasi per tipe, urut nama, dengan jumlah unitnya. */
+export function kelompokTipe(unit: UnitData[], dasar: AlokasiTipe["dasar"]): [string, number][] {
+  const n = new Map<string, number>();
+  for (const u of unit) {
+    if (!u.kode.trim()) continue;
+    const k = String(u[dasar] ?? "").trim() || "(kosong)";
+    n.set(k, (n.get(k) ?? 0) + 1);
+  }
+  return [...n].sort(([a], [b]) => a.localeCompare(b, "id", { numeric: true }));
+}
+
+/**
+ * Unit acuan tiap cara bayar dari Alokasi per tipe: Σ jumlah unit kelompok ×
+ * porsi cara bayar itu di kelompoknya (porsi dibagi jumlah barisnya).
+ * Kelompok tanpa porsi sama sekali memakai Alokasi cara bayar saat ini.
+ */
+export function unitDariTipe(irr: DataIrr, unit: UnitData[]): Record<string, number> {
+  const hasil: Record<string, number> = Object.fromEntries(irr.skema.map((s) => [s.nama, 0]));
+  const at = irr.alokasiTipe;
+  if (!at) return hasil;
+  for (const [k, n] of kelompokTipe(unit, at.dasar)) {
+    const baris = irr.skema.map((s) => at.porsi[k]?.[s.nama] ?? 0);
+    const pakai = baris.some((x) => x > 0) ? baris : irr.skema.map((s) => s.alokasi);
+    const jml = pakai.reduce((a, b) => a + Math.max(0, b), 0);
+    if (jml > 0) irr.skema.forEach((s, i) => { hasil[s.nama] += n * Math.max(0, pakai[i]) / jml; });
+  }
+  return hasil;
+}
 
 /** Nama cara bayar otomatis aktif (bawaan semua project), lihat `DataIrr.namaOtomatis`. */
 export const namaOtomatisAktif = (irr: Pick<DataIrr, "namaOtomatis">) => irr.namaOtomatis !== false;

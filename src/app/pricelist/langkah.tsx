@@ -14,7 +14,7 @@ import { Fragment, useEffect, useState } from "react";
 import { formatRupiah } from "@/lib/money";
 import {
   FAKTOR, FAKTOR_INGGRIS, arusKas, arusTertimbang, faktorTampil, hitungRumus, koefDikunci, koefStandarDikunci, namaOtomatisAktif, namaStandar, rumusDikunci, hargaKasIrr, hargaSesuaiSkema, labelPpn, namaTahap, tarifPpn, unitKosong,
-  alokasiTetap, kunciTnc, tingkatNaik, type BarisTnc, type KunciFaktor, type HasilSusun, type SusunPricelist, type UnitData,
+  alokasiTetap, kelompokTipe, kunciTnc, tingkatNaik, unitDariTipe, type AlokasiTipe, type BarisTnc, type KunciFaktor, type HasilSusun, type SusunPricelist, type UnitData,
 } from "@/lib/susun-pricelist";
 import type { UnitHarga } from "@/lib/simulasi";
 import { useBahasa, useKata } from "../bahasa";
@@ -53,6 +53,13 @@ const KATA = {
     hapusCbJudul: "Hapus cara bayar ini (konfirmasi di bawah kolom)",
     grupParam: "Parameter cara bayar",
     grupUnit: "Acuan Alokasi (jumlah unit)",
+    perTipe: "Alokasi per tipe unit",
+    perTipeInfo: "Isi porsi cara bayar untuk tiap kelompok unit di Data Unit (mis. unit Corner lebih banyak KPR). Baris Unit dan Alokasi terisi otomatis = Σ jumlah unit kelompok × porsinya. Hanya acuan, tidak memengaruhi harga.",
+    perTipePakai: "Pakai Alokasi per tipe unit", perTipeMatikan: "Matikan (baris Unit tetap)",
+    perTipeDasar: "Kelompok menurut", dasarTipe: "Tipe", dasarSub: "Sub-Tipe",
+    perTipeKosong: "Belum ada unit di Data Unit.",
+    kelompokUnit: (k: string, n: number) => `${k} (${n} unit)`,
+    hasilUnit: "Hasil: unit", hasilAlokasi: "Hasil: Alokasi", jumlahBaris: "Jumlah",
     unitAcuan: "Unit", totUnit: (n: string) => `Σ ${n}`,
     unitInfo: "Isi target unit per cara bayar (boleh rumus, mis. =40+5): Alokasi = unit target ÷ total unit di Data Unit. Total Alokasi 100% bila semua unit sudah dibagi. Hanya acuan, tidak memengaruhi harga. Kosongkan semua untuk mengisi Alokasi sendiri.",
     alokasiTetapInfo: "Alokasi dikunci untuk semua proyek (Cash Keras 7%, Bertahap 12x 4%, 18x 5%, 24x 8%, 30x 25%, KPR Express 33%, KPR DP 0%/1x 8%, KPR DP 10%/4x 5%, KPR DP 20%/6x 5%); Unit = Alokasi × total unit Data Unit. Cara bayar lain diisi sendiri.",
@@ -293,6 +300,13 @@ const KATA = {
     hapusCbJudul: "Delete this payment scheme (confirm below the column)",
     grupParam: "Payment scheme parameters",
     grupUnit: "Allocation reference (number of units)",
+    perTipe: "Allocation by unit type",
+    perTipeInfo: "Enter the payment-scheme mix for each unit group in Unit Data (e.g. Corner units more mortgage). The Units and Allocation rows fill in automatically = Σ group units × share. Reference only, prices do not change.",
+    perTipePakai: "Use allocation by unit type", perTipeMatikan: "Turn off (Units row kept)",
+    perTipeDasar: "Group by", dasarTipe: "Type", dasarSub: "Sub-type",
+    perTipeKosong: "No units in Unit Data yet.",
+    kelompokUnit: (k: string, n: number) => `${k} (${n} units)`,
+    hasilUnit: "Result: units", hasilAlokasi: "Result: Allocation", jumlahBaris: "Total",
     unitAcuan: "Units", totUnit: (n: string) => `Σ ${n}`,
     unitInfo: "Enter target units per payment scheme (formulas allowed, e.g. =40+5): Allocation = target units ÷ total units in Unit Data. Allocation totals 100% once every unit is assigned. Reference only, prices do not change. Clear them all to type Allocation yourself.",
     alokasiTetapInfo: "Allocation locked for every project (Cash Keras 7%, Instalment 12x 4%, 18x 5%, 24x 8%, 30x 25%, KPR Express 33%, KPR DP 0%/1x 8%, KPR DP 10%/4x 5%, KPR DP 20%/6x 5%); Units = Allocation × total units in Unit Data. Other schemes are filled in yourself.",
@@ -672,10 +686,11 @@ const tetap = (s: SkemaAlokasi) => alokasiTetap(s) != null;
  * (sesudah Alokasi yang dikunci) dibagi ke cara bayar lain sebanding dengan
  * allocation lamanya.
  */
-function aturAlokasi<T extends SkemaAlokasi>(skema: T[], i: number, nilai: number): T[] {
+function aturAlokasi<T extends { alokasi: number }>(skema: T[], i: number, nilai: number,
+  kunci: (s: T) => boolean = (s) => tetap(s as unknown as SkemaAlokasi)): T[] {
   const bp = Math.round(Math.min(1, Math.max(0, nilai)) * 10000);
-  const lain = skema.map((s, j) => ({ s, j })).filter(({ s, j }) => j !== i && !tetap(s));
-  const dikunci = Math.round(skema.reduce((a, s, j) => a + (j !== i && tetap(s) ? s.alokasi : 0), 0) * 10000);
+  const lain = skema.map((s, j) => ({ s, j })).filter(({ s, j }) => j !== i && !kunci(s));
+  const dikunci = Math.round(skema.reduce((a, s, j) => a + (j !== i && kunci(s) ? s.alokasi : 0), 0) * 10000);
   const bagian = bagiSebanding(lain.map(({ s }) => s.alokasi), Math.max(0, 10000 - bp - dikunci));
   const baru = skema.map((s) => ({ ...s }));
   baru[i].alokasi = bp / 10000;
@@ -855,7 +870,11 @@ function gantiNamaSkema(d: SusunPricelist, i: number, nama: string): SusunPricel
   const n = (x: string) => (ubahNamaDp.has(x) ? nama : x);
   return {
     ...d,
-    irr: { ...d.irr, skema: d.irr.skema.map((s, j) => j === i ? { ...s, nama } : s) },
+    irr: { ...d.irr, skema: d.irr.skema.map((s, j) => j === i ? { ...s, nama } : s),
+      // Porsi Alokasi per tipe unit tercatat menurut nama cara bayar: ikut berganti.
+      ...(d.irr.alokasiTipe && { alokasiTipe: { ...d.irr.alokasiTipe, porsi: Object.fromEntries(
+        Object.entries(d.irr.alokasiTipe.porsi).map(([k, baris]) => [k, Object.fromEntries(
+          Object.entries(baris).map(([nm, v]) => [nm === lama ? nama : nm, v]))])) } }) },
     dataPricelist: { ...d.dataPricelist, kolom: d.dataPricelist.kolom.map((k) => ({
       ...k, nama: n(k.nama),
       ...(k.skema === lama && { skema: nama }),
@@ -891,6 +910,99 @@ export function terapkanNamaOtomatis(d: SusunPricelist): SusunPricelist {
     if (!dipakai) hasil = gantiNamaSkema(hasil, i, nama);
   });
   return hasil;
+}
+
+/** Unit acuan dan Alokasi dari Alokasi per tipe unit (bila dipakai). */
+function terapkanPerTipe(d: SusunPricelist): SusunPricelist {
+  if (!d.irr.alokasiTipe) return d;
+  const u = unitDariTipe(d.irr, d.unit);
+  return { ...d, irr: { ...d.irr, skema: alokasiDariUnit(d.irr.skema.map((s) => {
+    const n = Math.round((u[s.nama] ?? 0) * 100) / 100;
+    return { ...s, unitAcuan: n > 0 ? n : undefined };
+  })) } };
+}
+
+/**
+ * Alokasi per tipe unit: matriks kelompok unit (Tipe / Sub-Tipe di Data
+ * Unit) × cara bayar. Setiap perubahan mengisi baris Unit dan Alokasi.
+ */
+function AlokasiPerTipe({ data, ubah, ro }: {
+  data: SusunPricelist; ubah: (f: (d: SusunPricelist) => SusunPricelist) => void; ro: boolean;
+}) {
+  const kt = useKata(KATA);
+  const irr = data.irr, at = irr.alokasiTipe;
+  const set = (f: (a: AlokasiTipe) => AlokasiTipe | undefined) => ubah((d) => {
+    const baru = d.irr.alokasiTipe ? f(d.irr.alokasiTipe) : undefined;
+    return terapkanPerTipe({ ...d, irr: { ...d.irr, alokasiTipe: baru } });
+  });
+  // Mulai: tiap kelompok diisi Alokasi saat ini, lalu diubah seperlunya.
+  const pakai = () => ubah((d) => {
+    const dasar: AlokasiTipe["dasar"] = d.unit.some((u) => u.tipeBangunan.trim()) ? "tipeBangunan" : "subTipe";
+    const awal = Object.fromEntries(d.irr.skema.map((s) => [s.nama, s.alokasi]));
+    const porsi = Object.fromEntries(kelompokTipe(d.unit, dasar).map(([k]) => [k, { ...awal }]));
+    return terapkanPerTipe({ ...d, irr: { ...d.irr, alokasiTipe: { dasar, porsi } } });
+  });
+  const kelompok = at ? kelompokTipe(data.unit, at.dasar) : [];
+  const u = at ? unitDariTipe(irr, data.unit) : {};
+  const totalU = Object.values(u).reduce((a, b) => a + b, 0);
+  const nilai = (k: string, nama: string) => at?.porsi[k]?.[nama]
+    ?? irr.skema.find((s) => s.nama === nama)?.alokasi ?? 0;
+  return (
+    <details className="alokasi-tipe" open={!!at}>
+      <summary><b>{kt.perTipe}</b></summary>
+      <p className="hint kiri">{kt.perTipeInfo}</p>
+      {!at ? (!ro && (data.unit.length ? <button onClick={pakai}>{kt.perTipePakai}</button>
+                                       : <p className="hint kiri">{kt.perTipeKosong}</p>)) : <>
+        <div className="row" style={{ margin: "0 0 6px" }}>
+          <label>{kt.perTipeDasar}{" "}
+            <select value={at.dasar} disabled={ro} onChange={(e) => {
+              const dasar = e.target.value as AlokasiTipe["dasar"];
+              const awal = Object.fromEntries(irr.skema.map((s) => [s.nama, s.alokasi]));
+              set(() => ({ dasar, porsi: Object.fromEntries(kelompokTipe(data.unit, dasar).map(([k]) => [k, { ...awal }])) }));
+            }}>
+              <option value="tipeBangunan">{kt.dasarTipe}</option>
+              <option value="subTipe">{kt.dasarSub}</option>
+            </select>
+          </label>
+          {!ro && <button className="kecil" onClick={() => set(() => undefined)}>{kt.perTipeMatikan}</button>}
+        </div>
+        <div className="tscroll">
+          <table className="tabel-ringkas tabel-isian tabel-irr" style={{ width: 230 + 110 * (irr.skema.length + 1) }}>
+            <colgroup><col style={{ width: 230 }} />{irr.skema.map((_, i) => <col key={i} style={{ width: 110 }} />)}
+              <col style={{ width: 110 }} /></colgroup>
+            <tbody>
+              <tr className="kepala-skema"><th />{irr.skema.map((s, i) => <th key={i}>{s.nama}</th>)}<th>{kt.jumlahBaris}</th></tr>
+              {kelompok.map(([k, n]) => {
+                const jml = irr.skema.reduce((a, s) => a + nilai(k, s.nama), 0);
+                return (
+                  <tr key={k}><td title={k}>{kt.kelompokUnit(k, n)}</td>
+                    {irr.skema.map((s, i) => (
+                      <td key={i}>
+                        <Isian id={`tipe-${k}-${i}`} jenis="persen" desimal={1} rumus lebar={60} disabled={ro}
+                               nilai={nilai(k, s.nama)}
+                               ubah={(x) => set((a) => {
+                                 // Seperti baris Alokasi: porsi lain di kelompok ini menyesuaikan sebanding.
+                                 const baris = aturAlokasi(irr.skema.map((y) => ({ alokasi: nilai(k, y.nama) })), i, x, () => false);
+                                 return { ...a, porsi: { ...a.porsi, [k]: Object.fromEntries(
+                                   irr.skema.map((y, j) => [y.nama, baris[j].alokasi])) } };
+                               })} />
+                      </td>))}
+                    <td className="n"><b className={Math.abs(jml - 1) > 1e-6 ? "alokasi-kurang" : "alokasi-pas"}>
+                      {persen(jml, 1, 1)}</b></td></tr>
+                );
+              })}
+              <tr className="hasil"><td>{kt.hasilUnit}</td>{irr.skema.map((s, i) => (
+                <td key={i} className="n">{(u[s.nama] ?? 0).toLocaleString("id-ID", { maximumFractionDigits: 2 })}</td>))}
+                <td className="n"><b>{totalU.toLocaleString("id-ID", { maximumFractionDigits: 2 })}</b></td></tr>
+              <tr className="hasil"><td>{kt.hasilAlokasi}</td>{irr.skema.map((s, i) => (
+                <td key={i} className="n">{totalU > 0 ? persen((u[s.nama] ?? 0) / totalU, 1, 1) : "—"}</td>))}
+                <td className="n"><b>{totalU > 0 ? "100,0%" : "—"}</b></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </>}
+    </details>
+  );
 }
 
 export function LangkahIrr({ data, hasil, ubah, bolehUbah, baru, slug }: PropsLangkah & {
@@ -1024,6 +1136,7 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah, baru, slug }: PropsLa
             {kt.tambahCb}</button>
         </div>
       )}
+      <AlokasiPerTipe data={data} ubah={ubah} ro={ro} />
       {/* Grid tetap: semua cara bayar sama lebar, kotak isian memenuhi
           kolomnya, tanda % sejajar, dan baris dikelompokkan. Lebarnya
           menyesuaikan angka terpanjang (Harga Penyesuaian) dan nama cara
