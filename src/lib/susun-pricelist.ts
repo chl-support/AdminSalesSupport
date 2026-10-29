@@ -30,6 +30,11 @@ export type SkemaIrr = {
   kelompok: string;
   /** Porsi penjualan yang diperkirakan; dipakai rata-rata tertimbang. */
   alokasi: number;
+  /**
+   * Jumlah unit (terjual atau perkiraan) sebagai acuan Alokasi: begitu
+   * diisi, Alokasi semua cara bayar = unit ÷ jumlah unit. Tidak memengaruhi harga.
+   */
+  unitAcuan?: number;
   /** Tanda lama (tidak dipakai lagi); dibiarkan supaya draf lama tetap terbaca. */
   tambahan?: boolean;
   /**

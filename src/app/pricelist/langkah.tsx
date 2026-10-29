@@ -52,6 +52,9 @@ const KATA = {
     tambahCbInfo: "Tambah kolom cara bayar baru di Data (IRR), Data Harga, Harga dan S&K",
     hapusCbJudul: "Hapus cara bayar ini (konfirmasi di bawah kolom)",
     grupParam: "Parameter cara bayar",
+    grupUnit: "Acuan Alokasi (jumlah unit)",
+    unitAcuan: "Unit", totUnit: (n: string) => `Σ ${n}`,
+    unitInfo: "Isi jumlah unit terjual atau perkiraan per cara bayar (boleh rumus, mis. =40+5): Alokasi semua cara bayar langsung terisi = unit ÷ total unit. Hanya acuan, tidak memengaruhi harga. Kosongkan semua untuk mengisi Alokasi sendiri.",
     kelompok: "Kelompok", alokasi: "Alokasi", cicilan: "Cicilan (x)",
     grupBulan: "Bulan pencairan sisa (1 − DP) per tahap",
     grupHasil: "Hasil",
@@ -287,6 +290,9 @@ const KATA = {
     tambahCbInfo: "Add a new payment scheme column to Data (IRR), Price Data, Price List and T&C",
     hapusCbJudul: "Delete this payment scheme (confirm below the column)",
     grupParam: "Payment scheme parameters",
+    grupUnit: "Allocation reference (number of units)",
+    unitAcuan: "Units", totUnit: (n: string) => `Σ ${n}`,
+    unitInfo: "Enter units sold or expected per payment scheme (formulas allowed, e.g. =40+5): every Allocation is filled in as units ÷ total units. Reference only, prices do not change. Clear them all to type Allocation yourself.",
     kelompok: "Group", alokasi: "Allocation", cicilan: "Installments (x)",
     grupBulan: "Disbursement month of the remainder (1 − DP) per stage",
     grupHasil: "Results",
@@ -677,6 +683,16 @@ function denganAlokasiBaru<T extends { alokasi: number }>(skema: T[]): T[] {
   return skema.length ? aturAlokasi(skema, skema.length - 1, 1 / skema.length) : skema;
 }
 
+/**
+ * Alokasi dari jumlah unit acuan: unit ÷ total unit (cara bayar tanpa unit
+ * 0%), berjumlah tepat 100%. Tanpa unit sama sekali, Alokasi dibiarkan.
+ */
+function alokasiDariUnit<T extends { alokasi: number; unitAcuan?: number }>(skema: T[]): T[] {
+  if (!skema.some((s) => (s.unitAcuan ?? 0) > 0)) return skema;
+  const bagian = bagiSebanding(skema.map((s) => s.unitAcuan ?? 0), 10000);
+  return skema.map((s, j) => ({ ...s, alokasi: bagian[j] / 10000 }));
+}
+
 /** Sesuaikan semua allocation sebanding supaya berjumlah 100%. */
 function genapkanAlokasi<T extends { alokasi: number }>(skema: T[]): T[] {
   const bagian = bagiSebanding(skema.map((s) => s.alokasi), 10000);
@@ -894,6 +910,7 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah, baru, slug }: PropsLa
     ubah((d) => ({ ...d, irr: { ...d.irr, skema: d.irr.skema.map((s, j) =>
       j === i ? { ...f(s), otomatis: undefined } : s) } }));
   const ganti = (i: number, nama: string) => ubah((d) => gantiNamaSkema(d, i, nama));
+  const totalUnit = irr.skema.reduce((a, s) => a + (s.unitAcuan ?? 0), 0);
 
   /**
    * Cara bayar baru: kolom di Data (IRR), dan kolomnya langsung ikut di Data
@@ -1019,6 +1036,18 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah, baru, slug }: PropsLa
               </th>
             ))}
           </tr>
+          {/* Acuan Alokasi: jumlah unit per cara bayar mengisi baris Alokasi. */}
+          <tr className="grup"><td colSpan={irr.skema.length + 1} title={kt.unitInfo}>{kt.grupUnit}</td></tr>
+          <tr><td title={kt.unitInfo}>{kt.unitAcuan}{" "}
+            {totalUnit > 0 && <b className="alokasi-pas">{kt.totUnit(totalUnit.toLocaleString("id-ID"))}</b>}</td>
+            {irr.skema.map((s, i) => (
+            <td key={i}>
+              <Isian id={`irr-unit-${i}`} nilai={s.unitAcuan ?? 0} kosongNol lebar={60} disabled={ro} rumus
+                     title={kt.unitInfo}
+                     ubah={(n) => ubah((d) => ({ ...d, irr: { ...d.irr,
+                       skema: alokasiDariUnit(d.irr.skema.map((x, j) =>
+                         j === i ? { ...x, unitAcuan: n > 0 ? n : undefined } : x)) } }))} />
+            </td>))}</tr>
           <tr className="grup"><td colSpan={irr.skema.length + 1}>{kt.grupParam}</td></tr>
           <tr><td>{kt.kelompok}</td>{irr.skema.map((s, i) => (
             <td key={i}><IsianTeks nilai={s.kelompok} lebar={70} disabled={ro}
