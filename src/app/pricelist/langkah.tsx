@@ -78,7 +78,8 @@ const KATA = {
     thBulan: "Bulan", thJumlah: "Jumlah (tertimbang)", thPorsi: "%", thKumulatif: "Kumulatif",
     totAlok: "Total alokasi",
     waKoef: "Koefisien rata-rata tertimbang",
-    alokInfo: "Alokasi otomatis berjumlah 100%: mengubah satu cara bayar menyesuaikan yang lain secara sebanding, dan cara bayar baru langsung mendapat bagian rata. Alokasi hanya untuk Koefisien rata-rata tertimbang, tidak memengaruhi harga.",
+    alokInfo: "Alokasi otomatis berjumlah 100%: mengubah satu cara bayar menyesuaikan yang lain secara sebanding, dan cara bayar baru langsung mendapat bagian rata. Boleh diisi rumus, mis. =100/9 atau =33/120*100. Alokasi hanya untuk Koefisien rata-rata tertimbang, tidak memengaruhi harga.",
+    alokasiRumus: "Ketik angka persen atau rumus, mis. =100/9 (11,11%), =4+3 (7%), =33/120*100; Enter untuk menghitung.",
     genapkan: "Genapkan ke 100%", bagiRata: "Bagi rata",
     // 2. Data Unit
     pesanKenaikan: (p: string, n: number, terpilih: boolean) =>
@@ -312,7 +313,8 @@ const KATA = {
     thBulan: "Month", thJumlah: "Amount", thPorsi: "%", thKumulatif: "Cumulative",
     totAlok: "Total allocation",
     waKoef: "WA coefficient",
-    alokInfo: "Allocation always totals 100%: changing one payment scheme adjusts the others proportionally, and a new payment scheme immediately gets an equal share. Allocation only feeds the WA Coefficient and does not affect prices.",
+    alokInfo: "Allocation always totals 100%: changing one payment scheme adjusts the others proportionally, and a new payment scheme immediately gets an equal share. Formulas are allowed, e.g. =100/9 or =33/120*100. Allocation only feeds the WA Coefficient and does not affect prices.",
+    alokasiRumus: "Type a percentage or a formula, e.g. =100/9 (11.11%), =4+3 (7%), =33/120*100; press Enter to calculate.",
     genapkan: "Normalize to 100%", bagiRata: "Split evenly",
     pesanKenaikan: (p: string, n: number, terpilih: boolean) =>
       `Increase ${p} applied to ${n}${terpilih ? " selected" : ""} units. Save to keep it.`,
@@ -538,9 +540,15 @@ function bacaAngka(s: string, jenis: Jenis): number | null {
 const lebarIsi = (teks: string, lebar: number) =>
   `max(${lebar}px, calc(${teks.length + 1}ch + 14px))`;
 
-export function Isian({ nilai, ubah, jenis = "angka", lebar = 90, disabled, id, kosongNol, desimal }: {
+export function Isian({ nilai, ubah, jenis = "angka", lebar = 90, disabled, id, kosongNol, desimal, rumus, title }: {
   nilai: number; ubah: (n: number) => void; jenis?: Jenis; lebar?: number;
-  disabled?: boolean; id?: string;
+  disabled?: boolean; id?: string; title?: string;
+  /**
+   * Boleh diisi rumus seperti Excel ("=100/9", "=4+3", "=100%/9"); hasilnya
+   * yang disimpan. Pada kotak persen, hasil tanpa tanda % dibaca sebagai
+   * angka persen (=100/9 → 11,11%), dengan tanda % sebagai pecahan.
+   */
+  rumus?: boolean;
   /** Tampilkan 0 sebagai kotak kosong (kolom yang biasanya tidak diisi). */
   kosongNol?: boolean;
   /**
@@ -554,8 +562,10 @@ export function Isian({ nilai, ubah, jenis = "angka", lebar = 90, disabled, id, 
   const [salah, setSalah] = useState(false);
   const simpan = () => {
     if (teks == null) return;
-    const n = bacaAngka(teks, jenis);
-    if (n == null) { setSalah(true); return; }
+    const r = rumus ? hitungRumus(teks) : null;
+    const n = r == null ? bacaAngka(teks, jenis)
+      : jenis === "persen" && !teks.includes("%") ? r / 100 : r;
+    if (n == null || !Number.isFinite(n)) { setSalah(true); return; }
     setSalah(false); setTeks(null);
     if (n !== nilai) ubah(n);
   };
@@ -566,7 +576,7 @@ export function Isian({ nilai, ubah, jenis = "angka", lebar = 90, disabled, id, 
       : tampilAngka(nilai, jenis));
   return (
     <span className="isian-angka">
-      <input id={id} value={tampil}
+      <input id={id} value={tampil} title={title}
              disabled={disabled}
              onFocus={desimal != null ? () => setTeks(tampilAngka(nilai, jenis)) : undefined}
              inputMode="decimal" aria-invalid={salah || undefined}
@@ -1019,6 +1029,7 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah, baru, slug }: PropsLa
               {persen(hasil.irr.totalAlokasi, 1, 1)}</b></td>{irr.skema.map((s, i) => (
             <td key={i}>
               <Isian id={`irr-alokasi-${i}`} jenis="persen" desimal={1} nilai={s.alokasi} lebar={60} disabled={ro}
+                     rumus title={kt.alokasiRumus}
                      ubah={(n) => ubah((d) => ({ ...d, irr: { ...d.irr,
                        skema: aturAlokasi(d.irr.skema, i, n) } }))} />
             </td>))}</tr>
