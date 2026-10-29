@@ -949,12 +949,13 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah, baru, slug }: PropsLa
 
   // Lebar kolom cara bayar: cukup untuk Harga Penyesuaian terpanjang
   // (± 8 px per karakter, 12,5 px) dan nama cara bayarnya; paling sedikit 142 px.
-  // Tiap kolom selebar isinya sendiri (angka Harga Penyesuaian, tombol
-  // ↺ Target bila ada, dan namanya), paling sedikit 112 px.
-  const lebarSkema = irr.skema.map((s) => {
+  // Semua kolom sama lebar: selebar isi kolom terlebar (angka Harga
+  // Penyesuaian, tombol ↺ Target bila ada, dan namanya), paling sedikit 112 px.
+  const lebarSatu = Math.max(...irr.skema.map((s) => {
     const harga = Math.round(hargaSesuaiSkema(irr, hasil.irr.koef[s.nama])).toLocaleString("id-ID").length * 8 + 46;
     return Math.ceil(Math.max(112, harga + (bolehUbah && s.hargaSesuai ? 70 : 0), s.nama.length * 7.5 + (bolehUbah ? 36 : 16)));
-  });
+  }));
+  const lebarSkema = irr.skema.map(() => lebarSatu);
 
   return (
     <>
