@@ -2213,6 +2213,24 @@ async function main() {
     assert(q.tnc.caraBayar[7].judul === "KPR DP 10%/4X", q.tnc.caraBayar[7].judul);
   });
 
+  await check("Alokasi dikunci: 9 cara bayar tetap, unit = Alokasi × total Data Unit", async () => {
+    const { alokasiTetap, kunciAlokasi, samakanPermai, samakanTsc, susunAwal, unitKosong } =
+      await import("../src/lib/susun-pricelist");
+    const b4: [number, number, number, number] = [12, 18, 19, 20];
+    const sk = (kelompok: string, dp: number, kali: number, bulan = b4) => ({ kelompok, dp, kali, bulan });
+    assert(alokasiTetap(sk("KPR", 0.1, 1, [2, 2, 2, 2])) === 0.33, "KPR Express");
+    assert(alokasiTetap(sk("KPR", 0.1, 1)) === undefined, "KPR DP 10%/1x bukan Express");
+    assert(alokasiTetap(sk("Cash", 1, 36)) === undefined && alokasiTetap(sk("Cash", 1, 30)) === 0.25, "36x bebas, 30x 25%");
+    const unit = Array.from({ length: 95 }, (_, i) => ({ ...unitKosong(), kode: `U${i}` }));
+    const p = kunciAlokasi({ ...samakanPermai(await susunNaraya()), unit });
+    const a = p.irr.skema.map((s) => s.alokasi);
+    assert(JSON.stringify(a) === JSON.stringify([0.07, 0.04, 0.05, 0.08, 0.25, 0.33, 0.08, 0.05, 0.05]), JSON.stringify(a));
+    assert(p.irr.skema[5].unitAcuan === 31.35 && kunciAlokasi(p) === p, "unit acuan, stabil");
+    const sv = kunciAlokasi(samakanTsc(susunAwal()));
+    const bebas = sv.irr.skema.filter((s) => alokasiTetap(s) == null).map((s) => s.nama).join();
+    assert(bebas === "Bertahap 36x,Bertahap 60x,KPR DP 10%/6x,KPR DP 10%/12x", bebas);
+  });
+
   // Unit Data The Sanctuary Collection: harga per m² sudah Termasuk PPN,
   // tanpa pembulatan; faktor dijumlah, AC dan Harga Khusus (Rp) ditambahkan.
   await check("Data Unit The Sanctuary Collection seperti berkas Excel-nya", async () => {

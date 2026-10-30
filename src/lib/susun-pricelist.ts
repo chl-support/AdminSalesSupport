@@ -666,6 +666,46 @@ export const rumusDikunci = polaScottsVale;
  */
 export const koefDikunci = polaScottsVale;
 
+/**
+ * Alokasi tetap (dikunci) untuk semua project, atas permintaan pemakai
+ * (berkas Data_Irr_PERMAI_INDAH): cara bayar dikenali dari Kelompok, DP,
+ * cicilan (dan KPR Express: semua tahap cair bulan ≤ 2). Cara bayar lain diisi
+ * sendiri (unit ÷ total unit Data Unit, atau Alokasi manual).
+ */
+const ALOKASI_TETAP: [string, number, number, number, boolean?][] = [
+  // kelompok, DP, cicilan, Alokasi, KPR Express
+  ["Cash", 1, 1, 0.07], ["Cash", 1, 12, 0.04], ["Cash", 1, 18, 0.05], ["Cash", 1, 24, 0.08],
+  ["Cash", 1, 30, 0.25], ["KPR", 0.1, 1, 0.33, true], ["KPR", 0, 1, 0.08],
+  ["KPR", 0.1, 4, 0.05], ["KPR", 0.2, 6, 0.05],
+];
+
+/** Alokasi tetap cara bayar ini, atau undefined bila boleh diisi sendiri. */
+export function alokasiTetap(s: Pick<SkemaIrr, "kelompok" | "dp" | "kali" | "bulan">): number | undefined {
+  const k = s.kelompok.trim().toLowerCase();
+  const t = ALOKASI_TETAP.find(([kel, dp, kali, , ex]) => kel.toLowerCase() === k && s.dp === dp
+    && Math.round(s.kali) === kali && (k !== "kpr" || kali !== 1 || dp === 0 || !!ex === s.bulan.every((b) => b <= 2)));
+  return t?.[3];
+}
+
+/**
+ * Pasang Alokasi tetap pada cara bayar yang dikunci, dan unit acuannya
+ * (Alokasi × total unit Data Unit, 2 desimal). Draf yang sudah sesuai
+ * dikembalikan apa adanya.
+ */
+export function kunciAlokasi(d: SusunPricelist): SusunPricelist {
+  const total = d.unit.filter((u) => u.kode.trim()).length;
+  let ubah = false;
+  const skema = d.irr.skema.map((s) => {
+    const a = alokasiTetap(s);
+    if (a == null) return s;
+    const unit = total > 0 ? Math.round(a * total * 100) / 100 : undefined;
+    if (s.alokasi === a && s.unitAcuan === unit) return s;
+    ubah = true;
+    return { ...s, alokasi: a, unitAcuan: unit };
+  });
+  return ubah ? { ...d, irr: { ...d.irr, skema } } : d;
+}
+
 /** Cara bayar standar (SKEMA_STANDAR) menurut Kelompok, DP dan cicilan. */
 export const skemaStandar = (s: Pick<SkemaIrr, "kelompok" | "dp" | "kali">) =>
   SKEMA_STANDAR.some(([, kelompok, , dp, kali]) => s.kelompok === kelompok && s.dp === dp && s.kali === kali);

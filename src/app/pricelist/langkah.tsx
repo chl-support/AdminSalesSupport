@@ -14,7 +14,7 @@ import { Fragment, useEffect, useState } from "react";
 import { formatRupiah } from "@/lib/money";
 import {
   FAKTOR, FAKTOR_INGGRIS, arusKas, arusTertimbang, faktorTampil, hitungRumus, koefDikunci, koefStandarDikunci, namaOtomatisAktif, namaStandar, rumusDikunci, hargaKasIrr, hargaSesuaiSkema, labelPpn, namaTahap, tarifPpn, unitKosong,
-  kunciTnc, tingkatNaik, type BarisTnc, type KunciFaktor, type HasilSusun, type SusunPricelist, type UnitData,
+  alokasiTetap, kunciTnc, tingkatNaik, type BarisTnc, type KunciFaktor, type HasilSusun, type SusunPricelist, type UnitData,
 } from "@/lib/susun-pricelist";
 import type { UnitHarga } from "@/lib/simulasi";
 import { useBahasa, useKata } from "../bahasa";
@@ -55,6 +55,7 @@ const KATA = {
     grupUnit: "Acuan Alokasi (jumlah unit)",
     unitAcuan: "Unit", totUnit: (n: string) => `Σ ${n}`,
     unitInfo: "Isi target unit per cara bayar (boleh rumus, mis. =40+5): Alokasi = unit target ÷ total unit di Data Unit. Total Alokasi 100% bila semua unit sudah dibagi. Hanya acuan, tidak memengaruhi harga. Kosongkan semua untuk mengisi Alokasi sendiri.",
+    alokasiTetapInfo: "Alokasi dikunci untuk semua proyek (Cash Keras 7%, Bertahap 12x 4%, 18x 5%, 24x 8%, 30x 25%, KPR Express 33%, KPR DP 0%/1x 8%, KPR DP 10%/4x 5%, KPR DP 20%/6x 5%); Unit = Alokasi × total unit Data Unit. Cara bayar lain diisi sendiri.",
     sisaUnit: (n: number) => n > 0 ? `Sisa ${n.toLocaleString("id-ID")} unit belum dibagi ke cara bayar` : n < 0 ? `Lebih ${(-n).toLocaleString("id-ID")} unit dari Data Unit` : "Semua unit sudah dibagi",
     kelompok: "Kelompok", alokasi: "Alokasi", cicilan: "Cicilan (x)",
     grupBulan: "Bulan pencairan sisa (1 − DP) per tahap",
@@ -294,6 +295,7 @@ const KATA = {
     grupUnit: "Allocation reference (number of units)",
     unitAcuan: "Units", totUnit: (n: string) => `Σ ${n}`,
     unitInfo: "Enter target units per payment scheme (formulas allowed, e.g. =40+5): Allocation = target units ÷ total units in Unit Data. Allocation totals 100% once every unit is assigned. Reference only, prices do not change. Clear them all to type Allocation yourself.",
+    alokasiTetapInfo: "Allocation locked for every project (Cash Keras 7%, Instalment 12x 4%, 18x 5%, 24x 8%, 30x 25%, KPR Express 33%, KPR DP 0%/1x 8%, KPR DP 10%/4x 5%, KPR DP 20%/6x 5%); Units = Allocation × total units in Unit Data. Other schemes are filled in yourself.",
     sisaUnit: (n: number) => n > 0 ? `${n.toLocaleString("en-US")} units not yet assigned` : n < 0 ? `${(-n).toLocaleString("en-US")} units more than Unit Data` : "All units assigned",
     kelompok: "Group", alokasi: "Allocation", cicilan: "Installments (x)",
     grupBulan: "Disbursement month of the remainder (1 − DP) per stage",
@@ -661,14 +663,20 @@ function bagiSebanding(bobot: number[], total: number): number[] {
   return bulat;
 }
 
+type SkemaAlokasi = Pick<SusunPricelist["irr"]["skema"][0], "alokasi" | "kelompok" | "dp" | "kali" | "bulan">;
+/** Alokasi cara bayar yang dikunci (alokasiTetap) tidak ikut disesuaikan. */
+const tetap = (s: SkemaAlokasi) => alokasiTetap(s) != null;
+
 /**
  * Allocation selalu berjumlah 100%: cara bayar ke-`i` diberi `nilai`, sisanya
- * dibagi ke cara bayar lain sebanding dengan allocation lamanya.
+ * (sesudah Alokasi yang dikunci) dibagi ke cara bayar lain sebanding dengan
+ * allocation lamanya.
  */
-function aturAlokasi<T extends { alokasi: number }>(skema: T[], i: number, nilai: number): T[] {
+function aturAlokasi<T extends SkemaAlokasi>(skema: T[], i: number, nilai: number): T[] {
   const bp = Math.round(Math.min(1, Math.max(0, nilai)) * 10000);
-  const lain = skema.map((s, j) => ({ s, j })).filter(({ j }) => j !== i);
-  const bagian = bagiSebanding(lain.map(({ s }) => s.alokasi), 10000 - bp);
+  const lain = skema.map((s, j) => ({ s, j })).filter(({ s, j }) => j !== i && !tetap(s));
+  const dikunci = Math.round(skema.reduce((a, s, j) => a + (j !== i && tetap(s) ? s.alokasi : 0), 0) * 10000);
+  const bagian = bagiSebanding(lain.map(({ s }) => s.alokasi), Math.max(0, 10000 - bp - dikunci));
   const baru = skema.map((s) => ({ ...s }));
   baru[i].alokasi = bp / 10000;
   lain.forEach(({ j }, k) => { baru[j].alokasi = bagian[k] / 10000; });
@@ -681,7 +689,7 @@ function aturAlokasi<T extends { alokasi: number }>(skema: T[], i: number, nilai
  * cara bayar lain menyesuaikan sebanding — total tetap 100%. Allocation hanya
  * dipakai untuk WA Coefficient, tidak memengaruhi harga.
  */
-function denganAlokasiBaru<T extends { alokasi: number }>(skema: T[]): T[] {
+function denganAlokasiBaru<T extends SkemaAlokasi>(skema: T[]): T[] {
   return skema.length ? aturAlokasi(skema, skema.length - 1, 1 / skema.length) : skema;
 }
 
@@ -702,10 +710,14 @@ function alokasiDariUnit<T extends { alokasi: number; unitAcuan?: number }>(skem
   return skema.map((s, j) => ({ ...s, alokasi: bagian[j] / 10000 }));
 }
 
-/** Sesuaikan semua allocation sebanding supaya berjumlah 100%. */
-function genapkanAlokasi<T extends { alokasi: number }>(skema: T[]): T[] {
-  const bagian = bagiSebanding(skema.map((s) => s.alokasi), 10000);
-  return skema.map((s, j) => ({ ...s, alokasi: bagian[j] / 10000 }));
+/** Sesuaikan allocation yang tidak dikunci sebanding supaya total 100%. */
+function genapkanAlokasi<T extends SkemaAlokasi>(skema: T[]): T[] {
+  const dikunci = Math.round(skema.reduce((a, s) => a + (tetap(s) ? s.alokasi : 0), 0) * 10000);
+  const bebas = skema.map((s, j) => ({ s, j })).filter(({ s }) => !tetap(s));
+  const bagian = bagiSebanding(bebas.map(({ s }) => s.alokasi), Math.max(0, 10000 - dikunci));
+  const baru = skema.map((s) => ({ ...s }));
+  bebas.forEach(({ j }, k) => { baru[j].alokasi = bagian[k] / 10000; });
+  return baru;
 }
 
 
@@ -1052,17 +1064,21 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah, baru, slug }: PropsLa
           <tr className="grup"><td colSpan={irr.skema.length + 1} title={kt.unitInfo}>{kt.grupUnit}</td></tr>
           <tr><td title={kt.unitInfo}>{kt.unitAcuan}{" "}
             {totalUnit > 0 && (
-              <b className={unitData && Math.abs(totalUnit - unitData) > 1e-9 ? "alokasi-kurang" : "alokasi-pas"}
+              <b className={unitData && Math.abs(totalUnit - unitData) > 0.05 ? "alokasi-kurang" : "alokasi-pas"}
                  title={unitData ? kt.sisaUnit(unitData - totalUnit) : undefined}>
                 {kt.totUnit(totalUnit.toLocaleString("id-ID", { maximumFractionDigits: 1 }))}
                 {unitData > 0 && ` / ${unitData}`}</b>)}</td>
             {irr.skema.map((s, i) => (
             <td key={i}>
-              <Isian id={`irr-unit-${i}`} nilai={s.unitAcuan ?? 0} kosongNol lebar={60} disabled={ro} rumus
-                     title={kt.unitInfo}
+              <Isian id={`irr-unit-${i}`} nilai={s.unitAcuan ?? 0} kosongNol lebar={60} disabled={ro || tetap(s)} rumus
+                     title={tetap(s) ? kt.alokasiTetapInfo : kt.unitInfo}
                      ubah={(n) => ubah((d) => ({ ...d, irr: { ...d.irr,
-                       skema: alokasiDariUnit(d.irr.skema.map((x, j) =>
-                         j === i ? { ...x, unitAcuan: n > 0 ? n : undefined } : x), unitData) } }))} />
+                       // Dengan Data Unit: hanya cara bayar ini = unit ÷ total unit Data Unit.
+                       skema: unitData > 0
+                         ? d.irr.skema.map((x, j) => j === i ? { ...x, unitAcuan: n > 0 ? n : undefined,
+                             alokasi: Math.round(n / unitData * 10000) / 10000 } : x)
+                         : alokasiDariUnit(d.irr.skema.map((x, j) =>
+                             j === i ? { ...x, unitAcuan: n > 0 ? n : undefined } : x)) } }))} />
             </td>))}</tr>
           <tr className="grup"><td colSpan={irr.skema.length + 1}>{kt.grupParam}</td></tr>
           <tr><td>{kt.kelompok}</td>{irr.skema.map((s, i) => (
@@ -1070,11 +1086,11 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah, baru, slug }: PropsLa
                                    ubah={(v) => ubahSkema(i, (x) => ({ ...x, kelompok: v }))} /></td>))}</tr>
           <tr><td>{kt.alokasi}{" "}
             {/* Total allocation di samping labelnya; merah bila belum 100%. */}
-            <b className={Math.abs(hasil.irr.totalAlokasi - 1) > 1e-9 ? "alokasi-kurang" : "alokasi-pas"}>
+            <b className={Math.abs(hasil.irr.totalAlokasi - 1) > 5e-5 ? "alokasi-kurang" : "alokasi-pas"}>
               {persen(hasil.irr.totalAlokasi, 1, 1)}</b></td>{irr.skema.map((s, i) => (
             <td key={i}>
-              <Isian id={`irr-alokasi-${i}`} jenis="persen" desimal={1} nilai={s.alokasi} lebar={60} disabled={ro}
-                     rumus title={kt.alokasiRumus}
+              <Isian id={`irr-alokasi-${i}`} jenis="persen" desimal={1} nilai={s.alokasi} lebar={60}
+                     disabled={ro || tetap(s)} rumus title={tetap(s) ? kt.alokasiTetapInfo : kt.alokasiRumus}
                      ubah={(n) => ubah((d) => ({ ...d, irr: { ...d.irr,
                        skema: aturAlokasi(d.irr.skema, i, n) } }))} />
             </td>))}</tr>
