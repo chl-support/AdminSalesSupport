@@ -29,9 +29,12 @@ export const GET = handler(async (req) => {
             -- jadi yang berguna bagi Admin IT adalah umur sandi itu: yang
             -- tidak pernah diganti sejak pemasangan adalah yang paling perlu
             -- diurus lebih dulu.
+            -- Akun yang baru dibuat Admin IT sudah punya Password pilihan
+            -- orang, bukan Password bawaan pemasangan: pembuatannya ikut
+            -- dihitung sebagai saat Password-nya dipasang.
             (SELECT MAX(a.occurred_at) FROM audit_log a
               WHERE a.entity_type = 'user' AND a.entity_id = u.id::text
-                AND a.action = 'password_reset') AS sandi_diganti,
+                AND a.action IN ('password_reset', 'user_created')) AS sandi_diganti,
             -- Percobaan gagal yang sedang terhitung — jendela yang sama
             -- dengan sisaPercobaan(): sejak keberhasilan terakhir, dalam
             -- rentang penguncian. Dari situ terbaca siapa yang terkunci dan
