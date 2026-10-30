@@ -35,6 +35,11 @@ export type SkemaIrr = {
    * diisi, Alokasi semua cara bayar = unit ÷ jumlah unit. Tidak memengaruhi harga.
    */
   unitAcuan?: number;
+  /**
+   * Alokasi ini diketik sendiri: tidak ikut digeser saat Alokasi cara bayar
+   * lain diubah (hanya yang belum diketik yang menyesuaikan). Dihapus oleh Bagi Rata.
+   */
+  alokasiDiketik?: boolean;
   /** Tanda lama (tidak dipakai lagi); dibiarkan supaya draf lama tetap terbaca. */
   tambahan?: boolean;
   /**
