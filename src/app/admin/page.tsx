@@ -22,6 +22,18 @@ import { PilihBerkas } from "../pilih-berkas";
 
 const rp = (n?: number | null) => `Rp ${(n ?? 0).toLocaleString("id-ID")}`;
 
+/**
+ * Password acak yang mudah dibacakan lewat telepon: tanpa huruf yang mirip
+ * angka, dipecah tiga dengan strip, dan panjangnya tetap.
+ */
+const acakSandi = () => {
+  const huruf = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
+  const acak = new Uint32Array(14);
+  crypto.getRandomValues(acak);
+  const inti = Array.from(acak, (n) => huruf[n % huruf.length]).join("");
+  return `${inti.slice(0, 5)}-${inti.slice(5, 10)}-${inti.slice(10)}`;
+};
+
 /** Sama dengan ambang di src/lib/auth.ts; di sini hanya untuk menamai keadaan. */
 const MAKS_GAGAL = 5;
 /** Sisa menit penguncian, dibulatkan ke atas; 0 bila sudah lewat. */
@@ -188,6 +200,18 @@ const KATA = {
     kunciGagal: (n: number, maks: number) => `${n}× gagal dari ${maks}`,
     kunciAman: "—",
     bukaKunci: "Buka kunci",
+    baruJudul: "Tambah pengguna baru",
+    baruCatatan:
+      "Akun langsung aktif begitu dibuat. Password awalnya diserahkan kepada pemiliknya; " +
+      "ia dapat menggantinya sendiri lewat “lupa Password” bila emailnya diisi. " +
+      "Pembuatan akun tercatat di jejak audit.",
+    bUsername: "Username (huruf kecil, angka, titik/strip)",
+    bNama: "Nama lengkap", bPeran: "Peran", bPilihPeran: "— pilih peran —",
+    bSurel: "Email (boleh dikosongkan)",
+    bSandi: "Password awal (minimal 8 karakter)",
+    buatAkun: "Buat akun", membuatAkun: "Membuat…",
+    baruBerhasil: (nama: string, user: string, peran: string) =>
+      ` Akun ${user} (${nama} — ${peran}) dibuat dan langsung aktif. Serahkan Password-nya kepada yang bersangkutan.`,
     bukaKunciInfo: "Hapus percobaan gagal yang menahan akun ini, supaya pemiliknya dapat langsung masuk lagi",
     bukaKunciBerhasil: (nama: string, n: number) =>
       ` Kunci masuk ${nama} dibuka (${n} percobaan gagal dihapus). Ia dapat langsung masuk lagi.`,
@@ -425,6 +449,18 @@ const KATA = {
     kunciGagal: (n: number, maks: number) => `${n} of ${maks} failed`,
     kunciAman: "—",
     bukaKunci: "Unlock",
+    baruJudul: "Add a new user",
+    baruCatatan:
+      "The account is active as soon as it is created. Hand the initial password to its owner; " +
+      "they can change it themselves through “forgot password” once an email is set. " +
+      "Every account creation is recorded in the audit trail.",
+    bUsername: "Username (lowercase, digits, dot/dash)",
+    bNama: "Full name", bPeran: "Role", bPilihPeran: "— choose a role —",
+    bSurel: "Email (optional)",
+    bSandi: "Initial password (at least 8 characters)",
+    buatAkun: "Create account", membuatAkun: "Creating…",
+    baruBerhasil: (nama: string, user: string, peran: string) =>
+      ` Account ${user} (${nama} — ${peran}) created and active. Hand its password to the owner.`,
     bukaKunciInfo: "Clear the failed attempts holding this account so its owner can sign in again now",
     bukaKunciBerhasil: (nama: string, n: number) =>
       ` ${nama}'s sign-in lock is cleared (${n} failed attempts removed). They can sign in again now.`,
@@ -563,6 +599,11 @@ export default function AdminPage() {
   const [pengguna, setPengguna] = useState<Pengguna[]>([]);
   const [target, setTarget] = useState("");
   const [sandiBaru, setSandiBaru] = useState("");
+  /** Isian akun baru; peran diambil dari basis data saat layar dibuka. */
+  const [baru, setBaru] = useState(
+    { username: "", full_name: "", role: "", email: "", password: "" });
+  const [peranAda, setPeranAda] = useState<string[]>([]);
+  const [sibukBaru, setSibukBaru] = useState(false);
   const [usernameBaru, setUsernameBaru] = useState("");
   const [surelLog, setSurelLog] = useState<any[]>([]);
   const [surelStatus, setSurelStatus] = useState<any>(null);
@@ -611,6 +652,10 @@ export default function AdminPage() {
     const res = await fetch("/api/admin/users");
     if (res.status === 401) { location.href = "/login"; return; }
     if (res.ok) setPengguna(await res.json());
+    // Peran yang boleh dipilih dibaca dari basis data, bukan didaftar di
+    // layar: peran baru cukup ditambahkan di satu tempat.
+    const rp = await fetch("/api/admin/users/baru");
+    if (rp.ok) setPeranAda((await rp.json()).peran ?? []);
   }, [bolehKelola]);
 
   useEffect(() => { if (sesi) void muatPengguna(); }, [sesi, muatPengguna]);
@@ -902,15 +947,27 @@ export default function AdminPage() {
    * crypto.getRandomValues, bukan Math.random yang dapat diramal.
    */
   const buatkanSandi = () => {
-    const huruf = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
-    const acak = new Uint32Array(14);
-    crypto.getRandomValues(acak);
-    // Dipecah tiga dengan strip: lebih mudah dibacakan lewat telepon, dan
-    // panjangnya tetap.
-    const inti = Array.from(acak, (n) => huruf[n % huruf.length]).join("");
-    setSandiBaru(`${inti.slice(0, 5)}-${inti.slice(5, 10)}-${inti.slice(10)}`);
+    setSandiBaru(acakSandi());
     setHasilSandi(null);
     setGalatSandi(null);
+  };
+
+  /** Buat akun baru, lalu muat ulang daftarnya. */
+  const buatAkun = async () => {
+    setGalatSandi(null); setHasilSandi(null); setSibukBaru(true);
+    const res = await fetch("/api/admin/users/baru", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...baru, email: baru.email.trim() || null }),
+    });
+    const b = await res.json().catch(() => ({}));
+    setSibukBaru(false);
+    if (!res.ok) { setGalatSandi(b.detail ?? b.title ?? `HTTP ${res.status}`); return; }
+    // Password-nya disebutkan sekali di sini, pada layar orang yang baru saja
+    // memasangnya — sesudah ini yang tersimpan hanya hash-nya.
+    setSandiDipasang(baru.password);
+    setHasilSandi(k.baruBerhasil(b.full_name, b.username, labelPeran(b.role, bahasa)));
+    setBaru({ username: "", full_name: "", role: "", email: "", password: "" });
+    void muatPengguna();
   };
 
   const gantiSandiOrang = async () => {
@@ -1578,6 +1635,66 @@ export default function AdminPage() {
               <p className="hint" style={{ textAlign: "left", marginTop: 4 }}>
                 {k.kunciCatatan}
               </p>
+
+              {/* ── Tambah pengguna baru ──
+                  Akun sebelumnya hanya lahir dari seed, jadi orang yang masuk
+                  kemudian menunggu seseorang membuka terminal. */}
+              <div className="form-blok" style={{ marginTop: 16 }}>
+                <h4 style={{ margin: "0 0 8px" }}>{k.baruJudul}</h4>
+                <div className="filters rapat">
+                  <div>
+                    <div className="lbl">{k.bUsername}</div>
+                    <input value={baru.username} autoComplete="off" spellCheck={false}
+                           aria-label={k.bUsername}
+                           onChange={(e) => setBaru((x) =>
+                             ({ ...x, username: e.target.value.toLowerCase().trim() }))} />
+                  </div>
+                  <div>
+                    <div className="lbl">{k.bNama}</div>
+                    <input value={baru.full_name} aria-label={k.bNama}
+                           onChange={(e) => setBaru((x) => ({ ...x, full_name: e.target.value }))} />
+                  </div>
+                  <div>
+                    <div className="lbl">{k.bPeran}</div>
+                    <select value={baru.role} aria-label={k.bPeran}
+                            onChange={(e) => setBaru((x) => ({ ...x, role: e.target.value }))}>
+                      <option value="">{k.bPilihPeran}</option>
+                      {peranAda.map((r) => (
+                        <option key={r} value={r}>{labelPeran(r, bahasa)}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <div className="lbl">{k.bSurel}</div>
+                    <input value={baru.email} autoComplete="off" spellCheck={false}
+                           aria-label={k.bSurel}
+                           onChange={(e) => setBaru((x) => ({ ...x, email: e.target.value }))} />
+                  </div>
+                  <div>
+                    <div className="lbl">{k.bSandi}</div>
+                    {/* Terbaca, seperti pada penggantian Password: yang
+                        mengetik di sini Admin IT untuk orang lain. */}
+                    <input type="text" value={baru.password} autoComplete="off"
+                           spellCheck={false} aria-label={k.bSandi}
+                           onChange={(e) => setBaru((x) => ({ ...x, password: e.target.value }))} />
+                    <button type="button" style={{ marginTop: 6, fontSize: 12.5 }}
+                            onClick={() => setBaru((x) => ({ ...x, password: acakSandi() }))}>
+                      {k.buatkanSandi}
+                    </button>
+                  </div>
+                </div>
+                <div className="row" style={{ marginTop: 12, marginBottom: 0 }}>
+                  <button className="pri" disabled={sibukBaru
+                            || baru.username.length < 3 || baru.full_name.trim().length < 2
+                            || !baru.role || baru.password.length < 8}
+                          onClick={() => void buatAkun()}>
+                    {sibukBaru ? k.membuatAkun : k.buatAkun}
+                  </button>
+                </div>
+                <p className="hint" style={{ textAlign: "left", marginTop: 6 }}>
+                  {k.baruCatatan}
+                </p>
+              </div>
 
               <div className="filters" style={{ marginTop: 14 }}>
                 <div>
