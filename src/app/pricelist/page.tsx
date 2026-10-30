@@ -28,7 +28,7 @@ import { PENGUNGGAH } from "../simulasi/unggah-pricelist";
 import { basisProject, kunciAlokasi, polaScottsVale, hitungSemua, samakanPermai, samakanTsc, unitBelumBerharga, type SusunPricelist } from "@/lib/susun-pricelist";
 import { periksaSusun, type Temuan } from "@/lib/susun-pricelist-periksa";
 import {
-  LangkahDataPl, LangkahIrr, LangkahPricelist, LangkahTnc, LangkahUnit, isiOtomatisCaraBayar, rapikanCaraBayar, sinkronTnc, terapkanNamaOtomatis,
+  LangkahDataPl, LangkahIrr, LangkahPricelist, LangkahTnc, LangkahUnit, isiOtomatisCaraBayar, rapikanCaraBayar, sinkronTnc, terapkanNamaOtomatis, terapkanPerTipe,
 } from "./langkah";
 import { LangkahHargaSpesial } from "./langkah-spesial";
 
@@ -206,7 +206,7 @@ export default function PricelistPage() {
     const isi = polaScottsVale(slugRef.current) ? samakanTsc(b.data)
       : slugRef.current === "permai-indah" ? samakanPermai(b.data) : b.data;
     const awal = rapikanCaraBayar(basisProject(slugRef.current, isi));
-    setDraf(b); setData(kunciAlokasi(sinkronTnc(awal, terapkanNamaOtomatis(awal))));
+    setDraf(b); setData(kunciAlokasi(terapkanPerTipe(sinkronTnc(awal, terapkanNamaOtomatis(awal)))));
   }, []);
 
   useEffect(() => { if (sesi?.project_slug) void muat(); }, [sesi, muat]);
@@ -341,8 +341,9 @@ export default function PricelistPage() {
     setInfo(null); setBerlaku(null); setTersimpanSbg(null);
     // T&C mengikuti kolom Pricelist: kolom baru mendapat blok, ganti nama ikut.
     // Parameter cara bayar baru diisi otomatis dari namanya.
-    // Alokasi cara bayar yang dikunci (kunciAlokasi) selalu dipasang ulang.
-    setData((d) => (d ? kunciAlokasi(isiOtomatisCaraBayar(sinkronTnc(d, terapkanNamaOtomatis(f(d))))) : d));
+    // Alokasi per tipe unit dihitung ulang (mis. sesudah Data Unit berubah), lalu
+    // Alokasi cara bayar yang dikunci (kunciAlokasi) dipasang ulang.
+    setData((d) => (d ? kunciAlokasi(terapkanPerTipe(isiOtomatisCaraBayar(sinkronTnc(d, terapkanNamaOtomatis(f(d)))))) : d));
   };
 
   /** Harga yang diberlakukan: kosong = harga dasar langkah 4a. */

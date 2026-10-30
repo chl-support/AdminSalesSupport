@@ -2231,6 +2231,18 @@ async function main() {
     assert(bebas === "Bertahap 36x,Bertahap 60x,KPR DP 10%/6x,KPR DP 10%/12x", bebas);
   });
 
+  await check("Alokasi per tipe unit: unit acuan = Σ unit kelompok × porsi", async () => {
+    const { kelompokTipe, susunAwal, unitDariTipe, unitKosong } = await import("../src/lib/susun-pricelist");
+    const u = (kode: string, subTipe: string) => ({ ...unitKosong(), kode, subTipe });
+    const unit = [u("A1", "Corner"), u("A2", "Standard"), u("A3", "Standard"), u("A4", "Standard"), u("", "Corner")];
+    assert(JSON.stringify(kelompokTipe(unit, "subTipe")) === '[["Corner",1],["Standard",3]]', "kelompok");
+    const irr = susunAwal().irr;
+    const [a, b] = [irr.skema[0].nama, irr.skema[4].nama];
+    irr.alokasiTipe = { dasar: "subTipe", porsi: { Corner: { [a]: 1 }, Standard: { [a]: 0.5, [b]: 1.5 } } };
+    const h = unitDariTipe(irr, unit);
+    assert(Math.abs(h[a] - 1.75) < 1e-9 && Math.abs(h[b] - 2.25) < 1e-9, JSON.stringify(h));
+  });
+
   // Unit Data The Sanctuary Collection: harga per m² sudah Termasuk PPN,
   // tanpa pembulatan; faktor dijumlah, AC dan Harga Khusus (Rp) ditambahkan.
   await check("Data Unit The Sanctuary Collection seperti berkas Excel-nya", async () => {

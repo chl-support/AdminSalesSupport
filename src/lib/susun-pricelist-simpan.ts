@@ -42,6 +42,10 @@ const SKEMA = z.object({
     namaTahap: z.tuple([teks, teks, teks, teks]).optional(),
     periode: z.number().int().min(1).max(240),
     namaOtomatis: z.boolean().optional(),
+    alokasiTipe: z.object({
+      dasar: z.enum(["tipeBangunan", "subTipe"]),
+      porsi: z.record(z.string(), z.record(z.string(), angka)),
+    }).optional(),
     skema: z.array(z.object({
       nama: teks.min(1), kelompok: teks, alokasi: angka, dp: angka.min(0).max(1),
       unitAcuan: angka.min(0).optional(),
