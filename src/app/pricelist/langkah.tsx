@@ -54,7 +54,7 @@ const KATA = {
     grupParam: "Parameter cara bayar",
     grupUnit: "Acuan Alokasi (jumlah unit)",
     unitAcuan: "Unit", totUnit: (n: string) => `Σ ${n}`,
-    unitInfo: "Ketik PERSEN cara bayar ini (mis. 25 = 25%, boleh rumus mis. =40/95*100), lalu Enter: Unit = persen × total unit di Data Unit dan Alokasi = persen itu. Tanpa Data Unit, angka dibaca sebagai jumlah unit. Hanya acuan, tidak memengaruhi harga.",
+    unitInfo: "Unit terisi otomatis = Alokasi × total unit di Data Unit. Isi persennya di baris Alokasi (boleh rumus). Hanya acuan, tidak memengaruhi harga.",
     alokasiTetapInfo: "Alokasi dikunci untuk semua proyek (Cash Keras 7%, Bertahap 12x 4%, 18x 5%, 24x 8%, 30x 25%, KPR Express 33%, KPR DP 0%/1x 8%, KPR DP 10%/4x 5%, KPR DP 20%/6x 5%); Unit = Alokasi × total unit Data Unit. Cara bayar lain diisi sendiri.",
     sisaUnit: (n: number) => n > 0 ? `Sisa ${n.toLocaleString("id-ID")} unit belum dibagi ke cara bayar` : n < 0 ? `Lebih ${(-n).toLocaleString("id-ID")} unit dari Data Unit` : "Semua unit sudah dibagi",
     kelompok: "Kelompok", alokasi: "Alokasi", cicilan: "Cicilan (x)",
@@ -294,7 +294,7 @@ const KATA = {
     grupParam: "Payment scheme parameters",
     grupUnit: "Allocation reference (number of units)",
     unitAcuan: "Units", totUnit: (n: string) => `Σ ${n}`,
-    unitInfo: "Type the PERCENTAGE for this scheme (e.g. 25 = 25%, formulas allowed e.g. =40/95*100), then Enter: Units = percentage × total units in Unit Data and Allocation = that percentage. Without Unit Data the number is read as units. Reference only, prices do not change.",
+    unitInfo: "Units fill in automatically = Allocation × total units in Unit Data. Enter the percentage in the Allocation row (formulas allowed). Reference only, prices do not change.",
     alokasiTetapInfo: "Allocation locked for every project (Cash Keras 7%, Instalment 12x 4%, 18x 5%, 24x 8%, 30x 25%, KPR Express 33%, KPR DP 0%/1x 8%, KPR DP 10%/4x 5%, KPR DP 20%/6x 5%); Units = Allocation × total units in Unit Data. Other schemes are filled in yourself.",
     sisaUnit: (n: number) => n > 0 ? `${n.toLocaleString("en-US")} units not yet assigned` : n < 0 ? `${(-n).toLocaleString("en-US")} units more than Unit Data` : "All units assigned",
     kelompok: "Group", alokasi: "Allocation", cicilan: "Installments (x)",
@@ -931,9 +931,12 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah, baru, slug }: PropsLa
     ubah((d) => ({ ...d, irr: { ...d.irr, skema: d.irr.skema.map((s, j) =>
       j === i ? { ...f(s), otomatis: undefined } : s) } }));
   const ganti = (i: number, nama: string) => ubah((d) => gantiNamaSkema(d, i, nama));
-  const totalUnit = irr.skema.reduce((a, s) => a + (s.unitAcuan ?? 0), 0);
   // Pembagi Alokasi: total unit di Data Unit (unit tanpa kode tidak dihitung).
   const unitData = data.unit.filter((u) => u.kode.trim()).length;
+  // Baris Unit: Alokasi × total unit Data Unit (tanpa Data Unit: unit acuan tersimpan).
+  const unitTampil = (s: SusunPricelist["irr"]["skema"][0]) =>
+    Math.round((unitData > 0 ? s.alokasi * unitData : s.unitAcuan ?? 0) * 100) / 100;
+  const totalUnit = irr.skema.reduce((a, s) => a + unitTampil(s), 0);
 
   /**
    * Cara bayar baru: kolom di Data (IRR), dan kolomnya langsung ikut di Data
@@ -1070,19 +1073,9 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah, baru, slug }: PropsLa
                 {unitData > 0 && ` / ${unitData}`}</b>)}</td>
             {irr.skema.map((s, i) => (
             <td key={i}>
-              <Isian id={`irr-unit-${i}`} nilai={Math.round((s.unitAcuan ?? 0) * 100) / 100} kosongNol lebar={60} disabled={ro || tetap(s)} rumus
-                     title={tetap(s) ? kt.alokasiTetapInfo : kt.unitInfo}
-                     // Dengan Data Unit, angka yang diketik = persen: Alokasi = persen itu,
-                     // Unit = persen × total unit Data Unit (2 angka di belakang koma).
-                     ubah={(v) => { const n = Math.round(v * 100) / 100; ubah((d) => ({ ...d, irr: { ...d.irr,
-                       skema: unitData > 0
-                         ? d.irr.skema.map((x, j) => {
-                             if (j !== i) return x;
-                             const unit = Math.round(v / 100 * unitData * 100) / 100;
-                             return { ...x, unitAcuan: unit > 0 ? unit : undefined, alokasi: Math.round(v * 100) / 10000 };
-                           })
-                         : alokasiDariUnit(d.irr.skema.map((x, j) =>
-                             j === i ? { ...x, unitAcuan: n > 0 ? n : undefined } : x)) } })); }} />
+              {/* Unit dikunci: Alokasi × total unit Data Unit (diisi lewat baris Alokasi). */}
+              <Isian id={`irr-unit-${i}`} nilai={unitTampil(s)} kosongNol lebar={60} disabled
+                     title={tetap(s) ? kt.alokasiTetapInfo : kt.unitInfo} ubah={() => {}} />
             </td>))}</tr>
           <tr className="grup"><td colSpan={irr.skema.length + 1}>{kt.grupParam}</td></tr>
           <tr><td>{kt.kelompok}</td>{irr.skema.map((s, i) => (
