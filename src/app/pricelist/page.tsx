@@ -25,7 +25,7 @@ import { RiwayatSusun } from "./riwayat-susun";
 import { BilahGaya } from "./gaya-teks";
 import { useSesi } from "../session";
 import { PENGUNGGAH } from "../simulasi/unggah-pricelist";
-import { basisProject, polaScottsVale, hitungSemua, samakanPermai, samakanTsc, unitBelumBerharga, type SusunPricelist } from "@/lib/susun-pricelist";
+import { basisProject, kunciAlokasi, polaScottsVale, hitungSemua, samakanPermai, samakanTsc, unitBelumBerharga, type SusunPricelist } from "@/lib/susun-pricelist";
 import { periksaSusun, type Temuan } from "@/lib/susun-pricelist-periksa";
 import {
   LangkahDataPl, LangkahIrr, LangkahPricelist, LangkahTnc, LangkahUnit, isiOtomatisCaraBayar, rapikanCaraBayar, sinkronTnc, terapkanNamaOtomatis,
@@ -206,7 +206,7 @@ export default function PricelistPage() {
     const isi = polaScottsVale(slugRef.current) ? samakanTsc(b.data)
       : slugRef.current === "permai-indah" ? samakanPermai(b.data) : b.data;
     const awal = rapikanCaraBayar(basisProject(slugRef.current, isi));
-    setDraf(b); setData(sinkronTnc(awal, terapkanNamaOtomatis(awal)));
+    setDraf(b); setData(kunciAlokasi(sinkronTnc(awal, terapkanNamaOtomatis(awal))));
   }, []);
 
   useEffect(() => { if (sesi?.project_slug) void muat(); }, [sesi, muat]);
@@ -293,7 +293,7 @@ export default function PricelistPage() {
     // dari berkas tidak ditimpa patokan lagi saat halaman dibuka ulang.
     const impor = rapikanCaraBayar(basisProject(sesi?.project_slug,
       { ...b.susun, tncPatokan: b.susun.tncPatokan ?? data?.tncPatokan }));
-    setData(sinkronTnc(impor, terapkanNamaOtomatis(impor))); setPeringatan(b.peringatan ?? []); setNamaPl("");
+    setData(kunciAlokasi(sinkronTnc(impor, terapkanNamaOtomatis(impor)))); setPeringatan(b.peringatan ?? []); setNamaPl("");
     setInfo(k.dibuka(nama)); setLangkah(0);
   };
 
@@ -341,7 +341,8 @@ export default function PricelistPage() {
     setInfo(null); setBerlaku(null); setTersimpanSbg(null);
     // T&C mengikuti kolom Pricelist: kolom baru mendapat blok, ganti nama ikut.
     // Parameter cara bayar baru diisi otomatis dari namanya.
-    setData((d) => (d ? isiOtomatisCaraBayar(sinkronTnc(d, terapkanNamaOtomatis(f(d)))) : d));
+    // Alokasi cara bayar yang dikunci (kunciAlokasi) selalu dipasang ulang.
+    setData((d) => (d ? kunciAlokasi(isiOtomatisCaraBayar(sinkronTnc(d, terapkanNamaOtomatis(f(d))))) : d));
   };
 
   /** Harga yang diberlakukan: kosong = harga dasar langkah 4a. */
