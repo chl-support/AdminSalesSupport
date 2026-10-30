@@ -22,10 +22,23 @@ import { PilihBerkas } from "../pilih-berkas";
 
 const rp = (n?: number | null) => `Rp ${(n ?? 0).toLocaleString("id-ID")}`;
 
+/** Sama dengan ambang di src/lib/auth.ts; di sini hanya untuk menamai keadaan. */
+const MAKS_GAGAL = 5;
+/** Sisa menit penguncian, dibulatkan ke atas; 0 bila sudah lewat. */
+const sisaMenit = (sampai: string | null) => {
+  if (!sampai) return 0;
+  const ms = new Date(sampai).getTime() - Date.now();
+  return ms > 0 ? Math.ceil(ms / 60000) : 0;
+};
+
 type Pengguna = {
   username: string; full_name: string; role: string; active: boolean;
   sesi_aktif: number; terakhir_masuk: string | null;
   sandi_diganti: string | null; email: string | null;
+  /** Percobaan gagal yang sedang terhitung; 5 berarti akunnya terkunci. */
+  gagal: number;
+  /** Kapan penguncian berakhir sendiri; null bila tidak ada yang gagal. */
+  kunci_sampai: string | null;
 };
 
 type Hasil = {
@@ -169,6 +182,19 @@ const KATA = {
     thUsername: "Username", thPeran: "Peran", thSesiAktif: "Sesi aktif",
     thTerakhirMasuk: "Terakhir masuk",
     thSandiDiganti: "Password diganti",
+    thKunci: "Kunci masuk",
+    kunciTerkunci: (menit: number) => `Terkunci · ${menit} menit lagi`,
+    kunciHabis: "Terkunci · segera terbuka",
+    kunciGagal: (n: number, maks: number) => `${n}× gagal dari ${maks}`,
+    kunciAman: "—",
+    bukaKunci: "Buka kunci",
+    bukaKunciInfo: "Hapus percobaan gagal yang menahan akun ini, supaya pemiliknya dapat langsung masuk lagi",
+    bukaKunciBerhasil: (nama: string, n: number) =>
+      ` Kunci masuk ${nama} dibuka (${n} percobaan gagal dihapus). Ia dapat langsung masuk lagi.`,
+    kunciCatatan:
+      "Akun terkunci sendiri setelah 5 kali salah Password dan terbuka sendiri setelah 15 menit. " +
+      "Tombol Buka kunci mempercepatnya — pakailah sesudah yakin yang meminta memang pemilik akunnya; " +
+      "pembukaannya tercatat di jejak audit.",
     thSandi: "Password",
     thSurel: "Email",
     surelKosong: "belum diisi",
@@ -393,6 +419,19 @@ const KATA = {
     thUsername: "Username", thPeran: "Role", thSesiAktif: "Active sessions",
     thTerakhirMasuk: "Last sign-in",
     thSandiDiganti: "Password changed",
+    thKunci: "Sign-in lock",
+    kunciTerkunci: (menit: number) => `Locked · ${menit} min left`,
+    kunciHabis: "Locked · unlocking now",
+    kunciGagal: (n: number, maks: number) => `${n} of ${maks} failed`,
+    kunciAman: "—",
+    bukaKunci: "Unlock",
+    bukaKunciInfo: "Clear the failed attempts holding this account so its owner can sign in again now",
+    bukaKunciBerhasil: (nama: string, n: number) =>
+      ` ${nama}'s sign-in lock is cleared (${n} failed attempts removed). They can sign in again now.`,
+    kunciCatatan:
+      "An account locks itself after 5 wrong passwords and unlocks itself after 15 minutes. " +
+      "Unlock just makes that sooner — use it once you are sure the person asking owns the account; " +
+      "every unlock is recorded in the audit trail.",
     thSandi: "Password",
     thSurel: "Email",
     surelKosong: "not set",
@@ -829,6 +868,22 @@ export default function AdminPage() {
     const b = await res.json().catch(() => ({}));
     if (!res.ok) { setGalatSandi(b.detail ?? b.title ?? `HTTP ${res.status}`); return; }
     setSandiTerlihat((s) => ({ ...s, [username]: b.password ?? null }));
+  };
+
+  /**
+   * Buka kunci masuk satu akun: percobaan gagal yang menahannya dihapus,
+   * lalu daftar akun dimuat ulang supaya kolom kuncinya ikut berubah.
+   */
+  const bukaKunci = async (username: string) => {
+    setGalatSandi(null);
+    const res = await fetch("/api/admin/users/buka-kunci", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ username }),
+    });
+    const b = await res.json().catch(() => ({}));
+    if (!res.ok) { setGalatSandi(b.detail ?? b.title ?? `HTTP ${res.status}`); return; }
+    setHasilSandi(k.bukaKunciBerhasil(b.nama ?? b.username ?? username, b.dibuka ?? 0));
+    await muatPengguna();
   };
 
   const tutupSandi = (username: string) =>
@@ -1430,6 +1485,7 @@ export default function AdminPage() {
                     <th>{k.thTerakhirMasuk}</th>
                     <th>{k.thSurel}</th>
                     <th>{k.thSandiDiganti}</th>
+                    <th>{k.thKunci}</th>
                     <th>{k.thSandi}</th>
                   </tr>
                   {pengguna.map((u) => (
@@ -1455,6 +1511,39 @@ export default function AdminPage() {
                       <td>{u.sandi_diganti
                         ? String(u.sandi_diganti).slice(0, 19).replace("T", " ")
                         : <span style={{ color: "var(--stop)" }}>{k.sandiBawaan}</span>}</td>
+                      {/* Kunci masuk: terkunci sesudah lima kali salah, dan
+                          terbuka sendiri lewat lima belas menit. Yang
+                          ditampilkan sisa waktunya, supaya Admin IT tahu
+                          apakah tombolnya memang perlu ditekan. */}
+                      <td style={{ whiteSpace: "nowrap" }}>
+                        {u.gagal >= MAKS_GAGAL ? (
+                          <>
+                            <span style={{ color: "var(--stop)" }}>
+                              {sisaMenit(u.kunci_sampai) > 0
+                                ? k.kunciTerkunci(sisaMenit(u.kunci_sampai))
+                                : k.kunciHabis}
+                            </span>{" "}
+                            <button type="button" className="pri" style={{ fontSize: 11 }}
+                                    title={k.bukaKunciInfo}
+                                    onClick={() => void bukaKunci(u.username)}>
+                              {k.bukaKunci}
+                            </button>
+                          </>
+                        ) : u.gagal > 0 ? (
+                          <>
+                            <span style={{ color: "var(--warn)" }}>
+                              {k.kunciGagal(u.gagal, MAKS_GAGAL)}
+                            </span>{" "}
+                            <button type="button" style={{ fontSize: 11 }}
+                                    title={k.bukaKunciInfo}
+                                    onClick={() => void bukaKunci(u.username)}>
+                              {k.bukaKunci}
+                            </button>
+                          </>
+                        ) : (
+                          <span style={{ color: "var(--mut)" }}>{k.kunciAman}</span>
+                        )}
+                      </td>
                       {/* Sandinya diambil satu per satu saat diminta, bukan
                           ikut terbawa daftar akun: daftar ini dimuat tiap kali
                           layar dibuka, dan seluruh sandi tidak perlu melintas
@@ -1485,6 +1574,9 @@ export default function AdminPage() {
 
               <p className="hint" style={{ textAlign: "left", marginTop: 6 }}>
                 {k.sandiCatatan}
+              </p>
+              <p className="hint" style={{ textAlign: "left", marginTop: 4 }}>
+                {k.kunciCatatan}
               </p>
 
               <div className="filters" style={{ marginTop: 14 }}>

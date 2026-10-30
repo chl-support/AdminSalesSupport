@@ -1,6 +1,6 @@
 import { handler, requireRole } from "@/lib/api";
 import { audit, one, query } from "@/lib/db";
-import { hashPassword } from "@/lib/auth";
+import { PENGUNCIAN, hashPassword } from "@/lib/auth";
 import { catatSandi } from "@/lib/sandi-terlihat";
 import { WorkflowError } from "@/lib/workflow";
 
@@ -31,8 +31,26 @@ export const GET = handler(async (req) => {
             -- diurus lebih dulu.
             (SELECT MAX(a.occurred_at) FROM audit_log a
               WHERE a.entity_type = 'user' AND a.entity_id = u.id::text
-                AND a.action = 'password_reset') AS sandi_diganti
-       FROM users u ORDER BY u.username`);
+                AND a.action = 'password_reset') AS sandi_diganti,
+            -- Percobaan gagal yang sedang terhitung — jendela yang sama
+            -- dengan sisaPercobaan(): sejak keberhasilan terakhir, dalam
+            -- rentang penguncian. Dari situ terbaca siapa yang terkunci dan
+            -- sampai kapan, tanpa Admin IT perlu menunggu orangnya mengeluh.
+            g.gagal, g.kunci_sampai
+       FROM users u
+       LEFT JOIN LATERAL (
+         SELECT COUNT(*)::int AS gagal,
+                MAX(l.attempted_at) + ($1 || ' minutes')::interval AS kunci_sampai
+           FROM login_attempts l
+          WHERE l.username = u.username
+            AND NOT l.succeeded
+            AND l.attempted_at > now() - ($1 || ' minutes')::interval
+            AND l.attempted_at > COALESCE(
+                  (SELECT MAX(s.attempted_at) FROM login_attempts s
+                    WHERE s.username = u.username AND s.succeeded),
+                  '-infinity'::timestamptz)
+       ) g ON true
+      ORDER BY u.username`, [String(PENGUNCIAN.menit)]);
 });
 
 export const POST = handler(async (req) => {
