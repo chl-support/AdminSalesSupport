@@ -2253,6 +2253,35 @@ async function main() {
     assert(Math.abs(arus.reduce((a, x) => a + x.porsi, 0) - 1) < 1e-9, "porsi 100%");
   });
 
+  // Penguncian masuk: terkunci setelah lima kali salah, dan Admin IT dapat
+  // membukanya sebelum lima belas menitnya habis.
+  await check("buka kunci masuk mengembalikan jatah percobaan", async () => {
+    const { catatPercobaan, sisaPercobaan, bukaKunci, PENGUNCIAN } =
+      await import("../src/lib/auth");
+    const { query } = await import("../src/lib/db");
+    const nama = `uji-kunci-${Date.now()}`;
+    try {
+      for (let i = 0; i < PENGUNCIAN.maks; i++) await catatPercobaan(nama, null, false);
+      assert(await sisaPercobaan(nama) === 0, "terkunci sesudah 5 kali salah");
+      const dibuka = await bukaKunci(nama);
+      assert(dibuka === PENGUNCIAN.maks, `dihapus ${dibuka}`);
+      assert(await sisaPercobaan(nama) === PENGUNCIAN.maks, "jatah kembali penuh");
+      // Membuka akun yang tidak terkunci tidak menghapus apa pun.
+      assert(await bukaKunci(nama) === 0, "tanpa percobaan gagal: tidak ada yang dihapus");
+      // Percobaan gagal sebelum keberhasilan terakhir tidak ikut terhapus:
+      // ia jejak, bukan penahan.
+      await catatPercobaan(nama, null, false);
+      await catatPercobaan(nama, null, true);
+      assert(await bukaKunci(nama) === 0, "gagal sebelum berhasil tidak dihitung");
+      const sisa = await query<{ n: number }>(
+        "SELECT COUNT(*)::int AS n FROM login_attempts WHERE username=$1 AND NOT succeeded",
+        [nama]);
+      assert(sisa[0].n === 1, `jejak tersisa: ${sisa[0].n}`);
+    } finally {
+      await query("DELETE FROM login_attempts WHERE username=$1", [nama]);
+    }
+  });
+
   console.log("\n" + "=".repeat(62));
   console.log(`  LULUS ${pass.length}   GAGAL ${fail.length}`);
   if (fail.length) {

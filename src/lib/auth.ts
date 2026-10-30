@@ -173,6 +173,29 @@ export async function sisaPercobaan(username: string): Promise<number> {
   return Math.max(MAKS_GAGAL - (row?.n ?? 0), 0);
 }
 
+/**
+ * Buka kunci masuk satu akun: percobaan gagal yang sedang menahannya dihapus.
+ *
+ * Yang dihapus hanya yang terhitung oleh sisaPercobaan() — di dalam jendela
+ * penguncian dan sesudah keberhasilan terakhir. Percobaan yang lebih tua
+ * memang sudah tidak menahan siapa pun dan tetap tersimpan sebagai jejak.
+ * Mengembalikan berapa percobaan yang dihapus.
+ */
+export async function bukaKunci(username: string): Promise<number> {
+  const hapus = await query<{ id: string }>(
+    `DELETE FROM login_attempts l
+      WHERE l.username = $1
+        AND NOT l.succeeded
+        AND l.attempted_at > now() - ($2 || ' minutes')::interval
+        AND l.attempted_at > COALESCE(
+              (SELECT MAX(s.attempted_at) FROM login_attempts s
+                WHERE s.username = $1 AND s.succeeded),
+              '-infinity'::timestamptz)
+      RETURNING l.id`,
+    [username, String(JENDELA_MENIT)]);
+  return hapus.length;
+}
+
 export const PENGUNCIAN = { maks: MAKS_GAGAL, menit: JENDELA_MENIT };
 
 /** Atribut cookie sesi. */
