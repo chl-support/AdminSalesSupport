@@ -663,7 +663,7 @@ function bagiSebanding(bobot: number[], total: number): number[] {
   return bulat;
 }
 
-type SkemaAlokasi = Pick<SusunPricelist["irr"]["skema"][0], "alokasi" | "kelompok" | "dp" | "kali" | "bulan">;
+type SkemaAlokasi = Pick<SusunPricelist["irr"]["skema"][0], "alokasi" | "kelompok" | "dp" | "kali" | "bulan" | "alokasiDiketik">;
 /** Alokasi cara bayar yang dikunci (alokasiTetap) tidak ikut disesuaikan. */
 const tetap = (s: SkemaAlokasi) => alokasiTetap(s) != null;
 
@@ -674,8 +674,10 @@ const tetap = (s: SkemaAlokasi) => alokasiTetap(s) != null;
  */
 function aturAlokasi<T extends SkemaAlokasi>(skema: T[], i: number, nilai: number): T[] {
   const bp = Math.round(Math.min(1, Math.max(0, nilai)) * 10000);
-  const lain = skema.map((s, j) => ({ s, j })).filter(({ s, j }) => j !== i && !tetap(s));
-  const dikunci = Math.round(skema.reduce((a, s, j) => a + (j !== i && tetap(s) ? s.alokasi : 0), 0) * 10000);
+  // Yang dikunci dan yang sudah diketik sendiri tidak ikut digeser.
+  const diam = (s: T) => tetap(s) || !!s.alokasiDiketik;
+  const lain = skema.map((s, j) => ({ s, j })).filter(({ s, j }) => j !== i && !diam(s));
+  const dikunci = Math.round(skema.reduce((a, s, j) => a + (j !== i && diam(s) ? s.alokasi : 0), 0) * 10000);
   const bagian = bagiSebanding(lain.map(({ s }) => s.alokasi), Math.max(0, 10000 - bp - dikunci));
   const baru = skema.map((s) => ({ ...s }));
   baru[i].alokasi = bp / 10000;
@@ -710,10 +712,15 @@ function alokasiDariUnit<T extends { alokasi: number; unitAcuan?: number }>(skem
   return skema.map((s, j) => ({ ...s, alokasi: bagian[j] / 10000 }));
 }
 
-/** Sesuaikan allocation yang tidak dikunci sebanding supaya total 100%. */
+/**
+ * Sesuaikan allocation sebanding supaya total 100%: yang belum diketik
+ * sendiri lebih dulu; bila semuanya sudah diketik, semua yang tidak dikunci.
+ */
 function genapkanAlokasi<T extends SkemaAlokasi>(skema: T[]): T[] {
-  const dikunci = Math.round(skema.reduce((a, s) => a + (tetap(s) ? s.alokasi : 0), 0) * 10000);
-  const bebas = skema.map((s, j) => ({ s, j })).filter(({ s }) => !tetap(s));
+  const belum = skema.some((s) => !tetap(s) && !s.alokasiDiketik);
+  const ikut = (s: T) => !tetap(s) && (!belum || !s.alokasiDiketik);
+  const dikunci = Math.round(skema.reduce((a, s) => a + (ikut(s) ? 0 : s.alokasi), 0) * 10000);
+  const bebas = skema.map((s, j) => ({ s, j })).filter(({ s }) => ikut(s));
   const bagian = bagiSebanding(bebas.map(({ s }) => s.alokasi), Math.max(0, 10000 - dikunci));
   const baru = skema.map((s) => ({ ...s }));
   bebas.forEach(({ j }, k) => { baru[j].alokasi = bagian[k] / 10000; });
@@ -1094,7 +1101,8 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah, baru, slug }: PropsLa
               <Isian id={`irr-alokasi-${i}`} jenis="persen" desimal={1} nilai={s.alokasi} lebar={60}
                      disabled={ro || tetap(s)} rumus title={tetap(s) ? kt.alokasiTetapInfo : kt.alokasiRumus}
                      ubah={(n) => ubah((d) => ({ ...d, irr: { ...d.irr,
-                       skema: aturAlokasi(d.irr.skema, i, n) } }))} />
+                       skema: aturAlokasi(d.irr.skema, i, n).map((x, j) =>
+                         j === i ? { ...x, alokasiDiketik: true } : x) } }))} />
             </td>))}</tr>
           <tr><td>DP</td>{irr.skema.map((s, i) => (
             <td key={i}><Isian jenis="persen" nilai={s.dp} lebar={60} disabled={ro}
@@ -1222,7 +1230,14 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah, baru, slug }: PropsLa
         )}
         {bolehUbah && (
           <button onClick={() => ubah((d) => ({ ...d, irr: { ...d.irr,
-            skema: d.irr.skema.map((s, j, a) => ({ ...s, alokasi: bagiSebanding(a.map(() => 0), 10000)[j] / 10000 })) } }))}>
+            // Bagi Rata: sisa sesudah Alokasi yang dikunci dibagi sama ke cara bayar lain.
+            skema: (() => {
+              const a = d.irr.skema;
+              const sisa = 10000 - Math.round(a.reduce((x, s) => x + (tetap(s) ? s.alokasi : 0), 0) * 10000);
+              const bagian = bagiSebanding(a.filter((s) => !tetap(s)).map(() => 0), Math.max(0, sisa));
+              let k = 0;
+              return a.map((s) => tetap(s) ? s : { ...s, alokasi: bagian[k++] / 10000, alokasiDiketik: undefined });
+            })() } }))}>
             {kt.bagiRata}</button>
         )}
         {bolehUbah && <button onClick={tambahSkema}>{kt.tambahCb}</button>}
