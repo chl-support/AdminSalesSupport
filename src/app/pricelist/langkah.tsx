@@ -676,11 +676,13 @@ const tetap = (s: SkemaAlokasi) => alokasiTetap(s) != null;
  * allocation lamanya.
  */
 function aturAlokasi<T extends SkemaAlokasi>(skema: T[], i: number, nilai: number): T[] {
-  const bp = Math.round(Math.min(1, Math.max(0, nilai)) * SKALA_ALOKASI);
   // Yang dikunci dan yang sudah diketik sendiri tidak ikut digeser.
   const diam = (s: T) => tetap(s) || !!s.alokasiDiketik;
   const lain = skema.map((s, j) => ({ s, j })).filter(({ s, j }) => j !== i && !diam(s));
   const dikunci = Math.round(skema.reduce((a, s, j) => a + (j !== i && diam(s) ? s.alokasi : 0), 0) * SKALA_ALOKASI);
+  // Total tidak boleh lewat 100% (unit tidak boleh lewat total Data Unit):
+  // paling banyak sisa sesudah Alokasi yang dikunci / sudah diketik.
+  const bp = Math.min(Math.round(Math.min(1, Math.max(0, nilai)) * SKALA_ALOKASI), Math.max(0, SKALA_ALOKASI - dikunci));
   const bagian = bagiSebanding(lain.map(({ s }) => s.alokasi), Math.max(0, SKALA_ALOKASI - bp - dikunci));
   const baru = skema.map((s) => ({ ...s }));
   baru[i].alokasi = bp / SKALA_ALOKASI;
@@ -943,13 +945,13 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah, baru, slug }: PropsLa
   const ganti = (i: number, nama: string) => ubah((d) => gantiNamaSkema(d, i, nama));
   // Pembagi Alokasi: total unit di Data Unit (unit tanpa kode tidak dihitung).
   const unitData = data.unit.filter((u) => u.kode.trim()).length;
-  // Baris Unit: Alokasi × total unit Data Unit, bilangan bulat. Bila Alokasi
-  // pas 100%, dibulatkan dengan sisa terbesar supaya jumlahnya tepat total
-  // unit (tanpa Data Unit: unit acuan tersimpan, dibulatkan).
+  // Baris Unit: Alokasi × total unit Data Unit, bilangan bulat, dibulatkan
+  // dengan sisa terbesar; jumlahnya tidak pernah lewat total Data Unit (tepat
+  // sama bila Alokasi 100%). Tanpa Data Unit: unit acuan tersimpan, dibulatkan.
   const totalAlok = irr.skema.reduce((a, s) => a + s.alokasi, 0);
-  const unitBulat = unitData > 0 && Math.abs(totalAlok - 1) <= 5e-5
-    ? bagiSebanding(irr.skema.map((s) => s.alokasi), unitData)
-    : irr.skema.map((s) => Math.round(unitData > 0 ? s.alokasi * unitData : s.unitAcuan ?? 0));
+  const unitBulat = unitData > 0
+    ? bagiSebanding(irr.skema.map((s) => s.alokasi), Math.round(Math.min(1, totalAlok) * unitData))
+    : irr.skema.map((s) => Math.round(s.unitAcuan ?? 0));
   const unitTampil = (s: SusunPricelist["irr"]["skema"][0]) => unitBulat[irr.skema.indexOf(s)] ?? 0;
   const totalUnit = unitBulat.reduce((a, b) => a + b, 0);
 
