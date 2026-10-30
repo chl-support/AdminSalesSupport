@@ -1070,15 +1070,16 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah, baru, slug }: PropsLa
                 {unitData > 0 && ` / ${unitData}`}</b>)}</td>
             {irr.skema.map((s, i) => (
             <td key={i}>
-              <Isian id={`irr-unit-${i}`} nilai={s.unitAcuan ?? 0} kosongNol lebar={60} disabled={ro || tetap(s)} rumus
+              <Isian id={`irr-unit-${i}`} nilai={Math.round((s.unitAcuan ?? 0) * 100) / 100} kosongNol lebar={60} disabled={ro || tetap(s)} rumus
                      title={tetap(s) ? kt.alokasiTetapInfo : kt.unitInfo}
-                     ubah={(n) => ubah((d) => ({ ...d, irr: { ...d.irr,
+                     // Jumlah unit 2 angka di belakang koma (hasil rumus mis. =25/95 dibulatkan).
+                     ubah={(v) => { const n = Math.round(v * 100) / 100; ubah((d) => ({ ...d, irr: { ...d.irr,
                        // Dengan Data Unit: hanya cara bayar ini = unit ÷ total unit Data Unit.
                        skema: unitData > 0
                          ? d.irr.skema.map((x, j) => j === i ? { ...x, unitAcuan: n > 0 ? n : undefined,
                              alokasi: Math.round(n / unitData * 10000) / 10000 } : x)
                          : alokasiDariUnit(d.irr.skema.map((x, j) =>
-                             j === i ? { ...x, unitAcuan: n > 0 ? n : undefined } : x)) } }))} />
+                             j === i ? { ...x, unitAcuan: n > 0 ? n : undefined } : x)) } })); }} />
             </td>))}</tr>
           <tr className="grup"><td colSpan={irr.skema.length + 1}>{kt.grupParam}</td></tr>
           <tr><td>{kt.kelompok}</td>{irr.skema.map((s, i) => (
