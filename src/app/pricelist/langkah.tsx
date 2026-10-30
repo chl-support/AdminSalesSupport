@@ -55,7 +55,7 @@ const KATA = {
     grupUnit: "Acuan Alokasi (jumlah unit)",
     unitAcuan: "Unit", totUnit: (n: string) => `Σ ${n}`,
     unitInfo: "Unit terisi otomatis = Alokasi × total unit di Data Unit, dibulatkan ke unit utuh. Isi persennya di baris Alokasi (boleh rumus). Hanya acuan, tidak memengaruhi harga.",
-    alokasiTetapInfo: "Alokasi dikunci untuk semua proyek (Cash Keras 7%, Bertahap 12x 4%, 18x 5%, 24x 8%, 30x 25%, KPR Express 33%, KPR DP 0%/1x 8%, KPR DP 10%/4x 5%, KPR DP 20%/6x 5%); Unit = Alokasi × total unit Data Unit. Cara bayar lain diisi sendiri.",
+    alokasiTetapInfo: "Alokasi dikunci untuk semua proyek (Cash Keras 7%, Bertahap 12x 4%, 18x 5%, 24x 8%, 30x 25%, KPR DP 0%/1x 8%, KPR DP 10%/4x 5%, KPR DP 20%/6x 5%); Unit = Alokasi × total unit Data Unit. Cara bayar lain diisi sendiri.",
     sisaUnit: (n: number) => n > 0 ? `Sisa ${n.toLocaleString("id-ID")} unit belum dibagi ke cara bayar` : n < 0 ? `Lebih ${(-n).toLocaleString("id-ID")} unit dari Data Unit` : "Semua unit sudah dibagi",
     kelompok: "Kelompok", alokasi: "Alokasi", cicilan: "Cicilan (x)",
     grupBulan: "Bulan pencairan sisa (1 − DP) per tahap",
@@ -295,7 +295,7 @@ const KATA = {
     grupUnit: "Allocation reference (number of units)",
     unitAcuan: "Units", totUnit: (n: string) => `Σ ${n}`,
     unitInfo: "Units fill in automatically = Allocation × total units in Unit Data, rounded to whole units. Enter the percentage in the Allocation row (formulas allowed). Reference only, prices do not change.",
-    alokasiTetapInfo: "Allocation locked for every project (Cash Keras 7%, Instalment 12x 4%, 18x 5%, 24x 8%, 30x 25%, KPR Express 33%, KPR DP 0%/1x 8%, KPR DP 10%/4x 5%, KPR DP 20%/6x 5%); Units = Allocation × total units in Unit Data. Other schemes are filled in yourself.",
+    alokasiTetapInfo: "Allocation locked for every project (Cash Keras 7%, Instalment 12x 4%, 18x 5%, 24x 8%, 30x 25%, KPR DP 0%/1x 8%, KPR DP 10%/4x 5%, KPR DP 20%/6x 5%); Units = Allocation × total units in Unit Data. Other schemes are filled in yourself.",
     sisaUnit: (n: number) => n > 0 ? `${n.toLocaleString("en-US")} units not yet assigned` : n < 0 ? `${(-n).toLocaleString("en-US")} units more than Unit Data` : "All units assigned",
     kelompok: "Group", alokasi: "Allocation", cicilan: "Installments (x)",
     grupBulan: "Disbursement month of the remainder (1 − DP) per stage",
@@ -663,6 +663,9 @@ function bagiSebanding(bobot: number[], total: number): number[] {
   return bulat;
 }
 
+/** Satuan Alokasi: 0,1% (1 angka di belakang koma); 1000 = 100%. */
+const SKALA_ALOKASI = 1000;
+
 type SkemaAlokasi = Pick<SusunPricelist["irr"]["skema"][0], "alokasi" | "kelompok" | "dp" | "kali" | "bulan" | "alokasiDiketik">;
 /** Alokasi cara bayar yang dikunci (alokasiTetap) tidak ikut disesuaikan. */
 const tetap = (s: SkemaAlokasi) => alokasiTetap(s) != null;
@@ -673,15 +676,15 @@ const tetap = (s: SkemaAlokasi) => alokasiTetap(s) != null;
  * allocation lamanya.
  */
 function aturAlokasi<T extends SkemaAlokasi>(skema: T[], i: number, nilai: number): T[] {
-  const bp = Math.round(Math.min(1, Math.max(0, nilai)) * 10000);
+  const bp = Math.round(Math.min(1, Math.max(0, nilai)) * SKALA_ALOKASI);
   // Yang dikunci dan yang sudah diketik sendiri tidak ikut digeser.
   const diam = (s: T) => tetap(s) || !!s.alokasiDiketik;
   const lain = skema.map((s, j) => ({ s, j })).filter(({ s, j }) => j !== i && !diam(s));
-  const dikunci = Math.round(skema.reduce((a, s, j) => a + (j !== i && diam(s) ? s.alokasi : 0), 0) * 10000);
-  const bagian = bagiSebanding(lain.map(({ s }) => s.alokasi), Math.max(0, 10000 - bp - dikunci));
+  const dikunci = Math.round(skema.reduce((a, s, j) => a + (j !== i && diam(s) ? s.alokasi : 0), 0) * SKALA_ALOKASI);
+  const bagian = bagiSebanding(lain.map(({ s }) => s.alokasi), Math.max(0, SKALA_ALOKASI - bp - dikunci));
   const baru = skema.map((s) => ({ ...s }));
-  baru[i].alokasi = bp / 10000;
-  lain.forEach(({ j }, k) => { baru[j].alokasi = bagian[k] / 10000; });
+  baru[i].alokasi = bp / SKALA_ALOKASI;
+  lain.forEach(({ j }, k) => { baru[j].alokasi = bagian[k] / SKALA_ALOKASI; });
   return baru;
 }
 
@@ -706,10 +709,10 @@ function alokasiDariUnit<T extends { alokasi: number; unitAcuan?: number }>(skem
   const jumlah = skema.reduce((a, s) => a + (s.unitAcuan ?? 0), 0);
   // Semua unit sudah dibagi: dibagi sebanding supaya tepat 100% walau dibulatkan.
   if (totalData > 0 && Math.abs(jumlah - totalData) > 1e-9) {
-    return skema.map((s) => ({ ...s, alokasi: Math.round((s.unitAcuan ?? 0) / totalData * 10000) / 10000 }));
+    return skema.map((s) => ({ ...s, alokasi: Math.round((s.unitAcuan ?? 0) / totalData * SKALA_ALOKASI) / SKALA_ALOKASI }));
   }
-  const bagian = bagiSebanding(skema.map((s) => s.unitAcuan ?? 0), 10000);
-  return skema.map((s, j) => ({ ...s, alokasi: bagian[j] / 10000 }));
+  const bagian = bagiSebanding(skema.map((s) => s.unitAcuan ?? 0), SKALA_ALOKASI);
+  return skema.map((s, j) => ({ ...s, alokasi: bagian[j] / SKALA_ALOKASI }));
 }
 
 /**
@@ -719,11 +722,11 @@ function alokasiDariUnit<T extends { alokasi: number; unitAcuan?: number }>(skem
 function genapkanAlokasi<T extends SkemaAlokasi>(skema: T[]): T[] {
   const belum = skema.some((s) => !tetap(s) && !s.alokasiDiketik);
   const ikut = (s: T) => !tetap(s) && (!belum || !s.alokasiDiketik);
-  const dikunci = Math.round(skema.reduce((a, s) => a + (ikut(s) ? 0 : s.alokasi), 0) * 10000);
+  const dikunci = Math.round(skema.reduce((a, s) => a + (ikut(s) ? 0 : s.alokasi), 0) * SKALA_ALOKASI);
   const bebas = skema.map((s, j) => ({ s, j })).filter(({ s }) => ikut(s));
-  const bagian = bagiSebanding(bebas.map(({ s }) => s.alokasi), Math.max(0, 10000 - dikunci));
+  const bagian = bagiSebanding(bebas.map(({ s }) => s.alokasi), Math.max(0, SKALA_ALOKASI - dikunci));
   const baru = skema.map((s) => ({ ...s }));
-  bebas.forEach(({ j }, k) => { baru[j].alokasi = bagian[k] / 10000; });
+  bebas.forEach(({ j }, k) => { baru[j].alokasi = bagian[k] / SKALA_ALOKASI; });
   return baru;
 }
 
@@ -1233,10 +1236,10 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah, baru, slug }: PropsLa
             // Bagi Rata: sisa sesudah Alokasi yang dikunci dibagi sama ke cara bayar lain.
             skema: (() => {
               const a = d.irr.skema;
-              const sisa = 10000 - Math.round(a.reduce((x, s) => x + (tetap(s) ? s.alokasi : 0), 0) * 10000);
+              const sisa = SKALA_ALOKASI - Math.round(a.reduce((x, s) => x + (tetap(s) ? s.alokasi : 0), 0) * SKALA_ALOKASI);
               const bagian = bagiSebanding(a.filter((s) => !tetap(s)).map(() => 0), Math.max(0, sisa));
               let k = 0;
-              return a.map((s) => tetap(s) ? s : { ...s, alokasi: bagian[k++] / 10000, alokasiDiketik: undefined });
+              return a.map((s) => tetap(s) ? s : { ...s, alokasi: bagian[k++] / SKALA_ALOKASI, alokasiDiketik: undefined });
             })() } }))}>
             {kt.bagiRata}</button>
         )}

@@ -674,13 +674,13 @@ export const koefDikunci = polaScottsVale;
 /**
  * Alokasi tetap (dikunci) untuk semua project, atas permintaan pemakai
  * (berkas Data_Irr_PERMAI_INDAH): cara bayar dikenali dari Kelompok, DP,
- * cicilan (dan KPR Express: semua tahap cair bulan ≤ 2). Cara bayar lain diisi
- * sendiri (unit ÷ total unit Data Unit, atau Alokasi manual).
+ * cicilan (dan KPR Express: semua tahap cair bulan ≤ 2). Cara bayar lain —
+ * termasuk KPR Express — diisi sendiri.
  */
 const ALOKASI_TETAP: [string, number, number, number, boolean?][] = [
   // kelompok, DP, cicilan, Alokasi, KPR Express
   ["Cash", 1, 1, 0.07], ["Cash", 1, 12, 0.04], ["Cash", 1, 18, 0.05], ["Cash", 1, 24, 0.08],
-  ["Cash", 1, 30, 0.25], ["KPR", 0.1, 1, 0.33, true], ["KPR", 0, 1, 0.08],
+  ["Cash", 1, 30, 0.25], ["KPR", 0, 1, 0.08],
   ["KPR", 0.1, 4, 0.05], ["KPR", 0.2, 6, 0.05],
 ];
 
