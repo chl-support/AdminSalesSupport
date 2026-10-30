@@ -54,7 +54,7 @@ const KATA = {
     grupParam: "Parameter cara bayar",
     grupUnit: "Acuan Alokasi (jumlah unit)",
     unitAcuan: "Unit", totUnit: (n: string) => `Σ ${n}`,
-    unitInfo: "Isi target unit per cara bayar (boleh rumus, mis. =40+5): Alokasi = unit target ÷ total unit di Data Unit. Total Alokasi 100% bila semua unit sudah dibagi. Hanya acuan, tidak memengaruhi harga. Kosongkan semua untuk mengisi Alokasi sendiri.",
+    unitInfo: "Ketik PERSEN cara bayar ini (mis. 25 = 25%, boleh rumus mis. =40/95*100), lalu Enter: Unit = persen × total unit di Data Unit dan Alokasi = persen itu. Tanpa Data Unit, angka dibaca sebagai jumlah unit. Hanya acuan, tidak memengaruhi harga.",
     alokasiTetapInfo: "Alokasi dikunci untuk semua proyek (Cash Keras 7%, Bertahap 12x 4%, 18x 5%, 24x 8%, 30x 25%, KPR Express 33%, KPR DP 0%/1x 8%, KPR DP 10%/4x 5%, KPR DP 20%/6x 5%); Unit = Alokasi × total unit Data Unit. Cara bayar lain diisi sendiri.",
     sisaUnit: (n: number) => n > 0 ? `Sisa ${n.toLocaleString("id-ID")} unit belum dibagi ke cara bayar` : n < 0 ? `Lebih ${(-n).toLocaleString("id-ID")} unit dari Data Unit` : "Semua unit sudah dibagi",
     kelompok: "Kelompok", alokasi: "Alokasi", cicilan: "Cicilan (x)",
@@ -294,7 +294,7 @@ const KATA = {
     grupParam: "Payment scheme parameters",
     grupUnit: "Allocation reference (number of units)",
     unitAcuan: "Units", totUnit: (n: string) => `Σ ${n}`,
-    unitInfo: "Enter target units per payment scheme (formulas allowed, e.g. =40+5): Allocation = target units ÷ total units in Unit Data. Allocation totals 100% once every unit is assigned. Reference only, prices do not change. Clear them all to type Allocation yourself.",
+    unitInfo: "Type the PERCENTAGE for this scheme (e.g. 25 = 25%, formulas allowed e.g. =40/95*100), then Enter: Units = percentage × total units in Unit Data and Allocation = that percentage. Without Unit Data the number is read as units. Reference only, prices do not change.",
     alokasiTetapInfo: "Allocation locked for every project (Cash Keras 7%, Instalment 12x 4%, 18x 5%, 24x 8%, 30x 25%, KPR Express 33%, KPR DP 0%/1x 8%, KPR DP 10%/4x 5%, KPR DP 20%/6x 5%); Units = Allocation × total units in Unit Data. Other schemes are filled in yourself.",
     sisaUnit: (n: number) => n > 0 ? `${n.toLocaleString("en-US")} units not yet assigned` : n < 0 ? `${(-n).toLocaleString("en-US")} units more than Unit Data` : "All units assigned",
     kelompok: "Group", alokasi: "Allocation", cicilan: "Installments (x)",
@@ -1072,12 +1072,15 @@ export function LangkahIrr({ data, hasil, ubah, bolehUbah, baru, slug }: PropsLa
             <td key={i}>
               <Isian id={`irr-unit-${i}`} nilai={Math.round((s.unitAcuan ?? 0) * 100) / 100} kosongNol lebar={60} disabled={ro || tetap(s)} rumus
                      title={tetap(s) ? kt.alokasiTetapInfo : kt.unitInfo}
-                     // Jumlah unit 2 angka di belakang koma (hasil rumus mis. =25/95 dibulatkan).
+                     // Dengan Data Unit, angka yang diketik = persen: Alokasi = persen itu,
+                     // Unit = persen × total unit Data Unit (2 angka di belakang koma).
                      ubah={(v) => { const n = Math.round(v * 100) / 100; ubah((d) => ({ ...d, irr: { ...d.irr,
-                       // Dengan Data Unit: hanya cara bayar ini = unit ÷ total unit Data Unit.
                        skema: unitData > 0
-                         ? d.irr.skema.map((x, j) => j === i ? { ...x, unitAcuan: n > 0 ? n : undefined,
-                             alokasi: Math.round(n / unitData * 10000) / 10000 } : x)
+                         ? d.irr.skema.map((x, j) => {
+                             if (j !== i) return x;
+                             const unit = Math.round(v / 100 * unitData * 100) / 100;
+                             return { ...x, unitAcuan: unit > 0 ? unit : undefined, alokasi: Math.round(v * 100) / 10000 };
+                           })
                          : alokasiDariUnit(d.irr.skema.map((x, j) =>
                              j === i ? { ...x, unitAcuan: n > 0 ? n : undefined } : x)) } })); }} />
             </td>))}</tr>
