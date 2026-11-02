@@ -19,6 +19,7 @@ import {
 import type { UnitHarga } from "@/lib/simulasi";
 import { useBahasa, useKata } from "../bahasa";
 import { KUNCI, type Isi } from "./lembar-harga";
+import { SelStatus, kunciUnit, useStatusUnit } from "./status-unit";
 import { PilihBerkas } from "../pilih-berkas";
 import { CocokkanExcel, kunci as kunciKolom, useHargaExcel } from "./cocokkan-excel";
 import { ringkasXlsx } from "./ringkas-xlsx";
@@ -2458,6 +2459,8 @@ export function LangkahPricelist({ data, hasil, ubah, bolehUbah, aksi, slug }: P
   const kolomDp = data.dataPricelist.kolom.map((k) => k.nama);
 
   const isi = isiLembar(data, hasil, slug);
+  // Status jual tiap unit dibaca dari Data Penjualan, bukan diketik di sini.
+  const statusUnit = useStatusUnit();
 
   return (
     <>
@@ -2503,7 +2506,8 @@ export function LangkahPricelist({ data, hasil, ubah, bolehUbah, aksi, slug }: P
         <span className="hint" style={{ margin: 0 }}>{kt.ringkasPl(isi.unit.length, pl.kolom.length)}</span>
       </div>
       {isi.unit.length ? (
-        <TabelHarga skema={pl.kolom.map((k) => k.nama)} unit={isi.unit} pajak={pajak} tinggi={560} />
+        <TabelHarga skema={pl.kolom.map((k) => k.nama)} unit={isi.unit} pajak={pajak}
+                    tinggi={560} status={statusUnit} />
       ) : (
         <div className="banner info">{kt.belumUnit}</div>
       )}
