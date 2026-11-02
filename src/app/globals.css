@@ -3368,3 +3368,5 @@ select.status-unit.status-sold { background: #fdecea; color: #b42318; font-weigh
 select.status-unit.status-reserved { background: #fff4e5; color: #b54708; font-weight: 650; }
 select.status-unit.status-available { background: #ecfdf3; color: #067647; }
 input.keterangan-unit { width: 160px; font-size: 12px; padding: 2px 6px; }
+/* Data Harga: semua judul kolom rata tengah. */
+table.tabel-harga-rata thead th, table.tabel-harga-rata thead th:last-child { text-align: center; vertical-align: middle; }
