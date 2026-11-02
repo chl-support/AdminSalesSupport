@@ -28,6 +28,7 @@ import { formatRupiah } from "@/lib/money";
 import { hargaSpesial, hitungSemua, type SetSpesial } from "@/lib/susun-pricelist";
 import { useKata } from "../bahasa";
 import { bukaCetak, isiLembar, type PropsLangkah } from "./langkah";
+import { KATA_STATUS, SelStatus, kunciUnit, useStatusUnit } from "./status-unit";
 
 const KATA = {
   id: {
@@ -95,6 +96,9 @@ export function LangkahHargaSpesial({ data, hasil, ubah, bolehUbah, slug }: Prop
   slug?: string | null;
 }) {
   const kt = useKata(KATA);
+  const ks = useKata(KATA_STATUS);
+  // Status jual tiap unit, dari Data Penjualan.
+  const statusUnit = useStatusUnit();
   const ro = !bolehUbah;
   const daftar = data.spesial?.set ?? [];
   const [pilih, setPilih] = useState<string>(daftar[0]?.id ?? "");
@@ -237,6 +241,8 @@ export function LangkahHargaSpesial({ data, hasil, ubah, bolehUbah, slug }: Prop
                 <th>{kt.thTipe}</th>
                 <th title={kt.thSesuaiInfo}>{kt.thSesuai}</th>
                 {kolom.map((k) => <th key={k} className="n">{k}</th>)}
+                {/* Status jual di ujung kanan, sesudah cara bayar terakhir. */}
+                <th className="tengah">{ks.thStatus}</th>
                 {!ro && <th />}
               </tr>
               {tampil.map((b) => {
@@ -310,6 +316,9 @@ export function LangkahHargaSpesial({ data, hasil, ubah, bolehUbah, slug }: Prop
                         </td>
                       );
                     })}
+                    <td className="tengah">
+                      <SelStatus s={statusUnit[kunciUnit(kode)]} />
+                    </td>
                     {!ro && (
                       <td>
                         {beda(kode) && (

@@ -20,6 +20,9 @@ import { useKata } from "../bahasa";
 import { PilihBerkas } from "../pilih-berkas";
 import { formatRupiah } from "@/lib/money";
 import type { UnitHarga } from "@/lib/simulasi";
+import {
+  KATA_STATUS, SelStatus, kunciUnit, type StatusUnit,
+} from "../pricelist/status-unit";
 
 const KATA = {
   id: {
@@ -98,17 +101,25 @@ const KETERANGAN = [
  * diikuti DPP dan Nilai Free PPN DTP bila `pajak` dinyalakan dan berkasnya
  * memuat kolom itu. Kolom keterangan yang tidak ada di berkas tidak tampil.
  */
-export function TabelHarga({ skema, unit, batas, pajak, tinggi = 420 }: {
+export function TabelHarga({ skema, unit, batas, pajak, tinggi = 420, status }: {
   skema: string[]; unit: UnitHarga[]; batas?: number;
   pajak?: boolean; tinggi?: number;
+  /**
+   * Status jual tiap unit, berindeks kode unit. Diberikan berarti kolom
+   * Status ikut tampil di ujung kanan; dikosongkan berarti tabelnya sama
+   * seperti sebelumnya.
+   */
+  status?: Record<string, StatusUnit>;
 }) {
   const k = useKata(KATA);
+  const kt = useKata(KATA_STATUS);
   const tampil = batas ? unit.slice(0, batas) : unit;
   const ket = KETERANGAN.filter(([f]) => unit.some((u) => u[f]));
   const adaSub = unit.some((u) => u.subTipe);
   const denganPajak = !!pajak && unit.some((u) => u.pajak);
   const lebarSkema = denganPajak ? 3 : 1;
-  const jumlahKolom = 6 + ket.length + (adaSub ? 1 : 0) + skema.length * lebarSkema;
+  const jumlahKolom = 6 + ket.length + (adaSub ? 1 : 0) + skema.length * lebarSkema
+    + (status ? 1 : 0);
   const rp = (n: number | null | undefined) => (n ? formatRupiah(Math.round(n)) : "—");
   return (
     <div className="tscroll tabel-pl" style={{ maxHeight: tinggi, overflowY: "auto" }}>
@@ -128,6 +139,9 @@ export function TabelHarga({ skema, unit, batas, pajak, tinggi = 420 }: {
               <th key={s} colSpan={lebarSkema} rowSpan={denganPajak ? 1 : 2}
                   className={`tengah skema${denganPajak ? "" : " kol-rata"}`}>{s}</th>
             ))}
+            {/* Status jual dari Data Penjualan, di ujung kanan sesudah cara
+                bayar terakhir. */}
+            {status && <th rowSpan={2} className="tengah">{kt.thStatus}</th>}
           </tr>
           <tr>
             <th>{k.kLt}</th><th>{k.kLb}</th>
@@ -155,6 +169,9 @@ export function TabelHarga({ skema, unit, batas, pajak, tinggi = 420 }: {
               ] : (
                 <td key={s} className="n skema kol-rata">{rp(u.harga[s])}</td>
               ))}
+              {status && (
+                <td className="tengah"><SelStatus s={status[kunciUnit(u.kode)]} /></td>
+              )}
             </tr>
           ))}
           {tampil.length < unit.length && (
