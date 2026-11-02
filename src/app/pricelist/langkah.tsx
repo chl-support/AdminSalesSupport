@@ -14,7 +14,7 @@ import { Fragment, useEffect, useState } from "react";
 import { formatRupiah } from "@/lib/money";
 import {
   FAKTOR, FAKTOR_INGGRIS, arusKas, arusTertimbang, faktorTampil, hitungRumus, koefDikunci, koefStandarDikunci, namaOtomatisAktif, namaStandar, rumusDikunci, hargaKasIrr, hargaSesuaiSkema, labelPpn, namaTahap, tarifPpn, unitKosong,
-  alokasiTetap, kunciTnc, tingkatNaik, type BarisTnc, type KunciFaktor, type HasilSusun, type SusunPricelist, type UnitData,
+  STATUS_UNIT, alokasiTetap, kunciTnc, tingkatNaik, type StatusUnit, type BarisTnc, type KunciFaktor, type HasilSusun, type SusunPricelist, type UnitData,
 } from "@/lib/susun-pricelist";
 import type { UnitHarga } from "@/lib/simulasi";
 import { useBahasa, useKata } from "../bahasa";
@@ -178,6 +178,7 @@ const KATA = {
     modePpnInfo: "Pilih kolom harga yang tampil. Hanya tampilan; hitungan tidak berubah. Isian harga per m² Belum PPN selalu tampil.",
     hargaDasar: "Harga Dasar", hargaFaktor: "Harga Setelah Faktor", terendah: "(Terendah)",
     hargaPenyesuaian: "Harga Setelah Penyesuaian", hargaKenaikan: "Harga Setelah Kenaikan",
+    statusUnit: "Status Unit", statusUnitInfo: "Status penjualan unit: Available (tersedia), Reserved (dipesan) atau Sold (terjual). Tidak memengaruhi harga.",
     faktorPenyesuaian: "Faktor Penyesuaian Harga", kenaikanTh: "(Kenaikan)",
     totalUnit: (n: number, dari?: number) => `Total ${n} unit${dari != null ? ` (dari ${dari})` : ""}`,
     tambahAkhir: "+ Tambah unit di akhir tabel",
@@ -417,6 +418,7 @@ const KATA = {
     modePpnInfo: "Choose which price columns are shown. Display only; calculations are unchanged. Per-m² prices excl. VAT are always shown as they are the inputs.",
     hargaDasar: "Base Price", hargaFaktor: "Factored Price", terendah: "(Lowest)",
     hargaPenyesuaian: "Adjusted Price", hargaKenaikan: "Increased Price",
+    statusUnit: "Unit Status", statusUnitInfo: "Sales status of the unit: Available, Reserved or Sold. Prices do not change.",
     faktorPenyesuaian: "Price Adjustment Factor", kenaikanTh: "(Increased)",
     totalUnit: (n: number, dari?: number) => `Total ${n} units${dari != null ? ` (of ${dari})` : ""}`,
     tambahAkhir: "+ Add unit at the end of the table",
@@ -2059,6 +2061,16 @@ function KenaikanBertingkat({ tingkat, ubah, disabled }: {
 
 // ── 3. Data Pricelist ──────────────────────────────────────────────────────
 
+/**
+ * Status Unit yang tampil: isian Data Harga, atau kolom Status berkas Unit
+ * Data (TSC) bila berisi Available / Reserved / Sold; selain itu Available.
+ */
+function statusDari(u: UnitData): StatusUnit {
+  if (u.statusUnit) return u.statusUnit;
+  const a = String(u.atribut?.status ?? "").trim().toLowerCase();
+  return STATUS_UNIT.find((x) => x.toLowerCase() === a) ?? "Available";
+}
+
 export function LangkahDataPl({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah & { slug?: string | null }) {
   const kt = useKata(KATA);
   const ro = !bolehUbah;
@@ -2348,6 +2360,7 @@ export function LangkahDataPl({ data, hasil, ubah, bolehUbah, slug }: PropsLangk
         {/* Kolom harga sama lebar; judul cara bayar yang panjang dilipat. */}
         <table className="tabel-ringkas kepala-lekat tabel-harga-rata" style={{ whiteSpace: "nowrap" }}><thead>
           <tr>
+            <th title={kt.statusUnitInfo}>{kt.statusUnit}</th>
             <th>{kt.kol.no}</th><th>{kt.kol.kode}</th><th>{kt.kol.phase}</th><th>{kt.kol.alamat}</th><th>{kt.kol.view}</th><th>{kt.kol.ukuran}</th>
             <th>{kt.kol.tipe}</th><th>{kt.kol.subTipe}</th><th>{kt.kol.land}</th><th>{kt.kol.build}</th><th className="kol-harga">{kt.hargaKenaikan}<br />{kt.incl(labelPpn(tarifPpn(data)))}</th>
             {kolom.map((k) => <th key={k.nama} className="kol-harga">{k.nama}</th>)}
@@ -2355,6 +2368,18 @@ export function LangkahDataPl({ data, hasil, ubah, bolehUbah, slug }: PropsLangk
         </thead><tbody>
           {hasil.baris.map((b, i) => (
             <tr key={i}>
+              {/* Status Unit: disimpan di Data Unit (statusUnit), per kode unit. */}
+              <td>
+                <select className={`status-unit status-${statusDari(b.unit).toLowerCase()}`} value={statusDari(b.unit)}
+                        disabled={!bolehUbah} aria-label={`${kt.statusUnit} ${b.unit.kode}`}
+                        onChange={(e) => {
+                          const v = e.target.value as StatusUnit;
+                          ubah((d) => ({ ...d, unit: d.unit.map((u) => u.kode === b.unit.kode
+                            ? { ...u, statusUnit: v } : u) }));
+                        }}>
+                  {STATUS_UNIT.map((x) => <option key={x} value={x}>{x}</option>)}
+                </select>
+              </td>
               <td className="n">{i + 1}</td><td><b>{b.unit.kode}</b></td><td>{b.unit.phase}</td>
               <td>{b.unit.alamat}</td><td>{b.unit.view}</td><td>{b.unit.ukuran}</td>
               <td>{b.unit.tipe}</td><td>{b.unit.subTipe}</td>

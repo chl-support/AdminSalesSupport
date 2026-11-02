@@ -210,8 +210,14 @@ export const FAKTOR_OPSIONAL: ReadonlySet<KunciFaktor> = new Set(["tusukSate", "
 export const faktorTampil = (unit: UnitData[]) =>
   FAKTOR.filter(([k]) => !FAKTOR_OPSIONAL.has(k) || unit.some((u) => u.faktor[k]));
 
+/** Status penjualan unit (kolom Status Unit di Data Harga); kosong = Available. */
+export const STATUS_UNIT = ["Available", "Reserved", "Sold"] as const;
+export type StatusUnit = (typeof STATUS_UNIT)[number];
+
 export type UnitData = {
   kode: string;
+  /** Status penjualan unit; kosong = Available. */
+  statusUnit?: StatusUnit;
   alamat: string;
   view: string;
   /** Nomor kaveling pada lembar Unit Data (kolom No). */
