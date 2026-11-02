@@ -38,7 +38,9 @@ const KATA = {
     namaBaru: (n: number) => `Harga Spesial ${n}`,
     yakinHapus: (n: string) => `Hapus set harga spesial “${n}”?`,
     thUnit: "Unit", thTipe: "Tipe", thSesuai: "Penyesuaian unit",
-    thSesuaiInfo: "Menggeser seluruh cara bayar unit ini. Minus berarti diskon, mis. −5% atau −25.000.000.",
+    thSesuaiInfo: "Menggeser seluruh cara bayar unit ini — pilih Penurunan untuk diskon " +
+      "atau Kenaikan untuk menaikkan, lalu isi angkanya dalam % atau rupiah.",
+    arahNaik: "Kenaikan", arahTurun: "Penurunan",
     dasar: "Dasar", selisih: "Selisih",
     kosongkanUnit: "Kosongkan penyesuaian unit ini",
     kosongkanSel: "Kembalikan sel ini ke harga 4a",
@@ -60,7 +62,9 @@ const KATA = {
     namaBaru: (n: number) => `Special Price ${n}`,
     yakinHapus: (n: string) => `Delete the special price set “${n}”?`,
     thUnit: "Unit", thTipe: "Type", thSesuai: "Unit adjustment",
-    thSesuaiInfo: "Shifts every payment scheme of this unit. Negative means a discount, e.g. −5% or −25,000,000.",
+    thSesuaiInfo: "Shifts every payment scheme of this unit — choose Decrease for a discount " +
+      "or Increase to raise it, then type the amount in % or rupiah.",
+    arahNaik: "Increase", arahTurun: "Decrease",
     dasar: "Base", selisih: "Difference",
     kosongkanUnit: "Clear this unit's adjustment",
     kosongkanSel: "Restore this cell to the step 4a price",
@@ -87,6 +91,14 @@ export function LangkahHargaSpesial({ data, hasil, ubah, bolehUbah }: PropsLangk
   const daftar = data.spesial?.set ?? [];
   const [pilih, setPilih] = useState<string>(daftar[0]?.id ?? "");
   const [cari, setCari] = useState("");
+  /**
+   * Arah yang dipilih untuk baris yang angkanya belum diisi.
+   *
+   * Yang tersimpan hanyalah tanda pada nilainya — minus berarti turun — jadi
+   * selama angkanya masih nol tidak ada tempat menyimpan pilihan itu selain
+   * di layar. Bawaannya Penurunan: harga spesial hampir selalu diskon.
+   */
+  const [arahKosong, setArahKosong] = useState<Record<string, "naik" | "turun">>({});
   const [hanyaBeda, setHanyaBeda] = useState(false);
   const set = daftar.find((s) => s.id === pilih) ?? daftar[0];
 
@@ -112,7 +124,13 @@ export function LangkahHargaSpesial({ data, hasil, ubah, bolehUbah }: PropsLangk
     setPilih(sisa[0]?.id ?? "");
   };
 
-  /** Penyesuaian unit: nilai dan satuannya. */
+  const arahUnit = (kode: string): "naik" | "turun" => {
+    const n = set?.unit[kode]?.nilai;
+    if (n) return n < 0 ? "turun" : "naik";
+    return arahKosong[kode] ?? "turun";
+  };
+
+  /** Penyesuaian unit: arah, nilai, dan satuannya. */
   const setAtur = (kode: string, atur: { jenis: "rp" | "persen"; nilai: number } | null) =>
     ubahSet((s) => {
       const unit = { ...s.unit };
@@ -207,12 +225,33 @@ export function LangkahHargaSpesial({ data, hasil, ubah, bolehUbah }: PropsLangk
                     <td><b>{kode}</b></td>
                     <td>{String(b.unit.tipe ?? "")}</td>
                     <td>
+                      {/* Arah dipilih, bukan diketik sebagai tanda minus:
+                          "−5%" mudah terbaca "5%" oleh yang membacanya
+                          sekilas, dan selisihnya nyata. */}
+                      <select value={arahUnit(kode)} disabled={ro}
+                              aria-label={`${kt.thSesuai} ${kode} — arah`}
+                              style={{ marginRight: 4 }}
+                              onChange={(e) => {
+                                const arah = e.target.value as "naik" | "turun";
+                                setArahKosong((x) => ({ ...x, [kode]: arah }));
+                                const n = Math.abs(atur?.nilai ?? 0);
+                                if (n) setAtur(kode, {
+                                  jenis: atur?.jenis ?? "persen",
+                                  nilai: arah === "turun" ? -n : n });
+                              }}>
+                        <option value="turun">{kt.arahTurun}</option>
+                        <option value="naik">{kt.arahNaik}</option>
+                      </select>
                       <span className="satuan">
-                        <input className="n" inputMode="decimal" style={{ width: 110 }}
+                        <input className="n" inputMode="decimal" style={{ width: 90 }}
                                disabled={ro} aria-label={`${kt.thSesuai} ${kode}`}
-                               value={atur ? String(atur.nilai).replace(".", ",") : ""}
-                               onChange={(e) => setAtur(kode, {
-                                 jenis: atur?.jenis ?? "persen", nilai: bacaAngka(e.target.value) })} />
+                               value={atur ? String(Math.abs(atur.nilai)).replace(".", ",") : ""}
+                               onChange={(e) => {
+                                 const n = Math.abs(bacaAngka(e.target.value));
+                                 setAtur(kode, {
+                                   jenis: atur?.jenis ?? "persen",
+                                   nilai: arahUnit(kode) === "turun" ? -n : n });
+                               }} />
                         <select value={atur?.jenis ?? "persen"} disabled={ro}
                                 aria-label={`${kt.thSesuai} ${kode} — satuan`}
                                 onChange={(e) => setAtur(kode, {
