@@ -57,6 +57,7 @@ const SKEMA = z.object({
   unit: z.array(z.object({
     kode: teks, alamat: teks, view: teks, no: teks, ukuran: teks, phase: teks,
     statusUnit: z.enum(["Available", "Reserved", "Sold"]).optional(),
+    keteranganUnit: z.string().max(500).optional(),
     tipe: teks, tipeBangunan: teks, view2: teks.optional(), bentuk: teks, subTipe: teks,
     lt: angka, hargaTanah: angka, lb: angka, hargaBangunan: angka, kenaikan: angka,
     kenaikanFaktor: angka.optional(),
