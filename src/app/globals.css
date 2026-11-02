@@ -3361,3 +3361,9 @@ table.tabel-arus .arus-jumlah { border-left: 2px solid var(--line, #ccc) !import
 .tombol-unggah { display: inline-block; margin-top: 4px; padding: 1px 7px; border: 1px solid var(--line, #c9ced4);
   border-radius: 6px; font-size: 10.5px; font-weight: 600; cursor: pointer; background: #fff; white-space: nowrap; }
 .tombol-unggah:hover { background: var(--fill, #f2f3f5); }
+
+/* Status Unit di Data Harga. */
+select.status-unit { font-size: 12px; padding: 1px 4px; border-radius: 6px; }
+select.status-unit.status-sold { background: #fdecea; color: #b42318; font-weight: 650; }
+select.status-unit.status-reserved { background: #fff4e5; color: #b54708; font-weight: 650; }
+select.status-unit.status-available { background: #ecfdf3; color: #067647; }
