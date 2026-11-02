@@ -17,15 +17,17 @@
  *     angka yang diketik dipakai apa adanya.
  *
  * Tampilan cetakannya tidak diatur di sini melainkan di tab Cetak Harga
- * (A4), supaya kedua layar tidak mengerjakan hal yang sama.
+ * (A4), supaya kedua layar tidak mengerjakan hal yang sama — tombol Cetak A4
+ * di sini hanya menentukan harga mana yang dicetak, yaitu harga set yang
+ * sedang terbuka.
  */
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { formatRupiah } from "@/lib/money";
-import { hargaSpesial, type SetSpesial } from "@/lib/susun-pricelist";
+import { hargaSpesial, hitungSemua, type SetSpesial } from "@/lib/susun-pricelist";
 import { useKata } from "../bahasa";
-import type { PropsLangkah } from "./langkah";
+import { bukaCetak, isiLembar, type PropsLangkah } from "./langkah";
 
 const KATA = {
   id: {
@@ -49,6 +51,8 @@ const KATA = {
       `${unit} unit disesuaikan · ${sel} sel diketik sendiri`,
     tanpaBeda: "Belum ada harga yang berbeda dari langkah 4a.",
     cari: "Cari unit", cariContoh: "mis. BIOA6-06",
+    cetakA4: "🖨 Cetak A4",
+    cetakInfo: "Buka tab cetak dengan harga set ini, bukan harga dasar langkah 4a",
     hanyaBeda: "Hanya yang berbeda",
     tersaring: (n: number, t: number) => `${n} dari ${t} unit tampil`,
   },
@@ -73,6 +77,8 @@ const KATA = {
       `${unit} units adjusted · ${sel} cells typed individually`,
     tanpaBeda: "No price differs from step 4a yet.",
     cari: "Search unit", cariContoh: "e.g. BIOA6-06",
+    cetakA4: "🖨 Print A4",
+    cetakInfo: "Open the print tab with this set's prices, not the step 4a base prices",
     hanyaBeda: "Only what differs",
     tersaring: (n: number, t: number) => `${n} of ${t} units shown`,
   },
@@ -85,7 +91,9 @@ const bacaAngka = (s: string) => {
   return Number.isFinite(n) ? n : 0;
 };
 
-export function LangkahHargaSpesial({ data, hasil, ubah, bolehUbah }: PropsLangkah) {
+export function LangkahHargaSpesial({ data, hasil, ubah, bolehUbah, slug }: PropsLangkah & {
+  slug?: string | null;
+}) {
   const kt = useKata(KATA);
   const ro = !bolehUbah;
   const daftar = data.spesial?.set ?? [];
@@ -103,6 +111,13 @@ export function LangkahHargaSpesial({ data, hasil, ubah, bolehUbah }: PropsLangk
   const set = daftar.find((s) => s.id === pilih) ?? daftar[0];
 
   const kolom = data.pricelist.kolom.map((k) => k.nama);
+  /**
+   * Harga seluruh unit menurut set yang sedang terbuka — dipakai tombol
+   * Cetak A4. Dihitung ulang hanya bila setnya berganti atau isiannya
+   * berubah, sebab ia menghitung seluruh unit sekali jalan.
+   */
+  const hasilSet = useMemo(
+    () => (set ? hitungSemua(data, set.id) : hasil), [data, hasil, set]);
   const baris = hasil.baris.filter((b) => b.unit.kode);
 
   const ubahSet = (f: (s: SetSpesial) => SetSpesial) => {
@@ -177,6 +192,13 @@ export function LangkahHargaSpesial({ data, hasil, ubah, bolehUbah }: PropsLangk
           {set && <button onClick={() => tambahSet(set)}>{kt.setSalin}</button>}
           {set && <button onClick={hapusSet}>{kt.setHapus}</button>}
         </>}
+        {/* Cetak dengan harga set ini. Susunan tampilannya tetap yang disimpan
+            tab Cetak Harga (A4) per proyek; yang berganti hanya angkanya. */}
+        {set && (
+          <button className="pri" title={kt.cetakInfo}
+                  onClick={() => bukaCetak(isiLembar(data, hasilSet, slug))}>
+            {kt.cetakA4}</button>
+        )}
       </div>
 
       {!set ? (

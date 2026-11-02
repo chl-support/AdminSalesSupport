@@ -512,7 +512,7 @@ export default function PricelistPage() {
             <LangkahDataPl key={2} {...props} slug={sesi.project_slug} />,
             <LangkahPricelist key={3} {...props} aksi={panelBerlaku} slug={sesi.project_slug} />,
             // 4b. Harga Spesial: harga permintaan di atas harga 4a.
-            <LangkahHargaSpesial key={4} {...props} />,
+            <LangkahHargaSpesial key={4} {...props} slug={sesi.project_slug} />,
             <LangkahTnc key={5} {...props} slug={sesi.project_slug} />,
           ].map((isi, i) => i !== langkah ? null : (
             <section key={i} id={`langkah-${NOMOR[i]}`} className="panel sp bagian-langkah">
