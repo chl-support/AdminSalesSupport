@@ -218,6 +218,8 @@ export type UnitData = {
   kode: string;
   /** Status penjualan unit; kosong = Available. */
   statusUnit?: StatusUnit;
+  /** Keterangan bebas unit (kolom Keterangan di Data Harga). */
+  keteranganUnit?: string;
   alamat: string;
   view: string;
   /** Nomor kaveling pada lembar Unit Data (kolom No). */
